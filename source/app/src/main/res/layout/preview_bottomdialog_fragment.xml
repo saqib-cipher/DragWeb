@@ -1,0 +1,71 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical"
+	android:id="@+id/_main">
+	<LinearLayout
+		android:id="@+id/linear1"
+		android:layout_width="match_parent"
+		android:layout_height="600dp"
+		android:orientation="vertical">
+		<LinearLayout
+			android:id="@+id/linear3"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:padding="8dp"
+			android:gravity="center_vertical"
+			android:orientation="horizontal">
+			<TextView
+				android:id="@+id/textview1"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginLeft="8dp"
+				android:text="Preview"
+				android:textSize="20sp"
+				android:textStyle="bold"
+				android:layout_weight="1"
+				android:textColor="?attr/colorPrimary" />
+			<com.google.android.material.button.MaterialButtonGroup
+				android:id="@+id/linear2"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:orientation="horizontal"
+				android:layout_gravity="right|center_vertical"
+				style="@style/Widget.Material3.MaterialButtonGroup.Connected"
+				android:spacing="1dp">
+				<Button
+					android:id="@+id/button1"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:textSize="12sp"
+					android:textColor="#000000"
+					style="?attr/materialIconButtonFilledStyle"
+					app:icon="@drawable/icon_save_round" />
+				<Button
+					android:id="@+id/button2"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:textSize="12sp"
+					android:textColor="#000000"
+					style="?attr/materialIconButtonFilledStyle"
+					app:icon="@drawable/icon_copy_all_round" />
+				<Button
+					android:id="@+id/button3"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:padding="8dp"
+					android:textSize="12sp"
+					android:textColor="#000000"
+					style="?attr/materialIconButtonOutlinedStyle"
+					app:icon="@drawable/icon_clear_round" />
+			</com.google.android.material.button.MaterialButtonGroup>
+		</LinearLayout>
+		<WebView
+			android:id="@+id/webview1"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent" />
+	</LinearLayout>
+</LinearLayout>

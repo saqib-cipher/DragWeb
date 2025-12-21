@@ -1,0 +1,49 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical">
+	<com.google.android.material.card.MaterialCardView
+		android:id="@+id/cardview1"
+		android:layout_width="80dp"
+		android:layout_height="wrap_content"
+		android:layout_marginLeft="4dp"
+		android:layout_marginTop="2dp"
+		android:layout_marginRight="4dp"
+		android:layout_marginBottom="2dp"
+		app:cardElevation="0dp"
+		app:cardCornerRadius="14dp"
+		style="@style/Widget.Material3.CardView.Outlined"
+		android:clickable="true"
+		android:focusable="true"
+		app:cardBackgroundColor="?attr/colorSurfaceContainerHigh">
+		<LinearLayout
+			android:id="@+id/linear19"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:padding="4dp"
+			android:gravity="center_horizontal|center_vertical"
+			android:orientation="vertical">
+			<ImageView
+				android:id="@+id/imageview1"
+				android:focusable="false"
+				android:layout_width="35dp"
+				android:layout_height="35dp"
+				android:src="@drawable/default_image"
+				android:scaleType="fitCenter"
+				app:tint="?attr/colorOnSurfaceVariant" />
+			<TextView
+				android:id="@+id/textview1"
+				android:focusable="false"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:paddingTop="4dp"
+				android:paddingBottom="4dp"
+				android:text="TextView"
+				android:textSize="12sp"
+				android:textColor="?attr/colorOnSurface" />
+		</LinearLayout>
+	</com.google.android.material.card.MaterialCardView>
+</LinearLayout>
