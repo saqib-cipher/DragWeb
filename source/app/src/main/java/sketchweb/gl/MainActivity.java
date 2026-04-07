@@ -17,18 +17,20 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -57,12 +59,12 @@ public class MainActivity extends AppCompatActivity {
 	private LinearLayout topBar;
 	private LinearLayout screen;
 	private NestedScrollView vscroll2;
-	private Button button5, button4, delete;
-	private Button button1, button2, button3;
+	private Button button5, button4, delete, btnImportWidgets;
 	private Button btnBack, btnUndo, btnRedo, btnTheme, btnExport;
 	private TextView textview2, tvProjectTitle;
-	private MaterialButtonToggleGroup linear7;
 	private RecyclerView recyclerview3, recyclerview1;
+
+	private ActivityResultLauncher<android.content.Intent> importWidgetLauncher;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -80,13 +82,10 @@ public class MainActivity extends AppCompatActivity {
 		button5 = findViewById(R.id.button5);
 		button4 = findViewById(R.id.button4);
 		delete = findViewById(R.id.delete);
-		linear7 = findViewById(R.id.linear7);
+		btnImportWidgets = findViewById(R.id.btnImportWidgets);
 		textview2 = findViewById(R.id.textview2);
 		recyclerview3 = findViewById(R.id.recyclerview3);
 		recyclerview1 = findViewById(R.id.recyclerview1);
-		button1 = findViewById(R.id.button1);
-		button2 = findViewById(R.id.button2);
-		button3 = findViewById(R.id.button3);
 		btnBack = findViewById(R.id.btnBack);
 		btnUndo = findViewById(R.id.btnUndo);
 		btnRedo = findViewById(R.id.btnRedo);
@@ -126,21 +125,39 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 
-		// Tab switching
-		button1.setOnClickListener(v -> {
-			recyclerview1.setVisibility(View.VISIBLE);
-			recyclerview3.setVisibility(View.GONE);
+		// Import JSON Button
+		btnImportWidgets.setOnClickListener(v -> {
+			android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+			intent.setType("*/*");
+			String[] mimetypes = {"application/json", "text/plain"};
+			intent.putExtra(android.content.Intent.EXTRA_MIME_TYPES, mimetypes);
+			importWidgetLauncher.launch(intent);
 		});
 
-		button2.setOnClickListener(v -> {
-			recyclerview3.setVisibility(View.VISIBLE);
-			recyclerview1.setVisibility(View.GONE);
-		});
-
-		button3.setOnClickListener(v -> {
-			recyclerview1.setVisibility(View.GONE);
-			recyclerview3.setVisibility(View.GONE);
-		});
+		importWidgetLauncher = registerForActivityResult(
+			new ActivityResultContracts.StartActivityForResult(),
+			result -> {
+				if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+					android.net.Uri uri = result.getData().getData();
+					if (uri != null) {
+						try {
+							InputStream is = getContentResolver().openInputStream(uri);
+							byte[] buffer = new byte[is.available()];
+							is.read(buffer);
+							is.close();
+							String json = new String(buffer, "UTF-8");
+							widgetRegistry.importCustomWidgets(json);
+							if (recyclerview1.getAdapter() != null) {
+								recyclerview1.getAdapter().notifyDataSetChanged();
+							}
+							Toast.makeText(this, "Widgets imported!", Toast.LENGTH_SHORT).show();
+						} catch (Exception e) {
+							Toast.makeText(this, "Failed to import widgets.", Toast.LENGTH_SHORT).show();
+						}
+					}
+				}
+			}
+		);
 
 		// Back button
 		btnBack.setOnClickListener(v -> {
@@ -172,8 +189,6 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void initializeLogic() {
-		button1.performClick();
-
 		// Initialize engines
 		engine = new WidgetBuilderEngine(this);
 		widgetUpdater = new WidgetUpdater(this, engine);
