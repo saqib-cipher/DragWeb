@@ -28,13 +28,12 @@
 				android:textStyle="bold"
 				android:layout_weight="1"
 				android:textColor="?attr/colorPrimary" />
-			<com.google.android.material.button.MaterialButtonGroup
+			<com.google.android.material.button.MaterialButtonToggleGroup
 				android:id="@+id/linear2"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:orientation="horizontal"
 				android:layout_gravity="right|center_vertical"
-				style="@style/Widget.Material3.MaterialButtonGroup.Connected"
 				android:spacing="1dp">
 				<Button
 					android:id="@+id/button1"
@@ -61,7 +60,7 @@
 					android:textColor="#000000"
 					style="?attr/materialIconButtonOutlinedStyle"
 					app:icon="@drawable/icon_clear_round" />
-			</com.google.android.material.button.MaterialButtonGroup>
+			</com.google.android.material.button.MaterialButtonToggleGroup>
 		</LinearLayout>
 		<WebView
 			android:id="@+id/webview1"
