@@ -22,15 +22,14 @@ android {
             keyPassword "android"
         }
     }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-            signingConfig signingConfigs.release
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
+buildTypes {
+    release {
+        minifyEnabled false
+        signingConfig signingConfigs.debug  // Use debug config instead
+        proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
     }
-
+}
+    
     lint {
         abortOnError false
     }
