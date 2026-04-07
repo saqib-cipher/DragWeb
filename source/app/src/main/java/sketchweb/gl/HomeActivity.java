@@ -28,6 +28,15 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+import java.util.zip.ZipInputStream;
+import android.net.Uri;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 
 public class HomeActivity extends AppCompatActivity {
 
@@ -38,6 +47,9 @@ public class HomeActivity extends AppCompatActivity {
 	private FloatingActionButton fabNewProject;
 	private ArrayList<Map<String, String>> projectList = new ArrayList<>();
 	private ProjectListAdapter adapter;
+
+	private ActivityResultLauncher<String> backupLauncher;
+	private ActivityResultLauncher<String[]> importZipLauncher;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +78,147 @@ public class HomeActivity extends AppCompatActivity {
 		rvProjects.setAdapter(adapter);
 
 		fabNewProject.setOnClickListener(v -> showNewProjectDialog());
+
+		backupLauncher = registerForActivityResult(
+			new ActivityResultContracts.CreateDocument("application/zip"),
+			uri -> {
+				if (uri != null) {
+					performBackup(uri);
+				}
+			}
+		);
+
+		importZipLauncher = registerForActivityResult(
+			new ActivityResultContracts.OpenDocument(),
+			uri -> {
+				if (uri != null) {
+					performImport(uri);
+				}
+			}
+		);
+
+		LinearLayout menuMyProjects = findViewById(R.id.menuMyProjects);
+		LinearLayout menuAbout = findViewById(R.id.menuAbout);
+		LinearLayout menuBackup = findViewById(R.id.menuBackup);
+		LinearLayout menuImport = findViewById(R.id.menuImport);
+
+		if (menuMyProjects != null) {
+			menuMyProjects.setOnClickListener(v -> {
+				drawer.closeDrawer(GravityCompat.START);
+			});
+		}
+		if (menuAbout != null) {
+			menuAbout.setOnClickListener(v -> {
+				drawer.closeDrawer(GravityCompat.START);
+				Toast.makeText(this, "DragWeb - No Code Web Builder\nVersion 1.0", Toast.LENGTH_SHORT).show();
+			});
+		}
+		if (menuBackup != null) {
+			menuBackup.setOnClickListener(v -> {
+				drawer.closeDrawer(GravityCompat.START);
+				backupAllProjects();
+			});
+		}
+		if (menuImport != null) {
+			menuImport.setOnClickListener(v -> {
+				drawer.closeDrawer(GravityCompat.START);
+				importProject();
+			});
+		}
+	}
+
+	private void backupAllProjects() {
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault());
+		String filename = "DragWeb_Backup_" + sdf.format(new Date()) + ".zip";
+		backupLauncher.launch(filename);
+	}
+
+	private void importProject() {
+		importZipLauncher.launch(new String[]{"application/zip"});
+	}
+
+	private void performBackup(Uri uri) {
+		File dir = new File(getFilesDir(), "projects");
+		if (!dir.exists() || dir.listFiles() == null || dir.listFiles().length == 0) {
+			Toast.makeText(this, "No projects to backup", Toast.LENGTH_SHORT).show();
+			return;
+		}
+
+		try {
+			java.io.OutputStream fos = getContentResolver().openOutputStream(uri);
+			ZipOutputStream zos = new ZipOutputStream(new java.io.BufferedOutputStream(fos));
+
+			File[] files = dir.listFiles();
+			for (File file : files) {
+				if (file.isFile()) {
+					byte[] buffer = new byte[1024];
+					FileInputStream fis = new FileInputStream(file);
+					zos.putNextEntry(new ZipEntry(file.getName()));
+					int length;
+					while ((length = fis.read(buffer)) > 0) {
+						zos.write(buffer, 0, length);
+					}
+					zos.closeEntry();
+					fis.close();
+				}
+			}
+			zos.close();
+			fos.close();
+			Toast.makeText(this, "Backup successful", Toast.LENGTH_SHORT).show();
+		} catch (Exception e) {
+			Toast.makeText(this, "Backup failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+		}
+	}
+
+	private void performImport(Uri uri) {
+		File dir = new File(getFilesDir(), "projects");
+		if (!dir.exists()) {
+			dir.mkdirs();
+		}
+
+		try {
+			String canonicalDirPath = dir.getCanonicalPath();
+			java.io.InputStream fis = getContentResolver().openInputStream(uri);
+			ZipInputStream zis = new ZipInputStream(new java.io.BufferedInputStream(fis));
+			ZipEntry entry;
+			while ((entry = zis.getNextEntry()) != null) {
+				File outFile = new File(dir, entry.getName());
+				String canonicalFilePath = outFile.getCanonicalPath();
+
+				if (!canonicalFilePath.startsWith(canonicalDirPath + File.separator)) {
+					// Vulnerability Zip Slip: skip entry
+					zis.closeEntry();
+					continue;
+				}
+
+				if (entry.isDirectory()) {
+					if (!outFile.exists()) outFile.mkdirs();
+					zis.closeEntry();
+					continue;
+				} else {
+					File parentFile = outFile.getParentFile();
+					if (parentFile != null && !parentFile.exists()) {
+						parentFile.mkdirs();
+					}
+				}
+
+				FileOutputStream fos = new FileOutputStream(outFile);
+				byte[] buffer = new byte[1024];
+				int count;
+				while ((count = zis.read(buffer)) != -1) {
+					fos.write(buffer, 0, count);
+				}
+				fos.close();
+				zis.closeEntry();
+			}
+			zis.close();
+			fis.close();
+
+			loadProjects();
+			Toast.makeText(this, "Projects imported successfully", Toast.LENGTH_SHORT).show();
+		} catch (Exception e) {
+			Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+		}
 	}
 
 	private void setupToolbar() {
