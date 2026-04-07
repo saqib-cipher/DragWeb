@@ -2,6 +2,8 @@ package sketchweb.gl;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Environment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -50,6 +52,8 @@ public class HomeActivity extends AppCompatActivity {
 
 	private ActivityResultLauncher<String> backupLauncher;
 	private ActivityResultLauncher<String[]> importZipLauncher;
+	private ActivityResultLauncher<String> backupSingleLauncher;
+	private String pendingBackupProject = null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +61,7 @@ public class HomeActivity extends AppCompatActivity {
 		setContentView(R.layout.home);
 		initViews();
 		setupToolbar();
+		ensureExternalDirectories();
 		loadProjects();
 	}
 
@@ -64,6 +69,16 @@ public class HomeActivity extends AppCompatActivity {
 	protected void onResume() {
 		super.onResume();
 		loadProjects();
+	}
+
+	private void ensureExternalDirectories() {
+		try {
+			String basePath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb";
+			new File(basePath + "/projects").mkdirs();
+			new File(basePath + "/custom").mkdirs();
+		} catch (Exception e) {
+			Log.w("HomeActivity", "Could not create external dirs: " + e.getMessage());
+		}
 	}
 
 	private void initViews() {
@@ -84,6 +99,16 @@ public class HomeActivity extends AppCompatActivity {
 			uri -> {
 				if (uri != null) {
 					performBackup(uri);
+				}
+			}
+		);
+
+		backupSingleLauncher = registerForActivityResult(
+			new ActivityResultContracts.CreateDocument("application/zip"),
+			uri -> {
+				if (uri != null && pendingBackupProject != null) {
+					performSingleProjectBackup(uri, pendingBackupProject);
+					pendingBackupProject = null;
 				}
 			}
 		);
@@ -133,6 +158,13 @@ public class HomeActivity extends AppCompatActivity {
 		backupLauncher.launch(filename);
 	}
 
+	private void backupSingleProject(String projectName) {
+		pendingBackupProject = projectName;
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault());
+		String filename = "DragWeb_" + projectName + "_" + sdf.format(new Date()) + ".zip";
+		backupSingleLauncher.launch(filename);
+	}
+
 	private void importProject() {
 		importZipLauncher.launch(new String[]{"application/zip"});
 	}
@@ -162,11 +194,78 @@ public class HomeActivity extends AppCompatActivity {
 					fis.close();
 				}
 			}
+
+			// Also include external assets
+			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/projects";
+			File extDir = new File(extPath);
+			if (extDir.exists()) {
+				addDirectoryToZip(zos, extDir, "external/");
+			}
+
 			zos.close();
 			fos.close();
 			Toast.makeText(this, "Backup successful", Toast.LENGTH_SHORT).show();
 		} catch (Exception e) {
 			Toast.makeText(this, "Backup failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+		}
+	}
+
+	private void performSingleProjectBackup(Uri uri, String projectName) {
+		try {
+			java.io.OutputStream fos = getContentResolver().openOutputStream(uri);
+			ZipOutputStream zos = new ZipOutputStream(new java.io.BufferedOutputStream(fos));
+
+			// Backup internal project files
+			File dir = new File(getFilesDir(), "projects");
+			String[] extensions = {".json", ".meta", ".theme", ".logic"};
+			for (String ext : extensions) {
+				File file = new File(dir, projectName + ext);
+				if (file.exists()) {
+					byte[] buffer = new byte[1024];
+					FileInputStream fis = new FileInputStream(file);
+					zos.putNextEntry(new ZipEntry(file.getName()));
+					int length;
+					while ((length = fis.read(buffer)) > 0) {
+						zos.write(buffer, 0, length);
+					}
+					zos.closeEntry();
+					fis.close();
+				}
+			}
+
+			// Backup external assets
+			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+				+ "/.dragweb/projects/" + projectName;
+			File extDir = new File(extPath);
+			if (extDir.exists()) {
+				addDirectoryToZip(zos, extDir, "assets/");
+			}
+
+			zos.close();
+			fos.close();
+			Toast.makeText(this, "Project backup successful", Toast.LENGTH_SHORT).show();
+		} catch (Exception e) {
+			Toast.makeText(this, "Backup failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+		}
+	}
+
+	private void addDirectoryToZip(ZipOutputStream zos, File dir, String prefix) throws Exception {
+		File[] files = dir.listFiles();
+		if (files == null) return;
+		for (File file : files) {
+			if (file.isDirectory()) {
+				addDirectoryToZip(zos, file, prefix + file.getName() + "/");
+			} else {
+				byte[] buffer = new byte[1024];
+				FileInputStream fis = new FileInputStream(file);
+				zos.putNextEntry(new ZipEntry(prefix + file.getName()));
+				int length;
+				while ((length = fis.read(buffer)) > 0) {
+					zos.write(buffer, 0, length);
+				}
+				zos.closeEntry();
+				fis.close();
+			}
 		}
 	}
 
@@ -186,7 +285,6 @@ public class HomeActivity extends AppCompatActivity {
 				String canonicalFilePath = outFile.getCanonicalPath();
 
 				if (!canonicalFilePath.startsWith(canonicalDirPath + File.separator)) {
-					// Vulnerability Zip Slip: skip entry
 					zis.closeEntry();
 					continue;
 				}
@@ -262,7 +360,7 @@ public class HomeActivity extends AppCompatActivity {
 									}
 								}
 							} catch (Exception e) {
-								// ignore meta parse errors
+								// ignore
 							}
 						}
 
@@ -279,8 +377,36 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		}
 
+		// Also load projects from external storage that aren't already loaded
+		loadExternalProjects();
+
 		updateEmptyState();
 		adapter.notifyDataSetChanged();
+	}
+
+	private void loadExternalProjects() {
+		try {
+			ProjectDataManager pdm = new ProjectDataManager(this);
+			java.util.List<Map<String, String>> extProjects = pdm.loadAllProjectsFromExternal();
+			for (Map<String, String> extProject : extProjects) {
+				String name = extProject.get("name");
+				boolean alreadyLoaded = false;
+				for (Map<String, String> existing : projectList) {
+					if (name.equals(existing.get("name"))) {
+						alreadyLoaded = true;
+						break;
+					}
+				}
+				if (!alreadyLoaded) {
+					extProject.put("description", "External project");
+					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+					extProject.put("created", sdf.format(new Date()));
+					projectList.add(extProject);
+				}
+			}
+		} catch (Exception e) {
+			Log.w("HomeActivity", "Could not load external projects: " + e.getMessage());
+		}
 	}
 
 	private void updateEmptyState() {
@@ -332,6 +458,16 @@ public class HomeActivity extends AppCompatActivity {
 		meta.put("created", sdf.format(new Date()));
 		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
 
+		// Also create external directory structure
+		try {
+			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+				+ "/.dragweb/projects/" + name;
+			new File(extPath).mkdirs();
+			new File(extPath + "/assets").mkdirs();
+		} catch (Exception e) {
+			Log.w("HomeActivity", "Could not create external project dir");
+		}
+
 		openProject(name);
 	}
 
@@ -347,10 +483,12 @@ public class HomeActivity extends AppCompatActivity {
 			.setMessage("Are you sure you want to delete \"" + projectName + "\"? This cannot be undone.")
 			.setPositiveButton("Delete", (dialog, which) -> {
 				File dir = new File(getFilesDir(), "projects");
-				File projectFile = new File(dir, projectName + ".json");
-				File metaFile = new File(dir, projectName + ".meta");
-				if (projectFile.exists()) projectFile.delete();
-				if (metaFile.exists()) metaFile.delete();
+				// Delete all associated files
+				String[] extensions = {".json", ".meta", ".theme", ".logic"};
+				for (String ext : extensions) {
+					File f = new File(dir, projectName + ext);
+					if (f.exists()) f.delete();
+				}
 
 				// Also delete export files
 				File exportDir = new File(getFilesDir(), "exports/" + projectName.replaceAll("[^a-zA-Z0-9._-]", "_"));
@@ -358,10 +496,42 @@ public class HomeActivity extends AppCompatActivity {
 					FileUtil.deleteFile(exportDir.getAbsolutePath());
 				}
 
+				// Also delete external storage
+				try {
+					String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+						+ "/.dragweb/projects/" + projectName;
+					File extDir = new File(extPath);
+					if (extDir.exists()) {
+						FileUtil.deleteFile(extDir.getAbsolutePath());
+					}
+				} catch (Exception e) {
+					// ignore
+				}
+
 				loadProjects();
 				Toast.makeText(this, "Project deleted", Toast.LENGTH_SHORT).show();
 			})
 			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	private void showProjectOptions(String projectName) {
+		String[] options = {"Open", "Backup Project", "Delete"};
+		new MaterialAlertDialogBuilder(this)
+			.setTitle(projectName)
+			.setItems(options, (dialog, which) -> {
+				switch (which) {
+					case 0:
+						openProject(projectName);
+						break;
+					case 1:
+						backupSingleProject(projectName);
+						break;
+					case 2:
+						deleteProject(projectName);
+						break;
+				}
+			})
 			.show();
 	}
 
@@ -401,7 +571,7 @@ public class HomeActivity extends AppCompatActivity {
 			holder.tvDate.setText("Created: " + project.getOrDefault("created", ""));
 
 			holder.itemView.setOnClickListener(v -> openProject(project.get("name")));
-			holder.btnMenu.setOnClickListener(v -> deleteProject(project.get("name")));
+			holder.btnMenu.setOnClickListener(v -> showProjectOptions(project.get("name")));
 		}
 
 		@Override

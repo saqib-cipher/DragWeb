@@ -1,6 +1,8 @@
 package sketchweb.gl;
 
 import android.content.Context;
+import android.os.Environment;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -28,6 +30,7 @@ public class ProjectDataManager {
         List<Map<String, Object>> widgetTree = serializeViewTree(screen);
         String json = new Gson().toJson(widgetTree);
 
+        // Save to internal storage
         File dir = new File(context.getFilesDir(), "projects");
         if (!dir.exists()) {
             dir.mkdirs();
@@ -39,13 +42,36 @@ public class ProjectDataManager {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        // Also save to external persistent storage
+        saveToExternalStorage(projectName, json);
+    }
+
+    private void saveToExternalStorage(String projectName, String json) {
+        try {
+            String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectName;
+            File extDir = new File(basePath);
+            if (!extDir.exists()) extDir.mkdirs();
+
+            File layoutFile = new File(extDir, "layout.json");
+            FileUtil.writeFile(layoutFile.getAbsolutePath(), json);
+        } catch (Exception e) {
+            Log.w("ProjectDataManager", "Could not save to external: " + e.getMessage());
+        }
     }
 
     public void loadProject(View screen, String projectName, WidgetBuilderEngine engine, WidgetSelector selector, DropZoneManager dropZoneManager) {
         File dir = new File(context.getFilesDir(), "projects");
         File file = new File(dir, projectName + ".json");
 
-        if (!file.exists()) return;
+        // Try internal storage first
+        if (!file.exists()) {
+            // Try loading from external persistent storage
+            file = tryLoadFromExternal(projectName, dir);
+        }
+
+        if (file == null || !file.exists()) return;
 
         try (FileReader reader = new FileReader(file)) {
             List<Map<String, Object>> widgetTree = new Gson().fromJson(reader, new TypeToken<List<Map<String, Object>>>() {}.getType());
@@ -61,6 +87,55 @@ public class ProjectDataManager {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private File tryLoadFromExternal(String projectName, File internalDir) {
+        try {
+            String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectName + "/layout.json";
+            File extFile = new File(extPath);
+            if (extFile.exists()) {
+                // Copy to internal storage for consistency
+                String json = FileUtil.readFile(extPath);
+                if (json != null && !json.isEmpty()) {
+                    if (!internalDir.exists()) internalDir.mkdirs();
+                    File internalFile = new File(internalDir, projectName + ".json");
+                    FileUtil.writeFile(internalFile.getAbsolutePath(), json);
+                    return internalFile;
+                }
+            }
+        } catch (Exception e) {
+            Log.w("ProjectDataManager", "Could not load from external: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public List<Map<String, String>> loadAllProjectsFromExternal() {
+        List<Map<String, String>> projects = new ArrayList<>();
+        try {
+            String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects";
+            File projectsDir = new File(basePath);
+            if (projectsDir.exists() && projectsDir.isDirectory()) {
+                File[] dirs = projectsDir.listFiles();
+                if (dirs != null) {
+                    for (File dir : dirs) {
+                        if (dir.isDirectory()) {
+                            File layoutFile = new File(dir, "layout.json");
+                            if (layoutFile.exists()) {
+                                Map<String, String> project = new HashMap<>();
+                                project.put("name", dir.getName());
+                                project.put("path", layoutFile.getAbsolutePath());
+                                projects.add(project);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w("ProjectDataManager", "Could not scan external projects: " + e.getMessage());
+        }
+        return projects;
     }
 
     private List<Map<String, Object>> serializeViewTree(View view) {
@@ -94,9 +169,8 @@ public class ProjectDataManager {
         View newView = engine.createWidget(tag);
 
         if (newView != null) {
-            // Restore widget map logic
             Map<String, Object> newWidgetMap = new HashMap<>(nodeMap);
-            newWidgetMap.remove("children"); // Don't keep recursive children list in view tag
+            newWidgetMap.remove("children");
 
             engine.applyPropertiesToView(newView, newWidgetMap);
             newView.setTag(newWidgetMap);

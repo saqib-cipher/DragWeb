@@ -23,6 +23,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 
 public class PreviewBottomdialogFragmentActivity extends BottomSheetDialogFragment {
 
@@ -34,6 +36,10 @@ public class PreviewBottomdialogFragmentActivity extends BottomSheetDialogFragme
 	private Button button1;
 	private Button button2;
 	private Button button3;
+	private ChipGroup chipGroupResponsive;
+	private Chip chipMobile, chipTablet, chipDesktop;
+	private String htmlCode;
+	private int currentWidth = 375;
 
 	@NonNull
 	@Override
@@ -53,6 +59,12 @@ public class PreviewBottomdialogFragmentActivity extends BottomSheetDialogFragme
 		button1 = view.findViewById(R.id.button1);
 		button2 = view.findViewById(R.id.button2);
 		button3 = view.findViewById(R.id.button3);
+		chipGroupResponsive = view.findViewById(R.id.chipGroupResponsive);
+		chipMobile = view.findViewById(R.id.chipMobile);
+		chipTablet = view.findViewById(R.id.chipTablet);
+		chipDesktop = view.findViewById(R.id.chipDesktop);
+
+		htmlCode = getArguments() != null ? getArguments().getString("finalCode") : "";
 
 		WebSettings settings = webview1.getSettings();
 		settings.setJavaScriptEnabled(true);
@@ -81,19 +93,58 @@ public class PreviewBottomdialogFragmentActivity extends BottomSheetDialogFragme
 
 		// Copy to clipboard button
 		button2.setOnClickListener(v -> {
-			String code = getArguments().getString("finalCode");
 			ClipboardManager clipboard = (ClipboardManager) getContext().getSystemService(getContext().CLIPBOARD_SERVICE);
-			clipboard.setPrimaryClip(ClipData.newPlainText("html", code));
+			clipboard.setPrimaryClip(ClipData.newPlainText("html", htmlCode));
 			Toast.makeText(getContext(), "HTML copied to clipboard", Toast.LENGTH_SHORT).show();
 		});
 
 		// Close button
 		button3.setOnClickListener(v -> dismiss());
+
+		// Responsive device toggle
+		setupResponsiveToggle();
+	}
+
+	private void setupResponsiveToggle() {
+		if (chipGroupResponsive == null) return;
+
+		chipGroupResponsive.setOnCheckedStateChangeListener((group, checkedIds) -> {
+			if (checkedIds.isEmpty()) return;
+			int checkedId = checkedIds.get(0);
+			if (checkedId == R.id.chipMobile) {
+				currentWidth = 375;
+				textview1.setText("Preview - Mobile");
+			} else if (checkedId == R.id.chipTablet) {
+				currentWidth = 768;
+				textview1.setText("Preview - Tablet");
+			} else if (checkedId == R.id.chipDesktop) {
+				currentWidth = 1024;
+				textview1.setText("Preview - Desktop");
+			}
+			loadResponsivePreview();
+		});
+	}
+
+	private void loadResponsivePreview() {
+		if (htmlCode == null || htmlCode.isEmpty()) return;
+
+		// Inject viewport meta tag with specific width
+		String viewportMeta = "<meta name=\"viewport\" content=\"width=" + currentWidth + ", initial-scale=1.0\">";
+		String modifiedHtml = htmlCode;
+		if (modifiedHtml.contains("<meta name=\"viewport\"")) {
+			modifiedHtml = modifiedHtml.replaceAll(
+				"<meta\\s+name=\"viewport\"[^>]*>",
+				viewportMeta
+			);
+		} else if (modifiedHtml.contains("<head>")) {
+			modifiedHtml = modifiedHtml.replace("<head>", "<head>" + viewportMeta);
+		}
+
+		webview1.loadDataWithBaseURL(null, modifiedHtml, "text/html", "utf-8", null);
 	}
 
 	private void initializeLogic() {
-		String code = getArguments().getString("finalCode");
-		webview1.loadDataWithBaseURL(null, code, "text/html", "utf-8", null);
+		loadResponsivePreview();
 	}
 
 	@Override

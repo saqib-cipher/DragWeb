@@ -3,6 +3,7 @@ package sketchweb.gl;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -53,12 +54,22 @@ public class LogicBlockManager {
         return blocks;
     }
 
+    public List<LogicBlock> getBlocksForWidget(String widgetTag) {
+        List<LogicBlock> result = new ArrayList<>();
+        for (LogicBlock block : blocks) {
+            if (widgetTag.equals(block.targetWidget)) {
+                result.add(block);
+            }
+        }
+        return result;
+    }
+
     public void showAddBlockDialog(String targetWidgetTag, OnBlockAddedListener listener) {
         String[] events = {"On Click", "On Hover", "On Input", "On Page Load"};
         String[] eventKeys = {EVENT_CLICK, EVENT_HOVER, EVENT_INPUT, EVENT_LOAD};
 
         new MaterialAlertDialogBuilder(context)
-            .setTitle("Select Event")
+            .setTitle("Select Event for <" + targetWidgetTag + ">")
             .setItems(events, (dialog, which) -> {
                 String selectedEvent = eventKeys[which];
                 showActionDialog(targetWidgetTag, selectedEvent, listener);
@@ -68,8 +79,8 @@ public class LogicBlockManager {
     }
 
     private void showActionDialog(String targetWidgetTag, String event, OnBlockAddedListener listener) {
-        String[] actions = {"Change Style", "Animate", "Navigate To URL", "Show/Hide Element", "Set Text", "Show Alert"};
-        String[] actionKeys = {ACTION_CHANGE_STYLE, ACTION_ANIMATE, ACTION_NAVIGATE, ACTION_SHOW_HIDE, ACTION_SET_TEXT, ACTION_ALERT};
+        String[] actions = {"Change Style", "Animate", "Navigate To URL", "Show/Hide Element", "Set Text", "Add CSS Class", "Show Alert"};
+        String[] actionKeys = {ACTION_CHANGE_STYLE, ACTION_ANIMATE, ACTION_NAVIGATE, ACTION_SHOW_HIDE, ACTION_SET_TEXT, ACTION_ADD_CLASS, ACTION_ALERT};
 
         new MaterialAlertDialogBuilder(context)
             .setTitle("Select Action")
@@ -91,7 +102,7 @@ public class LogicBlockManager {
                 hint = "property:value (e.g. color:red)";
                 break;
             case ACTION_ANIMATE:
-                hint = "animation name (e.g. fadeIn, slideUp)";
+                hint = "animation name (e.g. fadeIn, slideUp, pulse)";
                 break;
             case ACTION_NAVIGATE:
                 hint = "URL (e.g. https://example.com)";
@@ -101,6 +112,9 @@ public class LogicBlockManager {
                 break;
             case ACTION_SET_TEXT:
                 hint = "New text content";
+                break;
+            case ACTION_ADD_CLASS:
+                hint = "CSS class name";
                 break;
             case ACTION_ALERT:
                 hint = "Alert message";
@@ -131,7 +145,7 @@ public class LogicBlockManager {
         if (blocks.isEmpty()) {
             new MaterialAlertDialogBuilder(context)
                 .setTitle("Logic Blocks")
-                .setMessage("No logic blocks added yet.\nSelect a widget and add events from the logic tab.")
+                .setMessage("No logic blocks added yet.\nSelect a widget and add events from the Event tab.")
                 .setPositiveButton("OK", null)
                 .show();
             return;
@@ -140,52 +154,101 @@ public class LogicBlockManager {
         ScrollView scrollView = new ScrollView(context);
         LinearLayout container = new LinearLayout(context);
         container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding(32, 16, 32, 16);
+        container.setPadding(24, 16, 24, 16);
         scrollView.addView(container);
 
+        // Group blocks by widget for better organization
+        Map<String, List<Integer>> groupedBlocks = new HashMap<>();
         for (int i = 0; i < blocks.size(); i++) {
             LogicBlock block = blocks.get(i);
-            final int index = i;
+            String key = block.targetWidget;
+            if (!groupedBlocks.containsKey(key)) {
+                groupedBlocks.put(key, new ArrayList<>());
+            }
+            groupedBlocks.get(key).add(i);
+        }
 
-            LinearLayout blockView = new LinearLayout(context);
-            blockView.setOrientation(LinearLayout.VERTICAL);
-            blockView.setPadding(16, 12, 16, 12);
-            blockView.setBackgroundColor(Color.parseColor("#1E1E2E"));
+        for (Map.Entry<String, List<Integer>> entry : groupedBlocks.entrySet()) {
+            // Widget header
+            TextView widgetHeader = new TextView(context);
+            widgetHeader.setText("<" + entry.getKey() + ">");
+            widgetHeader.setTextColor(Color.parseColor("#64B5F6"));
+            widgetHeader.setTextSize(13);
+            widgetHeader.setTypeface(null, Typeface.BOLD);
+            widgetHeader.setPadding(0, 12, 0, 6);
+            container.addView(widgetHeader);
 
-            LinearLayout.LayoutParams blockParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            blockParams.setMargins(0, 4, 0, 4);
-            blockView.setLayoutParams(blockParams);
+            for (int index : entry.getValue()) {
+                LogicBlock block = blocks.get(index);
+                final int blockIndex = index;
 
-            // Event label
-            TextView eventLabel = new TextView(context);
-            eventLabel.setText("WHEN " + block.event.toUpperCase() + " on <" + block.targetWidget + ">");
-            eventLabel.setTextColor(Color.parseColor("#FF9800"));
-            eventLabel.setTextSize(12);
-            eventLabel.setTypeface(null, Typeface.BOLD);
-            blockView.addView(eventLabel);
+                // Block card with stacking visual
+                LinearLayout blockView = new LinearLayout(context);
+                blockView.setOrientation(LinearLayout.VERTICAL);
+                blockView.setPadding(16, 10, 16, 10);
 
-            // Action label
-            TextView actionLabel = new TextView(context);
-            actionLabel.setText("DO " + block.action + "(" + block.params + ")");
-            actionLabel.setTextColor(Color.parseColor("#4CAF50"));
-            actionLabel.setTextSize(12);
-            blockView.addView(actionLabel);
+                GradientDrawable blockBg = new GradientDrawable();
+                blockBg.setCornerRadius(12);
+                blockBg.setColor(Color.parseColor("#1E2030"));
+                blockBg.setStroke(1, Color.parseColor("#333355"));
+                blockView.setBackground(blockBg);
 
-            blockView.setOnLongClickListener(v -> {
-                new MaterialAlertDialogBuilder(context)
-                    .setTitle("Delete Block?")
-                    .setMessage("Remove this logic block?")
-                    .setPositiveButton("Delete", (d, w) -> {
-                        removeBlock(index);
-                        showBlocksDialog();
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .show();
-                return true;
-            });
+                LinearLayout.LayoutParams blockParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                blockParams.setMargins(0, 3, 0, 3);
+                blockView.setLayoutParams(blockParams);
 
-            container.addView(blockView);
+                // Event label (orange - "WHEN")
+                LinearLayout eventRow = new LinearLayout(context);
+                eventRow.setOrientation(LinearLayout.HORIZONTAL);
+
+                TextView whenLabel = new TextView(context);
+                whenLabel.setText("WHEN ");
+                whenLabel.setTextColor(Color.parseColor("#FF9800"));
+                whenLabel.setTextSize(11);
+                whenLabel.setTypeface(null, Typeface.BOLD);
+                eventRow.addView(whenLabel);
+
+                TextView eventLabel = new TextView(context);
+                eventLabel.setText(block.event.toUpperCase());
+                eventLabel.setTextColor(Color.parseColor("#FFB74D"));
+                eventLabel.setTextSize(11);
+                eventRow.addView(eventLabel);
+                blockView.addView(eventRow);
+
+                // Action label (green - "DO")
+                LinearLayout actionRow = new LinearLayout(context);
+                actionRow.setOrientation(LinearLayout.HORIZONTAL);
+
+                TextView doLabel = new TextView(context);
+                doLabel.setText("  DO  ");
+                doLabel.setTextColor(Color.parseColor("#4CAF50"));
+                doLabel.setTextSize(11);
+                doLabel.setTypeface(null, Typeface.BOLD);
+                actionRow.addView(doLabel);
+
+                TextView actionLabel = new TextView(context);
+                actionLabel.setText(block.action + "(" + block.params + ")");
+                actionLabel.setTextColor(Color.parseColor("#81C784"));
+                actionLabel.setTextSize(11);
+                actionRow.addView(actionLabel);
+                blockView.addView(actionRow);
+
+                blockView.setOnLongClickListener(v -> {
+                    new MaterialAlertDialogBuilder(context)
+                        .setTitle("Delete Block?")
+                        .setMessage("Remove this logic block?")
+                        .setPositiveButton("Delete", (d, w) -> {
+                            removeBlock(blockIndex);
+                            showBlocksDialog();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+                    return true;
+                });
+
+                container.addView(blockView);
+            }
         }
 
         new MaterialAlertDialogBuilder(context)
@@ -254,6 +317,9 @@ public class LogicBlockManager {
 
             case ACTION_SET_TEXT:
                 return elVar + ".textContent = '" + block.params.replace("'", "\\'") + "';\n";
+
+            case ACTION_ADD_CLASS:
+                return elVar + ".classList.toggle('" + block.params.replace("'", "\\'") + "');\n";
 
             case ACTION_ALERT:
                 return "alert('" + block.params.replace("'", "\\'") + "');\n";

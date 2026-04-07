@@ -1,7 +1,6 @@
 <LinearLayout
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	xmlns:app="http://schemas.android.com/apk/res-auto"
-	xmlns:tools="http://schemas.android.com/tools"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:orientation="vertical"
@@ -9,8 +8,10 @@
 	<LinearLayout
 		android:id="@+id/linear1"
 		android:layout_width="match_parent"
-		android:layout_height="600dp"
+		android:layout_height="match_parent"
 		android:orientation="vertical">
+
+		<!-- Header row -->
 		<LinearLayout
 			android:id="@+id/linear3"
 			android:layout_width="match_parent"
@@ -20,13 +21,13 @@
 			android:orientation="horizontal">
 			<TextView
 				android:id="@+id/textview1"
-				android:layout_width="wrap_content"
+				android:layout_width="0dp"
 				android:layout_height="wrap_content"
+				android:layout_weight="1"
 				android:layout_marginLeft="8dp"
 				android:text="Preview"
-				android:textSize="20sp"
+				android:textSize="18sp"
 				android:textStyle="bold"
-				android:layout_weight="1"
 				android:textColor="?attr/colorPrimary" />
 			<com.google.android.material.button.MaterialButtonToggleGroup
 				android:id="@+id/linear2"
@@ -40,7 +41,6 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:textSize="12sp"
-					android:textColor="#000000"
 					style="?attr/materialIconButtonFilledStyle"
 					app:icon="@drawable/icon_save_round" />
 				<Button
@@ -48,7 +48,6 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:textSize="12sp"
-					android:textColor="#000000"
 					style="?attr/materialIconButtonFilledStyle"
 					app:icon="@drawable/icon_copy_all_round" />
 				<Button
@@ -57,11 +56,45 @@
 					android:layout_height="wrap_content"
 					android:padding="8dp"
 					android:textSize="12sp"
-					android:textColor="#000000"
 					style="?attr/materialIconButtonOutlinedStyle"
 					app:icon="@drawable/icon_clear_round" />
 			</com.google.android.material.button.MaterialButtonToggleGroup>
 		</LinearLayout>
+
+		<!-- Responsive device toggle (Mobile / Tablet / Desktop) -->
+		<com.google.android.material.chip.ChipGroup
+			android:id="@+id/chipGroupResponsive"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:paddingStart="12dp"
+			android:paddingEnd="12dp"
+			android:paddingBottom="6dp"
+			app:singleSelection="true"
+			app:singleLine="true">
+			<com.google.android.material.chip.Chip
+				android:id="@+id/chipMobile"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Mobile (375px)"
+				android:textSize="11sp"
+				android:checked="true"
+				style="@style/Widget.Material3.Chip.Filter" />
+			<com.google.android.material.chip.Chip
+				android:id="@+id/chipTablet"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Tablet (768px)"
+				android:textSize="11sp"
+				style="@style/Widget.Material3.Chip.Filter" />
+			<com.google.android.material.chip.Chip
+				android:id="@+id/chipDesktop"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Desktop (1024px)"
+				android:textSize="11sp"
+				style="@style/Widget.Material3.Chip.Filter" />
+		</com.google.android.material.chip.ChipGroup>
+
 		<WebView
 			android:id="@+id/webview1"
 			android:layout_width="match_parent"
