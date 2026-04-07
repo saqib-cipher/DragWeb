@@ -23,6 +23,12 @@
 			android:orientation="horizontal"
 			android:background="?attr/colorSurfaceContainerHigh">
 			<Button
+				android:id="@+id/btnDrawer"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				style="?attr/materialIconButtonStyle"
+				app:icon="@drawable/icon_widgets_round" />
+			<Button
 				android:id="@+id/btnBack"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
@@ -209,6 +215,13 @@
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:text="Import JSON"
+			android:textSize="12sp"
+			style="?attr/materialButtonOutlinedStyle" />
+		<Button
+			android:id="@+id/btnImportImage"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Import Image"
 			android:textSize="12sp"
 			style="?attr/materialButtonOutlinedStyle" />
 		<androidx.recyclerview.widget.RecyclerView

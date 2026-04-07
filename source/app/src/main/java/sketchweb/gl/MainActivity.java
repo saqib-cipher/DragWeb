@@ -59,13 +59,14 @@ public class MainActivity extends AppCompatActivity {
 	private LinearLayout topBar;
 	private LinearLayout screen;
 	private NestedScrollView vscroll2;
-	private Button button5, button4, delete, btnImportWidgets;
-	private Button btnBack, btnUndo, btnRedo, btnTheme, btnExport;
+	private Button button5, button4, delete, btnImportWidgets, btnImportImage;
+	private Button btnDrawer, btnBack, btnUndo, btnRedo, btnTheme, btnExport;
 	private TextView textview2, tvProjectTitle;
 	private RecyclerView recyclerview3, recyclerview1, recyclerviewRightPanel;
 	private android.widget.Spinner widgetSpinner;
 
 	private ActivityResultLauncher<android.content.Intent> importWidgetLauncher;
+	private ActivityResultLauncher<android.content.Intent> importImageLauncher;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -84,11 +85,13 @@ public class MainActivity extends AppCompatActivity {
 		button4 = findViewById(R.id.button4);
 		delete = findViewById(R.id.delete);
 		btnImportWidgets = findViewById(R.id.btnImportWidgets);
+		btnImportImage = findViewById(R.id.btnImportImage);
 		textview2 = findViewById(R.id.textview2);
 		recyclerview3 = findViewById(R.id.recyclerview3);
 		recyclerview1 = findViewById(R.id.recyclerview1);
 		recyclerviewRightPanel = findViewById(R.id.recyclerviewRightPanel);
 		widgetSpinner = findViewById(R.id.widgetSpinner);
+		btnDrawer = findViewById(R.id.btnDrawer);
 		btnBack = findViewById(R.id.btnBack);
 		btnUndo = findViewById(R.id.btnUndo);
 		btnRedo = findViewById(R.id.btnRedo);
@@ -101,6 +104,14 @@ public class MainActivity extends AppCompatActivity {
 			projectName = getIntent().getStringExtra("project_name");
 		}
 		tvProjectTitle.setText(projectName);
+
+		// Drawer button
+		btnDrawer.setOnClickListener(v -> {
+			androidx.drawerlayout.widget.DrawerLayout drawer = findViewById(R.id._main);
+			if (drawer != null) {
+				drawer.openDrawer(androidx.core.view.GravityCompat.START);
+			}
+		});
 
 		// Preview button
 		button5.setOnClickListener(v -> {
@@ -126,6 +137,13 @@ public class MainActivity extends AppCompatActivity {
 				delete.setEnabled(false);
 				saveUndoState();
 			}
+		});
+
+		// Import Image Button
+		btnImportImage.setOnClickListener(v -> {
+			android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+			intent.setType("image/*");
+			importImageLauncher.launch(intent);
 		});
 
 		// Import JSON Button
@@ -156,6 +174,51 @@ public class MainActivity extends AppCompatActivity {
 							Toast.makeText(this, "Widgets imported!", Toast.LENGTH_SHORT).show();
 						} catch (Exception e) {
 							Toast.makeText(this, "Failed to import widgets.", Toast.LENGTH_SHORT).show();
+						}
+					}
+				}
+			}
+		);
+
+		importImageLauncher = registerForActivityResult(
+			new ActivityResultContracts.StartActivityForResult(),
+			result -> {
+				if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+					android.net.Uri uri = result.getData().getData();
+					if (uri != null) {
+						try {
+							InputStream is = getContentResolver().openInputStream(uri);
+							java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+							int nRead;
+							byte[] data = new byte[16384];
+							while ((nRead = is.read(data, 0, data.length)) != -1) {
+								buffer.write(data, 0, nRead);
+							}
+							buffer.flush();
+							byte[] imageBytes = buffer.toByteArray();
+							is.close();
+							String base64Image = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP);
+							String mimeType = getContentResolver().getType(uri);
+							if (mimeType == null) mimeType = "image/png";
+							String src = "data:" + mimeType + ";base64," + base64Image;
+
+							HashMap<String, Object> newImgWidget = new HashMap<>();
+							newImgWidget.put("tag", "img");
+							newImgWidget.put("name", "Imported Image");
+							newImgWidget.put("color", "#FFC107");
+							HashMap<String, Object> function = new HashMap<>();
+							function.put("src", src);
+							function.put("width", "100px");
+							function.put("height", "100px");
+							newImgWidget.put("function", function);
+
+							widgets.add(newImgWidget);
+							if (recyclerview1.getAdapter() != null) {
+								recyclerview1.getAdapter().notifyDataSetChanged();
+							}
+							Toast.makeText(this, "Image imported!", Toast.LENGTH_SHORT).show();
+						} catch (Exception e) {
+							Toast.makeText(this, "Failed to import image.", Toast.LENGTH_SHORT).show();
 						}
 					}
 				}

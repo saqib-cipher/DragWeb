@@ -77,4 +77,50 @@
 			android:textColor="?attr/colorOnSurface"
 			android:layout_marginLeft="16dp" />
 	</LinearLayout>
+	<View
+		android:layout_width="match_parent"
+		android:layout_height="1dp"
+		android:background="?attr/colorOutlineVariant" />
+	<LinearLayout
+		android:id="@+id/menuBackup"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:padding="16dp"
+		android:gravity="center_vertical"
+		android:background="?attr/selectableItemBackground">
+		<ImageView
+			android:layout_width="24dp"
+			android:layout_height="24dp"
+			android:src="@drawable/icon_save_round"
+			app:tint="?attr/colorOnSurface" />
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Backup All Projects"
+			android:textSize="14sp"
+			android:textColor="?attr/colorOnSurface"
+			android:layout_marginLeft="16dp" />
+	</LinearLayout>
+	<LinearLayout
+		android:id="@+id/menuImport"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:padding="16dp"
+		android:gravity="center_vertical"
+		android:background="?attr/selectableItemBackground">
+		<ImageView
+			android:layout_width="24dp"
+			android:layout_height="24dp"
+			android:src="@drawable/icon_build_round"
+			app:tint="?attr/colorOnSurface" />
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Import Project (ZIP)"
+			android:textSize="14sp"
+			android:textColor="?attr/colorOnSurface"
+			android:layout_marginLeft="16dp" />
+	</LinearLayout>
 </LinearLayout>
