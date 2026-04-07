@@ -62,7 +62,8 @@ public class MainActivity extends AppCompatActivity {
 	private Button button5, button4, delete, btnImportWidgets;
 	private Button btnBack, btnUndo, btnRedo, btnTheme, btnExport;
 	private TextView textview2, tvProjectTitle;
-	private RecyclerView recyclerview3, recyclerview1;
+	private RecyclerView recyclerview3, recyclerview1, recyclerviewRightPanel;
+	private android.widget.Spinner widgetSpinner;
 
 	private ActivityResultLauncher<android.content.Intent> importWidgetLauncher;
 
@@ -86,6 +87,8 @@ public class MainActivity extends AppCompatActivity {
 		textview2 = findViewById(R.id.textview2);
 		recyclerview3 = findViewById(R.id.recyclerview3);
 		recyclerview1 = findViewById(R.id.recyclerview1);
+		recyclerviewRightPanel = findViewById(R.id.recyclerviewRightPanel);
+		widgetSpinner = findViewById(R.id.widgetSpinner);
 		btnBack = findViewById(R.id.btnBack);
 		btnUndo = findViewById(R.id.btnUndo);
 		btnRedo = findViewById(R.id.btnRedo);
@@ -209,8 +212,12 @@ public class MainActivity extends AppCompatActivity {
 		selector.setOnWidgetSelectedListener(widgetId -> {
 			textview2.setText("Selected: " + widgetId);
 			delete.setEnabled(true);
+			updateWidgetSpinner(widgetId);
 		});
 		selector.attachTo(screen);
+
+		// Setup initial empty spinner
+		updateWidgetSpinner(null);
 
 		// Load widgets from JSON asset registry
 		widgetRegistry = new WidgetRegistry(this);
@@ -242,6 +249,42 @@ public class MainActivity extends AppCompatActivity {
 
 		// Save initial undo state
 		saveUndoState();
+	}
+
+	private void updateWidgetSpinner(String widgetId) {
+		List<String> items = new ArrayList<>();
+		if (widgetId == null) {
+			items.add("No selection");
+		} else {
+			items.add(widgetId);
+			// Further hierarchy can be added here if needed, like fetching parent IDs
+			View selectedView = selector.getSelectedView();
+			if (selectedView != null) {
+				View parent = (View) selectedView.getParent();
+				while (parent != null && parent != screen && parent.getId() != R.id.scre) {
+					Object tagDataObj = parent.getTag();
+					if (tagDataObj instanceof Map) {
+						Map<String, Object> tagData = (Map<String, Object>) tagDataObj;
+						if (tagData.containsKey("id")) {
+							items.add(0, (String) tagData.get("id"));
+						} else {
+							items.add(0, parent.getClass().getSimpleName());
+						}
+					}
+					parent = (View) parent.getParent();
+				}
+				items.add(0, "body (screen)");
+			}
+		}
+
+		android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+			this,
+			android.R.layout.simple_spinner_item,
+			items
+		);
+		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+		widgetSpinner.setAdapter(adapter);
+		widgetSpinner.setSelection(items.size() - 1); // Select the actual element by default
 	}
 
 	private void setupCanvasDragListener() {
