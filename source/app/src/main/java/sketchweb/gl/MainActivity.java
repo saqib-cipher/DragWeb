@@ -6,6 +6,9 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Environment;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.DragEvent;
 import android.view.LayoutInflater;
@@ -27,6 +30,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.TextInputEditText;
@@ -66,20 +70,26 @@ public class MainActivity extends AppCompatActivity {
 	private LinearLayout topBar;
 	private LinearLayout screen;
 	private LinearLayout rightPanel;
+	private LinearLayout leftPanel;
 	private LinearLayout bottomPanel;
 	private LinearLayout eventPanel;
+	private LinearLayout assetsPanel;
 	private NestedScrollView vscroll2;
-	private Button button5, button4, delete, btnImportWidgets, btnImportImage;
+	private Button button5, button4, delete, btnImportWidgets, btnImportImage, btnImportSvg;
 	private Button btnDrawer, btnBack, btnUndo, btnRedo, btnTheme, btnExport, btnViewStyles;
 	private Button btnAddLogicBlock, btnViewAllBlocks;
+	private Button btnLoadCustomWidgets, btnLoadCustomBlocks;
 	private TextView textview2, tvProjectTitle;
-	private RecyclerView recyclerview3, recyclerview1, recyclerviewRightPanel;
+	private RecyclerView recyclerview3, recyclerview1, recyclerviewRightPanel, rvAssets;
 	private android.widget.Spinner widgetSpinner;
 	private TabLayout tabLayout, tabWidgetCategories;
 	private Chip chipBasic, chipStyles, chipEvent;
+	private TextInputEditText etSearchWidget, etSearchHierarchy;
+	private ChipGroup chipGroupCategories;
 
 	private ActivityResultLauncher<android.content.Intent> importWidgetLauncher;
 	private ActivityResultLauncher<android.content.Intent> importImageLauncher;
+	private ActivityResultLauncher<android.content.Intent> importSvgLauncher;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -94,18 +104,22 @@ public class MainActivity extends AppCompatActivity {
 		topBar = findViewById(R.id.topBar);
 		screen = findViewById(R.id.screen);
 		rightPanel = findViewById(R.id.rightPanel);
+		leftPanel = findViewById(R.id.leftPanel);
 		bottomPanel = findViewById(R.id.bottomPanel);
 		eventPanel = findViewById(R.id.eventPanel);
+		assetsPanel = findViewById(R.id.assetsPanel);
 		vscroll2 = findViewById(R.id.vscroll2);
 		button5 = findViewById(R.id.button5);
 		button4 = findViewById(R.id.button4);
 		delete = findViewById(R.id.delete);
 		btnImportWidgets = findViewById(R.id.btnImportWidgets);
 		btnImportImage = findViewById(R.id.btnImportImage);
+		btnImportSvg = findViewById(R.id.btnImportSvg);
 		textview2 = findViewById(R.id.textview2);
 		recyclerview3 = findViewById(R.id.recyclerview3);
 		recyclerview1 = findViewById(R.id.recyclerview1);
 		recyclerviewRightPanel = findViewById(R.id.recyclerviewRightPanel);
+		rvAssets = findViewById(R.id.rvAssets);
 		widgetSpinner = findViewById(R.id.widgetSpinner);
 		btnDrawer = findViewById(R.id.btnDrawer);
 		btnBack = findViewById(R.id.btnBack);
@@ -116,12 +130,17 @@ public class MainActivity extends AppCompatActivity {
 		btnViewStyles = findViewById(R.id.btnViewStyles);
 		btnAddLogicBlock = findViewById(R.id.btnAddLogicBlock);
 		btnViewAllBlocks = findViewById(R.id.btnViewAllBlocks);
+		btnLoadCustomWidgets = findViewById(R.id.btnLoadCustomWidgets);
+		btnLoadCustomBlocks = findViewById(R.id.btnLoadCustomBlocks);
 		tvProjectTitle = findViewById(R.id.tvProjectTitle);
 		tabLayout = findViewById(R.id.tabLayout);
 		tabWidgetCategories = findViewById(R.id.tabWidgetCategories);
 		chipBasic = findViewById(R.id.chipBasic);
 		chipStyles = findViewById(R.id.chipStyles);
 		chipEvent = findViewById(R.id.chipEvent);
+		etSearchWidget = findViewById(R.id.etSearchWidget);
+		etSearchHierarchy = findViewById(R.id.etSearchHierarchy);
+		chipGroupCategories = findViewById(R.id.chipGroupCategories);
 
 		// Get project name from intent
 		if (getIntent().hasExtra("project_name")) {
@@ -153,6 +172,7 @@ public class MainActivity extends AppCompatActivity {
 				delete.setEnabled(false);
 				saveUndoState();
 				refreshHierarchy();
+				updateWidgetSpinnerFromTree();
 			}
 		});
 
@@ -174,6 +194,41 @@ public class MainActivity extends AppCompatActivity {
 			intent.putExtra(android.content.Intent.EXTRA_MIME_TYPES, mimetypes);
 			importWidgetLauncher.launch(intent);
 		});
+
+		// Import SVG Button
+		if (btnImportSvg != null) {
+			btnImportSvg.setOnClickListener(v -> {
+				android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+				intent.setType("image/svg+xml");
+				importImageLauncher.launch(intent);
+			});
+		}
+
+		// Custom JSON loaders
+		if (btnLoadCustomWidgets != null) {
+			btnLoadCustomWidgets.setOnClickListener(v -> loadCustomWidgetsFromDevice());
+		}
+		if (btnLoadCustomBlocks != null) {
+			btnLoadCustomBlocks.setOnClickListener(v -> loadCustomBlocksFromDevice());
+		}
+
+		// Icon library chips
+		Chip chipFontAwesome = findViewById(R.id.chipFontAwesome);
+		Chip chipTablerIcons = findViewById(R.id.chipTablerIcons);
+		Chip chipCustomSvg = findViewById(R.id.chipCustomSvg);
+		if (chipFontAwesome != null) {
+			chipFontAwesome.setOnClickListener(v -> addIconLibraryWidget("Font Awesome", "fa"));
+		}
+		if (chipTablerIcons != null) {
+			chipTablerIcons.setOnClickListener(v -> addIconLibraryWidget("Tabler Icons", "tabler"));
+		}
+		if (chipCustomSvg != null) {
+			chipCustomSvg.setOnClickListener(v -> {
+				android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+				intent.setType("image/svg+xml");
+				importImageLauncher.launch(intent);
+			});
+		}
 
 		importWidgetLauncher = registerForActivityResult(
 			new ActivityResultContracts.StartActivityForResult(),
@@ -220,6 +275,9 @@ public class MainActivity extends AppCompatActivity {
 							if (mimeType == null) mimeType = "image/png";
 							String src = "data:" + mimeType + ";base64," + base64Image;
 
+							// Save asset to project directory
+							saveAssetToProject(projectName, uri, base64Image, mimeType);
+
 							HashMap<String, Object> newImgWidget = new HashMap<>();
 							newImgWidget.put("tag", "img");
 							newImgWidget.put("name", "Imported Image");
@@ -238,6 +296,42 @@ public class MainActivity extends AppCompatActivity {
 							Toast.makeText(this, "Image imported!", Toast.LENGTH_SHORT).show();
 						} catch (Exception e) {
 							Toast.makeText(this, "Failed to import image.", Toast.LENGTH_SHORT).show();
+						}
+					}
+				}
+			}
+		);
+
+		importSvgLauncher = registerForActivityResult(
+			new ActivityResultContracts.StartActivityForResult(),
+			result -> {
+				if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+					android.net.Uri uri = result.getData().getData();
+					if (uri != null) {
+						try {
+							InputStream is = getContentResolver().openInputStream(uri);
+							byte[] buffer = new byte[is.available()];
+							is.read(buffer);
+							is.close();
+							String svgContent = new String(buffer, "UTF-8");
+
+							HashMap<String, Object> svgWidget = new HashMap<>();
+							svgWidget.put("tag", "svg");
+							svgWidget.put("name", "Custom SVG");
+							svgWidget.put("color", "#9C27B0");
+							svgWidget.put("category", "media");
+							HashMap<String, Object> function = new HashMap<>();
+							function.put("text", svgContent);
+							HashMap<String, Object> style = new HashMap<>();
+							style.put("width", "48px");
+							style.put("height", "48px");
+							function.put("style", style);
+							svgWidget.put("function", function);
+							widgets.add(svgWidget);
+							refreshWidgetList();
+							Toast.makeText(this, "SVG imported!", Toast.LENGTH_SHORT).show();
+						} catch (Exception e) {
+							Toast.makeText(this, "Failed to import SVG.", Toast.LENGTH_SHORT).show();
 						}
 					}
 				}
@@ -289,19 +383,24 @@ public class MainActivity extends AppCompatActivity {
 			}
 			logicBlockManager.showAddBlockDialog(targetTag, block -> {
 				Toast.makeText(this, "Block added: " + block.event + " → " + block.action, Toast.LENGTH_SHORT).show();
+				refreshLogicBlocksUI();
 			});
 		});
 
 		btnViewAllBlocks.setOnClickListener(v -> logicBlockManager.showBlocksDialog());
 
-		// Setup top tab layout (View / Event / Component)
+		// Setup top tab layout (View / Event / Assets)
 		setupTabLayout();
 
-		// Setup widget category tabs
-		setupWidgetCategoryTabs();
+		// Setup widget category chips
+		setupWidgetCategoryChips();
 
 		// Setup bottom chips
 		setupBottomChips();
+
+		// Setup search
+		setupWidgetSearch();
+		setupHierarchySearch();
 	}
 
 	private void initializeLogic() {
@@ -326,29 +425,40 @@ public class MainActivity extends AppCompatActivity {
 		selector.setOnWidgetSelectedListener(widgetId -> {
 			textview2.setText("Selected: " + widgetId);
 			delete.setEnabled(true);
-			updateWidgetSpinner(widgetId);
+			updateWidgetSpinnerFromTree();
 			if (hierarchyAdapter != null) {
 				hierarchyAdapter.setSelectedView(selector.getSelectedView());
 			}
 		});
 		selector.attachTo(screen);
 
-		// Setup initial empty spinner
-		updateWidgetSpinner(null);
+		// Setup initial spinner
+		updateWidgetSpinnerFromTree();
 
 		// Load widgets from JSON asset registry
 		widgetRegistry = new WidgetRegistry(this);
 		widgets = widgetRegistry.getAllWidgets();
 		filteredWidgets = new ArrayList<>(widgets);
 
+		// Auto-load custom widgets from device
+		autoLoadCustomConfigs();
+
+		// Use LinearLayoutManager for vertical clean list
 		recyclerview1.setAdapter(new Recyclerview1Adapter(filteredWidgets));
-		recyclerview1.setLayoutManager(new GridLayoutManager(this, 4));
+		recyclerview1.setLayoutManager(new LinearLayoutManager(this));
 
 		// Setup hierarchy tree
 		hierarchyAdapter = new HierarchyTreeAdapter(this);
 		hierarchyAdapter.setOnItemClickListener(widgetView -> {
 			selector.clearSelection();
 			widgetView.performClick();
+		});
+		hierarchyAdapter.setOnItemLongClickListener(widgetView -> {
+			// Start drag for hierarchy reorder
+			ClipData.Item item = new ClipData.Item("reorder:" + widgetView.hashCode());
+			ClipData dragData = new ClipData("reorder", new String[]{"text/plain"}, item);
+			View.DragShadowBuilder shadow = new View.DragShadowBuilder(widgetView);
+			widgetView.startDragAndDrop(dragData, shadow, widgetView, 0);
 		});
 		recyclerviewRightPanel.setAdapter(hierarchyAdapter);
 		recyclerviewRightPanel.setLayoutManager(new LinearLayoutManager(this));
@@ -384,6 +494,60 @@ public class MainActivity extends AppCompatActivity {
 		refreshHierarchy();
 	}
 
+	// ---- Widget Search ----
+
+	private void setupWidgetSearch() {
+		if (etSearchWidget == null) return;
+		etSearchWidget.addTextChangedListener(new TextWatcher() {
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				filterWidgetsBySearch(s.toString());
+			}
+			@Override
+			public void afterTextChanged(Editable s) {}
+		});
+	}
+
+	private void filterWidgetsBySearch(String query) {
+		filteredWidgets.clear();
+		if (query.isEmpty()) {
+			filteredWidgets.addAll(widgets);
+		} else {
+			String lowerQuery = query.toLowerCase();
+			for (HashMap<String, Object> widget : widgets) {
+				String name = widget.containsKey("name") ? widget.get("name").toString().toLowerCase() : "";
+				String tag = widget.containsKey("tag") ? widget.get("tag").toString().toLowerCase() : "";
+				String category = widget.containsKey("category") ? widget.get("category").toString().toLowerCase() : "";
+				if (name.contains(lowerQuery) || tag.contains(lowerQuery) || category.contains(lowerQuery)) {
+					filteredWidgets.add(widget);
+				}
+			}
+		}
+		if (recyclerview1.getAdapter() != null) {
+			recyclerview1.getAdapter().notifyDataSetChanged();
+		}
+	}
+
+	private void setupHierarchySearch() {
+		if (etSearchHierarchy == null) return;
+		etSearchHierarchy.addTextChangedListener(new TextWatcher() {
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				if (hierarchyAdapter != null) {
+					hierarchyAdapter.setFilter(s.toString());
+				}
+			}
+			@Override
+			public void afterTextChanged(Editable s) {}
+		});
+	}
+
+	// ---- Tab Layout ----
+
 	private void setupTabLayout() {
 		tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
 			@Override
@@ -395,8 +559,8 @@ public class MainActivity extends AppCompatActivity {
 					case 1: // Event
 						showEventMode();
 						break;
-					case 2: // Component
-						showComponentMode();
+					case 2: // Assets
+						showAssetsMode();
 						break;
 				}
 			}
@@ -411,27 +575,63 @@ public class MainActivity extends AppCompatActivity {
 		LinearLayout scre = findViewById(R.id.scre);
 		if (scre != null) scre.setVisibility(View.VISIBLE);
 		eventPanel.setVisibility(View.GONE);
+		if (assetsPanel != null) assetsPanel.setVisibility(View.GONE);
 		bottomPanel.setVisibility(View.VISIBLE);
-		rightPanel.setVisibility(View.VISIBLE);
+		View rightPanelCard = findViewById(R.id.rightPanelCard);
+		if (rightPanelCard != null) rightPanelCard.setVisibility(View.VISIBLE);
+		View leftPanelCard = findViewById(R.id.leftPanelCard);
+		if (leftPanelCard != null) leftPanelCard.setVisibility(View.VISIBLE);
 	}
 
 	private void showEventMode() {
 		LinearLayout scre = findViewById(R.id.scre);
 		if (scre != null) scre.setVisibility(View.GONE);
 		eventPanel.setVisibility(View.VISIBLE);
+		if (assetsPanel != null) assetsPanel.setVisibility(View.GONE);
 		bottomPanel.setVisibility(View.GONE);
-		rightPanel.setVisibility(View.GONE);
+		View rightPanelCard = findViewById(R.id.rightPanelCard);
+		if (rightPanelCard != null) rightPanelCard.setVisibility(View.GONE);
+		View leftPanelCard = findViewById(R.id.leftPanelCard);
+		if (leftPanelCard != null) leftPanelCard.setVisibility(View.GONE);
+		refreshLogicBlocksUI();
 	}
 
-	private void showComponentMode() {
+	private void showAssetsMode() {
 		LinearLayout scre = findViewById(R.id.scre);
-		if (scre != null) scre.setVisibility(View.VISIBLE);
+		if (scre != null) scre.setVisibility(View.GONE);
 		eventPanel.setVisibility(View.GONE);
-		bottomPanel.setVisibility(View.VISIBLE);
-		rightPanel.setVisibility(View.VISIBLE);
+		if (assetsPanel != null) assetsPanel.setVisibility(View.VISIBLE);
+		bottomPanel.setVisibility(View.GONE);
+		View rightPanelCard = findViewById(R.id.rightPanelCard);
+		if (rightPanelCard != null) rightPanelCard.setVisibility(View.GONE);
+		View leftPanelCard = findViewById(R.id.leftPanelCard);
+		if (leftPanelCard != null) leftPanelCard.setVisibility(View.GONE);
+	}
+
+	// ---- Widget Category Chips ----
+
+	private void setupWidgetCategoryChips() {
+		if (chipGroupCategories == null) return;
+		chipGroupCategories.setOnCheckedStateChangeListener((group, checkedIds) -> {
+			if (checkedIds.isEmpty()) {
+				filterWidgetsByCategory("all");
+				return;
+			}
+			int checkedId = checkedIds.get(0);
+			if (checkedId == R.id.chipCatAll) filterWidgetsByCategory("all");
+			else if (checkedId == R.id.chipCatLayout) filterWidgetsByCategory("layout");
+			else if (checkedId == R.id.chipCatBasic) filterWidgetsByCategory("basic");
+			else if (checkedId == R.id.chipCatForm) filterWidgetsByCategory("form");
+			else if (checkedId == R.id.chipCatMedia) filterWidgetsByCategory("media");
+			else filterWidgetsByCategory("all");
+		});
+
+		// Also keep drawer tabs working
+		setupWidgetCategoryTabs();
 	}
 
 	private void setupWidgetCategoryTabs() {
+		if (tabWidgetCategories == null) return;
 		String[] categories = {"all", "layout", "basic", "form", "media", "advanced"};
 		tabWidgetCategories.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
 			@Override
@@ -492,10 +692,8 @@ public class MainActivity extends AppCompatActivity {
 	private void refreshWidgetList() {
 		widgets = widgetRegistry.getAllWidgets();
 		filterWidgetsByCategory("all");
-		if (tabWidgetCategories.getSelectedTabPosition() == 0) {
-			filteredWidgets.clear();
-			filteredWidgets.addAll(widgets);
-		}
+		filteredWidgets.clear();
+		filteredWidgets.addAll(widgets);
 		if (recyclerview1.getAdapter() != null) {
 			recyclerview1.getAdapter().notifyDataSetChanged();
 		}
@@ -507,32 +705,20 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	private void updateWidgetSpinner(String widgetId) {
+	// ---- Widget Spinner (shows all tree-based widgets) ----
+
+	private void updateWidgetSpinnerFromTree() {
 		List<String> items = new ArrayList<>();
-		if (widgetId == null) {
-			items.add("No selection");
-		} else {
-			items.add(widgetId);
-			View selectedView = selector.getSelectedView();
-			if (selectedView != null) {
-				View parent = (View) selectedView.getParent();
-				while (parent != null && parent != screen && parent.getId() != R.id.scre) {
-					Object tagDataObj = parent.getTag();
-					if (tagDataObj instanceof Map) {
-						Map<String, Object> tagData = (Map<String, Object>) tagDataObj;
-						if (tagData.containsKey("id")) {
-							items.add(0, (String) tagData.get("id"));
-						} else if (tagData.containsKey("tag")) {
-							items.add(0, "<" + tagData.get("tag") + ">");
-						}
-					}
-					if (parent.getParent() instanceof View) {
-						parent = (View) parent.getParent();
-					} else {
-						break;
-					}
-				}
-				items.add(0, "body (screen)");
+		items.add("body (screen)");
+		collectWidgetNames(screen, items, 0);
+
+		// Highlight selected
+		int selectedIndex = 0;
+		View selectedView = selector.getSelectedView();
+		if (selectedView != null) {
+			selectedIndex = findViewIndexInTree(screen, selectedView, new int[]{1});
+			if (selectedIndex < 0 || selectedIndex >= items.size()) {
+				selectedIndex = 0;
 			}
 		}
 
@@ -543,7 +729,80 @@ public class MainActivity extends AppCompatActivity {
 		);
 		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 		widgetSpinner.setAdapter(adapter);
-		widgetSpinner.setSelection(items.size() - 1);
+		widgetSpinner.setSelection(selectedIndex);
+
+		// Spinner selection listener to sync with hierarchy
+		final int finalSelectedIndex = selectedIndex;
+		widgetSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+			@Override
+			public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+				if (position == 0) return; // body
+				View targetView = findViewAtTreeIndex(screen, position, new int[]{1});
+				if (targetView != null && targetView != selector.getSelectedView()) {
+					selector.clearSelection();
+					targetView.performClick();
+				}
+			}
+			@Override
+			public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+		});
+	}
+
+	private void collectWidgetNames(ViewGroup parent, List<String> items, int depth) {
+		for (int i = 0; i < parent.getChildCount(); i++) {
+			View child = parent.getChildAt(i);
+			Object tagObj = child.getTag();
+			String prefix = "";
+			for (int d = 0; d < depth; d++) prefix += "  ";
+
+			if (tagObj instanceof Map) {
+				Map<String, Object> tagData = (Map<String, Object>) tagObj;
+				String tag = tagData.containsKey("tag") ? tagData.get("tag").toString() : "?";
+				String id = tagData.containsKey("id") ? tagData.get("id").toString() : "";
+				Map<String, Object> fn = (Map<String, Object>) tagData.get("function");
+				String text = "";
+				if (fn != null && fn.containsKey("text")) {
+					text = fn.get("text").toString();
+					if (text.length() > 12) text = text.substring(0, 12) + "..";
+				}
+				String label = prefix + "<" + tag + ">";
+				if (!id.isEmpty()) label += " #" + id;
+				if (!text.isEmpty()) label += " \"" + text + "\"";
+				items.add(label);
+			} else {
+				items.add(prefix + "view");
+			}
+
+			if (child instanceof ViewGroup) {
+				collectWidgetNames((ViewGroup) child, items, depth + 1);
+			}
+		}
+	}
+
+	private int findViewIndexInTree(ViewGroup parent, View target, int[] counter) {
+		for (int i = 0; i < parent.getChildCount(); i++) {
+			View child = parent.getChildAt(i);
+			if (child == target) return counter[0];
+			counter[0]++;
+			if (child instanceof ViewGroup) {
+				int found = findViewIndexInTree((ViewGroup) child, target, counter);
+				if (found >= 0) return found;
+			}
+		}
+		return -1;
+	}
+
+	private View findViewAtTreeIndex(ViewGroup parent, int targetIndex, int[] counter) {
+		for (int i = 0; i < parent.getChildCount(); i++) {
+			View child = parent.getChildAt(i);
+			if (counter[0] == targetIndex) return child;
+			counter[0]++;
+			if (child instanceof ViewGroup) {
+				View found = findViewAtTreeIndex((ViewGroup) child, targetIndex, counter);
+				if (found != null) return found;
+			}
+		}
+		return null;
 	}
 
 	private void setupCanvasDragListener() {
@@ -595,6 +854,7 @@ public class MainActivity extends AppCompatActivity {
 								dropZoneManager.registerWidgetAsDropZoneIfContainer(newWidgetView);
 								saveUndoState();
 								refreshHierarchy();
+								updateWidgetSpinnerFromTree();
 							}
 						} catch (NumberFormatException e) {
 							Toast.makeText(this, "Error parsing widget position.", Toast.LENGTH_SHORT).show();
@@ -662,7 +922,7 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void highlightDropPosition(ViewGroup parent, float dropY) {
-		// Visual feedback for drop position (minimal for performance)
+		// Visual feedback for drop position
 	}
 
 	private void setupWidgetReorderDrag(View widget) {
@@ -685,6 +945,7 @@ public class MainActivity extends AppCompatActivity {
 			screen.addView(draggedView, Math.min(newIndex, screen.getChildCount()));
 			saveUndoState();
 			refreshHierarchy();
+			updateWidgetSpinnerFromTree();
 		}
 	}
 
@@ -790,50 +1051,188 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	// ---- Responsive Design Tester ----
+	// ---- Custom JSON Support ----
 
-	private void showResponsiveTestDialog() {
-		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_responsive_test, null);
-		WebView webView = dialogView.findViewById(R.id.webViewResponsive);
-		Chip chipMobile = dialogView.findViewById(R.id.chipMobile);
-		Chip chipTablet = dialogView.findViewById(R.id.chipTablet);
-		Chip chipDesktop = dialogView.findViewById(R.id.chipDesktop);
+	private void autoLoadCustomConfigs() {
+		// Auto-load user custom widgets from device path
+		String widgetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+			+ "/.dragweb/custom/widgets.json";
+		File customWidgetsFile = new File(widgetsPath);
+		if (customWidgetsFile.exists()) {
+			try {
+				String json = FileUtil.readFile(widgetsPath);
+				if (json != null && !json.isEmpty()) {
+					widgetRegistry.importCustomWidgets(json);
+				}
+			} catch (Exception e) {
+				Log.w("MainActivity", "Failed to load custom widgets: " + e.getMessage());
+			}
+		}
 
-		WebSettings settings = webView.getSettings();
-		settings.setJavaScriptEnabled(true);
-		settings.setUseWideViewPort(true);
-		settings.setLoadWithOverviewMode(true);
-
-		String html = new PageCodeGenerator().generateFullCode(screen, themeManager, logicBlockManager);
-
-		// Default mobile
-		loadResponsivePreview(webView, html, 375);
-
-		chipMobile.setOnCheckedChangeListener((btn, checked) -> {
-			if (checked) loadResponsivePreview(webView, html, 375);
-		});
-		chipTablet.setOnCheckedChangeListener((btn, checked) -> {
-			if (checked) loadResponsivePreview(webView, html, 768);
-		});
-		chipDesktop.setOnCheckedChangeListener((btn, checked) -> {
-			if (checked) loadResponsivePreview(webView, html, 1024);
-		});
-
-		new MaterialAlertDialogBuilder(this)
-			.setView(dialogView)
-			.setPositiveButton("Close", null)
-			.show();
+		// Auto-load custom blocks
+		String blocksPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+			+ "/.dragweb/custom/blocks.json";
+		File customBlocksFile = new File(blocksPath);
+		if (customBlocksFile.exists()) {
+			try {
+				String json = FileUtil.readFile(blocksPath);
+				if (json != null && !json.isEmpty()) {
+					logicBlockManager.fromJson(json);
+				}
+			} catch (Exception e) {
+				Log.w("MainActivity", "Failed to load custom blocks: " + e.getMessage());
+			}
+		}
 	}
 
-	private void loadResponsivePreview(WebView webView, String html, int widthPx) {
-		String wrapped = html.replace("<meta name=\"viewport\"",
-			"<meta name=\"viewport\" data-width=\"" + widthPx + "\"");
-		webView.loadDataWithBaseURL(null, wrapped, "text/html", "UTF-8", null);
+	private void loadCustomWidgetsFromDevice() {
+		String widgetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+			+ "/.dragweb/custom/widgets.json";
+		File file = new File(widgetsPath);
+		if (file.exists()) {
+			try {
+				String json = FileUtil.readFile(widgetsPath);
+				widgetRegistry.importCustomWidgets(json);
+				refreshWidgetList();
+				Toast.makeText(this, "Custom widgets loaded from " + widgetsPath, Toast.LENGTH_LONG).show();
+			} catch (Exception e) {
+				Toast.makeText(this, "Failed to load: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+			}
+		} else {
+			// Create the directory structure
+			File dir = new File(Environment.getExternalStorageDirectory(), ".dragweb/custom");
+			dir.mkdirs();
+			Toast.makeText(this, "Place widgets.json in:\n" + widgetsPath, Toast.LENGTH_LONG).show();
+		}
+	}
+
+	private void loadCustomBlocksFromDevice() {
+		String blocksPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+			+ "/.dragweb/custom/blocks.json";
+		File file = new File(blocksPath);
+		if (file.exists()) {
+			try {
+				String json = FileUtil.readFile(blocksPath);
+				logicBlockManager.fromJson(json);
+				Toast.makeText(this, "Custom blocks loaded from " + blocksPath, Toast.LENGTH_LONG).show();
+			} catch (Exception e) {
+				Toast.makeText(this, "Failed to load: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+			}
+		} else {
+			File dir = new File(Environment.getExternalStorageDirectory(), ".dragweb/custom");
+			dir.mkdirs();
+			Toast.makeText(this, "Place blocks.json in:\n" + blocksPath, Toast.LENGTH_LONG).show();
+		}
+	}
+
+	// ---- Assets Management ----
+
+	private void saveAssetToProject(String projectName, android.net.Uri uri, String base64, String mimeType) {
+		try {
+			// Save to external storage project directory
+			String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+				+ "/.dragweb/projects/" + projectName + "/assets";
+			File assetsDir = new File(basePath);
+			if (!assetsDir.exists()) assetsDir.mkdirs();
+
+			String fileName = "asset_" + System.currentTimeMillis();
+			if (mimeType.contains("png")) fileName += ".png";
+			else if (mimeType.contains("svg")) fileName += ".svg";
+			else if (mimeType.contains("jpeg") || mimeType.contains("jpg")) fileName += ".jpg";
+			else fileName += ".img";
+
+			File assetFile = new File(assetsDir, fileName);
+			byte[] decoded = android.util.Base64.decode(base64, android.util.Base64.NO_WRAP);
+			java.io.FileOutputStream fos = new java.io.FileOutputStream(assetFile);
+			fos.write(decoded);
+			fos.close();
+		} catch (Exception e) {
+			Log.w("MainActivity", "Could not save asset: " + e.getMessage());
+		}
+	}
+
+	private void addIconLibraryWidget(String libraryName, String prefix) {
+		showStyleDialog("Add " + libraryName + " Icon", "Icon name (e.g. " + prefix + "-home)", value -> {
+			HashMap<String, Object> iconWidget = new HashMap<>();
+			iconWidget.put("tag", "span");
+			iconWidget.put("name", libraryName + ": " + value);
+			iconWidget.put("color", "#9C27B0");
+			iconWidget.put("category", "media");
+			HashMap<String, Object> function = new HashMap<>();
+			function.put("text", value);
+			function.put("class", prefix + " " + value);
+			HashMap<String, Object> style = new HashMap<>();
+			style.put("fontSize", "24px");
+			function.put("style", style);
+			iconWidget.put("function", function);
+			widgets.add(iconWidget);
+			refreshWidgetList();
+			Toast.makeText(this, libraryName + " icon added!", Toast.LENGTH_SHORT).show();
+		});
+	}
+
+	// ---- Logic Blocks UI ----
+
+	private void refreshLogicBlocksUI() {
+		LinearLayout blockContainer = findViewById(R.id.blockContainer);
+		if (blockContainer == null) return;
+		blockContainer.removeAllViews();
+
+		List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+		for (int i = 0; i < blocks.size(); i++) {
+			LogicBlockManager.LogicBlock block = blocks.get(i);
+			final int index = i;
+
+			com.google.android.material.card.MaterialCardView card = new com.google.android.material.card.MaterialCardView(this);
+			LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+			cardParams.setMargins(0, 4, 0, 4);
+			card.setLayoutParams(cardParams);
+			card.setCardElevation(2);
+			card.setRadius(12);
+
+			LinearLayout blockView = new LinearLayout(this);
+			blockView.setOrientation(LinearLayout.VERTICAL);
+			blockView.setPadding(16, 12, 16, 12);
+
+			// Event label
+			TextView eventLabel = new TextView(this);
+			eventLabel.setText("WHEN " + block.event.toUpperCase() + " on <" + block.targetWidget + ">");
+			eventLabel.setTextColor(Color.parseColor("#FF9800"));
+			eventLabel.setTextSize(12);
+			eventLabel.setTypeface(null, android.graphics.Typeface.BOLD);
+			blockView.addView(eventLabel);
+
+			// Action label
+			TextView actionLabel = new TextView(this);
+			actionLabel.setText("DO " + block.action + "(" + block.params + ")");
+			actionLabel.setTextColor(Color.parseColor("#4CAF50"));
+			actionLabel.setTextSize(12);
+			blockView.addView(actionLabel);
+
+			card.addView(blockView);
+
+			card.setOnLongClickListener(v -> {
+				new MaterialAlertDialogBuilder(this)
+					.setTitle("Delete Block?")
+					.setMessage("Remove this logic block?")
+					.setPositiveButton("Delete", (d, w) -> {
+						logicBlockManager.removeBlock(index);
+						refreshLogicBlocksUI();
+					})
+					.setNegativeButton("Cancel", null)
+					.show();
+				return true;
+			});
+
+			blockContainer.addView(card);
+		}
 	}
 
 	// ---- Project Save/Load ----
 
 	private void saveProject() {
+		// Save to internal storage
 		projectDataManager.saveProject(screen, projectName);
 
 		File dir = new File(getFilesDir(), "projects");
@@ -843,7 +1242,42 @@ public class MainActivity extends AppCompatActivity {
 		File logicFile = new File(dir, projectName + ".logic");
 		FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
 
+		// Also save to external storage for persistence across reinstalls
+		saveProjectToExternal();
+
 		Toast.makeText(this, "Project saved", Toast.LENGTH_SHORT).show();
+	}
+
+	private void saveProjectToExternal() {
+		try {
+			String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+				+ "/.dragweb/projects/" + projectName;
+			File extDir = new File(basePath);
+			if (!extDir.exists()) extDir.mkdirs();
+
+			// Save layout JSON
+			File internalDir = new File(getFilesDir(), "projects");
+			File layoutFile = new File(internalDir, projectName + ".json");
+			if (layoutFile.exists()) {
+				String json = FileUtil.readFile(layoutFile.getAbsolutePath());
+				FileUtil.writeFile(new File(extDir, "layout.json").getAbsolutePath(), json);
+			}
+
+			// Save theme
+			FileUtil.writeFile(new File(extDir, "theme.json").getAbsolutePath(), themeManager.toJson());
+
+			// Save logic
+			FileUtil.writeFile(new File(extDir, "logic.json").getAbsolutePath(), logicBlockManager.toJson());
+
+			// Save styles
+			File stylesFile = new File(internalDir, projectName + ".theme");
+			if (stylesFile.exists()) {
+				String styles = FileUtil.readFile(stylesFile.getAbsolutePath());
+				FileUtil.writeFile(new File(extDir, "styles.json").getAbsolutePath(), styles);
+			}
+		} catch (Exception e) {
+			Log.w("MainActivity", "Could not save to external: " + e.getMessage());
+		}
 	}
 
 	private void loadProject() {
@@ -954,11 +1388,6 @@ public class MainActivity extends AppCompatActivity {
 		builder.setView(dialogView);
 		builder.setNegativeButton("Close", null);
 
-		String[] extraOptions = {"Responsive Preview"};
-		builder.setNeutralButton("Responsive", (dialog, which) -> {
-			showResponsiveTestDialog();
-		});
-
 		androidx.appcompat.app.AlertDialog dialog = builder.create();
 
 		dialogView.findViewById(R.id.cardExportHtml).setOnClickListener(v -> {
@@ -997,11 +1426,32 @@ public class MainActivity extends AppCompatActivity {
 
 	private void buildDesignList() {
 		design.clear();
-		String[] items = {
-			"Edittext", "Color", "TextSize", "Font", "Background",
-			"BorderRadius", "BorderWidth", "BorderColor",
-			"Padding", "Margin", "Width", "Height"
-		};
+		View selected = selector.getSelectedView();
+		String tag = getSelectedTag();
+
+		// Context-aware styles based on widget type
+		List<String> items = new ArrayList<>();
+		items.add("Edittext");
+		items.add("Color");
+		items.add("Background");
+		items.add("Width");
+		items.add("Height");
+		items.add("Padding");
+		items.add("Margin");
+
+		if ("img".equals(tag)) {
+			items.add(0, "ImageSrc");
+		}
+		if ("p".equals(tag) || "h1".equals(tag) || "h2".equals(tag) || "h3".equals(tag)
+			|| "span".equals(tag) || "label".equals(tag) || "a".equals(tag) || "button".equals(tag)) {
+			items.add("TextSize");
+			items.add("Font");
+			items.add("TextAlign");
+		}
+		items.add("BorderRadius");
+		items.add("BorderWidth");
+		items.add("BorderColor");
+
 		for (String item : items) {
 			HashMap<String, Object> map = new HashMap<>();
 			map.put("edit", item);
@@ -1017,7 +1467,10 @@ public class MainActivity extends AppCompatActivity {
 			"Elevation", "Gravity", "Opacity", "Rotation",
 			"FlexDir", "JustifyContent", "AlignItems", "Gap",
 			"Display", "Position", "Overflow", "BoxShadow",
-			"TextDecor", "LineHeight", "LetterSpace", "ZIndex"
+			"TextDecor", "LineHeight", "LetterSpace", "ZIndex",
+			"BorderTop", "BorderRight", "BorderBottom", "BorderLeft",
+			"RadiusTL", "RadiusTR", "RadiusBL", "RadiusBR",
+			"Gradient", "CssVar"
 		};
 		for (String item : items) {
 			HashMap<String, Object> map = new HashMap<>();
@@ -1043,6 +1496,18 @@ public class MainActivity extends AppCompatActivity {
 		recyclerview3.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 	}
 
+	private String getSelectedTag() {
+		View selected = selector.getSelectedView();
+		if (selected != null) {
+			Object tagObj = selected.getTag();
+			if (tagObj instanceof Map) {
+				Map<String, Object> wm = (Map<String, Object>) tagObj;
+				if (wm.containsKey("tag")) return wm.get("tag").toString();
+			}
+		}
+		return "div";
+	}
+
 	public void handleDesignItemClick(int position) {
 		View selected = selector.getSelectedView();
 		if (selected == null) {
@@ -1053,12 +1518,7 @@ public class MainActivity extends AppCompatActivity {
 		String editType = design.get(position).get("edit").toString();
 
 		// Get target tag for logic blocks
-		String targetTag = "div";
-		Object tagObj = selected.getTag();
-		if (tagObj instanceof Map) {
-			Map<String, Object> wm = (Map<String, Object>) tagObj;
-			if (wm.containsKey("tag")) targetTag = wm.get("tag").toString();
-		}
+		String targetTag = getSelectedTag();
 		final String fTargetTag = targetTag;
 
 		switch (editType) {
@@ -1070,93 +1530,59 @@ public class MainActivity extends AppCompatActivity {
 					saveUndoState();
 				});
 				break;
-			case "TextSize":
-				showStyleDialog("Change Text Size", "Text size (px)", value -> {
+			case "ImageSrc":
+				showStyleDialog("Set Image Source", "URL or base64 data", value -> {
 					Map<String, Object> style = new HashMap<>();
-					style.put("fontSize", value);
+					style.put("src", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 				});
 				break;
+			case "TextSize":
+				showStyleDialogWithUnits("Change Text Size", "16", "fontSize", selected);
+				break;
 			case "Color":
-				showStyleDialog("Set Color", "#333333", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("color", value);
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
+				showColorPickerDialog("Set Text Color", "color", selected);
 				break;
 			case "Font":
-				showStyleDialog("Set Font Weight", "bold, italic, normal", value -> {
+				showChoiceDialog("Font Weight", new String[]{"normal", "bold", "lighter", "100", "200", "300", "400", "500", "600", "700", "800", "900"}, value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("fontWeight", value);
 					widgetUpdater.updateWidget(selected, value, style);
 					saveUndoState();
 				});
 				break;
-			case "Background":
-				showStyleDialog("Set Background Color", "#FFFFFF", value -> {
+			case "TextAlign":
+				showChoiceDialog("Text Align", new String[]{"left", "center", "right", "justify"}, value -> {
 					Map<String, Object> style = new HashMap<>();
-					style.put("backgroundColor", value);
-					widgetUpdater.updateWidget(selected, value, style);
+					style.put("textAlign", value);
+					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 				});
+				break;
+			case "Background":
+				showColorPickerDialog("Set Background Color", "backgroundColor", selected);
 				break;
 			case "BorderRadius":
-				showStyleDialog("Set Border Radius", "12px", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("borderRadius", value);
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
+				showStyleDialogWithUnits("Set Border Radius", "12", "borderRadius", selected);
 				break;
 			case "BorderWidth":
-				showStyleDialog("Set Border Width", "2px", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("borderWidth", value);
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
+				showStyleDialogWithUnits("Set Border Width", "2", "borderWidth", selected);
 				break;
 			case "BorderColor":
-				showStyleDialog("Set Border Color", "#000000", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("borderColor", value);
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
+				showColorPickerDialog("Set Border Color", "borderColor", selected);
 				break;
 			case "Padding":
-				showStyleDialog("Set Padding", "12px", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("padding", value);
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
+				showStyleDialogWithUnits("Set Padding", "12", "padding", selected);
 				break;
 			case "Margin":
-				showStyleDialog("Set Margin", "12px", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("margin", value);
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
+				showStyleDialogWithUnits("Set Margin", "12", "margin", selected);
 				break;
 			case "Width":
-				showStyleDialog("Set Width", "100px, 100%, auto", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("width", value);
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
+				showStyleDialogWithUnits("Set Width", "100", "width", selected);
 				break;
 			case "Height":
-				showStyleDialog("Set Height", "100px, auto", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("height", value);
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
+				showStyleDialogWithUnits("Set Height", "100", "height", selected);
 				break;
 			// Advanced styles
 			case "Elevation":
@@ -1211,12 +1637,7 @@ public class MainActivity extends AppCompatActivity {
 				});
 				break;
 			case "Gap":
-				showStyleDialog("Set Gap", "8px", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("gap", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
+				showStyleDialogWithUnits("Set Gap", "8", "gap", selected);
 				break;
 			case "Display":
 				showChoiceDialog("Display", new String[]{"block", "flex", "grid", "inline", "inline-block", "none"}, value -> {
@@ -1267,12 +1688,7 @@ public class MainActivity extends AppCompatActivity {
 				});
 				break;
 			case "LetterSpace":
-				showStyleDialog("Set Letter Spacing", "1px", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("letterSpacing", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
+				showStyleDialogWithUnits("Set Letter Spacing", "1", "letterSpacing", selected);
 				break;
 			case "ZIndex":
 				showStyleDialog("Set Z-Index", "10", value -> {
@@ -1282,25 +1698,73 @@ public class MainActivity extends AppCompatActivity {
 					saveUndoState();
 				});
 				break;
+			// Per-side borders
+			case "BorderTop":
+				showStyleDialog("Border Top", "2px solid #000", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("borderTop", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "BorderRight":
+				showStyleDialog("Border Right", "2px solid #000", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("borderRight", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "BorderBottom":
+				showStyleDialog("Border Bottom", "2px solid #000", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("borderBottom", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "BorderLeft":
+				showStyleDialog("Border Left", "2px solid #000", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("borderLeft", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			// Per-corner radius
+			case "RadiusTL":
+				showStyleDialogWithUnits("Top-Left Radius", "8", "borderTopLeftRadius", selected);
+				break;
+			case "RadiusTR":
+				showStyleDialogWithUnits("Top-Right Radius", "8", "borderTopRightRadius", selected);
+				break;
+			case "RadiusBL":
+				showStyleDialogWithUnits("Bottom-Left Radius", "8", "borderBottomLeftRadius", selected);
+				break;
+			case "RadiusBR":
+				showStyleDialogWithUnits("Bottom-Right Radius", "8", "borderBottomRightRadius", selected);
+				break;
+			// Gradient
+			case "Gradient":
+				showStyleDialog("Set Gradient", "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("background", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			// CSS Variable
+			case "CssVar":
+				showCssVariableDialog(selected);
+				break;
 			// Event items
 			case "OnClick":
-				logicBlockManager.showAddBlockDialog(fTargetTag, block -> {
-					Toast.makeText(this, "Click event added", Toast.LENGTH_SHORT).show();
-				});
-				break;
 			case "OnHover":
-				logicBlockManager.showAddBlockDialog(fTargetTag, block -> {
-					Toast.makeText(this, "Hover event added", Toast.LENGTH_SHORT).show();
-				});
-				break;
 			case "OnInput":
-				logicBlockManager.showAddBlockDialog(fTargetTag, block -> {
-					Toast.makeText(this, "Input event added", Toast.LENGTH_SHORT).show();
-				});
-				break;
 			case "OnLoad":
 				logicBlockManager.showAddBlockDialog(fTargetTag, block -> {
-					Toast.makeText(this, "Load event added", Toast.LENGTH_SHORT).show();
+					Toast.makeText(this, block.event + " event added", Toast.LENGTH_SHORT).show();
+					refreshLogicBlocksUI();
 				});
 				break;
 			case "Animate":
@@ -1309,9 +1773,170 @@ public class MainActivity extends AppCompatActivity {
 			case "SetText":
 				logicBlockManager.showAddBlockDialog(fTargetTag, block -> {
 					Toast.makeText(this, "Action added", Toast.LENGTH_SHORT).show();
+					refreshLogicBlocksUI();
 				});
 				break;
 		}
+	}
+
+	// ---- Style Dialog with Unit Chips (px / rem / %) ----
+
+	private void showStyleDialogWithUnits(String title, String defaultValue, String cssProperty, View targetView) {
+		LinearLayout layout = new LinearLayout(this);
+		layout.setOrientation(LinearLayout.VERTICAL);
+		layout.setPadding(48, 24, 48, 0);
+
+		TextInputLayout inputLayout = new TextInputLayout(this, null,
+			com.google.android.material.R.attr.textInputOutlinedStyle);
+		inputLayout.setHint("Value");
+		TextInputEditText inputField = new TextInputEditText(inputLayout.getContext());
+		inputField.setText(defaultValue);
+		inputField.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+		inputLayout.addView(inputField);
+		layout.addView(inputLayout);
+
+		// Unit chips
+		LinearLayout chipRow = new LinearLayout(this);
+		chipRow.setOrientation(LinearLayout.HORIZONTAL);
+		chipRow.setPadding(0, 8, 0, 8);
+
+		final String[] selectedUnit = {"px"};
+
+		String[] units = {"px", "rem", "%", "em", "vh", "vw", "auto"};
+		for (String unit : units) {
+			Chip chip = new Chip(this);
+			chip.setText(unit);
+			chip.setTextSize(11);
+			chip.setCheckable(true);
+			chip.setChecked("px".equals(unit));
+			chip.setOnClickListener(v -> {
+				selectedUnit[0] = unit;
+				// Uncheck all others
+				for (int i = 0; i < chipRow.getChildCount(); i++) {
+					View child = chipRow.getChildAt(i);
+					if (child instanceof Chip) {
+						((Chip) child).setChecked(child == chip);
+					}
+				}
+			});
+			chipRow.addView(chip);
+		}
+		layout.addView(chipRow);
+
+		new MaterialAlertDialogBuilder(this)
+			.setTitle(title)
+			.setView(layout)
+			.setPositiveButton("Apply", (dialog, which) -> {
+				String value = inputField.getText().toString().trim();
+				if (value.isEmpty()) return;
+				String finalValue = "auto".equals(selectedUnit[0]) ? "auto" : value + selectedUnit[0];
+				Map<String, Object> style = new HashMap<>();
+				style.put(cssProperty, finalValue);
+				widgetUpdater.updateWidget(targetView, "", style);
+				saveUndoState();
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	// ---- Color Picker Dialog ----
+
+	private void showColorPickerDialog(String title, String cssProperty, View targetView) {
+		LinearLayout layout = new LinearLayout(this);
+		layout.setOrientation(LinearLayout.VERTICAL);
+		layout.setPadding(48, 24, 48, 0);
+
+		TextInputLayout inputLayout = new TextInputLayout(this, null,
+			com.google.android.material.R.attr.textInputOutlinedStyle);
+		inputLayout.setHint("Color value (#hex, rgb, var())");
+		TextInputEditText inputField = new TextInputEditText(inputLayout.getContext());
+		inputField.setText("#333333");
+		inputLayout.addView(inputField);
+		layout.addView(inputLayout);
+
+		// Preset color grid
+		LinearLayout colorRow1 = new LinearLayout(this);
+		colorRow1.setOrientation(LinearLayout.HORIZONTAL);
+		colorRow1.setPadding(0, 12, 0, 4);
+		LinearLayout colorRow2 = new LinearLayout(this);
+		colorRow2.setOrientation(LinearLayout.HORIZONTAL);
+		colorRow2.setPadding(0, 4, 0, 12);
+
+		String[] presetColors1 = {"#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#2196F3"};
+		String[] presetColors2 = {"#4CAF50", "#FF9800", "#795548", "#607D8B", "#000000", "#FFFFFF"};
+
+		for (String color : presetColors1) {
+			addColorSwatch(colorRow1, color, inputField);
+		}
+		for (String color : presetColors2) {
+			addColorSwatch(colorRow2, color, inputField);
+		}
+		layout.addView(colorRow1);
+		layout.addView(colorRow2);
+
+		// CSS variable support
+		TextView cssVarHint = new TextView(this);
+		cssVarHint.setText("CSS Variables: var(--primary), var(--accent)");
+		cssVarHint.setTextSize(11);
+		cssVarHint.setPadding(0, 0, 0, 12);
+		layout.addView(cssVarHint);
+
+		new MaterialAlertDialogBuilder(this)
+			.setTitle(title)
+			.setView(layout)
+			.setPositiveButton("Apply", (dialog, which) -> {
+				String value = inputField.getText().toString().trim();
+				if (value.isEmpty()) return;
+				Map<String, Object> style = new HashMap<>();
+				style.put(cssProperty, value);
+				widgetUpdater.updateWidget(targetView, value, style);
+				saveUndoState();
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	private void addColorSwatch(LinearLayout row, String color, TextInputEditText inputField) {
+		View swatch = new View(this);
+		LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(48, 48);
+		params.setMargins(4, 4, 4, 4);
+		swatch.setLayoutParams(params);
+		try {
+			swatch.setBackgroundColor(Color.parseColor(color));
+		} catch (Exception e) {
+			swatch.setBackgroundColor(Color.GRAY);
+		}
+		swatch.setOnClickListener(v -> inputField.setText(color));
+		row.addView(swatch);
+	}
+
+	// ---- CSS Variable Dialog ----
+
+	private void showCssVariableDialog(View targetView) {
+		String[] cssVars = {
+			"var(--primary-color)", "var(--secondary-color)", "var(--accent-color)",
+			"var(--body-background)", "var(--body-color)", "var(--link-color)",
+			"var(--border-color)", "var(--card-background)", "var(--font-family)"
+		};
+
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Apply CSS Variable")
+			.setItems(cssVars, (dialog, which) -> {
+				String varName = cssVars[which];
+				// Ask which property to apply it to
+				String[] properties = {"color", "backgroundColor", "borderColor", "fontFamily"};
+				new MaterialAlertDialogBuilder(this)
+					.setTitle("Apply to Property")
+					.setItems(properties, (d2, w2) -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(properties[w2], varName);
+						widgetUpdater.updateWidget(targetView, "", style);
+						saveUndoState();
+					})
+					.show();
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
 	}
 
 	private void showGravityDialog(View selected) {
@@ -1384,7 +2009,7 @@ public class MainActivity extends AppCompatActivity {
 			View v = getLayoutInflater().inflate(R.layout.design, null);
 			RecyclerView.LayoutParams lp = new RecyclerView.LayoutParams(
 				ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-			lp.setMargins(4, 0, 4, 0);
+			lp.setMargins(2, 0, 2, 0);
 			v.setLayoutParams(lp);
 			return new ViewHolder(v);
 		}
@@ -1418,7 +2043,9 @@ public class MainActivity extends AppCompatActivity {
 	private int getDesignIcon(String editType) {
 		switch (editType) {
 			case "Edittext": return R.drawable.cursor_text;
+			case "ImageSrc": return R.drawable.default_image;
 			case "TextSize": return R.drawable.textsize;
+			case "TextAlign": return R.drawable.focus_centered;
 			case "Color": return R.drawable.textcolor;
 			case "Font": return R.drawable.alphabet_latin;
 			case "Background": return R.drawable.background;
@@ -1445,6 +2072,16 @@ public class MainActivity extends AppCompatActivity {
 			case "LineHeight":
 			case "LetterSpace": return R.drawable.textsize;
 			case "ZIndex": return R.drawable.emphasis;
+			case "BorderTop":
+			case "BorderRight":
+			case "BorderBottom":
+			case "BorderLeft": return R.drawable.border_style;
+			case "RadiusTL":
+			case "RadiusTR":
+			case "RadiusBL":
+			case "RadiusBR": return R.drawable.border_radius;
+			case "Gradient": return R.drawable.background;
+			case "CssVar": return R.drawable.icon_design_services_round;
 			case "OnClick":
 			case "OnHover":
 			case "OnInput":
@@ -1466,10 +2103,7 @@ public class MainActivity extends AppCompatActivity {
 
 		@Override
 		public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-			View v = getLayoutInflater().inflate(R.layout.widgets, null);
-			RecyclerView.LayoutParams lp = new RecyclerView.LayoutParams(
-				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-			v.setLayoutParams(lp);
+			View v = getLayoutInflater().inflate(R.layout.widgets, parent, false);
 			return new ViewHolder(v);
 		}
 
@@ -1478,21 +2112,28 @@ public class MainActivity extends AppCompatActivity {
 			View view = holder.itemView;
 			LinearLayout linear1 = view.findViewById(R.id.linear1);
 			TextView textview1 = view.findViewById(R.id.textview1);
+			TextView tvWidgetTag = view.findViewById(R.id.tvWidgetTag);
+			View colorIndicator = view.findViewById(R.id.colorIndicator);
 
 			Map<String, Object> item = data.get(position);
 			String name = item.get("name").toString();
 			String tag = item.get("tag").toString();
 			String color = item.get("color").toString();
 
-			textview1.setText(name + "\n<" + tag + ">");
-			textview1.setTextSize(10);
-			try {
-				linear1.setBackgroundColor(Color.parseColor(color));
-			} catch (Exception e) {
-				linear1.setBackgroundColor(Color.LTGRAY);
+			textview1.setText(name);
+			if (tvWidgetTag != null) {
+				tvWidgetTag.setText("<" + tag + ">");
 			}
 
-			linear1.setOnTouchListener((v, event) -> {
+			if (colorIndicator != null) {
+				try {
+					colorIndicator.setBackgroundColor(Color.parseColor(color));
+				} catch (Exception e) {
+					colorIndicator.setBackgroundColor(Color.LTGRAY);
+				}
+			}
+
+			view.setOnTouchListener((v, event) -> {
 				if (event.getAction() == MotionEvent.ACTION_DOWN) {
 					ClipData.Item itemData = new ClipData.Item(String.valueOf(position));
 					ClipData dragData = new ClipData("widget", new String[]{"text/plain"}, itemData);

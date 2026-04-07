@@ -1,8 +1,11 @@
 package sketchweb.gl;
 
 import android.content.Context;
+import android.os.Environment;
+import android.util.Log;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -18,6 +21,7 @@ public class WidgetRegistry {
     public WidgetRegistry(Context context) {
         this.context = context;
         loadWidgets();
+        loadCustomWidgetsFromDevice();
     }
 
     private void loadWidgets() {
@@ -45,6 +49,58 @@ public class WidgetRegistry {
             }
         } catch (IOException e) {
             loadDefaultWidgets();
+        }
+    }
+
+    private void loadCustomWidgetsFromDevice() {
+        // Auto-load from /storage/emulated/0/.dragweb/custom/widgets.json
+        try {
+            String customPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/custom/widgets.json";
+            File customFile = new File(customPath);
+            if (customFile.exists()) {
+                String json = FileUtil.readFile(customPath);
+                if (json != null && !json.isEmpty()) {
+                    ArrayList<HashMap<String, Object>> customWidgets = new Gson().fromJson(json,
+                        new TypeToken<ArrayList<HashMap<String, Object>>>(){}.getType());
+                    if (customWidgets != null) {
+                        sanitizeWidgets(customWidgets);
+                        // Merge with defaults: custom widgets are added, duplicates by name are replaced
+                        for (HashMap<String, Object> custom : customWidgets) {
+                            String customName = custom.containsKey("name") ? custom.get("name").toString() : "";
+                            boolean replaced = false;
+                            for (int i = 0; i < allWidgets.size(); i++) {
+                                String existing = allWidgets.get(i).containsKey("name")
+                                    ? allWidgets.get(i).get("name").toString() : "";
+                                if (!customName.isEmpty() && customName.equals(existing)) {
+                                    allWidgets.set(i, custom);
+                                    replaced = true;
+                                    break;
+                                }
+                            }
+                            if (!replaced) {
+                                allWidgets.add(custom);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w("WidgetRegistry", "Could not load custom widgets: " + e.getMessage());
+        }
+    }
+
+    private void sanitizeWidgets(ArrayList<HashMap<String, Object>> widgets) {
+        for (HashMap<String, Object> widgetDef : widgets) {
+            if ("img".equals(widgetDef.get("tag"))) {
+                Map<String, Object> function = (Map<String, Object>) widgetDef.get("function");
+                if (function != null && function.containsKey("src")) {
+                    String src = function.get("src").toString();
+                    if (src.startsWith("http")) {
+                        function.put("src", "android.R.drawable.ic_menu_gallery");
+                    }
+                }
+            }
         }
     }
 
@@ -109,18 +165,7 @@ public class WidgetRegistry {
             ArrayList<HashMap<String, Object>> customWidgets = new Gson().fromJson(jsonContent,
                 new TypeToken<ArrayList<HashMap<String, Object>>>(){}.getType());
             if (customWidgets != null) {
-                // Replace http image sources with placeholder references just like in loadWidgets
-                for (HashMap<String, Object> widgetDef : customWidgets) {
-                    if ("img".equals(widgetDef.get("tag"))) {
-                        Map<String, Object> function = (Map<String, Object>) widgetDef.get("function");
-                        if (function != null && function.containsKey("src")) {
-                            String src = function.get("src").toString();
-                            if (src.startsWith("http")) {
-                                function.put("src", "android.R.drawable.ic_menu_gallery");
-                            }
-                        }
-                    }
-                }
+                sanitizeWidgets(customWidgets);
                 allWidgets.addAll(customWidgets);
             }
         } catch (Exception e) {

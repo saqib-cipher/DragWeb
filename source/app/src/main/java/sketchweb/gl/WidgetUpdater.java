@@ -34,7 +34,7 @@ public class WidgetUpdater {
         }
 
         // Handle non-style attributes
-        String[] functionAttrs = {"text", "placeholder", "src", "href", "type"};
+        String[] functionAttrs = {"text", "placeholder", "src", "href", "type", "class", "id"};
         for (String attr : functionAttrs) {
             if (styleUpdates.containsKey(attr)) {
                 function.put(attr, styleUpdates.get(attr));
