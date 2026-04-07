@@ -33,6 +33,17 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x source/gradlew
 
+        - name: Generate Debug Keystore
+  run: |
+    mkdir -p ~/.android
+    keytool -genkey -v -keystore ~/.android/debug.keystore \
+      -keyalg RSA -keysize 2048 -validity 10000 \
+      -alias androiddebugkey -keypass android -storepass android \
+      -dname "CN=Android Debug,O=Android,C=US"
+
+- name: Grant execute permission for gradlew
+  run: chmod +x source/gradlew
+
       - name: Build Release APK
         working-directory: source
         run: ./gradlew assembleRelease
