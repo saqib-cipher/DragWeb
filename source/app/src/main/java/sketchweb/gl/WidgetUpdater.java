@@ -19,9 +19,9 @@ public class WidgetUpdater {
 
         Object tagObj = view.getTag();
         if (!(tagObj instanceof Map)) {
-            // View wasn't initialized by engine properly, we'll try to initialize it now
             tagObj = new HashMap<String, Object>();
-            ((Map<String, Object>)tagObj).put("tag", "div"); // default
+            ((Map<String, Object>) tagObj).put("tag", "div");
+            ((Map<String, Object>) tagObj).put("function", new HashMap<String, Object>());
             view.setTag(tagObj);
         }
 
@@ -33,16 +33,16 @@ public class WidgetUpdater {
             widgetMap.put("function", function);
         }
 
-        // Handle special non-style attributes like 'text'
-        if (styleUpdates.containsKey("text")) {
-             function.put("text", styleUpdates.get("text"));
-             styleUpdates.remove("text");
-        }
-        if (styleUpdates.containsKey("placeholder")) {
-             function.put("placeholder", styleUpdates.get("placeholder"));
-             styleUpdates.remove("placeholder");
+        // Handle non-style attributes
+        String[] functionAttrs = {"text", "placeholder", "src", "href", "type"};
+        for (String attr : functionAttrs) {
+            if (styleUpdates.containsKey(attr)) {
+                function.put(attr, styleUpdates.get(attr));
+                styleUpdates.remove(attr);
+            }
         }
 
+        // Handle style attributes
         if (!styleUpdates.isEmpty()) {
             Map<String, Object> style = (Map<String, Object>) function.get("style");
             if (style == null) {
@@ -55,6 +55,7 @@ public class WidgetUpdater {
             }
         }
 
+        // Re-apply all properties to the view
         engine.applyPropertiesToView(view, widgetMap);
     }
 }

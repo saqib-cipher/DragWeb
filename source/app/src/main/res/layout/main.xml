@@ -15,8 +15,50 @@
 			android:id="@+id/topBar"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:padding="8dp"
-			android:orientation="horizontal" />
+			android:padding="4dp"
+			android:gravity="center_vertical"
+			android:orientation="horizontal"
+			android:background="?attr/colorSurfaceContainerHigh">
+			<Button
+				android:id="@+id/btnBack"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Back"
+				android:textSize="11sp"
+				style="?attr/materialIconButtonStyle" />
+			<TextView
+				android:id="@+id/tvProjectTitle"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="DragWeb"
+				android:textSize="16sp"
+				android:textStyle="bold"
+				android:textColor="?attr/colorOnSurface"
+				android:singleLine="true"
+				android:ellipsize="end"
+				android:paddingLeft="4dp" />
+			<Button
+				android:id="@+id/btnUndo"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:enabled="false"
+				style="?attr/materialIconButtonStyle"
+				app:icon="@drawable/icon_undo_round" />
+			<Button
+				android:id="@+id/btnRedo"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:enabled="false"
+				style="?attr/materialIconButtonStyle"
+				app:icon="@drawable/icon_redo_round" />
+			<Button
+				android:id="@+id/btnTheme"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				style="?attr/materialIconButtonStyle"
+				app:icon="@drawable/icon_theme_round" />
+		</LinearLayout>
 		<LinearLayout
 			android:id="@+id/linear8"
 			android:layout_width="match_parent"
@@ -46,6 +88,13 @@
 					android:textColor="#000000"
 					style="?attr/materialIconButtonFilledStyle"
 					app:icon="@drawable/icon_save_round" />
+				<Button
+					android:id="@+id/btnExport"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:textSize="12sp"
+					style="?attr/materialIconButtonFilledStyle"
+					app:icon="@drawable/icon_export_round" />
 			</LinearLayout>
 			<LinearLayout
 				android:id="@+id/scre"
@@ -81,6 +130,7 @@
 					android:layout_height="wrap_content"
 					android:textSize="12sp"
 					android:textColor="#000000"
+					android:enabled="false"
 					style="?attr/materialIconButtonFilledStyle"
 					app:icon="@drawable/icon_delete_round" />
 			</LinearLayout>
@@ -135,9 +185,9 @@
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:padding="8dp"
-				android:text="TextView"
+				android:text="No widget selected"
 				android:textSize="12sp"
-				android:textColor="#EEEEEE" />
+				android:textColor="?attr/colorOnSurfaceVariant" />
 			<androidx.recyclerview.widget.RecyclerView
 				android:id="@+id/recyclerview3"
 				android:layout_width="match_parent"

@@ -1,0 +1,79 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:orientation="vertical"
+	android:padding="24dp">
+	<TextView
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:text="Website Theme"
+		android:textSize="14sp"
+		android:textStyle="bold"
+		android:textColor="?attr/colorOnSurface"
+		android:layout_marginBottom="12dp" />
+	<com.google.android.material.button.MaterialButtonToggleGroup
+		android:id="@+id/toggleTheme"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		app:singleSelection="true"
+		app:selectionRequired="true">
+		<Button
+			android:id="@+id/btnLightTheme"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="Light"
+			style="?attr/materialButtonOutlinedStyle" />
+		<Button
+			android:id="@+id/btnDarkTheme"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="Dark"
+			style="?attr/materialButtonOutlinedStyle" />
+	</com.google.android.material.button.MaterialButtonToggleGroup>
+	<com.google.android.material.textfield.TextInputLayout
+		android:id="@+id/tilPrimaryColor"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="16dp"
+		android:hint="Primary Color"
+		style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+		<com.google.android.material.textfield.TextInputEditText
+			android:id="@+id/etPrimaryColor"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:inputType="text"
+			android:text="#2196F3" />
+	</com.google.android.material.textfield.TextInputLayout>
+	<com.google.android.material.textfield.TextInputLayout
+		android:id="@+id/tilFontFamily"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="12dp"
+		android:hint="Font Family"
+		style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+		<com.google.android.material.textfield.TextInputEditText
+			android:id="@+id/etFontFamily"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:inputType="text"
+			android:text="sans-serif" />
+	</com.google.android.material.textfield.TextInputLayout>
+	<com.google.android.material.textfield.TextInputLayout
+		android:id="@+id/tilBodyBackground"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="12dp"
+		android:hint="Body Background"
+		style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+		<com.google.android.material.textfield.TextInputEditText
+			android:id="@+id/etBodyBackground"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:inputType="text"
+			android:text="#FFFFFF" />
+	</com.google.android.material.textfield.TextInputLayout>
+</LinearLayout>

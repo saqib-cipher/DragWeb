@@ -19,21 +19,52 @@
 				android:id="@+id/_toolbar"
 				android:layout_width="match_parent"
 				android:layout_height="?attr/actionBarSize"
-				android:background="?attr/colorPrimary"
+				app:title="DragWeb"
+				app:subtitle="No-Code Web Builder"
 				app:popupTheme="@style/AppTheme.PopupOverlay" />
 		</com.google.android.material.appbar.AppBarLayout>
 		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="match_parent"
 			android:orientation="vertical"
-			app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+			app:layout_behavior="@string/appbar_scrolling_view_behavior">
+			<TextView
+				android:id="@+id/tvEmptyState"
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:gravity="center"
+				android:text="@string/no_projects"
+				android:textSize="16sp"
+				android:textColor="?attr/colorOnSurfaceVariant"
+				android:visibility="visible" />
+			<androidx.recyclerview.widget.RecyclerView
+				android:id="@+id/rvProjects"
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:paddingTop="8dp"
+				android:paddingBottom="80dp"
+				android:clipToPadding="false"
+				android:visibility="gone"
+				tools:listitem="@layout/item_project" />
+		</LinearLayout>
+		<com.google.android.material.floatingactionbutton.FloatingActionButton
+			android:id="@+id/fabNewProject"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="bottom|end"
+			android:layout_margin="16dp"
+			android:contentDescription="New Project"
+			app:srcCompat="@android:drawable/ic_input_add"
+			app:tint="?attr/colorOnPrimaryContainer"
+			app:backgroundTint="?attr/colorPrimaryContainer" />
 	</androidx.coordinatorlayout.widget.CoordinatorLayout>
 	<LinearLayout
 		android:id="@+id/_nav_view"
 		android:layout_width="320dp"
 		android:layout_height="match_parent"
 		android:layout_gravity="start"
-		android:background="#EEEEEE">
+		android:orientation="vertical"
+		android:background="?attr/colorSurface">
 		<include layout="@layout/_drawer_home" android:id="@+id/drawer" />
 	</LinearLayout>
 </androidx.drawerlayout.widget.DrawerLayout>
