@@ -176,87 +176,15 @@ public class WidgetBuilderEngine {
 
         view.setLayoutParams(params);
 
-        // Padding
-        if (style.containsKey("padding")) {
-            int padding = parseDimension(style.get("padding").toString());
-            view.setPadding(padding, padding, padding, padding);
-        }
+        // Default Block Styling for Canvas (Android Preview)
+        android.graphics.drawable.GradientDrawable defaultShape = new android.graphics.drawable.GradientDrawable();
+        defaultShape.setColor(android.graphics.Color.TRANSPARENT);
+        defaultShape.setStroke(2, android.graphics.Color.parseColor("#B0BEC5")); // Light gray border
+        defaultShape.setCornerRadius(8);
+        view.setBackground(defaultShape);
 
-        // Background Color
-        if (style.containsKey("backgroundColor")) {
-            try {
-                view.setBackgroundColor(Color.parseColor(style.get("backgroundColor").toString()));
-            } catch (Exception e) {
-                // Ignore parse errors
-            }
-        }
-
-        // Border radius (using GradientDrawable)
-        if (style.containsKey("borderRadius")) {
-            int radius = parseDimension(style.get("borderRadius").toString());
-            GradientDrawable shape = new GradientDrawable();
-            shape.setCornerRadius(radius);
-
-            if (style.containsKey("backgroundColor")) {
-                try {
-                    shape.setColor(Color.parseColor(style.get("backgroundColor").toString()));
-                } catch (Exception e) {
-                    shape.setColor(Color.TRANSPARENT);
-                }
-            } else {
-                shape.setColor(Color.TRANSPARENT);
-            }
-
-            if (style.containsKey("borderWidth") && style.containsKey("borderColor")) {
-                int borderWidth = parseDimension(style.get("borderWidth").toString());
-                try {
-                    int borderColor = Color.parseColor(style.get("borderColor").toString());
-                    shape.setStroke(borderWidth, borderColor);
-                } catch (Exception e) {}
-            }
-
-            view.setBackground(shape);
-        }
-
-        // Elevation
-        if (style.containsKey("elevation")) {
-            try {
-                float elev = Float.parseFloat(style.get("elevation").toString().replaceAll("[^0-9.]", ""));
-                view.setElevation(elev);
-            } catch (Exception e) {}
-        }
-
-        // Opacity
-        if (style.containsKey("opacity")) {
-            try {
-                float alpha = Float.parseFloat(style.get("opacity").toString());
-                view.setAlpha(alpha);
-            } catch (Exception e) {}
-        }
-
-        // Rotation
-        if (style.containsKey("rotation")) {
-            try {
-                float rotation = Float.parseFloat(style.get("rotation").toString().replaceAll("[^0-9.]", ""));
-                view.setRotation(rotation);
-            } catch (Exception e) {}
-        }
-
-        // ScaleX
-        if (style.containsKey("scaleX")) {
-            try {
-                float scale = Float.parseFloat(style.get("scaleX").toString());
-                view.setScaleX(scale);
-            } catch (Exception e) {}
-        }
-
-        // ScaleY
-        if (style.containsKey("scaleY")) {
-            try {
-                float scale = Float.parseFloat(style.get("scaleY").toString());
-                view.setScaleY(scale);
-            } catch (Exception e) {}
-        }
+        // Add default padding so children are not squished against the border
+        view.setPadding(16, 16, 16, 16);
 
         // LinearLayout orientation
         if (view instanceof LinearLayout && style.containsKey("flexDirection")) {
@@ -268,32 +196,17 @@ public class WidgetBuilderEngine {
             }
         }
 
-        // TextView specific styles
+        // TextView specific styles - Apply ONLY minimal styles for visibility
         if (view instanceof TextView) {
             TextView tv = (TextView) view;
-            if (style.containsKey("color")) {
-                try {
-                    tv.setTextColor(Color.parseColor(style.get("color").toString()));
-                } catch (Exception e) {}
-            }
-            if (style.containsKey("fontSize")) {
-                int size = parseDimension(style.get("fontSize").toString());
-                if (size > 0) tv.setTextSize(size);
-            }
+            tv.setTextColor(android.graphics.Color.parseColor("#37474F")); // Default dark text
+            tv.setTextSize(14); // Default text size
             if (style.containsKey("textAlign")) {
                 String align = style.get("textAlign").toString();
                 switch (align) {
-                    case "center": tv.setGravity(Gravity.CENTER); break;
-                    case "right": tv.setGravity(Gravity.END); break;
-                    default: tv.setGravity(Gravity.START); break;
-                }
-            }
-            if (style.containsKey("fontWeight")) {
-                String weight = style.get("fontWeight").toString().toLowerCase();
-                if ("bold".equals(weight)) {
-                    tv.setTypeface(tv.getTypeface(), android.graphics.Typeface.BOLD);
-                } else if ("italic".equals(weight)) {
-                    tv.setTypeface(tv.getTypeface(), android.graphics.Typeface.ITALIC);
+                    case "center": tv.setGravity(android.view.Gravity.CENTER); break;
+                    case "right": tv.setGravity(android.view.Gravity.END); break;
+                    default: tv.setGravity(android.view.Gravity.START); break;
                 }
             }
         }
