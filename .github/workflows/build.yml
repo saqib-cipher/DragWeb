@@ -49,6 +49,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DragWeb-release
-          path: source/app/build/output/apk/release/*.apk
-
-         
+          path: source/app/build/outputs/apk/release/*.apk
