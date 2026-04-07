@@ -26,7 +26,7 @@ public class ProjectDataManager {
         this.context = context;
     }
 
-    public void saveProject(View screen, String projectName) {
+    public void saveProject(View screen, String projectId) {
         List<Map<String, Object>> widgetTree = serializeViewTree(screen);
         String json = new Gson().toJson(widgetTree);
 
@@ -36,7 +36,7 @@ public class ProjectDataManager {
             dir.mkdirs();
         }
 
-        File file = new File(dir, projectName + ".json");
+        File file = new File(dir, projectId + ".json");
         try (FileWriter writer = new FileWriter(file)) {
             writer.write(json);
         } catch (IOException e) {
@@ -44,13 +44,13 @@ public class ProjectDataManager {
         }
 
         // Also save to external persistent storage
-        saveToExternalStorage(projectName, json);
+        saveToExternalStorage(projectId, json);
     }
 
-    private void saveToExternalStorage(String projectName, String json) {
+    private void saveToExternalStorage(String projectId, String json) {
         try {
             String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-                + "/.dragweb/projects/" + projectName;
+                + "/.dragweb/projects/" + projectId;
             File extDir = new File(basePath);
             if (!extDir.exists()) extDir.mkdirs();
 
@@ -61,14 +61,14 @@ public class ProjectDataManager {
         }
     }
 
-    public void loadProject(View screen, String projectName, WidgetBuilderEngine engine, WidgetSelector selector, DropZoneManager dropZoneManager) {
+    public void loadProject(View screen, String projectId, WidgetBuilderEngine engine, WidgetSelector selector, DropZoneManager dropZoneManager) {
         File dir = new File(context.getFilesDir(), "projects");
-        File file = new File(dir, projectName + ".json");
+        File file = new File(dir, projectId + ".json");
 
         // Try internal storage first
         if (!file.exists()) {
             // Try loading from external persistent storage
-            file = tryLoadFromExternal(projectName, dir);
+            file = tryLoadFromExternal(projectId, dir);
         }
 
         if (file == null || !file.exists()) return;
@@ -89,17 +89,17 @@ public class ProjectDataManager {
         }
     }
 
-    private File tryLoadFromExternal(String projectName, File internalDir) {
+    private File tryLoadFromExternal(String projectId, File internalDir) {
         try {
             String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-                + "/.dragweb/projects/" + projectName + "/layout.json";
+                + "/.dragweb/projects/" + projectId + "/layout.json";
             File extFile = new File(extPath);
             if (extFile.exists()) {
                 // Copy to internal storage for consistency
                 String json = FileUtil.readFile(extPath);
                 if (json != null && !json.isEmpty()) {
                     if (!internalDir.exists()) internalDir.mkdirs();
-                    File internalFile = new File(internalDir, projectName + ".json");
+                    File internalFile = new File(internalDir, projectId + ".json");
                     FileUtil.writeFile(internalFile.getAbsolutePath(), json);
                     return internalFile;
                 }

@@ -30,6 +30,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.zip.ZipEntry;
@@ -152,14 +153,27 @@ public class HomeActivity extends AppCompatActivity {
 		}
 	}
 
+	/** Generate a short unique project ID */
+	private String generateProjectId() {
+		return UUID.randomUUID().toString().substring(0, 8);
+	}
+
 	private void backupAllProjects() {
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault());
 		String filename = "DragWeb_Backup_" + sdf.format(new Date()) + ".zip";
 		backupLauncher.launch(filename);
 	}
 
-	private void backupSingleProject(String projectName) {
-		pendingBackupProject = projectName;
+	private void backupSingleProject(String projectId) {
+		pendingBackupProject = projectId;
+		// Find project name for filename
+		String projectName = projectId;
+		for (Map<String, String> p : projectList) {
+			if (projectId.equals(p.get("id"))) {
+				projectName = p.getOrDefault("name", projectId);
+				break;
+			}
+		}
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault());
 		String filename = "DragWeb_" + projectName + "_" + sdf.format(new Date()) + ".zip";
 		backupSingleLauncher.launch(filename);
@@ -195,7 +209,6 @@ public class HomeActivity extends AppCompatActivity {
 				}
 			}
 
-			// Also include external assets
 			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/projects";
 			File extDir = new File(extPath);
 			if (extDir.exists()) {
@@ -210,16 +223,15 @@ public class HomeActivity extends AppCompatActivity {
 		}
 	}
 
-	private void performSingleProjectBackup(Uri uri, String projectName) {
+	private void performSingleProjectBackup(Uri uri, String projectId) {
 		try {
 			java.io.OutputStream fos = getContentResolver().openOutputStream(uri);
 			ZipOutputStream zos = new ZipOutputStream(new java.io.BufferedOutputStream(fos));
 
-			// Backup internal project files
 			File dir = new File(getFilesDir(), "projects");
 			String[] extensions = {".json", ".meta", ".theme", ".logic"};
 			for (String ext : extensions) {
-				File file = new File(dir, projectName + ext);
+				File file = new File(dir, projectId + ext);
 				if (file.exists()) {
 					byte[] buffer = new byte[1024];
 					FileInputStream fis = new FileInputStream(file);
@@ -233,9 +245,8 @@ public class HomeActivity extends AppCompatActivity {
 				}
 			}
 
-			// Backup external assets
 			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-				+ "/.dragweb/projects/" + projectName;
+				+ "/.dragweb/projects/" + projectId;
 			File extDir = new File(extPath);
 			if (extDir.exists()) {
 				addDirectoryToZip(zos, extDir, "assets/");
@@ -340,23 +351,29 @@ public class HomeActivity extends AppCompatActivity {
 				for (File file : files) {
 					if (file.getName().endsWith(".json")) {
 						Map<String, String> project = new HashMap<>();
-						String name = file.getName().replace(".json", "");
-						project.put("name", name);
+						String fileId = file.getName().replace(".json", "");
+						project.put("id", fileId);
 						project.put("path", file.getAbsolutePath());
 
 						// Read project metadata
-						File metaFile = new File(dir, name + ".meta");
+						File metaFile = new File(dir, fileId + ".meta");
 						if (metaFile.exists()) {
 							try {
 								String metaJson = FileUtil.readFile(metaFile.getAbsolutePath());
 								Map<String, String> meta = new Gson().fromJson(metaJson,
 									new TypeToken<Map<String, String>>(){}.getType());
 								if (meta != null) {
+									if (meta.containsKey("name")) {
+										project.put("name", meta.get("name"));
+									}
 									if (meta.containsKey("description")) {
 										project.put("description", meta.get("description"));
 									}
 									if (meta.containsKey("created")) {
 										project.put("created", meta.get("created"));
+									}
+									if (meta.containsKey("id")) {
+										project.put("id", meta.get("id"));
 									}
 								}
 							} catch (Exception e) {
@@ -364,6 +381,9 @@ public class HomeActivity extends AppCompatActivity {
 							}
 						}
 
+						if (!project.containsKey("name")) {
+							project.put("name", fileId);
+						}
 						if (!project.containsKey("description")) {
 							project.put("description", "Website project");
 						}
@@ -377,9 +397,7 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		}
 
-		// Also load projects from external storage that aren't already loaded
 		loadExternalProjects();
-
 		updateEmptyState();
 		adapter.notifyDataSetChanged();
 	}
@@ -392,12 +410,13 @@ public class HomeActivity extends AppCompatActivity {
 				String name = extProject.get("name");
 				boolean alreadyLoaded = false;
 				for (Map<String, String> existing : projectList) {
-					if (name.equals(existing.get("name"))) {
+					if (name.equals(existing.get("name")) || name.equals(existing.get("id"))) {
 						alreadyLoaded = true;
 						break;
 					}
 				}
 				if (!alreadyLoaded) {
+					extProject.put("id", extProject.getOrDefault("id", name));
 					extProject.put("description", "External project");
 					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 					extProject.put("created", sdf.format(new Date()));
@@ -423,6 +442,10 @@ public class HomeActivity extends AppCompatActivity {
 		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_new_project, null);
 		TextInputEditText etName = dialogView.findViewById(R.id.etProjectName);
 		TextInputEditText etDesc = dialogView.findViewById(R.id.etProjectDescription);
+		TextView tvId = dialogView.findViewById(R.id.tvProjectId);
+
+		String newId = generateProjectId();
+		tvId.setText("ID: " + newId);
 
 		new MaterialAlertDialogBuilder(this)
 			.setTitle("New Project")
@@ -436,70 +459,80 @@ public class HomeActivity extends AppCompatActivity {
 					return;
 				}
 
-				createProject(name, desc);
+				createProject(newId, name, desc);
 			})
 			.setNegativeButton("Cancel", null)
 			.show();
 	}
 
-	private void createProject(String name, String description) {
+	private void createProject(String projectId, String name, String description) {
 		File dir = new File(getFilesDir(), "projects");
 		if (!dir.exists()) dir.mkdirs();
 
-		// Save empty project file
-		File projectFile = new File(dir, name + ".json");
+		// Save empty project file using project ID
+		File projectFile = new File(dir, projectId + ".json");
 		FileUtil.writeFile(projectFile.getAbsolutePath(), "[]");
 
-		// Save metadata
-		File metaFile = new File(dir, name + ".meta");
+		// Save metadata with ID and name
+		File metaFile = new File(dir, projectId + ".meta");
 		Map<String, String> meta = new HashMap<>();
+		meta.put("id", projectId);
+		meta.put("name", name);
 		meta.put("description", description.isEmpty() ? "Website project" : description);
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 		meta.put("created", sdf.format(new Date()));
 		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
 
-		// Also create external directory structure
+		// Create external directory structure
 		try {
 			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-				+ "/.dragweb/projects/" + name;
+				+ "/.dragweb/projects/" + projectId;
 			new File(extPath).mkdirs();
 			new File(extPath + "/assets").mkdirs();
 		} catch (Exception e) {
 			Log.w("HomeActivity", "Could not create external project dir");
 		}
 
-		openProject(name);
+		openProject(projectId, name);
 	}
 
-	private void openProject(String projectName) {
+	private void openProject(String projectId, String projectName) {
 		Intent intent = new Intent(this, MainActivity.class);
+		intent.putExtra("project_id", projectId);
 		intent.putExtra("project_name", projectName);
 		startActivity(intent);
 	}
 
-	private void deleteProject(String projectName) {
+	private void deleteProject(String projectId) {
+		// Find project name
+		String displayName = projectId;
+		for (Map<String, String> p : projectList) {
+			if (projectId.equals(p.get("id"))) {
+				displayName = p.getOrDefault("name", projectId);
+				break;
+			}
+		}
+
+		final String finalName = displayName;
 		new MaterialAlertDialogBuilder(this)
 			.setTitle("Delete Project")
-			.setMessage("Are you sure you want to delete \"" + projectName + "\"? This cannot be undone.")
+			.setMessage("Are you sure you want to delete \"" + finalName + "\"? This cannot be undone.")
 			.setPositiveButton("Delete", (dialog, which) -> {
 				File dir = new File(getFilesDir(), "projects");
-				// Delete all associated files
 				String[] extensions = {".json", ".meta", ".theme", ".logic"};
 				for (String ext : extensions) {
-					File f = new File(dir, projectName + ext);
+					File f = new File(dir, projectId + ext);
 					if (f.exists()) f.delete();
 				}
 
-				// Also delete export files
-				File exportDir = new File(getFilesDir(), "exports/" + projectName.replaceAll("[^a-zA-Z0-9._-]", "_"));
+				File exportDir = new File(getFilesDir(), "exports/" + projectId);
 				if (exportDir.exists()) {
 					FileUtil.deleteFile(exportDir.getAbsolutePath());
 				}
 
-				// Also delete external storage
 				try {
 					String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-						+ "/.dragweb/projects/" + projectName;
+						+ "/.dragweb/projects/" + projectId;
 					File extDir = new File(extPath);
 					if (extDir.exists()) {
 						FileUtil.deleteFile(extDir.getAbsolutePath());
@@ -515,20 +548,20 @@ public class HomeActivity extends AppCompatActivity {
 			.show();
 	}
 
-	private void showProjectOptions(String projectName) {
+	private void showProjectOptions(String projectId, String projectName) {
 		String[] options = {"Open", "Backup Project", "Delete"};
 		new MaterialAlertDialogBuilder(this)
 			.setTitle(projectName)
 			.setItems(options, (dialog, which) -> {
 				switch (which) {
 					case 0:
-						openProject(projectName);
+						openProject(projectId, projectName);
 						break;
 					case 1:
-						backupSingleProject(projectName);
+						backupSingleProject(projectId);
 						break;
 					case 2:
-						deleteProject(projectName);
+						deleteProject(projectId);
 						break;
 				}
 			})
@@ -566,12 +599,17 @@ public class HomeActivity extends AppCompatActivity {
 		@Override
 		public void onBindViewHolder(VH holder, int position) {
 			Map<String, String> project = projectList.get(position);
-			holder.tvName.setText(project.get("name"));
+			String projectId = project.getOrDefault("id", "");
+			String projectName = project.getOrDefault("name", projectId);
+
+			holder.tvName.setText(projectName);
+			holder.tvId.setText("ID: " + projectId);
 			holder.tvDesc.setText(project.getOrDefault("description", ""));
 			holder.tvDate.setText("Created: " + project.getOrDefault("created", ""));
 
-			holder.itemView.setOnClickListener(v -> openProject(project.get("name")));
-			holder.btnMenu.setOnClickListener(v -> showProjectOptions(project.get("name")));
+			holder.itemView.setOnClickListener(v -> openProject(projectId, projectName));
+			holder.btnMenu.setOnClickListener(v -> showProjectOptions(projectId, projectName));
+			holder.btnBackup.setOnClickListener(v -> backupSingleProject(projectId));
 		}
 
 		@Override
@@ -580,15 +618,17 @@ public class HomeActivity extends AppCompatActivity {
 		}
 
 		class VH extends RecyclerView.ViewHolder {
-			TextView tvName, tvDesc, tvDate;
-			ImageView btnMenu;
+			TextView tvName, tvId, tvDesc, tvDate;
+			ImageView btnMenu, btnBackup;
 
 			VH(View v) {
 				super(v);
 				tvName = v.findViewById(R.id.tvProjectName);
+				tvId = v.findViewById(R.id.tvProjectId);
 				tvDesc = v.findViewById(R.id.tvProjectDescription);
 				tvDate = v.findViewById(R.id.tvProjectDate);
 				btnMenu = v.findViewById(R.id.btnProjectMenu);
+				btnBackup = v.findViewById(R.id.btnProjectBackup);
 			}
 		}
 	}

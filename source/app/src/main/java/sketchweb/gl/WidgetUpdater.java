@@ -33,8 +33,13 @@ public class WidgetUpdater {
             widgetMap.put("function", function);
         }
 
-        // Handle non-style attributes
-        String[] functionAttrs = {"text", "placeholder", "src", "href", "type", "class", "id"};
+        // Handle non-style function attributes
+        String[] functionAttrs = {"text", "placeholder", "src", "href", "type", "class", "id",
+            "name", "value", "alt", "title", "target", "action", "method",
+            "role", "aria-label", "data-widget", "tabindex", "disabled", "readonly",
+            "required", "pattern", "min", "max", "step", "rows", "cols",
+            "autocomplete", "autofocus", "checked", "selected", "multiple"};
+
         for (String attr : functionAttrs) {
             if (styleUpdates.containsKey(attr)) {
                 function.put(attr, styleUpdates.get(attr));

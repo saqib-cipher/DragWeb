@@ -5,6 +5,17 @@
 	android:layout_height="wrap_content"
 	android:orientation="vertical"
 	android:padding="24dp">
+
+	<TextView
+		android:id="@+id/tvProjectId"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="ID: auto-generated"
+		android:textSize="11sp"
+		android:textColor="?attr/colorOutline"
+		android:fontFamily="monospace"
+		android:paddingBottom="8dp" />
+
 	<com.google.android.material.textfield.TextInputLayout
 		android:id="@+id/tilProjectName"
 		android:layout_width="match_parent"
@@ -19,6 +30,7 @@
 			android:inputType="text"
 			android:maxLines="1" />
 	</com.google.android.material.textfield.TextInputLayout>
+
 	<com.google.android.material.textfield.TextInputLayout
 		android:id="@+id/tilProjectDescription"
 		android:layout_width="match_parent"

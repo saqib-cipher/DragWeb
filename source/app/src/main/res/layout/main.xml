@@ -33,7 +33,7 @@
 				android:id="@+id/btnBack"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:text="‹"
+				android:text="&#8249;"
 				android:textSize="18sp"
 				style="?attr/materialIconButtonStyle" />
 			<TextView
@@ -101,121 +101,12 @@
 				android:text="Assets" />
 		</com.google.android.material.tabs.TabLayout>
 
-		<!-- Horizontal Middle Area (Left Panel + Canvas + Right Panel) -->
+		<!-- Main Area: Canvas + Hierarchy Panel side by side -->
 		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="0dp"
 			android:layout_weight="1"
 			android:orientation="horizontal">
-
-			<!-- Left Panel: Widget List (clean vertical list with rounded corners) -->
-			<com.google.android.material.card.MaterialCardView
-				android:id="@+id/leftPanelCard"
-				android:layout_width="140dp"
-				android:layout_height="match_parent"
-				android:layout_margin="4dp"
-				app:cardCornerRadius="12dp"
-				app:cardElevation="2dp"
-				app:cardBackgroundColor="?attr/colorSurfaceContainer">
-				<LinearLayout
-					android:id="@+id/leftPanel"
-					android:layout_width="match_parent"
-					android:layout_height="match_parent"
-					android:orientation="vertical"
-					android:padding="6dp">
-
-					<TextView
-						android:layout_width="match_parent"
-						android:layout_height="wrap_content"
-						android:text="Widgets"
-						android:textSize="13sp"
-						android:textStyle="bold"
-						android:textColor="?attr/colorOnSurface"
-						android:paddingBottom="4dp"
-						android:paddingTop="2dp" />
-
-					<!-- Search bar for widgets -->
-					<com.google.android.material.textfield.TextInputLayout
-						android:id="@+id/searchWidgetLayout"
-						android:layout_width="match_parent"
-						android:layout_height="wrap_content"
-						android:hint="Search..."
-						app:boxCornerRadiusTopStart="8dp"
-						app:boxCornerRadiusTopEnd="8dp"
-						app:boxCornerRadiusBottomStart="8dp"
-						app:boxCornerRadiusBottomEnd="8dp"
-						style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense">
-						<com.google.android.material.textfield.TextInputEditText
-							android:id="@+id/etSearchWidget"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:textSize="11sp"
-							android:inputType="text"
-							android:maxLines="1" />
-					</com.google.android.material.textfield.TextInputLayout>
-
-					<!-- Widget category chips -->
-					<HorizontalScrollView
-						android:layout_width="match_parent"
-						android:layout_height="wrap_content"
-						android:scrollbars="none"
-						android:layout_marginTop="4dp">
-						<com.google.android.material.chip.ChipGroup
-							android:id="@+id/chipGroupCategories"
-							android:layout_width="wrap_content"
-							android:layout_height="wrap_content"
-							app:singleSelection="true"
-							app:singleLine="true">
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatAll"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="All"
-								android:textSize="10sp"
-								android:checked="true"
-								style="@style/Widget.Material3.Chip.Filter" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatLayout"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Layout"
-								android:textSize="10sp"
-								style="@style/Widget.Material3.Chip.Filter" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatBasic"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Basic"
-								android:textSize="10sp"
-								style="@style/Widget.Material3.Chip.Filter" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatForm"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Form"
-								android:textSize="10sp"
-								style="@style/Widget.Material3.Chip.Filter" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatMedia"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Media"
-								android:textSize="10sp"
-								style="@style/Widget.Material3.Chip.Filter" />
-						</com.google.android.material.chip.ChipGroup>
-					</HorizontalScrollView>
-
-					<!-- Widget RecyclerView (vertical clean list) -->
-					<androidx.recyclerview.widget.RecyclerView
-						android:id="@+id/recyclerview1"
-						android:layout_width="match_parent"
-						android:layout_height="0dp"
-						android:layout_weight="1"
-						android:layout_marginTop="4dp"
-						android:clipToPadding="false"
-						tools:listitem="@layout/widgets" />
-				</LinearLayout>
-			</com.google.android.material.card.MaterialCardView>
 
 			<!-- Center pane: Design Canvas -->
 			<LinearLayout
@@ -227,30 +118,25 @@
 				<FrameLayout
 					android:layout_width="match_parent"
 					android:layout_height="match_parent">
-					<LinearLayout
-						android:id="@+id/scre"
-						android:layout_width="match_parent"
-						android:layout_height="match_parent"
-						android:gravity="center"
-						android:orientation="vertical">
-						<androidx.core.widget.NestedScrollView
-							android:id="@+id/vscroll2"
-							android:layout_width="wrap_content"
-							android:layout_height="wrap_content">
-							<LinearLayout
-								android:id="@+id/screen"
-								android:layout_width="320dp"
-								android:layout_height="540dp"
-								android:padding="4dp"
-								android:gravity="center_horizontal|top"
-								android:orientation="vertical"
-								android:background="?attr/colorSurface"
-								android:elevation="4dp"
-								android:minHeight="540dp" />
-						</androidx.core.widget.NestedScrollView>
-					</LinearLayout>
 
-					<!-- Event panel (hidden by default, shown on Event tab) -->
+					<!-- Canvas area (View tab) -->
+					<androidx.core.widget.NestedScrollView
+						android:id="@+id/vscroll2"
+						android:layout_width="match_parent"
+						android:layout_height="match_parent">
+						<LinearLayout
+							android:id="@+id/screen"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:padding="4dp"
+							android:gravity="center_horizontal|top"
+							android:orientation="vertical"
+							android:background="?attr/colorSurface"
+							android:elevation="2dp"
+							android:minHeight="540dp" />
+					</androidx.core.widget.NestedScrollView>
+
+					<!-- Event panel (hidden by default) -->
 					<LinearLayout
 						android:id="@+id/eventPanel"
 						android:layout_width="match_parent"
@@ -272,12 +158,11 @@
 							android:id="@+id/tvEventHint"
 							android:layout_width="match_parent"
 							android:layout_height="wrap_content"
-							android:text="Select a widget and add events.\nEvents: click, hover, input, load\nActions: change style, animate, navigate, show/hide"
+							android:text="Select a widget and add events.\nEvents: click, hover, input, load\nActions: change style, animate, navigate, show/hide, set text, add class, run JS"
 							android:textSize="13sp"
 							android:textColor="?attr/colorOnSurfaceVariant"
 							android:paddingBottom="12dp" />
 
-						<!-- Block list container -->
 						<ScrollView
 							android:layout_width="match_parent"
 							android:layout_height="0dp"
@@ -305,7 +190,7 @@
 							style="?attr/materialButtonOutlinedStyle" />
 					</LinearLayout>
 
-					<!-- Assets panel (hidden by default, shown on Assets tab) -->
+					<!-- Assets panel (hidden by default) -->
 					<LinearLayout
 						android:id="@+id/assetsPanel"
 						android:layout_width="match_parent"
@@ -358,6 +243,15 @@
 							android:layout_marginTop="8dp"
 							style="?attr/materialButtonOutlinedStyle" />
 
+						<Button
+							android:id="@+id/btnNewFolder"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:text="New Folder"
+							android:textSize="13sp"
+							android:layout_marginTop="8dp"
+							style="?attr/materialButtonOutlinedStyle" />
+
 						<View
 							android:layout_width="match_parent"
 							android:layout_height="1dp"
@@ -374,9 +268,30 @@
 							android:textColor="?attr/colorOnSurface"
 							android:paddingBottom="8dp" />
 
+						<!-- Search for icon libraries -->
+						<com.google.android.material.textfield.TextInputLayout
+							android:id="@+id/searchIconLibLayout"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:hint="Search icons..."
+							app:boxCornerRadiusTopStart="8dp"
+							app:boxCornerRadiusTopEnd="8dp"
+							app:boxCornerRadiusBottomStart="8dp"
+							app:boxCornerRadiusBottomEnd="8dp"
+							style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense">
+							<com.google.android.material.textfield.TextInputEditText
+								android:id="@+id/etSearchIconLib"
+								android:layout_width="match_parent"
+								android:layout_height="wrap_content"
+								android:textSize="12sp"
+								android:inputType="text"
+								android:maxLines="1" />
+						</com.google.android.material.textfield.TextInputLayout>
+
 						<com.google.android.material.chip.ChipGroup
 							android:layout_width="match_parent"
-							android:layout_height="wrap_content">
+							android:layout_height="wrap_content"
+							android:layout_marginTop="8dp">
 							<com.google.android.material.chip.Chip
 								android:id="@+id/chipFontAwesome"
 								android:layout_width="wrap_content"
@@ -392,6 +307,13 @@
 								android:textSize="11sp"
 								style="@style/Widget.Material3.Chip.Assist" />
 							<com.google.android.material.chip.Chip
+								android:id="@+id/chipBootstrapIcons"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Bootstrap Icons"
+								android:textSize="11sp"
+								style="@style/Widget.Material3.Chip.Assist" />
+							<com.google.android.material.chip.Chip
 								android:id="@+id/chipCustomSvg"
 								android:layout_width="wrap_content"
 								android:layout_height="wrap_content"
@@ -401,21 +323,31 @@
 						</com.google.android.material.chip.ChipGroup>
 
 						<!-- Imported assets list -->
+						<TextView
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:text="Project Files"
+							android:textSize="14sp"
+							android:textStyle="bold"
+							android:textColor="?attr/colorOnSurface"
+							android:paddingTop="12dp"
+							android:paddingBottom="4dp" />
+
 						<androidx.recyclerview.widget.RecyclerView
 							android:id="@+id/rvAssets"
 							android:layout_width="match_parent"
 							android:layout_height="0dp"
 							android:layout_weight="1"
-							android:layout_marginTop="8dp"
+							android:layout_marginTop="4dp"
 							android:clipToPadding="false" />
 					</LinearLayout>
 				</FrameLayout>
 			</LinearLayout>
 
-			<!-- Right side panel: Hierarchy Tree (rounded, Material styling) -->
+			<!-- Right side panel: Hierarchy Tree -->
 			<com.google.android.material.card.MaterialCardView
 				android:id="@+id/rightPanelCard"
-				android:layout_width="140dp"
+				android:layout_width="160dp"
 				android:layout_height="match_parent"
 				android:layout_margin="4dp"
 				app:cardCornerRadius="12dp"
@@ -469,7 +401,7 @@
 			</com.google.android.material.card.MaterialCardView>
 		</LinearLayout>
 
-		<!-- Bottom Panel -->
+		<!-- Bottom Panel: Style Management -->
 		<LinearLayout
 			android:id="@+id/bottomPanel"
 			android:layout_width="match_parent"
@@ -478,7 +410,7 @@
 			android:background="?attr/colorSurfaceContainerHigh"
 			android:padding="6dp">
 
-			<!-- Top row: Styles horizontal list -->
+			<!-- Style items horizontal list -->
 			<HorizontalScrollView
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
@@ -496,7 +428,7 @@
 				</LinearLayout>
 			</HorizontalScrollView>
 
-			<!-- Tabs: Basic / Styles / Event -->
+			<!-- Tabs: Basic / Styles / Layout / Event -->
 			<LinearLayout
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
@@ -516,6 +448,13 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="Styles"
+					android:textSize="11sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipLayout"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Layout"
 					android:textSize="11sp"
 					style="@style/Widget.Material3.Chip.Filter" />
 				<com.google.android.material.chip.Chip
@@ -581,101 +520,162 @@
 		</LinearLayout>
 	</LinearLayout>
 
-	<!-- Left Drawer: kept for additional settings but simplified -->
+	<!-- Left Drawer: Widgets Palette + Settings -->
 	<LinearLayout
-		android:layout_width="280dp"
+		android:layout_width="300dp"
 		android:layout_height="match_parent"
 		android:layout_gravity="start"
 		android:background="?attr/colorSurface"
-		android:padding="8dp"
 		android:orientation="vertical">
-		<TextView
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:text="DragWeb Settings"
-			android:textSize="18sp"
-			android:textStyle="bold"
-			android:paddingBottom="12dp" />
 
-		<!-- Custom JSON Config -->
-		<TextView
+		<!-- Drawer header -->
+		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:text="Custom Configurations"
-			android:textSize="14sp"
-			android:textStyle="bold"
-			android:textColor="?attr/colorOnSurface"
-			android:paddingBottom="4dp" />
+			android:orientation="horizontal"
+			android:padding="12dp"
+			android:gravity="center_vertical"
+			android:background="?attr/colorSurfaceContainerHigh">
+			<ImageView
+				android:layout_width="24dp"
+				android:layout_height="24dp"
+				android:src="@drawable/icon_widgets_round"
+				app:tint="?attr/colorPrimary" />
+			<TextView
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Widget Palette"
+				android:textSize="16sp"
+				android:textStyle="bold"
+				android:textColor="?attr/colorOnSurface"
+				android:paddingLeft="8dp" />
+		</LinearLayout>
 
-		<Button
-			android:id="@+id/btnLoadCustomWidgets"
+		<!-- Search bar for widgets -->
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/searchWidgetLayout"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:text="Load Custom Widgets JSON"
-			android:textSize="12sp"
-			style="?attr/materialButtonOutlinedStyle" />
+			android:layout_marginStart="8dp"
+			android:layout_marginEnd="8dp"
+			android:layout_marginTop="8dp"
+			android:hint="Search widgets..."
+			app:boxCornerRadiusTopStart="8dp"
+			app:boxCornerRadiusTopEnd="8dp"
+			app:boxCornerRadiusBottomStart="8dp"
+			app:boxCornerRadiusBottomEnd="8dp"
+			style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/etSearchWidget"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="12sp"
+				android:inputType="text"
+				android:maxLines="1" />
+		</com.google.android.material.textfield.TextInputLayout>
 
-		<Button
-			android:id="@+id/btnLoadCustomBlocks"
+		<!-- Widget category chips -->
+		<HorizontalScrollView
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:text="Load Custom Blocks JSON"
-			android:textSize="12sp"
+			android:scrollbars="none"
 			android:layout_marginTop="4dp"
-			style="?attr/materialButtonOutlinedStyle" />
+			android:paddingLeft="8dp"
+			android:paddingRight="8dp">
+			<com.google.android.material.chip.ChipGroup
+				android:id="@+id/chipGroupCategories"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				app:singleSelection="true"
+				app:singleLine="true">
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipCatAll"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="All"
+					android:textSize="10sp"
+					android:checked="true"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipCatLayout"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Layout"
+					android:textSize="10sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipCatBasic"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Basic"
+					android:textSize="10sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipCatForm"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Form"
+					android:textSize="10sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipCatMedia"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Media"
+					android:textSize="10sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipCatAdvanced"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Advanced"
+					android:textSize="10sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+			</com.google.android.material.chip.ChipGroup>
+		</HorizontalScrollView>
 
+		<!-- Widget RecyclerView -->
+		<androidx.recyclerview.widget.RecyclerView
+			android:id="@+id/recyclerview1"
+			android:layout_width="match_parent"
+			android:layout_height="0dp"
+			android:layout_weight="1"
+			android:layout_marginTop="4dp"
+			android:paddingLeft="8dp"
+			android:paddingRight="8dp"
+			android:clipToPadding="false"
+			tools:listitem="@layout/widgets" />
+
+		<!-- Drawer bottom: Custom configs -->
 		<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
-			android:background="?attr/colorOutlineVariant"
-			android:layout_marginTop="12dp"
-			android:layout_marginBottom="8dp" />
+			android:background="?attr/colorOutlineVariant" />
 
-		<!-- Widget Category Tabs (for drawer extra browsing) -->
-		<com.google.android.material.tabs.TabLayout
-			android:id="@+id/tabWidgetCategories"
+		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			app:tabMode="scrollable"
-			app:tabGravity="start"
-			app:tabIndicatorColor="?attr/colorPrimary"
-			app:tabSelectedTextColor="?attr/colorPrimary"
-			app:tabTextColor="?attr/colorOnSurfaceVariant"
-			app:tabMinWidth="50dp"
-			android:paddingBottom="4dp">
-			<com.google.android.material.tabs.TabItem
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="All" />
-			<com.google.android.material.tabs.TabItem
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="Layout" />
-			<com.google.android.material.tabs.TabItem
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="Basic" />
-			<com.google.android.material.tabs.TabItem
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="Form" />
-			<com.google.android.material.tabs.TabItem
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="Media" />
-			<com.google.android.material.tabs.TabItem
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="Adv." />
-		</com.google.android.material.tabs.TabLayout>
+			android:orientation="vertical"
+			android:padding="8dp">
 
-		<TextView
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:text="Drag widgets from the left panel or browse categories above."
-			android:textSize="12sp"
-			android:textColor="?attr/colorOnSurfaceVariant"
-			android:paddingTop="8dp" />
+			<Button
+				android:id="@+id/btnLoadCustomWidgets"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:text="Load Custom Widgets JSON"
+				android:textSize="11sp"
+				style="?attr/materialButtonOutlinedStyle" />
+
+			<Button
+				android:id="@+id/btnLoadCustomBlocks"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:text="Load Custom Blocks JSON"
+				android:textSize="11sp"
+				android:layout_marginTop="4dp"
+				style="?attr/materialButtonOutlinedStyle" />
+		</LinearLayout>
 	</LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>

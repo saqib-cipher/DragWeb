@@ -2,6 +2,7 @@ package sketchweb.gl;
 
 import com.google.gson.Gson;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class ThemeManager {
@@ -9,7 +10,8 @@ public class ThemeManager {
     public static final String THEME_LIGHT = "light";
     public static final String THEME_DARK = "dark";
 
-    private Map<String, String> globalStyles = new HashMap<>();
+    private Map<String, String> globalStyles = new LinkedHashMap<>();
+    private Map<String, String> customCssVars = new LinkedHashMap<>();
     private String currentTheme = THEME_LIGHT;
 
     public ThemeManager() {
@@ -66,7 +68,27 @@ public class ThemeManager {
     }
 
     public Map<String, String> getAllStyles() {
-        return new HashMap<>(globalStyles);
+        return new LinkedHashMap<>(globalStyles);
+    }
+
+    // Custom CSS variables management
+    public void addCustomVar(String name, String value) {
+        customCssVars.put(name, value);
+    }
+
+    public void removeCustomVar(String name) {
+        customCssVars.remove(name);
+    }
+
+    public Map<String, String> getCustomCssVars() {
+        return new LinkedHashMap<>(customCssVars);
+    }
+
+    public void setCustomCssVars(Map<String, String> vars) {
+        customCssVars.clear();
+        if (vars != null) {
+            customCssVars.putAll(vars);
+        }
     }
 
     public String generateCssVariables() {
@@ -75,6 +97,14 @@ public class ThemeManager {
         for (Map.Entry<String, String> entry : globalStyles.entrySet()) {
             String cssVar = "--" + camelToKebab(entry.getKey());
             css.append("  ").append(cssVar).append(": ").append(entry.getValue()).append(";\n");
+        }
+        // Include custom CSS variables
+        for (Map.Entry<String, String> entry : customCssVars.entrySet()) {
+            String varName = entry.getKey();
+            if (!varName.startsWith("--")) {
+                varName = "--" + varName;
+            }
+            css.append("  ").append(varName).append(": ").append(entry.getValue()).append(";\n");
         }
         css.append("}\n");
         return css.toString();
@@ -93,7 +123,17 @@ public class ThemeManager {
         css.append("a {\n  color: var(--link-color);\n  text-decoration: none;\n}\n\n");
         css.append("a:hover {\n  text-decoration: underline;\n}\n\n");
         css.append("button {\n  cursor: pointer;\n  font-family: inherit;\n}\n\n");
-        css.append("input {\n  font-family: inherit;\n}\n");
+        css.append("input, textarea, select {\n  font-family: inherit;\n}\n\n");
+        css.append(".hidden { display: none !important; }\n");
+        css.append(".flex { display: flex; }\n");
+        css.append(".flex-col { flex-direction: column; }\n");
+        css.append(".flex-row { flex-direction: row; }\n");
+        css.append(".items-center { align-items: center; }\n");
+        css.append(".justify-center { justify-content: center; }\n");
+        css.append(".justify-between { justify-content: space-between; }\n");
+        css.append(".text-center { text-align: center; }\n");
+        css.append(".w-full { width: 100%; }\n");
+        css.append(".h-full { height: 100%; }\n");
         return css.toString();
     }
 
@@ -101,6 +141,7 @@ public class ThemeManager {
         Map<String, Object> data = new HashMap<>();
         data.put("theme", currentTheme);
         data.put("styles", globalStyles);
+        data.put("customVars", customCssVars);
         return new Gson().toJson(data);
     }
 
@@ -113,6 +154,12 @@ public class ThemeManager {
             if (data.containsKey("styles")) {
                 Map<String, String> styles = (Map<String, String>) data.get("styles");
                 globalStyles.putAll(styles);
+            }
+            if (data.containsKey("customVars")) {
+                Map<String, String> vars = (Map<String, String>) data.get("customVars");
+                if (vars != null) {
+                    customCssVars.putAll(vars);
+                }
             }
         } catch (Exception e) {
             applyLightTheme();
