@@ -31,7 +31,7 @@ import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
-import com.google.android.material.button.MaterialButtonGroup;
+import com.google.android.material.button.MaterialButtonToggleGroup;
 import java.io.*;
 import java.text.*;
 import java.util.*;
@@ -44,7 +44,7 @@ public class PreviewBottomdialogFragmentActivity extends BottomSheetDialogFragme
 	private LinearLayout linear3;
 	private WebView webview1;
 	private TextView textview1;
-	private MaterialButtonGroup linear2;
+	private MaterialButtonToggleGroup linear2;
 	private Button button1;
 	private Button button2;
 	private Button button3;
