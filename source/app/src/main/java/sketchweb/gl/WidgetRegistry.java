@@ -104,6 +104,30 @@ public class WidgetRegistry {
         return allWidgets;
     }
 
+    public void importCustomWidgets(String jsonContent) {
+        try {
+            ArrayList<HashMap<String, Object>> customWidgets = new Gson().fromJson(jsonContent,
+                new TypeToken<ArrayList<HashMap<String, Object>>>(){}.getType());
+            if (customWidgets != null) {
+                // Replace http image sources with placeholder references just like in loadWidgets
+                for (HashMap<String, Object> widgetDef : customWidgets) {
+                    if ("img".equals(widgetDef.get("tag"))) {
+                        Map<String, Object> function = (Map<String, Object>) widgetDef.get("function");
+                        if (function != null && function.containsKey("src")) {
+                            String src = function.get("src").toString();
+                            if (src.startsWith("http")) {
+                                function.put("src", "android.R.drawable.ic_menu_gallery");
+                            }
+                        }
+                    }
+                }
+                allWidgets.addAll(customWidgets);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public ArrayList<HashMap<String, Object>> getWidgetsByCategory(String category) {
         ArrayList<HashMap<String, Object>> filtered = new ArrayList<>();
         for (HashMap<String, Object> widget : allWidgets) {

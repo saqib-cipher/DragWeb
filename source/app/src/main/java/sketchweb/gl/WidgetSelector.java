@@ -44,12 +44,8 @@ public class WidgetSelector {
 
     public void clearSelection() {
         if (selectedView != null) {
-            // Restore original background if we had one, otherwise transparent
-            if (originalBackground != null) {
-                selectedView.setBackground(originalBackground);
-            } else {
-                selectedView.setBackgroundColor(Color.TRANSPARENT); // fallback
-            }
+            // Restore original alpha
+            selectedView.setAlpha(1.0f);
             selectedView = null;
         }
     }
@@ -76,13 +72,9 @@ public class WidgetSelector {
         clearSelection();
 
         selectedView = view;
-        originalBackground = view.getBackground();
 
-        // Highlight selected view with a border
-        GradientDrawable highlightBorder = new GradientDrawable();
-        highlightBorder.setColor(Color.TRANSPARENT);
-        highlightBorder.setStroke(4, Color.BLUE);
-        view.setBackground(highlightBorder);
+        // Highlight selected view with a fade effect
+        view.setAlpha(0.5f);
 
         if (listener != null) {
             String widgetName = "Unknown";
