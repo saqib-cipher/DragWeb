@@ -39,7 +39,8 @@
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:supportsPictureInPicture="true"
-			android:windowSoftInputMode="stateHidden" />
+			android:windowSoftInputMode="stateHidden"
+			android:exported="false" />
 		<activity
 			android:name=".DebugActivity"
 			android:screenOrientation="portrait"
@@ -59,4 +60,4 @@
 			android:name="org.apache.http.legacy"
 			android:required="false" />
 	</application>
-</manifest>
+</manifest>

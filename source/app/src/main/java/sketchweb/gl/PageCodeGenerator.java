@@ -10,11 +10,17 @@ public class PageCodeGenerator {
 
     public String generateAllCode(View screen) {
         StringBuilder htmlBuilder = new StringBuilder();
-        htmlBuilder.append("<!DOCTYPE html>\n<html>\n<head>\n");
-        htmlBuilder.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
-        htmlBuilder.append("<style>\n");
-        htmlBuilder.append("  body { margin: 0; padding: 0; font-family: sans-serif; }\n");
-        htmlBuilder.append("</style>\n");
+        htmlBuilder.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
+        htmlBuilder.append("  <meta charset=\"UTF-8\">\n");
+        htmlBuilder.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
+        htmlBuilder.append("  <title>DragWeb Page</title>\n");
+        htmlBuilder.append("  <style>\n");
+        htmlBuilder.append("    * { margin: 0; padding: 0; box-sizing: border-box; }\n");
+        htmlBuilder.append("    body { font-family: sans-serif; line-height: 1.6; }\n");
+        htmlBuilder.append("    button { cursor: pointer; font-family: inherit; }\n");
+        htmlBuilder.append("    input { font-family: inherit; }\n");
+        htmlBuilder.append("    img { max-width: 100%; height: auto; }\n");
+        htmlBuilder.append("  </style>\n");
         htmlBuilder.append("</head>\n<body>\n");
 
         if (screen instanceof ViewGroup) {
@@ -24,6 +30,11 @@ public class PageCodeGenerator {
             }
         }
 
+        htmlBuilder.append("\n  <script>\n");
+        htmlBuilder.append("    document.addEventListener('DOMContentLoaded', function() {\n");
+        htmlBuilder.append("      console.log('Page loaded successfully!');\n");
+        htmlBuilder.append("    });\n");
+        htmlBuilder.append("  </script>\n");
         htmlBuilder.append("</body>\n</html>");
         return htmlBuilder.toString();
     }
@@ -31,10 +42,7 @@ public class PageCodeGenerator {
     private String generateHtmlForView(View view, int indentLevel) {
         if (view == null) return "";
 
-        StringBuilder indent = new StringBuilder();
-        for (int i = 0; i < indentLevel; i++) {
-            indent.append("  ");
-        }
+        String indent = repeat("  ", indentLevel);
 
         Object tagObj = view.getTag();
         if (!(tagObj instanceof Map)) {
@@ -55,54 +63,80 @@ public class PageCodeGenerator {
         if (style != null && !style.isEmpty()) {
             html.append(" style=\"");
             for (Map.Entry<String, Object> entry : style.entrySet()) {
-                // simple camelCase to kebab-case (e.g. fontSize -> font-size)
-                String cssKey = entry.getKey().replaceAll("([A-Z])", "-$1").toLowerCase();
+                String cssKey = camelToKebab(entry.getKey());
                 html.append(cssKey).append(": ").append(entry.getValue()).append("; ");
             }
             html.append("\"");
         }
 
-        // Attributes specific
-        if (tag.equals("img") && function.containsKey("src")) {
-            html.append(" src=\"").append(function.get("src")).append("\"");
+        // Tag-specific attributes
+        if ("img".equals(tag) && function.containsKey("src")) {
+            html.append(" src=\"").append(escapeAttr(function.get("src").toString())).append("\"");
+            html.append(" alt=\"Image\"");
         }
-        if (tag.equals("input") && function.containsKey("type")) {
-             html.append(" type=\"").append(function.get("type")).append("\"");
+        if ("input".equals(tag) && function.containsKey("type")) {
+            html.append(" type=\"").append(escapeAttr(function.get("type").toString())).append("\"");
         }
-        if (tag.equals("input") && function.containsKey("placeholder")) {
-             html.append(" placeholder=\"").append(function.get("placeholder")).append("\"");
+        if ("input".equals(tag) && function.containsKey("placeholder")) {
+            html.append(" placeholder=\"").append(escapeAttr(function.get("placeholder").toString())).append("\"");
         }
-        if (tag.equals("a") && function.containsKey("href")) {
-             html.append(" href=\"").append(function.get("href")).append("\"");
+        if ("a".equals(tag) && function.containsKey("href")) {
+            html.append(" href=\"").append(escapeAttr(function.get("href").toString())).append("\"");
         }
 
-        if (tag.equals("input") || tag.equals("img") || tag.equals("hr") || tag.equals("br")) {
-            html.append(" />\n"); // Self closing
+        // Self-closing tags
+        if ("input".equals(tag) || "img".equals(tag) || "hr".equals(tag) || "br".equals(tag)) {
+            html.append(" />\n");
             return html.toString();
         }
 
         html.append(">");
 
-        // Inner Content
+        // Text content
         if (function.containsKey("text")) {
-             html.append(function.get("text"));
+            html.append(escapeHtml(function.get("text").toString()));
         }
 
-        // Recursive children if ViewGroup
+        // Recursive children
         boolean hasChildren = false;
         if (view instanceof ViewGroup) {
-             ViewGroup vg = (ViewGroup) view;
-             if (vg.getChildCount() > 0) {
-                 html.append("\n");
-                 hasChildren = true;
-                 for (int i = 0; i < vg.getChildCount(); i++) {
-                      html.append(generateHtmlForView(vg.getChildAt(i), indentLevel + 1));
-                 }
-                 html.append(indent);
-             }
+            ViewGroup vg = (ViewGroup) view;
+            if (vg.getChildCount() > 0) {
+                html.append("\n");
+                hasChildren = true;
+                for (int i = 0; i < vg.getChildCount(); i++) {
+                    html.append(generateHtmlForView(vg.getChildAt(i), indentLevel + 1));
+                }
+                html.append(indent);
+            }
         }
 
         html.append("</").append(tag).append(">\n");
         return html.toString();
+    }
+
+    private String camelToKebab(String str) {
+        return str.replaceAll("([A-Z])", "-$1").toLowerCase();
+    }
+
+    private String escapeHtml(String text) {
+        return text.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;");
+    }
+
+    private String escapeAttr(String text) {
+        return text.replace("&", "&amp;")
+                   .replace("\"", "&quot;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;");
+    }
+
+    private String repeat(String str, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            sb.append(str);
+        }
+        return sb.toString();
     }
 }

@@ -96,7 +96,7 @@ public class SplashActivity extends AppCompatActivity {
 			@Override
 			public void run() {
 				runOnUiThread(() -> {
-					n.setClass(getApplicationContext(), MainActivity.class);
+					n.setClass(getApplicationContext(), HomeActivity.class);
 					startActivity(n);
 					finish();
 				});

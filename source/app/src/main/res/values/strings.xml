@@ -1,3 +1,21 @@
 <resources>
-	<string name="app_name" translatable="false">Sketchweb</string>
+	<string name="app_name" translatable="false">DragWeb</string>
+	<string name="new_project" translatable="false">New Project</string>
+	<string name="project_name" translatable="false">Project Name</string>
+	<string name="project_description" translatable="false">Description</string>
+	<string name="create" translatable="false">Create</string>
+	<string name="cancel" translatable="false">Cancel</string>
+	<string name="delete" translatable="false">Delete</string>
+	<string name="export_project" translatable="false">Export</string>
+	<string name="save" translatable="false">Save</string>
+	<string name="no_projects" translatable="false">No projects yet. Tap + to create one.</string>
+	<string name="undo" translatable="false">Undo</string>
+	<string name="redo" translatable="false">Redo</string>
+	<string name="preview" translatable="false">Preview</string>
+	<string name="widgets" translatable="false">Widgets</string>
+	<string name="design" translatable="false">Design</string>
+	<string name="functions" translatable="false">Functions</string>
+	<string name="theme_settings" translatable="false">Theme Settings</string>
+	<string name="export_html" translatable="false">Export HTML</string>
+	<string name="export_zip" translatable="false">Export as ZIP</string>
 </resources>

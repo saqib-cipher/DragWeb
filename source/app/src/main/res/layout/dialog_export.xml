@@ -1,0 +1,144 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:orientation="vertical"
+	android:padding="24dp">
+	<TextView
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:text="Export Options"
+		android:textSize="14sp"
+		android:textStyle="bold"
+		android:textColor="?attr/colorOnSurface"
+		android:layout_marginBottom="16dp" />
+	<com.google.android.material.card.MaterialCardView
+		android:id="@+id/cardExportHtml"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginBottom="8dp"
+		app:cardCornerRadius="12dp"
+		app:cardElevation="0dp"
+		android:clickable="true"
+		android:focusable="true"
+		style="@style/Widget.Material3.CardView.Outlined">
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:padding="16dp"
+			android:gravity="center_vertical">
+			<ImageView
+				android:layout_width="32dp"
+				android:layout_height="32dp"
+				android:src="@drawable/icon_web_round"
+				app:tint="?attr/colorPrimary" />
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:orientation="vertical"
+				android:layout_marginLeft="16dp">
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Export as HTML"
+					android:textSize="14sp"
+					android:textStyle="bold"
+					android:textColor="?attr/colorOnSurface" />
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Separate HTML, CSS, and JS files"
+					android:textSize="12sp"
+					android:textColor="?attr/colorOnSurfaceVariant" />
+			</LinearLayout>
+		</LinearLayout>
+	</com.google.android.material.card.MaterialCardView>
+	<com.google.android.material.card.MaterialCardView
+		android:id="@+id/cardExportZip"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginBottom="8dp"
+		app:cardCornerRadius="12dp"
+		app:cardElevation="0dp"
+		android:clickable="true"
+		android:focusable="true"
+		style="@style/Widget.Material3.CardView.Outlined">
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:padding="16dp"
+			android:gravity="center_vertical">
+			<ImageView
+				android:layout_width="32dp"
+				android:layout_height="32dp"
+				android:src="@drawable/icon_save_round"
+				app:tint="?attr/colorPrimary" />
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:orientation="vertical"
+				android:layout_marginLeft="16dp">
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Export as ZIP"
+					android:textSize="14sp"
+					android:textStyle="bold"
+					android:textColor="?attr/colorOnSurface" />
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Compressed project archive"
+					android:textSize="12sp"
+					android:textColor="?attr/colorOnSurfaceVariant" />
+			</LinearLayout>
+		</LinearLayout>
+	</com.google.android.material.card.MaterialCardView>
+	<com.google.android.material.card.MaterialCardView
+		android:id="@+id/cardExportPreview"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		app:cardCornerRadius="12dp"
+		app:cardElevation="0dp"
+		android:clickable="true"
+		android:focusable="true"
+		style="@style/Widget.Material3.CardView.Outlined">
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:padding="16dp"
+			android:gravity="center_vertical">
+			<ImageView
+				android:layout_width="32dp"
+				android:layout_height="32dp"
+				android:src="@drawable/icon_copy_all_round"
+				app:tint="?attr/colorPrimary" />
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:orientation="vertical"
+				android:layout_marginLeft="16dp">
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Copy HTML to Clipboard"
+					android:textSize="14sp"
+					android:textStyle="bold"
+					android:textColor="?attr/colorOnSurface" />
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Single file with inline styles"
+					android:textSize="12sp"
+					android:textColor="?attr/colorOnSurfaceVariant" />
+			</LinearLayout>
+		</LinearLayout>
+	</com.google.android.material.card.MaterialCardView>
+</LinearLayout>
