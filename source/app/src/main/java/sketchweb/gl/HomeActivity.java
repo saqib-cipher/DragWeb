@@ -110,7 +110,7 @@ public class HomeActivity extends AppCompatActivity {
 		if (menuAbout != null) {
 			menuAbout.setOnClickListener(v -> {
 				drawer.closeDrawer(GravityCompat.START);
-				Toast.makeText(this, "DragWeb - No Code Web Builder\nVersion 1.0", Toast.LENGTH_SHORT).show();
+				showAboutDialog();
 			});
 		}
 		if (menuBackup != null) {
@@ -362,6 +362,15 @@ public class HomeActivity extends AppCompatActivity {
 				Toast.makeText(this, "Project deleted", Toast.LENGTH_SHORT).show();
 			})
 			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	private void showAboutDialog() {
+		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
+
+		new MaterialAlertDialogBuilder(this)
+			.setView(dialogView)
+			.setPositiveButton("Close", null)
 			.show();
 	}
 

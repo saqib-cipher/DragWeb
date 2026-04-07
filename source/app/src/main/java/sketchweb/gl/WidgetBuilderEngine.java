@@ -34,6 +34,9 @@ public class WidgetBuilderEngine {
             case "a":
             case "span":
             case "label":
+            case "pre":
+            case "blockquote":
+            case "li":
                 view = new TextView(context);
                 break;
             case "button":
@@ -46,6 +49,12 @@ public class WidgetBuilderEngine {
             case "input":
                 view = new TextInputEditText(context);
                 break;
+            case "textarea":
+                TextInputEditText textArea = new TextInputEditText(context);
+                textArea.setMinLines(3);
+                textArea.setGravity(Gravity.TOP | Gravity.START);
+                view = textArea;
+                break;
             case "div":
             case "section":
             case "nav":
@@ -54,9 +63,9 @@ public class WidgetBuilderEngine {
             case "main":
             case "article":
             case "aside":
+            case "form":
                 view = new LinearLayout(context);
                 ((LinearLayout) view).setOrientation(LinearLayout.VERTICAL);
-                // Set min height so empty containers are visible/droppable
                 view.setMinimumHeight(40);
                 break;
             case "ul":
@@ -64,15 +73,47 @@ public class WidgetBuilderEngine {
                 view = new LinearLayout(context);
                 ((LinearLayout) view).setOrientation(LinearLayout.VERTICAL);
                 break;
-            case "li":
-                view = new TextView(context);
-                break;
             case "hr":
                 view = new View(context);
                 view.setBackgroundColor(Color.parseColor("#CCCCCC"));
                 break;
             case "br":
                 view = new View(context);
+                break;
+            case "video":
+            case "audio":
+                // Represented as a placeholder with label
+                TextView mediaView = new TextView(context);
+                mediaView.setText("[" + tag.toUpperCase() + " Player]");
+                mediaView.setGravity(Gravity.CENTER);
+                mediaView.setBackgroundColor(Color.parseColor("#1A000000"));
+                view = mediaView;
+                break;
+            case "canvas":
+                // Represented as a labeled placeholder
+                TextView canvasView = new TextView(context);
+                canvasView.setText("[Canvas]");
+                canvasView.setGravity(Gravity.CENTER);
+                canvasView.setBackgroundColor(Color.parseColor("#FFF8E1"));
+                view = canvasView;
+                break;
+            case "svg":
+                TextView svgView = new TextView(context);
+                svgView.setText("[SVG]");
+                svgView.setGravity(Gravity.CENTER);
+                view = svgView;
+                break;
+            case "iframe":
+                TextView iframeView = new TextView(context);
+                iframeView.setText("[IFrame]");
+                iframeView.setGravity(Gravity.CENTER);
+                iframeView.setBackgroundColor(Color.parseColor("#1A000000"));
+                view = iframeView;
+                break;
+            case "table":
+                view = new LinearLayout(context);
+                ((LinearLayout) view).setOrientation(LinearLayout.VERTICAL);
+                view.setMinimumHeight(40);
                 break;
             default:
                 view = new TextView(context);
@@ -176,37 +217,37 @@ public class WidgetBuilderEngine {
 
         view.setLayoutParams(params);
 
-        // Default Block Styling for Canvas (Android Preview)
-        android.graphics.drawable.GradientDrawable defaultShape = new android.graphics.drawable.GradientDrawable();
-        defaultShape.setColor(android.graphics.Color.TRANSPARENT);
-        defaultShape.setStroke(2, android.graphics.Color.parseColor("#B0BEC5")); // Light gray border
-        defaultShape.setCornerRadius(8);
+        // Default Block Styling for Canvas (Android Preview) - show hierarchy only
+        GradientDrawable defaultShape = new GradientDrawable();
+        defaultShape.setColor(Color.TRANSPARENT);
+        defaultShape.setStroke(1, Color.parseColor("#B0BEC5"));
+        defaultShape.setCornerRadius(4);
         view.setBackground(defaultShape);
 
-        // Add default padding so children are not squished against the border
-        view.setPadding(16, 16, 16, 16);
+        // Minimal padding for visibility
+        view.setPadding(8, 8, 8, 8);
 
-        // LinearLayout orientation
+        // LinearLayout orientation for flex containers
         if (view instanceof LinearLayout && style.containsKey("flexDirection")) {
             String dir = style.get("flexDirection").toString();
-            if ("row".equals(dir)) {
+            if ("row".equals(dir) || "row-reverse".equals(dir)) {
                 ((LinearLayout) view).setOrientation(LinearLayout.HORIZONTAL);
             } else {
                 ((LinearLayout) view).setOrientation(LinearLayout.VERTICAL);
             }
         }
 
-        // TextView specific styles - Apply ONLY minimal styles for visibility
+        // TextView specific styles - minimal for Android preview
         if (view instanceof TextView) {
             TextView tv = (TextView) view;
-            tv.setTextColor(android.graphics.Color.parseColor("#37474F")); // Default dark text
-            tv.setTextSize(14); // Default text size
+            tv.setTextColor(Color.parseColor("#37474F"));
+            tv.setTextSize(13);
             if (style.containsKey("textAlign")) {
                 String align = style.get("textAlign").toString();
                 switch (align) {
-                    case "center": tv.setGravity(android.view.Gravity.CENTER); break;
-                    case "right": tv.setGravity(android.view.Gravity.END); break;
-                    default: tv.setGravity(android.view.Gravity.START); break;
+                    case "center": tv.setGravity(Gravity.CENTER); break;
+                    case "right": tv.setGravity(Gravity.END); break;
+                    default: tv.setGravity(Gravity.START); break;
                 }
             }
         }
