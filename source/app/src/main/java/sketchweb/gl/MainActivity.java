@@ -58,10 +58,15 @@ public class MainActivity extends AppCompatActivity {
 	private WidgetRegistry widgetRegistry;
 	private LogicBlockManager logicBlockManager;
 	private HierarchyTreeAdapter hierarchyAdapter;
+	private PageManager pageManager;
+	private FileExplorerAdapter fileExplorerAdapter;
 
 	private ArrayList<HashMap<String, Object>> widgets = new ArrayList<>();
 	private ArrayList<HashMap<String, Object>> filteredWidgets = new ArrayList<>();
 	private ArrayList<HashMap<String, Object>> design = new ArrayList<>();
+
+	// Clipboard for copy/paste
+	private Map<String, Object> widgetClipboard = null;
 
 	private String projectId = "";
 	private String projectName = "Untitled";
@@ -79,9 +84,11 @@ public class MainActivity extends AppCompatActivity {
 	private Button btnDrawer, btnBack, btnUndo, btnRedo, btnTheme, btnExport, btnViewStyles;
 	private Button btnAddLogicBlock, btnViewAllBlocks;
 	private Button btnLoadCustomWidgets, btnLoadCustomBlocks, btnNewFolder;
-	private TextView textview2, tvProjectTitle;
+	private Button btnCopyWidget, btnAddPage;
+	private TextView textview2, tvProjectTitle, tvAssetsPath;
 	private RecyclerView recyclerview3, recyclerview1, recyclerviewRightPanel, rvAssets;
-	private android.widget.Spinner widgetSpinner;
+	private RecyclerView rvDrawerWidgets;
+	private android.widget.Spinner widgetSpinner, spnPageSelector;
 	private TabLayout tabLayout;
 	private Chip chipBasic, chipStyles, chipLayout, chipEvent;
 	private TextInputEditText etSearchWidget, etSearchHierarchy;
@@ -90,6 +97,9 @@ public class MainActivity extends AppCompatActivity {
 	private ActivityResultLauncher<android.content.Intent> importWidgetLauncher;
 	private ActivityResultLauncher<android.content.Intent> importImageLauncher;
 	private ActivityResultLauncher<android.content.Intent> importSvgLauncher;
+
+	// Track if a dialog is currently showing to avoid duplicates
+	private boolean isDialogShowing = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -120,7 +130,10 @@ public class MainActivity extends AppCompatActivity {
 		recyclerview1 = findViewById(R.id.recyclerview1);
 		recyclerviewRightPanel = findViewById(R.id.recyclerviewRightPanel);
 		rvAssets = findViewById(R.id.rvAssets);
+		rvDrawerWidgets = findViewById(R.id.rvDrawerWidgets);
 		widgetSpinner = findViewById(R.id.widgetSpinner);
+		spnPageSelector = findViewById(R.id.spnPageSelector);
+		btnAddPage = findViewById(R.id.btnAddPage);
 		btnDrawer = findViewById(R.id.btnDrawer);
 		btnBack = findViewById(R.id.btnBack);
 		btnUndo = findViewById(R.id.btnUndo);
@@ -132,7 +145,9 @@ public class MainActivity extends AppCompatActivity {
 		btnViewAllBlocks = findViewById(R.id.btnViewAllBlocks);
 		btnLoadCustomWidgets = findViewById(R.id.btnLoadCustomWidgets);
 		btnLoadCustomBlocks = findViewById(R.id.btnLoadCustomBlocks);
+		btnCopyWidget = findViewById(R.id.btnCopyWidget);
 		tvProjectTitle = findViewById(R.id.tvProjectTitle);
+		tvAssetsPath = findViewById(R.id.tvAssetsPath);
 		tabLayout = findViewById(R.id.tabLayout);
 		chipBasic = findViewById(R.id.chipBasic);
 		chipStyles = findViewById(R.id.chipStyles);
@@ -149,13 +164,12 @@ public class MainActivity extends AppCompatActivity {
 		if (getIntent().hasExtra("project_name")) {
 			projectName = getIntent().getStringExtra("project_name");
 		}
-		// Backwards compatibility: if no ID, use name
 		if (projectId.isEmpty() && !projectName.isEmpty()) {
 			projectId = projectName;
 		}
 		tvProjectTitle.setText(projectName);
 
-		// Drawer button - opens widget palette drawer
+		// Drawer button
 		btnDrawer.setOnClickListener(v -> {
 			androidx.drawerlayout.widget.DrawerLayout drawer = findViewById(R.id._main);
 			if (drawer != null) {
@@ -163,10 +177,7 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 
-		// Preview button
 		button5.setOnClickListener(v -> showPreview());
-
-		// Save button
 		button4.setOnClickListener(v -> saveProject());
 
 		// Delete selected widget
@@ -183,26 +194,31 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 
-		// View Applied Styles button
 		btnViewStyles.setOnClickListener(v -> showViewStylesDialog());
+
+		// Copy/Duplicate widget button
+		if (btnCopyWidget != null) {
+			btnCopyWidget.setOnClickListener(v -> showCopyPasteMenu());
+		}
 
 		// Import Image Button
 		btnImportImage.setOnClickListener(v -> {
 			android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
-			intent.setType("image/*");
+			intent.setType("*/*");
 			importImageLauncher.launch(intent);
 		});
 
 		// Import JSON Button
-		btnImportWidgets.setOnClickListener(v -> {
-			android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
-			intent.setType("*/*");
-			String[] mimetypes = {"application/json", "text/plain"};
-			intent.putExtra(android.content.Intent.EXTRA_MIME_TYPES, mimetypes);
-			importWidgetLauncher.launch(intent);
-		});
+		if (btnImportWidgets != null) {
+			btnImportWidgets.setOnClickListener(v -> {
+				android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+				intent.setType("*/*");
+				String[] mimetypes = {"application/json", "text/plain"};
+				intent.putExtra(android.content.Intent.EXTRA_MIME_TYPES, mimetypes);
+				importWidgetLauncher.launch(intent);
+			});
+		}
 
-		// Import SVG Button
 		if (btnImportSvg != null) {
 			btnImportSvg.setOnClickListener(v -> {
 				android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
@@ -211,12 +227,10 @@ public class MainActivity extends AppCompatActivity {
 			});
 		}
 
-		// New folder button
 		if (btnNewFolder != null) {
 			btnNewFolder.setOnClickListener(v -> showNewFolderDialog());
 		}
 
-		// Custom JSON loaders
 		if (btnLoadCustomWidgets != null) {
 			btnLoadCustomWidgets.setOnClickListener(v -> loadCustomWidgetsFromDevice());
 		}
@@ -224,26 +238,9 @@ public class MainActivity extends AppCompatActivity {
 			btnLoadCustomBlocks.setOnClickListener(v -> loadCustomBlocksFromDevice());
 		}
 
-		// Icon library chips
-		Chip chipFontAwesome = findViewById(R.id.chipFontAwesome);
-		Chip chipTablerIcons = findViewById(R.id.chipTablerIcons);
-		Chip chipBootstrapIcons = findViewById(R.id.chipBootstrapIcons);
-		Chip chipCustomSvg = findViewById(R.id.chipCustomSvg);
-		if (chipFontAwesome != null) {
-			chipFontAwesome.setOnClickListener(v -> addIconLibraryWidget("Font Awesome", "fa"));
-		}
-		if (chipTablerIcons != null) {
-			chipTablerIcons.setOnClickListener(v -> addIconLibraryWidget("Tabler Icons", "tabler"));
-		}
-		if (chipBootstrapIcons != null) {
-			chipBootstrapIcons.setOnClickListener(v -> addIconLibraryWidget("Bootstrap Icons", "bi"));
-		}
-		if (chipCustomSvg != null) {
-			chipCustomSvg.setOnClickListener(v -> {
-				android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
-				intent.setType("image/svg+xml");
-				importImageLauncher.launch(intent);
-			});
+		// Add page button
+		if (btnAddPage != null) {
+			btnAddPage.setOnClickListener(v -> showAddPageDialog());
 		}
 
 		importWidgetLauncher = registerForActivityResult(
@@ -289,28 +286,37 @@ public class MainActivity extends AppCompatActivity {
 							String base64Image = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP);
 							String mimeType = getContentResolver().getType(uri);
 							if (mimeType == null) mimeType = "image/png";
-							String src = "data:" + mimeType + ";base64," + base64Image;
 
 							saveAssetToProject(projectId, uri, base64Image, mimeType);
 
-							HashMap<String, Object> newImgWidget = new HashMap<>();
-							newImgWidget.put("tag", "img");
-							newImgWidget.put("name", "Imported Image");
-							newImgWidget.put("color", "#FFC107");
-							newImgWidget.put("category", "media");
-							HashMap<String, Object> function = new HashMap<>();
-							function.put("src", src);
-							HashMap<String, Object> style = new HashMap<>();
-							style.put("width", "100px");
-							style.put("height", "100px");
-							function.put("style", style);
-							newImgWidget.put("function", function);
+							// Refresh file explorer
+							if (fileExplorerAdapter != null) {
+								fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
+								updateAssetsPath();
+							}
 
-							widgets.add(newImgWidget);
-							refreshWidgetList();
-							Toast.makeText(this, "Image imported!", Toast.LENGTH_SHORT).show();
+							String src = "data:" + mimeType + ";base64," + base64Image;
+
+							if (mimeType.contains("image")) {
+								HashMap<String, Object> newImgWidget = new HashMap<>();
+								newImgWidget.put("tag", "img");
+								newImgWidget.put("name", "Imported Image");
+								newImgWidget.put("color", "#FFC107");
+								newImgWidget.put("category", "media");
+								HashMap<String, Object> function = new HashMap<>();
+								function.put("src", src);
+								HashMap<String, Object> style = new HashMap<>();
+								style.put("width", "100px");
+								style.put("height", "100px");
+								function.put("style", style);
+								newImgWidget.put("function", function);
+								widgets.add(newImgWidget);
+								refreshWidgetList();
+							}
+
+							Toast.makeText(this, "File imported!", Toast.LENGTH_SHORT).show();
 						} catch (Exception e) {
-							Toast.makeText(this, "Failed to import image.", Toast.LENGTH_SHORT).show();
+							Toast.makeText(this, "Failed to import file.", Toast.LENGTH_SHORT).show();
 						}
 					}
 				}
@@ -353,13 +359,11 @@ public class MainActivity extends AppCompatActivity {
 			}
 		);
 
-		// Back button
 		btnBack.setOnClickListener(v -> {
 			saveProject();
 			finish();
 		});
 
-		// Undo button
 		btnUndo.setOnClickListener(v -> {
 			List<Map<String, Object>> state = undoRedoManager.undo();
 			if (state != null) {
@@ -368,7 +372,6 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 
-		// Redo button
 		btnRedo.setOnClickListener(v -> {
 			List<Map<String, Object>> state = undoRedoManager.redo();
 			if (state != null) {
@@ -377,39 +380,21 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 
-		// Theme button
 		btnTheme.setOnClickListener(v -> showThemeDialog());
-
-		// Export button
 		btnExport.setOnClickListener(v -> showExportDialog());
 
-		// Logic block buttons
 		btnAddLogicBlock.setOnClickListener(v -> {
-			View selected = selector.getSelectedView();
-			String targetTag = "body";
-			if (selected != null) {
-				Object tagObj = selected.getTag();
-				if (tagObj instanceof Map) {
-					Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
-					if (widgetMap.containsKey("tag")) {
-						targetTag = widgetMap.get("tag").toString();
-					}
-				}
-			}
-			logicBlockManager.showAddBlockDialog(targetTag, block -> {
-				Toast.makeText(this, "Block added: " + block.event + " -> " + block.action, Toast.LENGTH_SHORT).show();
-				refreshLogicBlocksUI();
-			});
+			showAddLogicBlockDialog();
 		});
 
 		btnViewAllBlocks.setOnClickListener(v -> logicBlockManager.showBlocksDialog());
 
-		// Setup tabs and chips
 		setupTabLayout();
 		setupWidgetCategoryChips();
 		setupBottomChips();
 		setupWidgetSearch();
 		setupHierarchySearch();
+		setupDrawerCategoryChips();
 	}
 
 	private void initializeLogic() {
@@ -420,6 +405,7 @@ public class MainActivity extends AppCompatActivity {
 		themeManager = new ThemeManager();
 		exportManager = new ExportManager(this, themeManager);
 		logicBlockManager = new LogicBlockManager(this);
+		pageManager = new PageManager(this, projectId);
 
 		// Undo/Redo
 		undoRedoManager = new UndoRedoManager();
@@ -449,20 +435,24 @@ public class MainActivity extends AppCompatActivity {
 
 		autoLoadCustomConfigs();
 
+		// Set up widget list in right panel (vertical)
 		recyclerview1.setAdapter(new Recyclerview1Adapter(filteredWidgets));
 		recyclerview1.setLayoutManager(new LinearLayoutManager(this));
 
-		// Setup hierarchy tree with drag support
+		// Set up widget list in drawer (vertical - bigger)
+		if (rvDrawerWidgets != null) {
+			rvDrawerWidgets.setAdapter(new Recyclerview1Adapter(filteredWidgets));
+			rvDrawerWidgets.setLayoutManager(new LinearLayoutManager(this));
+		}
+
+		// Setup hierarchy tree
 		hierarchyAdapter = new HierarchyTreeAdapter(this);
 		hierarchyAdapter.setOnItemClickListener(widgetView -> {
 			selector.clearSelection();
 			widgetView.performClick();
 		});
 		hierarchyAdapter.setOnItemLongClickListener(widgetView -> {
-			ClipData.Item item = new ClipData.Item("reorder:" + widgetView.hashCode());
-			ClipData dragData = new ClipData("reorder", new String[]{"text/plain"}, item);
-			View.DragShadowBuilder shadow = new View.DragShadowBuilder(widgetView);
-			widgetView.startDragAndDrop(dragData, shadow, widgetView, 0);
+			showWidgetContextMenu(widgetView);
 		});
 		hierarchyAdapter.setOnReorderListener((movedView, newParent, newIndex) -> {
 			saveUndoState();
@@ -475,6 +465,12 @@ public class MainActivity extends AppCompatActivity {
 		// Drop zone
 		dropZoneManager = new DropZoneManager(this, screen, widgets, engine, selector);
 		setupCanvasDragListener();
+
+		// File explorer for assets
+		setupFileExplorer();
+
+		// Page selector
+		setupPageSelector();
 
 		// Deselect on main click
 		main.setOnClickListener(v -> {
@@ -494,6 +490,401 @@ public class MainActivity extends AppCompatActivity {
 		loadProject();
 		saveUndoState();
 		refreshHierarchy();
+	}
+
+	// ---- Add Logic Block with target selector ----
+
+	private void showAddLogicBlockDialog() {
+		String[] targetModes = {"By ID", "By Class", "By Tag"};
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Select Target Mode")
+			.setItems(targetModes, (dialog, which) -> {
+				String mode;
+				String hint;
+				switch (which) {
+					case 0: mode = "id"; hint = "Element ID (e.g. myButton)"; break;
+					case 1: mode = "class"; hint = "CSS class (e.g. btn-primary)"; break;
+					default: mode = "tag"; hint = "HTML tag (e.g. button)"; break;
+				}
+				showTargetInputDialog(mode, hint);
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	private void showTargetInputDialog(String mode, String hint) {
+		// Pre-fill with selected widget info if available
+		String defaultValue = "";
+		View selected = selector.getSelectedView();
+		if (selected != null) {
+			Object tagObj = selected.getTag();
+			if (tagObj instanceof Map) {
+				Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
+				Map<String, Object> fn = (Map<String, Object>) widgetMap.get("function");
+				if ("id".equals(mode) && fn != null && fn.containsKey("id")) {
+					defaultValue = fn.get("id").toString();
+				} else if ("class".equals(mode) && fn != null && fn.containsKey("class")) {
+					defaultValue = fn.get("class").toString();
+				} else if ("tag".equals(mode) && widgetMap.containsKey("tag")) {
+					defaultValue = widgetMap.get("tag").toString();
+				}
+			}
+		}
+
+		android.widget.EditText input = new android.widget.EditText(this);
+		input.setHint(hint);
+		input.setText(defaultValue);
+		input.setPadding(48, 32, 48, 32);
+
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Enter Target (" + mode + ")")
+			.setView(input)
+			.setPositiveButton("Next", (d, w) -> {
+				String target = input.getText().toString().trim();
+				if (target.isEmpty()) {
+					Toast.makeText(this, "Target cannot be empty", Toast.LENGTH_SHORT).show();
+					return;
+				}
+				logicBlockManager.showAddBlockDialog(target, mode, block -> {
+					Toast.makeText(this, "Block added: " + block.event + " -> " + block.action, Toast.LENGTH_SHORT).show();
+					refreshLogicBlocksUI();
+				});
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	// ---- Widget Context Menu (long press on hierarchy) ----
+
+	private void showWidgetContextMenu(View widgetView) {
+		String[] options = {"Copy", "Duplicate", "Lock/Unlock", "Hide/Show", "Delete"};
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Widget Actions")
+			.setItems(options, (dialog, which) -> {
+				switch (which) {
+					case 0: copyWidget(widgetView); break;
+					case 1: duplicateWidget(widgetView); break;
+					case 2: toggleLockWidget(widgetView); break;
+					case 3: toggleHideWidget(widgetView); break;
+					case 4: deleteWidget(widgetView); break;
+				}
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	private void copyWidget(View widgetView) {
+		Object tagObj = widgetView.getTag();
+		if (tagObj instanceof Map) {
+			widgetClipboard = new HashMap<>((Map<String, Object>) tagObj);
+			// Serialize children if it's a container
+			if (widgetView instanceof ViewGroup) {
+				List<Map<String, Object>> children = serializeChildren((ViewGroup) widgetView);
+				if (!children.isEmpty()) {
+					widgetClipboard.put("children", children);
+				}
+			}
+			Toast.makeText(this, "Widget copied", Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	private void pasteWidget() {
+		if (widgetClipboard == null) {
+			Toast.makeText(this, "Nothing to paste", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		rebuildView(new HashMap<>(widgetClipboard), screen);
+		saveUndoState();
+		refreshHierarchy();
+		updateWidgetSpinnerFromTree();
+		Toast.makeText(this, "Widget pasted", Toast.LENGTH_SHORT).show();
+	}
+
+	private void duplicateWidget(View widgetView) {
+		if (!(widgetView.getParent() instanceof ViewGroup)) return;
+		ViewGroup parent = (ViewGroup) widgetView.getParent();
+		Object tagObj = widgetView.getTag();
+		if (tagObj instanceof Map) {
+			Map<String, Object> original = new HashMap<>((Map<String, Object>) tagObj);
+			if (widgetView instanceof ViewGroup) {
+				List<Map<String, Object>> children = serializeChildren((ViewGroup) widgetView);
+				if (!children.isEmpty()) {
+					original.put("children", children);
+				}
+			}
+			int index = parent.indexOfChild(widgetView);
+			rebuildViewAt(original, parent, index + 1);
+			saveUndoState();
+			refreshHierarchy();
+			updateWidgetSpinnerFromTree();
+			Toast.makeText(this, "Widget duplicated", Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	private void toggleLockWidget(View widgetView) {
+		Object tagObj = widgetView.getTag();
+		if (tagObj instanceof Map) {
+			Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
+			boolean locked = Boolean.TRUE.equals(widgetMap.get("locked"));
+			widgetMap.put("locked", !locked);
+			widgetView.setTag(widgetMap);
+			refreshHierarchy();
+			Toast.makeText(this, locked ? "Widget unlocked" : "Widget locked", Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	private void toggleHideWidget(View widgetView) {
+		Object tagObj = widgetView.getTag();
+		if (tagObj instanceof Map) {
+			Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
+			boolean hidden = Boolean.TRUE.equals(widgetMap.get("hidden"));
+			widgetMap.put("hidden", !hidden);
+			widgetView.setVisibility(hidden ? View.VISIBLE : View.GONE);
+			widgetView.setTag(widgetMap);
+			refreshHierarchy();
+			Toast.makeText(this, hidden ? "Widget visible" : "Widget hidden", Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	private void deleteWidget(View widgetView) {
+		if (widgetView.getParent() instanceof ViewGroup) {
+			((ViewGroup) widgetView.getParent()).removeView(widgetView);
+			selector.clearSelection();
+			textview2.setText("No widget selected");
+			delete.setEnabled(false);
+			saveUndoState();
+			refreshHierarchy();
+			updateWidgetSpinnerFromTree();
+		}
+	}
+
+	private List<Map<String, Object>> serializeChildren(ViewGroup parent) {
+		List<Map<String, Object>> nodes = new ArrayList<>();
+		for (int i = 0; i < parent.getChildCount(); i++) {
+			View child = parent.getChildAt(i);
+			Object tagObj = child.getTag();
+			if (tagObj instanceof Map) {
+				Map<String, Object> widgetMap = new HashMap<>((Map<String, Object>) tagObj);
+				if (child instanceof ViewGroup) {
+					List<Map<String, Object>> children = serializeChildren((ViewGroup) child);
+					if (!children.isEmpty()) {
+						widgetMap.put("children", children);
+					}
+				}
+				nodes.add(widgetMap);
+			}
+		}
+		return nodes;
+	}
+
+	// ---- Copy/Paste Menu ----
+
+	private void showCopyPasteMenu() {
+		List<String> options = new ArrayList<>();
+		options.add("Copy Selected Widget");
+		options.add("Paste Widget");
+		options.add("Duplicate Selected Widget");
+
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Copy / Paste")
+			.setItems(options.toArray(new String[0]), (dialog, which) -> {
+				switch (which) {
+					case 0:
+						View selected = selector.getSelectedView();
+						if (selected != null) copyWidget(selected);
+						else Toast.makeText(this, "Select a widget first", Toast.LENGTH_SHORT).show();
+						break;
+					case 1:
+						pasteWidget();
+						break;
+					case 2:
+						View sel2 = selector.getSelectedView();
+						if (sel2 != null) duplicateWidget(sel2);
+						else Toast.makeText(this, "Select a widget first", Toast.LENGTH_SHORT).show();
+						break;
+				}
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	// ---- File Explorer ----
+
+	private void setupFileExplorer() {
+		String assetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+			+ "/.dragweb/projects/" + projectId + "/assets";
+		File assetsDir = new File(assetsPath);
+		if (!assetsDir.exists()) assetsDir.mkdirs();
+
+		fileExplorerAdapter = new FileExplorerAdapter(this, assetsDir);
+		fileExplorerAdapter.setOnFileClickListener(file -> {
+			if (file.isDirectory()) {
+				updateAssetsPath();
+			}
+		});
+		fileExplorerAdapter.setOnFileLongClickListener(file -> {
+			showFileContextMenu(file);
+		});
+
+		if (rvAssets != null) {
+			rvAssets.setAdapter(fileExplorerAdapter);
+			rvAssets.setLayoutManager(new LinearLayoutManager(this));
+			fileExplorerAdapter.navigateTo(assetsDir);
+			updateAssetsPath();
+		}
+	}
+
+	private void updateAssetsPath() {
+		if (tvAssetsPath != null && fileExplorerAdapter != null) {
+			tvAssetsPath.setText(fileExplorerAdapter.getRelativePath());
+		}
+	}
+
+	private void showFileContextMenu(File file) {
+		String[] options = file.isDirectory() ?
+			new String[]{"Open", "Delete"} :
+			new String[]{"Use as Image Source", "Delete"};
+
+		new MaterialAlertDialogBuilder(this)
+			.setTitle(file.getName())
+			.setItems(options, (dialog, which) -> {
+				if (file.isDirectory()) {
+					if (which == 0) fileExplorerAdapter.navigateTo(file);
+					else deleteFileWithConfirm(file);
+				} else {
+					if (which == 0) useFileAsImageSource(file);
+					else deleteFileWithConfirm(file);
+				}
+				updateAssetsPath();
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	private void useFileAsImageSource(File file) {
+		View selected = selector.getSelectedView();
+		if (selected instanceof ImageView) {
+			try {
+				java.io.FileInputStream fis = new java.io.FileInputStream(file);
+				java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+				byte[] buf = new byte[4096];
+				int len;
+				while ((len = fis.read(buf)) != -1) bos.write(buf, 0, len);
+				fis.close();
+				byte[] data = bos.toByteArray();
+				String base64 = android.util.Base64.encodeToString(data, android.util.Base64.NO_WRAP);
+				String mimeType = "image/png";
+				String name = file.getName().toLowerCase();
+				if (name.endsWith(".jpg") || name.endsWith(".jpeg")) mimeType = "image/jpeg";
+				else if (name.endsWith(".svg")) mimeType = "image/svg+xml";
+				else if (name.endsWith(".gif")) mimeType = "image/gif";
+				else if (name.endsWith(".webp")) mimeType = "image/webp";
+
+				String src = "data:" + mimeType + ";base64," + base64;
+				Map<String, Object> style = new HashMap<>();
+				style.put("src", src);
+				widgetUpdater.updateWidget(selected, "", style);
+				saveUndoState();
+				Toast.makeText(this, "Image source set", Toast.LENGTH_SHORT).show();
+			} catch (Exception e) {
+				Toast.makeText(this, "Could not load file", Toast.LENGTH_SHORT).show();
+			}
+		} else {
+			Toast.makeText(this, "Select an Image widget first", Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	private void deleteFileWithConfirm(File file) {
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Delete " + file.getName() + "?")
+			.setMessage("This cannot be undone.")
+			.setPositiveButton("Delete", (d, w) -> {
+				FileUtil.deleteFile(file.getAbsolutePath());
+				fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	// ---- Page Management ----
+
+	private void setupPageSelector() {
+		if (spnPageSelector == null || pageManager == null) return;
+		updatePageSpinner();
+
+		if (btnAddPage != null) {
+			btnAddPage.setOnClickListener(v -> showAddPageDialog());
+		}
+	}
+
+	private void updatePageSpinner() {
+		List<String> pages = pageManager.getPages();
+		android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+			this, android.R.layout.simple_spinner_item, pages);
+		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+		spnPageSelector.setAdapter(adapter);
+
+		int currentIdx = pages.indexOf(pageManager.getCurrentPage());
+		if (currentIdx >= 0) spnPageSelector.setSelection(currentIdx);
+
+		spnPageSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+			@Override
+			public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+				String selectedPage = pages.get(position);
+				if (!selectedPage.equals(pageManager.getCurrentPage())) {
+					saveCurrentPageLayout();
+					pageManager.setCurrentPage(selectedPage);
+					loadCurrentPageLayout();
+				}
+			}
+			@Override
+			public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+		});
+	}
+
+	private void showAddPageDialog() {
+		showStyleDialog("New Page", "Page name (e.g. about)", value -> {
+			String pageName = value.trim().replaceAll("[^a-zA-Z0-9_-]", "");
+			if (pageName.isEmpty()) {
+				Toast.makeText(this, "Invalid page name", Toast.LENGTH_SHORT).show();
+				return;
+			}
+			saveCurrentPageLayout();
+			pageManager.addPage(pageName);
+			pageManager.setCurrentPage(pageName);
+			screen.removeAllViews();
+			saveUndoState();
+			refreshHierarchy();
+			updatePageSpinner();
+			Toast.makeText(this, "Page '" + pageName + "' created", Toast.LENGTH_SHORT).show();
+		});
+	}
+
+	private void saveCurrentPageLayout() {
+		List<Map<String, Object>> widgetTree = serializeChildren(screen);
+		String json = new Gson().toJson(widgetTree);
+		pageManager.savePageLayout(pageManager.getCurrentPage(), json);
+	}
+
+	private void loadCurrentPageLayout() {
+		String json = pageManager.loadPageLayout(pageManager.getCurrentPage());
+		screen.removeAllViews();
+		try {
+			List<Map<String, Object>> widgetTree = new Gson().fromJson(json,
+				new TypeToken<List<Map<String, Object>>>(){}.getType());
+			if (widgetTree != null) {
+				for (Map<String, Object> nodeMap : widgetTree) {
+					rebuildView(nodeMap, screen);
+				}
+			}
+		} catch (Exception e) {
+			Log.w("MainActivity", "Could not load page layout: " + e.getMessage());
+		}
+		selector.clearSelection();
+		selector.attachTo(screen);
+		saveUndoState();
+		refreshHierarchy();
+		updateWidgetSpinnerFromTree();
 	}
 
 	// ---- Widget Search ----
@@ -527,9 +918,7 @@ public class MainActivity extends AppCompatActivity {
 				}
 			}
 		}
-		if (recyclerview1.getAdapter() != null) {
-			recyclerview1.getAdapter().notifyDataSetChanged();
-		}
+		notifyWidgetAdapters();
 	}
 
 	private void setupHierarchySearch() {
@@ -593,6 +982,11 @@ public class MainActivity extends AppCompatActivity {
 		bottomPanel.setVisibility(View.GONE);
 		View rightPanelCard = findViewById(R.id.rightPanelCard);
 		if (rightPanelCard != null) rightPanelCard.setVisibility(View.GONE);
+		// Refresh file list
+		if (fileExplorerAdapter != null) {
+			fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
+			updateAssetsPath();
+		}
 	}
 
 	// ---- Widget Category Chips ----
@@ -615,6 +1009,23 @@ public class MainActivity extends AppCompatActivity {
 		});
 	}
 
+	private void setupDrawerCategoryChips() {
+		ChipGroup drawerChips = findViewById(R.id.chipGroupDrawerCategories);
+		if (drawerChips == null) return;
+		drawerChips.setOnCheckedStateChangeListener((group, checkedIds) -> {
+			if (checkedIds.isEmpty()) {
+				filterWidgetsByCategory("all");
+				return;
+			}
+			int checkedId = checkedIds.get(0);
+			if (checkedId == R.id.chipDrawerAll) filterWidgetsByCategory("all");
+			else if (checkedId == R.id.chipDrawerLayout) filterWidgetsByCategory("layout");
+			else if (checkedId == R.id.chipDrawerBasic) filterWidgetsByCategory("basic");
+			else if (checkedId == R.id.chipDrawerForm) filterWidgetsByCategory("form");
+			else filterWidgetsByCategory("all");
+		});
+	}
+
 	private void filterWidgetsByCategory(String category) {
 		filteredWidgets.clear();
 		if ("all".equals(category)) {
@@ -627,8 +1038,15 @@ public class MainActivity extends AppCompatActivity {
 				}
 			}
 		}
-		if (recyclerview1.getAdapter() != null) {
+		notifyWidgetAdapters();
+	}
+
+	private void notifyWidgetAdapters() {
+		if (recyclerview1 != null && recyclerview1.getAdapter() != null) {
 			recyclerview1.getAdapter().notifyDataSetChanged();
+		}
+		if (rvDrawerWidgets != null && rvDrawerWidgets.getAdapter() != null) {
+			rvDrawerWidgets.getAdapter().notifyDataSetChanged();
 		}
 	}
 
@@ -637,7 +1055,7 @@ public class MainActivity extends AppCompatActivity {
 			if (checked) {
 				chipStyles.setChecked(false);
 				chipLayout.setChecked(false);
-				chipEvent.setChecked(false);
+				if (chipEvent != null) chipEvent.setChecked(false);
 				buildDesignList();
 			}
 		});
@@ -645,7 +1063,7 @@ public class MainActivity extends AppCompatActivity {
 			if (checked) {
 				chipBasic.setChecked(false);
 				chipLayout.setChecked(false);
-				chipEvent.setChecked(false);
+				if (chipEvent != null) chipEvent.setChecked(false);
 				buildAdvancedDesignList();
 			}
 		});
@@ -653,27 +1071,27 @@ public class MainActivity extends AppCompatActivity {
 			if (checked) {
 				chipBasic.setChecked(false);
 				chipStyles.setChecked(false);
-				chipEvent.setChecked(false);
+				if (chipEvent != null) chipEvent.setChecked(false);
 				buildLayoutDesignList();
 			}
 		});
-		chipEvent.setOnCheckedChangeListener((btn, checked) -> {
-			if (checked) {
-				chipBasic.setChecked(false);
-				chipStyles.setChecked(false);
-				chipLayout.setChecked(false);
-				buildEventDesignList();
-			}
-		});
+		if (chipEvent != null) {
+			chipEvent.setOnCheckedChangeListener((btn, checked) -> {
+				if (checked) {
+					chipBasic.setChecked(false);
+					chipStyles.setChecked(false);
+					chipLayout.setChecked(false);
+					buildEventDesignList();
+				}
+			});
+		}
 	}
 
 	private void refreshWidgetList() {
 		widgets = widgetRegistry.getAllWidgets();
 		filteredWidgets.clear();
 		filteredWidgets.addAll(widgets);
-		if (recyclerview1.getAdapter() != null) {
-			recyclerview1.getAdapter().notifyDataSetChanged();
-		}
+		notifyWidgetAdapters();
 	}
 
 	private void refreshHierarchy() {
@@ -882,6 +1300,15 @@ public class MainActivity extends AppCompatActivity {
 
 	private void setupWidgetReorderDrag(View widget) {
 		widget.setOnLongClickListener(v -> {
+			// Check if widget is locked
+			Object tagObj = v.getTag();
+			if (tagObj instanceof Map) {
+				Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
+				if (Boolean.TRUE.equals(widgetMap.get("locked"))) {
+					Toast.makeText(this, "Widget is locked", Toast.LENGTH_SHORT).show();
+					return true;
+				}
+			}
 			ClipData.Item item = new ClipData.Item("reorder:" + v.hashCode());
 			ClipData dragData = new ClipData("reorder", new String[]{"text/plain"}, item);
 			View.DragShadowBuilder shadow = new View.DragShadowBuilder(v);
@@ -1010,11 +1437,21 @@ public class MainActivity extends AppCompatActivity {
 	private void showNewFolderDialog() {
 		showStyleDialog("Create New Folder", "Folder name", value -> {
 			try {
-				String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-					+ "/.dragweb/projects/" + projectId + "/assets/" + value;
+				File currentDir = fileExplorerAdapter != null ?
+					fileExplorerAdapter.getCurrentDir() : null;
+				String basePath;
+				if (currentDir != null) {
+					basePath = currentDir.getAbsolutePath() + "/" + value;
+				} else {
+					basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+						+ "/.dragweb/projects/" + projectId + "/assets/" + value;
+				}
 				File dir = new File(basePath);
 				if (dir.mkdirs()) {
 					Toast.makeText(this, "Folder created: " + value, Toast.LENGTH_SHORT).show();
+					if (fileExplorerAdapter != null) {
+						fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
+					}
 				} else {
 					Toast.makeText(this, "Could not create folder", Toast.LENGTH_SHORT).show();
 				}
@@ -1041,6 +1478,18 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}
 
+		// Load blocks from assets/blocks.json
+		try {
+			InputStream is = getAssets().open("blocks.json");
+			byte[] buffer = new byte[is.available()];
+			is.read(buffer);
+			is.close();
+			// blocks.json is loaded as reference data; custom blocks override
+		} catch (Exception e) {
+			Log.w("MainActivity", "Could not load blocks.json from assets: " + e.getMessage());
+		}
+
+		// Load custom blocks
 		String blocksPath = Environment.getExternalStorageDirectory().getAbsolutePath()
 			+ "/.dragweb/custom/blocks.json";
 		File customBlocksFile = new File(blocksPath);
@@ -1099,18 +1548,24 @@ public class MainActivity extends AppCompatActivity {
 
 	private void saveAssetToProject(String projectId, android.net.Uri uri, String base64, String mimeType) {
 		try {
-			String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-				+ "/.dragweb/projects/" + projectId + "/assets";
-			File assetsDir = new File(basePath);
-			if (!assetsDir.exists()) assetsDir.mkdirs();
+			File targetDir = fileExplorerAdapter != null ?
+				fileExplorerAdapter.getCurrentDir() : null;
+			if (targetDir == null) {
+				String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+					+ "/.dragweb/projects/" + projectId + "/assets";
+				targetDir = new File(basePath);
+			}
+			if (!targetDir.exists()) targetDir.mkdirs();
 
 			String fileName = "asset_" + System.currentTimeMillis();
 			if (mimeType.contains("png")) fileName += ".png";
 			else if (mimeType.contains("svg")) fileName += ".svg";
 			else if (mimeType.contains("jpeg") || mimeType.contains("jpg")) fileName += ".jpg";
+			else if (mimeType.contains("gif")) fileName += ".gif";
+			else if (mimeType.contains("webp")) fileName += ".webp";
 			else fileName += ".img";
 
-			File assetFile = new File(assetsDir, fileName);
+			File assetFile = new File(targetDir, fileName);
 			byte[] decoded = android.util.Base64.decode(base64, android.util.Base64.NO_WRAP);
 			java.io.FileOutputStream fos = new java.io.FileOutputStream(assetFile);
 			fos.write(decoded);
@@ -1118,26 +1573,6 @@ public class MainActivity extends AppCompatActivity {
 		} catch (Exception e) {
 			Log.w("MainActivity", "Could not save asset: " + e.getMessage());
 		}
-	}
-
-	private void addIconLibraryWidget(String libraryName, String prefix) {
-		showStyleDialog("Add " + libraryName + " Icon", "Icon name (e.g. " + prefix + "-home)", value -> {
-			HashMap<String, Object> iconWidget = new HashMap<>();
-			iconWidget.put("tag", "span");
-			iconWidget.put("name", libraryName + ": " + value);
-			iconWidget.put("color", "#9C27B0");
-			iconWidget.put("category", "media");
-			HashMap<String, Object> function = new HashMap<>();
-			function.put("text", value);
-			function.put("class", prefix + " " + value);
-			HashMap<String, Object> style = new HashMap<>();
-			style.put("fontSize", "24px");
-			function.put("style", style);
-			iconWidget.put("function", function);
-			widgets.add(iconWidget);
-			refreshWidgetList();
-			Toast.makeText(this, libraryName + " icon added!", Toast.LENGTH_SHORT).show();
-		});
 	}
 
 	// ---- Logic Blocks UI ----
@@ -1164,8 +1599,16 @@ public class MainActivity extends AppCompatActivity {
 			blockView.setOrientation(LinearLayout.VERTICAL);
 			blockView.setPadding(16, 12, 16, 12);
 
+			// Target label
+			TextView targetLabel = new TextView(this);
+			targetLabel.setText("TARGET " + block.targetWidget);
+			targetLabel.setTextColor(Color.parseColor("#64B5F6"));
+			targetLabel.setTextSize(11);
+			targetLabel.setTypeface(null, android.graphics.Typeface.BOLD);
+			blockView.addView(targetLabel);
+
 			TextView eventLabel = new TextView(this);
-			eventLabel.setText("WHEN " + block.event.toUpperCase() + " on <" + block.targetWidget + ">");
+			eventLabel.setText("WHEN " + block.event.toUpperCase());
 			eventLabel.setTextColor(Color.parseColor("#FF9800"));
 			eventLabel.setTextSize(12);
 			eventLabel.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -1196,9 +1639,13 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	// ---- Project Save/Load (uses project ID) ----
+	// ---- Project Save/Load ----
 
 	private void saveProject() {
+		// Save current page layout
+		saveCurrentPageLayout();
+
+		// Save main layout (index page for backwards compat)
 		projectDataManager.saveProject(screen, projectId);
 
 		File dir = new File(getFilesDir(), "projects");
@@ -1252,6 +1699,11 @@ public class MainActivity extends AppCompatActivity {
 			String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
 			logicBlockManager.fromJson(logicJson);
 		}
+
+		// Save initial page layout
+		if (pageManager != null && screen.getChildCount() > 0) {
+			saveCurrentPageLayout();
+		}
 	}
 
 	private void saveUndoState() {
@@ -1283,6 +1735,11 @@ public class MainActivity extends AppCompatActivity {
 			setupWidgetReorderDrag(newView);
 			dropZoneManager.registerWidgetAsDropZoneIfContainer(newView);
 
+			// Handle hidden state
+			if (Boolean.TRUE.equals(newWidgetMap.get("hidden"))) {
+				newView.setVisibility(View.GONE);
+			}
+
 			if (nodeMap.containsKey("children") && newView instanceof ViewGroup) {
 				List<Map<String, Object>> children = (List<Map<String, Object>>) nodeMap.get("children");
 				for (Map<String, Object> childMap : children) {
@@ -1292,7 +1749,30 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	// ---- Theme Dialog (with CSS variable management) ----
+	private void rebuildViewAt(Map<String, Object> nodeMap, ViewGroup parent, int index) {
+		if (!nodeMap.containsKey("tag")) return;
+		String tag = nodeMap.get("tag").toString();
+		View newView = engine.createWidget(tag);
+		if (newView != null) {
+			Map<String, Object> newWidgetMap = new HashMap<>(nodeMap);
+			newWidgetMap.remove("children");
+			engine.applyPropertiesToView(newView, newWidgetMap);
+			newView.setTag(newWidgetMap);
+			parent.addView(newView, Math.min(index, parent.getChildCount()));
+			selector.registerView(newView);
+			setupWidgetReorderDrag(newView);
+			dropZoneManager.registerWidgetAsDropZoneIfContainer(newView);
+
+			if (nodeMap.containsKey("children") && newView instanceof ViewGroup) {
+				List<Map<String, Object>> children = (List<Map<String, Object>>) nodeMap.get("children");
+				for (Map<String, Object> childMap : children) {
+					rebuildView(childMap, (ViewGroup) newView);
+				}
+			}
+		}
+	}
+
+	// ---- Theme Dialog ----
 
 	private void showThemeDialog() {
 		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_theme_settings, null);
@@ -1309,7 +1789,6 @@ public class MainActivity extends AppCompatActivity {
 		LinearLayout customVarsContainer = dialogView.findViewById(R.id.customVarsContainer);
 		Button btnAddCssVar = dialogView.findViewById(R.id.btnAddCssVar);
 
-		// Set current values
 		etPrimary.setText(themeManager.getGlobalStyle("primaryColor"));
 		etSecondary.setText(themeManager.getGlobalStyle("secondaryColor"));
 		etAccent.setText(themeManager.getGlobalStyle("accentColor"));
@@ -1328,7 +1807,6 @@ public class MainActivity extends AppCompatActivity {
 		btnLight.setOnClickListener(v -> themeManager.setTheme(ThemeManager.THEME_LIGHT));
 		btnDark.setOnClickListener(v -> themeManager.setTheme(ThemeManager.THEME_DARK));
 
-		// Load existing custom CSS vars
 		Map<String, String> customVars = themeManager.getCustomCssVars();
 		for (Map.Entry<String, String> entry : customVars.entrySet()) {
 			addCssVarRow(customVarsContainer, entry.getKey(), entry.getValue());
@@ -1360,7 +1838,6 @@ public class MainActivity extends AppCompatActivity {
 				if (!linkColor.isEmpty()) themeManager.setGlobalStyle("linkColor", linkColor);
 				if (!borderColor.isEmpty()) themeManager.setGlobalStyle("borderColor", borderColor);
 
-				// Collect custom CSS vars from dynamic rows
 				Map<String, String> newVars = new LinkedHashMap<>();
 				for (int i = 0; i < customVarsContainer.getChildCount(); i++) {
 					View row = customVarsContainer.getChildAt(i);
@@ -1462,7 +1939,7 @@ public class MainActivity extends AppCompatActivity {
 		dialog.show();
 	}
 
-	// ---- Design Property Lists ----
+	// ---- Design Property Lists (removed event items from view section) ----
 
 	private void buildDesignList() {
 		design.clear();
@@ -1551,17 +2028,7 @@ public class MainActivity extends AppCompatActivity {
 
 	private void buildEventDesignList() {
 		design.clear();
-		String[] items = {
-			"OnClick", "OnHover", "OnInput", "OnLoad",
-			"OnSubmit", "OnScroll", "OnKeyDown", "OnChange",
-			"Animate", "Navigate", "ShowHide", "SetText",
-			"CustomJS"
-		};
-		for (String item : items) {
-			HashMap<String, Object> map = new HashMap<>();
-			map.put("edit", item);
-			design.add(map);
-		}
+		// Event items now hidden from view section - use Event tab instead
 		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
 		recyclerview3.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 	}
@@ -1579,6 +2046,7 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	public void handleDesignItemClick(int position) {
+		if (isDialogShowing) return; // Prevent duplicate dialogs
 		View selected = selector.getSelectedView();
 		if (selected == null) {
 			Toast.makeText(this, "Select a widget first", Toast.LENGTH_SHORT).show();
@@ -1586,7 +2054,6 @@ public class MainActivity extends AppCompatActivity {
 		}
 
 		String editType = design.get(position).get("edit").toString();
-		String targetTag = getSelectedTag();
 
 		switch (editType) {
 			case "Edittext":
@@ -1701,7 +2168,6 @@ public class MainActivity extends AppCompatActivity {
 			case "Height":
 				showStyleDialogWithUnits("Set Height", "100", "height", selected);
 				break;
-			// Advanced styles
 			case "Elevation":
 				showStyleDialog("Set Elevation", "4", value -> {
 					Map<String, Object> style = new HashMap<>();
@@ -1734,7 +2200,6 @@ public class MainActivity extends AppCompatActivity {
 					saveUndoState();
 				});
 				break;
-			// Layout styles
 			case "Display":
 				showChoiceDialog("Display", new String[]{"block", "flex", "grid", "inline", "inline-block", "inline-flex", "none", "contents"}, value -> {
 					Map<String, Object> style = new HashMap<>();
@@ -1992,21 +2457,6 @@ public class MainActivity extends AppCompatActivity {
 					}
 				});
 				break;
-			// Event items
-			case "OnClick": case "OnHover": case "OnInput": case "OnLoad":
-			case "OnSubmit": case "OnScroll": case "OnKeyDown": case "OnChange":
-				logicBlockManager.showAddBlockDialog(targetTag, block -> {
-					Toast.makeText(this, block.event + " event added", Toast.LENGTH_SHORT).show();
-					refreshLogicBlocksUI();
-				});
-				break;
-			case "Animate": case "Navigate": case "ShowHide": case "SetText":
-			case "CustomJS":
-				logicBlockManager.showAddBlockDialog(targetTag, block -> {
-					Toast.makeText(this, "Action added", Toast.LENGTH_SHORT).show();
-					refreshLogicBlocksUI();
-				});
-				break;
 		}
 	}
 
@@ -2135,7 +2585,6 @@ public class MainActivity extends AppCompatActivity {
 	// ---- CSS Variable Dialog ----
 
 	private void showCssVariableDialog(View targetView) {
-		// Get all CSS vars from theme + custom
 		List<String> vars = new ArrayList<>();
 		vars.add("var(--primary-color)");
 		vars.add("var(--secondary-color)");
@@ -2147,7 +2596,6 @@ public class MainActivity extends AppCompatActivity {
 		vars.add("var(--card-background)");
 		vars.add("var(--font-family)");
 
-		// Add custom vars
 		Map<String, String> customVars = themeManager.getCustomCssVars();
 		for (String key : customVars.keySet()) {
 			String varName = key.startsWith("--") ? "var(" + key + ")" : "var(--" + key + ")";
@@ -2299,11 +2747,6 @@ public class MainActivity extends AppCompatActivity {
 			case "LineHeight": case "LetterSpace": return R.drawable.textsize;
 			case "Gradient": return R.drawable.background;
 			case "CssVar": case "CustomStyle": return R.drawable.icon_design_services_round;
-			case "OnClick": case "OnHover": case "OnInput": case "OnLoad":
-			case "OnSubmit": case "OnScroll": case "OnKeyDown": case "OnChange":
-				return R.drawable.icon_build_round;
-			case "Animate": case "Navigate": case "ShowHide": case "SetText": case "CustomJS":
-				return R.drawable.icon_design_services_round;
 			default: return R.drawable.cursor_text;
 		}
 	}
@@ -2346,15 +2789,18 @@ public class MainActivity extends AppCompatActivity {
 				}
 			}
 
-			view.setOnTouchListener((v, event) -> {
-				if (event.getAction() == MotionEvent.ACTION_DOWN) {
-					ClipData.Item itemData = new ClipData.Item(String.valueOf(position));
-					ClipData dragData = new ClipData("widget", new String[]{"text/plain"}, itemData);
-					View.DragShadowBuilder shadowBuilder = new View.DragShadowBuilder(v);
-					v.startDragAndDrop(dragData, shadowBuilder, v, 0);
-					return true;
+			// Long press to drag (replaces touch-to-drag)
+			view.setOnLongClickListener(v -> {
+				ClipData.Item itemData = new ClipData.Item(String.valueOf(position));
+				ClipData dragData = new ClipData("widget", new String[]{"text/plain"}, itemData);
+				View.DragShadowBuilder shadowBuilder = new View.DragShadowBuilder(v);
+				v.startDragAndDrop(dragData, shadowBuilder, v, 0);
+				// Auto-close drawer when drag starts
+				androidx.drawerlayout.widget.DrawerLayout drawer = findViewById(R.id._main);
+				if (drawer != null) {
+					drawer.closeDrawers();
 				}
-				return false;
+				return true;
 			});
 		}
 

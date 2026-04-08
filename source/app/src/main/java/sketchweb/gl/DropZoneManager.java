@@ -4,6 +4,7 @@ import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.util.Log;
 import android.view.DragEvent;
 import android.view.View;
@@ -12,10 +13,17 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class DropZoneManager {
+
+    private static final Set<String> LAYOUT_TAGS = new HashSet<>(Arrays.asList(
+        "div", "section", "header", "footer", "nav", "main", "article", "aside", "form", "ul", "ol", "table"
+    ));
 
     private Context context;
     private View screen;
@@ -31,37 +39,68 @@ public class DropZoneManager {
         this.selector = selector;
     }
 
+    private boolean isLayoutWidget(View view) {
+        if (!(view instanceof ViewGroup)) return false;
+        Object tagObj = view.getTag();
+        if (tagObj instanceof Map) {
+            Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
+            String tag = widgetMap.containsKey("tag") ? widgetMap.get("tag").toString() : "";
+            return LAYOUT_TAGS.contains(tag);
+        }
+        return false;
+    }
+
     public void registerWidgetAsDropZoneIfContainer(View view) {
         if (!(view instanceof ViewGroup)) {
             return;
         }
 
+        // Layout widgets get larger minimum size for easier dropping
+        if (isLayoutWidget(view)) {
+            view.setMinimumHeight(80);
+            if (view instanceof LinearLayout) {
+                LinearLayout ll = (LinearLayout) view;
+                // Ensure layout widgets have at least some padding for drop targets
+                if (ll.getPaddingTop() < 8 && ll.getPaddingBottom() < 8) {
+                    ll.setPadding(
+                        Math.max(ll.getPaddingLeft(), 8),
+                        Math.max(ll.getPaddingTop(), 12),
+                        Math.max(ll.getPaddingRight(), 8),
+                        Math.max(ll.getPaddingBottom(), 12)
+                    );
+                }
+            }
+        }
+
         view.setOnDragListener(new View.OnDragListener() {
             @Override
             public boolean onDrag(View v, DragEvent event) {
-                // If it's the root screen, we might want to skip handling here if it's handled by main
-                // But normally this allows nested containers to handle their own drops.
-
                 int action = event.getAction();
                 switch (action) {
                     case DragEvent.ACTION_DRAG_STARTED:
                         return event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
 
                     case DragEvent.ACTION_DRAG_ENTERED:
-                        v.setBackgroundColor(Color.parseColor("#BBDEFB")); // light blue highlight
+                        highlightDropZone(v, true);
                         return true;
 
                     case DragEvent.ACTION_DRAG_EXITED:
-                        v.setBackgroundColor(Color.TRANSPARENT);
+                        highlightDropZone(v, false);
                         return true;
 
                     case DragEvent.ACTION_DROP:
-                        v.setBackgroundColor(Color.TRANSPARENT);
+                        highlightDropZone(v, false);
                         ClipData data = event.getClipData();
 
                         if (data != null && data.getItemCount() > 0) {
                             try {
-                                int pos = Integer.parseInt(data.getItemAt(0).getText().toString());
+                                String dragText = data.getItemAt(0).getText().toString();
+                                // Skip reorder drags - let the main handler deal with them
+                                if (dragText.startsWith("reorder:")) {
+                                    return false;
+                                }
+
+                                int pos = Integer.parseInt(dragText);
                                 Map<String, Object> widgetDefinition = widgets.get(pos);
                                 View newWidgetView = engine.createWidget(widgetDefinition.get("tag").toString());
 
@@ -141,7 +180,7 @@ public class DropZoneManager {
                         return false;
 
                     case DragEvent.ACTION_DRAG_ENDED:
-                        v.setBackgroundColor(Color.TRANSPARENT);
+                        highlightDropZone(v, false);
                         return true;
 
                     case DragEvent.ACTION_DRAG_LOCATION:
@@ -152,5 +191,24 @@ public class DropZoneManager {
                 }
             }
         });
+    }
+
+    private void highlightDropZone(View v, boolean highlight) {
+        if (highlight) {
+            GradientDrawable border = new GradientDrawable();
+            border.setColor(Color.parseColor("#E3F2FD"));
+            border.setStroke(3, Color.parseColor("#2196F3"));
+            border.setCornerRadius(8);
+            v.setBackground(border);
+        } else {
+            // Restore from widget tag style if available
+            Object tagObj = v.getTag();
+            if (tagObj instanceof Map) {
+                Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
+                engine.applyPropertiesToView(v, widgetMap);
+            } else {
+                v.setBackgroundColor(Color.TRANSPARENT);
+            }
+        }
     }
 }
