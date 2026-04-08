@@ -1442,7 +1442,7 @@ public class MainActivity extends AppCompatActivity {
 
 		dialogView.findViewById(R.id.cardExportZip).setOnClickListener(v -> {
 			try {
-				File zipFile = exportManager.exportAsZip(screen, projectName, logicBlockManager);
+				File zipFile = exportManager.exportAsZip(screen, projectName, projectId, logicBlockManager);
 				Toast.makeText(this, "ZIP exported: " + zipFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
 			} catch (Exception e) {
 				Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();

@@ -30,7 +30,7 @@ public class ProjectDataManager {
         List<Map<String, Object>> widgetTree = serializeViewTree(screen);
         String json = new Gson().toJson(widgetTree);
 
-        // Save to internal storage
+        // Save to internal storage only; external save is handled by MainActivity
         File dir = new File(context.getFilesDir(), "projects");
         if (!dir.exists()) {
             dir.mkdirs();
@@ -42,9 +42,6 @@ public class ProjectDataManager {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        // Also save to external persistent storage
-        saveToExternalStorage(projectId, json);
     }
 
     private void saveToExternalStorage(String projectId, String json) {
