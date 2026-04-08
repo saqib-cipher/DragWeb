@@ -383,7 +383,9 @@ public class BlockDragDropManager {
         }
 
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(10);
+        // Create puzzle-like shape: top-left rounded, top-right square, bottom-right rounded, bottom-left square
+        // Actually, let's use cornerRadii: TopLeft, TopRight, BottomRight, BottomLeft
+        bg.setCornerRadii(new float[]{16, 16, 16, 16, 0, 0, 0, 0});
         bg.setColor(Color.parseColor(bgColor));
         bg.setStroke(2, Color.parseColor(textColor));
         block.setBackground(bg);
@@ -928,17 +930,23 @@ public class BlockDragDropManager {
     // ---- Existing event/action dialogs ----
 
     private void showTargetDialog(BlockDef eventDef) {
+        LinearLayout layout = new LinearLayout(context);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(48, 16, 48, 0);
+
+        android.widget.Spinner modeSpinner = new android.widget.Spinner(context);
         String[] targetModes = {"By ID", "By Class", "By Tag"};
+        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, targetModes);
+        modeSpinner.setAdapter(adapter);
+        layout.addView(modeSpinner);
+
         new MaterialAlertDialogBuilder(context)
-            .setTitle(eventDef.label + " - Select Target")
-            .setItems(targetModes, (dialog, which) -> {
-                String mode;
-                String hint;
-                switch (which) {
-                    case 0: mode = "id"; hint = "Element ID (e.g. myButton)"; break;
-                    case 1: mode = "class"; hint = "CSS class (e.g. btn-primary)"; break;
-                    default: mode = "tag"; hint = "HTML tag (e.g. button)"; break;
-                }
+            .setTitle(eventDef.label + " - Select Target Mode")
+            .setView(layout)
+            .setPositiveButton("Next", (dialog, which) -> {
+                int pos = modeSpinner.getSelectedItemPosition();
+                String mode = pos == 0 ? "id" : pos == 1 ? "class" : "tag";
+                String hint = pos == 0 ? "Element ID (e.g. myButton)" : pos == 1 ? "CSS class (e.g. btn-primary)" : "HTML tag (e.g. button)";
                 showTargetInputForEvent(eventDef, mode, hint);
             })
             .setNegativeButton("Cancel", null)
@@ -988,45 +996,44 @@ public class BlockDragDropManager {
     }
 
     private void showActionTargetDialog(BlockDef actionDef) {
+        LinearLayout layout = new LinearLayout(context);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(48, 16, 48, 0);
+
         String[] events = {"On Click", "On Hover", "On Load", "On Input", "On Submit", "On Scroll"};
         String[] eventKeys = {"click", "hover", "load", "input", "submit", "scroll"};
+        android.widget.Spinner eventSpinner = new android.widget.Spinner(context);
+        android.widget.ArrayAdapter<String> eventAdapter = new android.widget.ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, events);
+        eventSpinner.setAdapter(eventAdapter);
+        layout.addView(eventSpinner);
+
+        String[] targetModes = {"By ID", "By Class", "By Tag"};
+        android.widget.Spinner modeSpinner = new android.widget.Spinner(context);
+        android.widget.ArrayAdapter<String> modeAdapter = new android.widget.ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, targetModes);
+        modeSpinner.setAdapter(modeAdapter);
+        layout.addView(modeSpinner);
+
+        TextInputLayout til = new TextInputLayout(context);
+        til.setHint("Target Value");
+        TextInputEditText input = new TextInputEditText(context);
+        til.addView(input);
+        layout.addView(til);
 
         new MaterialAlertDialogBuilder(context)
-            .setTitle(actionDef.label + " - Select Event")
-            .setItems(events, (dialog, which) -> {
-                String eventKey = eventKeys[which];
-                BlockDef eventDef = new BlockDef(eventKey, events[which], "", CAT_EVENT);
+            .setTitle(actionDef.label + " - Setup")
+            .setView(layout)
+            .setPositiveButton("Next", (d, w) -> {
+                int eventPos = eventSpinner.getSelectedItemPosition();
+                String eventKey = eventKeys[eventPos];
+                BlockDef eventDef = new BlockDef(eventKey, events[eventPos], "", CAT_EVENT);
 
-                String[] targetModes = {"By ID", "By Class", "By Tag"};
-                new MaterialAlertDialogBuilder(context)
-                    .setTitle("Select Target")
-                    .setItems(targetModes, (d2, w2) -> {
-                        String mode = w2 == 0 ? "id" : w2 == 1 ? "class" : "tag";
-                        String hint = w2 == 0 ? "Element ID" : w2 == 1 ? "CSS class" : "HTML tag";
+                int modePos = modeSpinner.getSelectedItemPosition();
+                String mode = modePos == 0 ? "id" : modePos == 1 ? "class" : "tag";
 
-                        LinearLayout layout = new LinearLayout(context);
-                        layout.setOrientation(LinearLayout.VERTICAL);
-                        layout.setPadding(48, 16, 48, 0);
-                        TextInputLayout til = new TextInputLayout(context);
-                        til.setHint(hint);
-                        TextInputEditText input = new TextInputEditText(context);
-                        til.addView(input);
-                        layout.addView(til);
-
-                        new MaterialAlertDialogBuilder(context)
-                            .setTitle("Enter Target")
-                            .setView(layout)
-                            .setPositiveButton("Next", (d3, w3) -> {
-                                String target = input.getText().toString().trim();
-                                if (!target.isEmpty()) {
-                                    showValueInputDialog(eventDef, actionDef, mode, target);
-                                }
-                            })
-                            .setNegativeButton("Cancel", null)
-                            .show();
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .show();
+                String target = input.getText().toString().trim();
+                if (!target.isEmpty()) {
+                    showValueInputDialog(eventDef, actionDef, mode, target);
+                }
             })
             .setNegativeButton("Cancel", null)
             .show();
@@ -1266,9 +1273,16 @@ public class BlockDragDropManager {
         cardParams.setMargins(0, 3, 0, 3);
         card.setLayoutParams(cardParams);
         card.setCardElevation(3);
-        card.setRadius(10);
+        // Style as puzzle piece shape
+        card.setRadius(0); // Removing basic radius
 
         LinearLayout blockView = new LinearLayout(context);
+
+        GradientDrawable blockShape = new GradientDrawable();
+        blockShape.setCornerRadii(new float[]{0, 0, 24, 24, 24, 24, 0, 0});
+        blockShape.setColor(Color.parseColor("#1A1A1A"));
+        blockShape.setStroke(2, Color.parseColor("#333333"));
+        blockView.setBackground(blockShape);
         blockView.setOrientation(LinearLayout.VERTICAL);
         blockView.setPadding(14, 10, 14, 10);
 

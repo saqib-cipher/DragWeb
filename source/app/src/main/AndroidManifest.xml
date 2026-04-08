@@ -59,5 +59,12 @@
 		<uses-library
 			android:name="org.apache.http.legacy"
 			android:required="false" />
+		<activity
+			android:name=".LogicBlockActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:supportsPictureInPicture="true"
+			android:screenOrientation="portrait"
+			android:theme="@style/AppTheme.FullScreen" />
 	</application>
 </manifest>

@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import com.google.android.material.card.MaterialCardView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -104,14 +105,27 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                     int fromIndex = parent.indexOfChild(fromNode.view);
                     if (fromIndex >= 0) {
                         parent.removeView(fromNode.view);
-                        // Determine new index from target position
-                        ViewGroup targetParent = toNode.view.getParent() instanceof ViewGroup ?
-                            (ViewGroup) toNode.view.getParent() : parent;
-                        int toIndex = targetParent.indexOfChild(toNode.view);
-                        if (toIndex < 0) toIndex = targetParent.getChildCount();
-                        if (targetParent == parent && toPos > fromPos) {
-                            toIndex = Math.min(toIndex, parent.getChildCount());
+
+                        ViewGroup targetParent;
+                        int toIndex;
+
+                        // If we are dropping onto a container node itself, make it a child
+                        if (toNode.isContainer && toNode.view instanceof ViewGroup) {
+                            targetParent = (ViewGroup) toNode.view;
+                            toIndex = targetParent.getChildCount(); // Append to end of container
+                        } else {
+                            // Otherwise put it next to the target node in its parent
+                            targetParent = toNode.view.getParent() instanceof ViewGroup ?
+                                (ViewGroup) toNode.view.getParent() : parent;
+                            toIndex = targetParent.indexOfChild(toNode.view);
+                            if (toIndex < 0) toIndex = targetParent.getChildCount();
+
+                            // If moving down within the same parent, adjust index
+                            if (targetParent == parent && toPos > fromPos) {
+                                toIndex = Math.min(toIndex + 1, parent.getChildCount());
+                            }
                         }
+
                         targetParent.addView(fromNode.view, Math.min(toIndex, targetParent.getChildCount()));
 
                         if (reorderListener != null) {
@@ -242,19 +256,32 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        com.google.android.material.card.MaterialCardView card = new com.google.android.material.card.MaterialCardView(context);
+        RecyclerView.LayoutParams params = new RecyclerView.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setMargins(4, 4, 4, 4);
+        card.setLayoutParams(params);
+        card.setCardElevation(1);
+        card.setRadius(16);
+        card.setStrokeWidth(2);
+        card.setStrokeColor(Color.parseColor("#E0E0E0"));
+
         LinearLayout layout = new LinearLayout(context);
         layout.setOrientation(LinearLayout.HORIZONTAL);
         layout.setGravity(Gravity.CENTER_VERTICAL);
-        layout.setPadding(8, 8, 8, 8);
-        layout.setLayoutParams(new RecyclerView.LayoutParams(
+        layout.setPadding(12, 12, 12, 12);
+        layout.setLayoutParams(new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        return new ViewHolder(layout);
+
+        card.addView(layout);
+        return new ViewHolder(card);
     }
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
         TreeNode node = flatList.get(position);
-        LinearLayout layout = (LinearLayout) holder.itemView;
+        com.google.android.material.card.MaterialCardView card = (com.google.android.material.card.MaterialCardView) holder.itemView;
+        LinearLayout layout = (LinearLayout) card.getChildAt(0);
         layout.removeAllViews();
 
         // Indent with tree lines
@@ -347,30 +374,31 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         if (node.isHidden) displayName = "\uD83D\uDC41 " + displayName;
 
         nameView.setText(displayName);
-        nameView.setTextSize(13);
+        nameView.setTextSize(16);
         nameView.setSingleLine(true);
         nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
         boolean isSelected = node.view == selectedWidgetView;
+        nameView.setTypeface(null, Typeface.BOLD); // Always bold as requested
         if (isSelected) {
             nameView.setTextColor(Color.parseColor("#2196F3"));
-            nameView.setTypeface(null, Typeface.BOLD);
-            GradientDrawable selectedBg = new GradientDrawable();
-            selectedBg.setColor(Color.parseColor("#1A2196F3"));
-            selectedBg.setCornerRadius(10);
-            selectedBg.setStroke(1, Color.parseColor("#2196F3"));
-            layout.setBackground(selectedBg);
+            card.setStrokeColor(Color.parseColor("#2196F3"));
+            card.setStrokeWidth(4);
+            card.setCardBackgroundColor(Color.parseColor("#1A2196F3"));
         } else if (node.depth == 0) {
-            nameView.setTextColor(Color.parseColor("#ECEFF1"));
-            nameView.setTypeface(null, Typeface.BOLD);
-            GradientDrawable rootBg = new GradientDrawable();
-            rootBg.setColor(Color.parseColor("#0D37474F"));
-            rootBg.setCornerRadius(8);
-            layout.setBackground(rootBg);
+            nameView.setTextColor(Color.parseColor("#CFD8DC"));
+            card.setStrokeColor(Color.parseColor("#37474F"));
+            card.setStrokeWidth(2);
+            card.setCardBackgroundColor(Color.parseColor("#0D37474F"));
         } else {
             nameView.setTextColor(Color.parseColor("#CFD8DC"));
-            nameView.setTypeface(null, Typeface.NORMAL);
-            layout.setBackgroundColor(Color.TRANSPARENT);
+            card.setStrokeColor(Color.parseColor("#E0E0E0"));
+            card.setStrokeWidth(2);
+            card.setCardBackgroundColor(Color.parseColor("#FFFFFF")); // Ensure light background for dark text, or match theme
+            nameView.setTextColor(Color.parseColor("#333333")); // Use dark text for contrast
+
+            // Adjust infoView and connector text colors if they exist
+            arrow.setTextColor(Color.parseColor("#757575"));
         }
         nameCol.addView(nameView);
 
@@ -384,7 +412,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 info.append(".").append(node.cssClass);
             }
             infoView.setText(info.toString());
-            infoView.setTextSize(10);
+            infoView.setTextSize(12);
             infoView.setTextColor(Color.parseColor("#78909C"));
             infoView.setSingleLine(true);
             infoView.setEllipsize(android.text.TextUtils.TruncateAt.END);

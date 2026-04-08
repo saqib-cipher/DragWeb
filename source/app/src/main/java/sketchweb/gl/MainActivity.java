@@ -995,7 +995,13 @@ public class MainActivity extends AppCompatActivity {
 			public void onTabSelected(TabLayout.Tab tab) {
 				switch (tab.getPosition()) {
 					case 0: showViewMode(); break;
-					case 1: showEventMode(); break;
+					case 1:
+						android.content.Intent intent = new android.content.Intent(MainActivity.this, LogicBlockActivity.class);
+						intent.putExtra("project_id", projectId);
+						startActivity(intent);
+						// Revert tab selection back to view or assets since we opened a new activity
+						tabLayout.selectTab(tabLayout.getTabAt(0));
+						break;
 					case 2: showAssetsMode(); break;
 				}
 			}
@@ -1731,7 +1737,9 @@ public class MainActivity extends AppCompatActivity {
 		saveCurrentPageLayout();
 
 		// Save main layout (index page for backwards compat)
-		projectDataManager.saveProject(screen, projectId);
+		if (pageManager != null && "index".equals(pageManager.getCurrentPage())) {
+			projectDataManager.saveProject(screen, projectId);
+		}
 
 		File dir = new File(getFilesDir(), "projects");
 		File themeFile = new File(dir, projectId + ".theme");
@@ -1766,7 +1774,12 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void loadProject() {
+		// Try to load index first to maintain backwards compatibility or if it's the current page
 		projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager);
+
+		if (pageManager != null && !"index".equals(pageManager.getCurrentPage())) {
+			loadCurrentPageLayout();
+		}
 
 		for (int i = 0; i < screen.getChildCount(); i++) {
 			setupWidgetReorderDrag(screen.getChildAt(i));
