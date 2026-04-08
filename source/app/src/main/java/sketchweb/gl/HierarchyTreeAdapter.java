@@ -288,7 +288,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             dragHandle.setGravity(Gravity.CENTER);
             dragHandle.setOnTouchListener((v, event) -> {
                 if (event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
-                    int pos = holder.getBindingAdapterPosition();
+                    int pos = holder.getAdapterPosition();
                     if (pos != RecyclerView.NO_POSITION && pos > 0) {
                         startDrag(holder);
                     }
