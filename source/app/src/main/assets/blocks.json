@@ -1,233 +1,318 @@
-[
-  {
+{
+  "blockCategories": [
+    {
+      "id": "event",
+      "label": "Events",
+      "color": "#FF9800",
+      "blocks": [
+        {
+          "type": "event",
+          "name": "onClick",
+          "label": "On Click",
+          "description": "When element is clicked",
+          "target": "id",
+          "params": ["elementId"]
+        },
+        {
+          "type": "event",
+          "name": "onHover",
+          "label": "On Hover",
+          "description": "When mouse hovers over element",
+          "target": "id",
+          "params": ["elementId"]
+        },
+        {
+          "type": "event",
+          "name": "onLoad",
+          "label": "On Load",
+          "description": "When page loads",
+          "target": "tag",
+          "params": ["body"]
+        },
+        {
+          "type": "event",
+          "name": "onInput",
+          "label": "On Input",
+          "description": "When input value changes",
+          "target": "id",
+          "params": ["elementId"]
+        },
+        {
+          "type": "event",
+          "name": "onSubmit",
+          "label": "On Submit",
+          "description": "When form is submitted",
+          "target": "id",
+          "params": ["formId"]
+        },
+        {
+          "type": "event",
+          "name": "onScroll",
+          "label": "On Scroll",
+          "description": "When user scrolls",
+          "target": "tag",
+          "params": ["body"]
+        },
+        {
+          "type": "event",
+          "name": "onKeyDown",
+          "label": "On Key Down",
+          "description": "When key is pressed",
+          "target": "id",
+          "params": ["elementId"]
+        },
+        {
+          "type": "event",
+          "name": "onChange",
+          "label": "On Change",
+          "description": "When value changes",
+          "target": "id",
+          "params": ["elementId"]
+        }
+      ]
+    },
+    {
+      "id": "css",
+      "label": "CSS Actions",
+      "color": "#2196F3",
+      "blocks": [
+        {
+          "type": "css",
+          "name": "setDisplay",
+          "label": "Set Display",
+          "description": "block, none, flex, grid",
+          "params": ["value"],
+          "presets": ["block", "none", "flex", "grid", "inline-block", "inline"]
+        },
+        {
+          "type": "css",
+          "name": "setPosition",
+          "label": "Set Position",
+          "description": "static, relative, absolute, fixed",
+          "params": ["value"],
+          "presets": ["static", "relative", "absolute", "fixed", "sticky"]
+        },
+        {
+          "type": "css",
+          "name": "setOverflow",
+          "label": "Set Overflow",
+          "description": "hidden, scroll, auto, visible",
+          "params": ["value"],
+          "presets": ["hidden", "scroll", "auto", "visible"]
+        },
+        {
+          "type": "css",
+          "name": "setColor",
+          "label": "Set Color",
+          "description": "Set text color",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setBackground",
+          "label": "Set Background",
+          "description": "Color or gradient",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setWidth",
+          "label": "Set Width",
+          "description": "px, %, vw, auto",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setHeight",
+          "label": "Set Height",
+          "description": "px, %, vh, auto",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setMargin",
+          "label": "Set Margin",
+          "description": "Outer spacing",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setPadding",
+          "label": "Set Padding",
+          "description": "Inner spacing",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setBorder",
+          "label": "Set Border",
+          "description": "Border style",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setRadius",
+          "label": "Set Radius",
+          "description": "Border radius",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setOpacity",
+          "label": "Set Opacity",
+          "description": "0 to 1",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setFontSize",
+          "label": "Set Font Size",
+          "description": "Text size",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setTextAlign",
+          "label": "Set Text Align",
+          "description": "left, center, right",
+          "params": ["value"],
+          "presets": ["left", "center", "right", "justify"]
+        },
+        {
+          "type": "css",
+          "name": "addClass",
+          "label": "Add Class",
+          "description": "Add CSS class to element",
+          "params": ["className"]
+        },
+        {
+          "type": "css",
+          "name": "removeClass",
+          "label": "Remove Class",
+          "description": "Remove CSS class",
+          "params": ["className"]
+        },
+        {
+          "type": "css",
+          "name": "toggleClass",
+          "label": "Toggle Class",
+          "description": "Toggle CSS class",
+          "params": ["className"]
+        }
+      ]
+    },
+    {
+      "id": "html",
+      "label": "HTML Actions",
+      "color": "#4CAF50",
+      "blocks": [
+        {
+          "type": "html",
+          "name": "setHref",
+          "label": "Set Href",
+          "description": "URL or #section",
+          "params": ["value"]
+        },
+        {
+          "type": "html",
+          "name": "scrollTo",
+          "label": "Scroll To",
+          "description": "id, class, or position",
+          "params": ["target"],
+          "presets": ["top", "bottom"]
+        },
+        {
+          "type": "html",
+          "name": "setText",
+          "label": "Set Text",
+          "description": "Change text content",
+          "params": ["text"]
+        },
+        {
+          "type": "html",
+          "name": "setHTML",
+          "label": "Set HTML",
+          "description": "Set inner HTML",
+          "params": ["html"]
+        },
+        {
+          "type": "html",
+          "name": "showElement",
+          "label": "Show Element",
+          "description": "Display element",
+          "params": []
+        },
+        {
+          "type": "html",
+          "name": "hideElement",
+          "label": "Hide Element",
+          "description": "Hide element",
+          "params": []
+        },
+        {
+          "type": "html",
+          "name": "toggleElement",
+          "label": "Toggle Visible",
+          "description": "Toggle show/hide",
+          "params": []
+        },
+        {
+          "type": "html",
+          "name": "setAttribute",
+          "label": "Set Attribute",
+          "description": "Set HTML attribute",
+          "params": ["attribute", "value"]
+        },
+        {
+          "type": "html",
+          "name": "removeElement",
+          "label": "Remove Element",
+          "description": "Remove from DOM",
+          "params": ["selector"]
+        },
+        {
+          "type": "html",
+          "name": "alert",
+          "label": "Show Alert",
+          "description": "Browser alert dialog",
+          "params": ["message"]
+        },
+        {
+          "type": "html",
+          "name": "navigate",
+          "label": "Navigate",
+          "description": "Go to URL",
+          "params": ["url"]
+        },
+        {
+          "type": "html",
+          "name": "goToPage",
+          "label": "Go To Page",
+          "description": "Navigate to project page",
+          "params": ["pageName"]
+        }
+      ]
+    }
+  ],
+  "targetSystem": {
+    "modes": [
+      {"id": "id", "label": "By ID", "prefix": "#", "example": "btn1"},
+      {"id": "class", "label": "By Class", "prefix": ".", "example": "btn-primary"},
+      {"id": "tag", "label": "By Tag", "prefix": "", "example": "button"}
+    ]
+  },
+  "blockStructureExample": {
     "type": "event",
     "name": "onClick",
     "target": "id",
-    "params": ["elementId"],
+    "value": "btn1",
     "actions": [
       {
-        "type": "style",
-        "property": "display",
+        "type": "css",
+        "name": "setDisplay",
         "value": "none"
       }
     ]
   },
-  {
-    "type": "event",
-    "name": "onHover",
-    "target": "id",
-    "params": ["elementId"],
-    "actions": [
-      {
-        "type": "style",
-        "property": "opacity",
-        "value": "0.7"
-      }
-    ]
-  },
-  {
-    "type": "event",
-    "name": "onLoad",
-    "target": "tag",
-    "params": ["body"],
-    "actions": [
-      {
-        "type": "style",
-        "property": "opacity",
-        "value": "1"
-      }
-    ]
-  },
-  {
-    "type": "event",
-    "name": "onInput",
-    "target": "id",
-    "params": ["elementId"],
-    "actions": [
-      {
-        "type": "setText",
-        "value": ""
-      }
-    ]
-  },
-  {
-    "type": "event",
-    "name": "onSubmit",
-    "target": "id",
-    "params": ["formId"],
-    "actions": [
-      {
-        "type": "alert",
-        "value": "Form submitted!"
-      }
-    ]
-  },
-  {
-    "type": "event",
-    "name": "onScroll",
-    "target": "tag",
-    "params": ["body"],
-    "actions": [
-      {
-        "type": "addClass",
-        "value": "scrolled"
-      }
-    ]
-  },
-  {
-    "type": "action",
-    "name": "changeStyle",
-    "category": "style",
-    "params": ["target", "property", "value"],
-    "description": "Change CSS style property of an element"
-  },
-  {
-    "type": "action",
-    "name": "animate",
-    "category": "animation",
-    "params": ["target", "animationName"],
-    "description": "Play CSS animation on element",
-    "presets": ["fadeIn", "fadeOut", "slideUp", "slideDown", "pulse", "bounce", "shake", "spin"]
-  },
-  {
-    "type": "action",
-    "name": "navigate",
-    "category": "navigation",
-    "params": ["url"],
-    "description": "Navigate to a URL or page"
-  },
-  {
-    "type": "action",
-    "name": "goToPage",
-    "category": "navigation",
-    "params": ["pageName"],
-    "description": "Navigate to another page in the project"
-  },
-  {
-    "type": "action",
-    "name": "openPage",
-    "category": "navigation",
-    "params": ["pageName"],
-    "description": "Open a page in a new tab/context"
-  },
-  {
-    "type": "action",
-    "name": "showHide",
-    "category": "visibility",
-    "params": ["target", "mode"],
-    "description": "Show, hide, or toggle element visibility",
-    "modes": ["show", "hide", "toggle"]
-  },
-  {
-    "type": "action",
-    "name": "setText",
-    "category": "content",
-    "params": ["target", "text"],
-    "description": "Set text content of an element"
-  },
-  {
-    "type": "action",
-    "name": "addClass",
-    "category": "class",
-    "params": ["target", "className"],
-    "description": "Add CSS class to element"
-  },
-  {
-    "type": "action",
-    "name": "removeClass",
-    "category": "class",
-    "params": ["target", "className"],
-    "description": "Remove CSS class from element"
-  },
-  {
-    "type": "action",
-    "name": "toggleClass",
-    "category": "class",
-    "params": ["target", "className"],
-    "description": "Toggle CSS class on element"
-  },
-  {
-    "type": "action",
-    "name": "alert",
-    "category": "dialog",
-    "params": ["message"],
-    "description": "Show browser alert dialog"
-  },
-  {
-    "type": "action",
-    "name": "consoleLog",
-    "category": "debug",
-    "params": ["message"],
-    "description": "Log message to console"
-  },
-  {
-    "type": "action",
-    "name": "setAttribute",
-    "category": "attribute",
-    "params": ["target", "attribute", "value"],
-    "description": "Set HTML attribute on element"
-  },
-  {
-    "type": "action",
-    "name": "setValue",
-    "category": "form",
-    "params": ["target", "value"],
-    "description": "Set value of form input"
-  },
-  {
-    "type": "action",
-    "name": "appendChild",
-    "category": "dom",
-    "params": ["target", "html"],
-    "description": "Append HTML content inside element"
-  },
-  {
-    "type": "action",
-    "name": "removeElement",
-    "category": "dom",
-    "params": ["target"],
-    "description": "Remove element from page"
-  },
-  {
-    "type": "action",
-    "name": "customJs",
-    "category": "advanced",
-    "params": ["code"],
-    "description": "Execute custom JavaScript code"
-  },
-  {
-    "type": "action",
-    "name": "fetchApi",
-    "category": "network",
-    "params": ["url", "method", "body"],
-    "description": "Make HTTP API request"
-  },
-  {
-    "type": "action",
-    "name": "localStorage",
-    "category": "storage",
-    "params": ["operation", "key", "value"],
-    "description": "Get or set localStorage values"
-  },
-  {
-    "type": "action",
-    "name": "scrollTo",
-    "category": "scroll",
-    "params": ["target"],
-    "description": "Scroll to element or position"
-  },
-  {
-    "type": "action",
-    "name": "copyClipboard",
-    "category": "utility",
-    "params": ["text"],
-    "description": "Copy text to clipboard"
-  },
-  {
-    "type": "action",
-    "name": "delay",
-    "category": "flow",
-    "params": ["milliseconds", "action"],
-    "description": "Wait then execute action"
-  }
-]
+  "jsOutputExample": "document.getElementById('btn1').style.display = 'none';"
+}

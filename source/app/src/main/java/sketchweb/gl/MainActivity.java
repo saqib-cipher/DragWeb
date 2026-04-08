@@ -57,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
 	private ExportManager exportManager;
 	private WidgetRegistry widgetRegistry;
 	private LogicBlockManager logicBlockManager;
+	private BlockDragDropManager blockDragDropManager;
 	private HierarchyTreeAdapter hierarchyAdapter;
 	private PageManager pageManager;
 	private FileExplorerAdapter fileExplorerAdapter;
@@ -83,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
 	private Button button5, button4, delete, btnImportWidgets, btnImportImage, btnImportSvg;
 	private Button btnDrawer, btnBack, btnUndo, btnRedo, btnTheme, btnExport, btnViewStyles;
 	private Button btnAddLogicBlock, btnViewAllBlocks;
+	private LinearLayout blockEditorContainer;
 	private Button btnLoadCustomWidgets, btnLoadCustomBlocks, btnNewFolder;
 	private Button btnCopyWidget, btnAddPage;
 	private TextView textview2, tvProjectTitle, tvAssetsPath;
@@ -156,6 +158,7 @@ public class MainActivity extends AppCompatActivity {
 		etSearchWidget = findViewById(R.id.etSearchWidget);
 		etSearchHierarchy = findViewById(R.id.etSearchHierarchy);
 		chipGroupCategories = findViewById(R.id.chipGroupCategories);
+		blockEditorContainer = findViewById(R.id.blockEditorContainer);
 
 		// Get project info from intent
 		if (getIntent().hasExtra("project_id")) {
@@ -384,7 +387,28 @@ public class MainActivity extends AppCompatActivity {
 		btnExport.setOnClickListener(v -> showExportDialog());
 
 		btnAddLogicBlock.setOnClickListener(v -> {
-			showAddLogicBlockDialog();
+			// Show block category picker for quick add
+			String[] categories = {"Add Event Block", "Add CSS Action", "Add HTML Action", "Add via Dialog (Legacy)"};
+			new MaterialAlertDialogBuilder(this)
+				.setTitle("Add Logic Block")
+				.setItems(categories, (dialog, which) -> {
+					switch (which) {
+						case 0:
+							showBlockPicker(BlockDragDropManager.CAT_EVENT);
+							break;
+						case 1:
+							showBlockPicker(BlockDragDropManager.CAT_CSS);
+							break;
+						case 2:
+							showBlockPicker(BlockDragDropManager.CAT_HTML);
+							break;
+						case 3:
+							showAddLogicBlockDialog();
+							break;
+					}
+				})
+				.setNegativeButton("Cancel", null)
+				.show();
 		});
 
 		btnViewAllBlocks.setOnClickListener(v -> logicBlockManager.showBlocksDialog());
@@ -405,7 +429,17 @@ public class MainActivity extends AppCompatActivity {
 		themeManager = new ThemeManager();
 		exportManager = new ExportManager(this, themeManager);
 		logicBlockManager = new LogicBlockManager(this);
+		blockDragDropManager = new BlockDragDropManager(this, logicBlockManager);
+		blockDragDropManager.setOnBlocksChangedListener(() -> {
+			// Blocks changed via drag-drop, workspace is already refreshed internally
+		});
 		pageManager = new PageManager(this, projectId);
+
+		// Set up block editor in event panel
+		if (blockEditorContainer != null) {
+			blockEditorContainer.removeAllViews();
+			blockEditorContainer.addView(blockDragDropManager.buildBlockEditorView());
+		}
 
 		// Undo/Redo
 		undoRedoManager = new UndoRedoManager();
@@ -1578,65 +1612,64 @@ public class MainActivity extends AppCompatActivity {
 	// ---- Logic Blocks UI ----
 
 	private void refreshLogicBlocksUI() {
-		LinearLayout blockContainer = findViewById(R.id.blockContainer);
-		if (blockContainer == null) return;
-		blockContainer.removeAllViews();
-
-		List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
-		for (int i = 0; i < blocks.size(); i++) {
-			LogicBlockManager.LogicBlock block = blocks.get(i);
-			final int index = i;
-
-			com.google.android.material.card.MaterialCardView card = new com.google.android.material.card.MaterialCardView(this);
-			LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-			cardParams.setMargins(0, 4, 0, 4);
-			card.setLayoutParams(cardParams);
-			card.setCardElevation(2);
-			card.setRadius(12);
-
-			LinearLayout blockView = new LinearLayout(this);
-			blockView.setOrientation(LinearLayout.VERTICAL);
-			blockView.setPadding(16, 12, 16, 12);
-
-			// Target label
-			TextView targetLabel = new TextView(this);
-			targetLabel.setText("TARGET " + block.targetWidget);
-			targetLabel.setTextColor(Color.parseColor("#64B5F6"));
-			targetLabel.setTextSize(11);
-			targetLabel.setTypeface(null, android.graphics.Typeface.BOLD);
-			blockView.addView(targetLabel);
-
-			TextView eventLabel = new TextView(this);
-			eventLabel.setText("WHEN " + block.event.toUpperCase());
-			eventLabel.setTextColor(Color.parseColor("#FF9800"));
-			eventLabel.setTextSize(12);
-			eventLabel.setTypeface(null, android.graphics.Typeface.BOLD);
-			blockView.addView(eventLabel);
-
-			TextView actionLabel = new TextView(this);
-			actionLabel.setText("DO " + block.action + "(" + block.params + ")");
-			actionLabel.setTextColor(Color.parseColor("#4CAF50"));
-			actionLabel.setTextSize(12);
-			blockView.addView(actionLabel);
-
-			card.addView(blockView);
-
-			card.setOnLongClickListener(v -> {
-				new MaterialAlertDialogBuilder(this)
-					.setTitle("Delete Block?")
-					.setMessage("Remove this logic block?")
-					.setPositiveButton("Delete", (d, w) -> {
-						logicBlockManager.removeBlock(index);
-						refreshLogicBlocksUI();
-					})
-					.setNegativeButton("Cancel", null)
-					.show();
-				return true;
-			});
-
-			blockContainer.addView(card);
+		// Refresh the block drag-drop workspace
+		if (blockDragDropManager != null) {
+			blockDragDropManager.refreshWorkspace();
 		}
+	}
+
+	private void showBlockPicker(String category) {
+		BlockDragDropManager.BlockDef[] blocks;
+		switch (category) {
+			case BlockDragDropManager.CAT_EVENT:
+				blocks = new BlockDragDropManager.BlockDef[]{
+					new BlockDragDropManager.BlockDef("onClick", "On Click", "When element is clicked", "event"),
+					new BlockDragDropManager.BlockDef("onHover", "On Hover", "When mouse hovers", "event"),
+					new BlockDragDropManager.BlockDef("onLoad", "On Load", "When page loads", "event"),
+					new BlockDragDropManager.BlockDef("onInput", "On Input", "When input changes", "event"),
+					new BlockDragDropManager.BlockDef("onSubmit", "On Submit", "When form submits", "event"),
+					new BlockDragDropManager.BlockDef("onScroll", "On Scroll", "When user scrolls", "event"),
+				};
+				break;
+			case BlockDragDropManager.CAT_CSS:
+				blocks = new BlockDragDropManager.BlockDef[]{
+					new BlockDragDropManager.BlockDef("setDisplay", "Set Display", "block/none/flex", "css"),
+					new BlockDragDropManager.BlockDef("setColor", "Set Color", "Text color", "css"),
+					new BlockDragDropManager.BlockDef("setBackground", "Set Background", "Background", "css"),
+					new BlockDragDropManager.BlockDef("setWidth", "Set Width", "Element width", "css"),
+					new BlockDragDropManager.BlockDef("setHeight", "Set Height", "Element height", "css"),
+					new BlockDragDropManager.BlockDef("setOpacity", "Set Opacity", "0 to 1", "css"),
+					new BlockDragDropManager.BlockDef("addClass", "Add Class", "Add CSS class", "css"),
+					new BlockDragDropManager.BlockDef("removeClass", "Remove Class", "Remove CSS class", "css"),
+				};
+				break;
+			default:
+				blocks = new BlockDragDropManager.BlockDef[]{
+					new BlockDragDropManager.BlockDef("setText", "Set Text", "Change text", "html"),
+					new BlockDragDropManager.BlockDef("showElement", "Show Element", "Display element", "html"),
+					new BlockDragDropManager.BlockDef("hideElement", "Hide Element", "Hide element", "html"),
+					new BlockDragDropManager.BlockDef("navigate", "Navigate", "Go to URL", "html"),
+					new BlockDragDropManager.BlockDef("goToPage", "Go To Page", "Navigate to page", "html"),
+					new BlockDragDropManager.BlockDef("alert", "Show Alert", "Browser alert", "html"),
+					new BlockDragDropManager.BlockDef("scrollTo", "Scroll To", "Scroll to position", "html"),
+				};
+				break;
+		}
+
+		String[] labels = new String[blocks.length];
+		for (int i = 0; i < blocks.length; i++) {
+			labels[i] = blocks[i].label + " - " + blocks[i].description;
+		}
+
+		final BlockDragDropManager.BlockDef[] finalBlocks = blocks;
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Select Block")
+			.setItems(labels, (dialog, which) -> {
+				// Delegate to BlockDragDropManager's add flow
+				blockDragDropManager.showAddBlockFromPalette(finalBlocks[which]);
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
 	}
 
 	// ---- Project Save/Load ----
