@@ -50,6 +50,12 @@ public class LogicBlockManager {
     public static final String ACTION_SCROLL_TO = "scrollTo";
     public static final String ACTION_COPY_CLIPBOARD = "copyClipboard";
     public static final String ACTION_DELAY = "delay";
+    public static final String ACTION_GO_TO_PAGE = "goToPage";
+    public static final String ACTION_OPEN_PAGE = "openPage";
+
+    public static final String TARGET_MODE_ID = "id";
+    public static final String TARGET_MODE_CLASS = "class";
+    public static final String TARGET_MODE_TAG = "tag";
 
     private Context context;
     private List<LogicBlock> blocks = new ArrayList<>();
@@ -83,6 +89,10 @@ public class LogicBlockManager {
     }
 
     public void showAddBlockDialog(String targetWidgetTag, OnBlockAddedListener listener) {
+        showAddBlockDialog(targetWidgetTag, TARGET_MODE_ID, listener);
+    }
+
+    public void showAddBlockDialog(String targetWidgetTag, String targetMode, OnBlockAddedListener listener) {
         String[] events = {
             "On Click", "On Hover", "On Input", "On Page Load",
             "On Submit", "On Scroll", "On Key Down", "On Change"
@@ -92,19 +102,23 @@ public class LogicBlockManager {
             EVENT_SUBMIT, EVENT_SCROLL, EVENT_KEYDOWN, EVENT_CHANGE
         };
 
+        String modeLabel = TARGET_MODE_CLASS.equals(targetMode) ? "." :
+                           TARGET_MODE_TAG.equals(targetMode) ? "" : "#";
+
         new MaterialAlertDialogBuilder(context)
-            .setTitle("Select Event for <" + targetWidgetTag + ">")
+            .setTitle("Select Event for " + modeLabel + targetWidgetTag)
             .setItems(events, (dialog, which) -> {
                 String selectedEvent = eventKeys[which];
-                showActionDialog(targetWidgetTag, selectedEvent, listener);
+                showActionDialog(targetWidgetTag, targetMode, selectedEvent, listener);
             })
             .setNegativeButton("Cancel", null)
             .show();
     }
 
-    private void showActionDialog(String targetWidgetTag, String event, OnBlockAddedListener listener) {
+    private void showActionDialog(String targetWidgetTag, String targetMode, String event, OnBlockAddedListener listener) {
         String[] actions = {
             "Change Style", "Animate", "Navigate To URL",
+            "Go To Page", "Open Page (New Tab)",
             "Show/Hide Element", "Set Text", "Add CSS Class",
             "Remove CSS Class", "Toggle CSS Class", "Show Alert",
             "Console Log", "Set Attribute", "Remove Attribute",
@@ -114,6 +128,7 @@ public class LogicBlockManager {
         };
         String[] actionKeys = {
             ACTION_CHANGE_STYLE, ACTION_ANIMATE, ACTION_NAVIGATE,
+            ACTION_GO_TO_PAGE, ACTION_OPEN_PAGE,
             ACTION_SHOW_HIDE, ACTION_SET_TEXT, ACTION_ADD_CLASS,
             ACTION_REMOVE_CLASS, ACTION_TOGGLE_CLASS, ACTION_ALERT,
             ACTION_CONSOLE_LOG, ACTION_SET_ATTRIBUTE, ACTION_REMOVE_ATTRIBUTE,
@@ -126,13 +141,13 @@ public class LogicBlockManager {
             .setTitle("Select Action")
             .setItems(actions, (dialog, which) -> {
                 String selectedAction = actionKeys[which];
-                showActionParamsDialog(targetWidgetTag, event, selectedAction, listener);
+                showActionParamsDialog(targetWidgetTag, targetMode, event, selectedAction, listener);
             })
             .setNegativeButton("Cancel", null)
             .show();
     }
 
-    private void showActionParamsDialog(String targetWidgetTag, String event, String action, OnBlockAddedListener listener) {
+    private void showActionParamsDialog(String targetWidgetTag, String targetMode, String event, String action, OnBlockAddedListener listener) {
         android.widget.EditText input = new android.widget.EditText(context);
         input.setPadding(48, 32, 48, 32);
 
@@ -146,6 +161,7 @@ public class LogicBlockManager {
                 String value = input.getText().toString().trim();
                 LogicBlock block = new LogicBlock();
                 block.targetWidget = targetWidgetTag;
+                block.targetMode = targetMode;
                 block.event = event;
                 block.action = action;
                 block.params = value;
@@ -163,6 +179,8 @@ public class LogicBlockManager {
             case ACTION_CHANGE_STYLE: return "property:value (e.g. color:red)";
             case ACTION_ANIMATE: return "animation name (e.g. fadeIn, slideUp, pulse)";
             case ACTION_NAVIGATE: return "URL (e.g. https://example.com)";
+            case ACTION_GO_TO_PAGE: return "Page name (e.g. about, contact)";
+            case ACTION_OPEN_PAGE: return "Page name to open in new tab";
             case ACTION_SHOW_HIDE: return "toggle, show, or hide";
             case ACTION_SET_TEXT: return "New text content";
             case ACTION_ADD_CLASS: return "CSS class name to add";
@@ -214,7 +232,18 @@ public class LogicBlockManager {
 
         for (Map.Entry<String, List<Integer>> entry : groupedBlocks.entrySet()) {
             TextView widgetHeader = new TextView(context);
-            widgetHeader.setText("<" + entry.getKey() + ">");
+            // Show target with mode prefix
+            String headerTarget = entry.getKey();
+            if (!blocks.isEmpty()) {
+                for (int idx : entry.getValue()) {
+                    LogicBlock b = blocks.get(idx);
+                    if (TARGET_MODE_ID.equals(b.targetMode)) headerTarget = "#" + b.targetWidget;
+                    else if (TARGET_MODE_CLASS.equals(b.targetMode)) headerTarget = "." + b.targetWidget;
+                    else if (TARGET_MODE_TAG.equals(b.targetMode)) headerTarget = "<" + b.targetWidget + ">";
+                    break;
+                }
+            }
+            widgetHeader.setText(headerTarget);
             widgetHeader.setTextColor(Color.parseColor("#64B5F6"));
             widgetHeader.setTextSize(13);
             widgetHeader.setTypeface(null, Typeface.BOLD);
@@ -300,6 +329,20 @@ public class LogicBlockManager {
             .show();
     }
 
+    private String buildSelector(LogicBlock block) {
+        String target = block.targetWidget;
+        String mode = block.targetMode;
+        if (TARGET_MODE_ID.equals(mode)) {
+            return "#" + target;
+        } else if (TARGET_MODE_CLASS.equals(mode)) {
+            return "." + target;
+        } else if (TARGET_MODE_TAG.equals(mode)) {
+            return target;
+        }
+        // Fallback: data-widget attribute
+        return "[data-widget='" + target + "']";
+    }
+
     public String generateJavaScript() {
         if (blocks.isEmpty()) return "";
 
@@ -308,7 +351,7 @@ public class LogicBlockManager {
         js.append("document.addEventListener('DOMContentLoaded', function() {\n");
 
         for (LogicBlock block : blocks) {
-            String selector = "[data-widget='" + block.targetWidget + "']";
+            String selector = buildSelector(block);
             String eventName = block.event;
 
             js.append("  // ").append(block.event).append(" -> ").append(block.action).append("\n");
@@ -347,6 +390,12 @@ public class LogicBlockManager {
 
             case ACTION_NAVIGATE:
                 return "window.location.href = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_GO_TO_PAGE:
+                return "window.location.href = '" + escapeJs(block.params) + ".html';\n";
+
+            case ACTION_OPEN_PAGE:
+                return "window.open('" + escapeJs(block.params) + ".html', '_blank');\n";
 
             case ACTION_SHOW_HIDE:
                 if ("toggle".equals(block.params)) {
@@ -474,6 +523,7 @@ public class LogicBlockManager {
 
     public static class LogicBlock {
         public String targetWidget;
+        public String targetMode = TARGET_MODE_ID; // "id", "class", or "tag"
         public String event;
         public String action;
         public String params;

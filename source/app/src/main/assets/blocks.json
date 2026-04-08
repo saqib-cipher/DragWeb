@@ -1,0 +1,233 @@
+[
+  {
+    "type": "event",
+    "name": "onClick",
+    "target": "id",
+    "params": ["elementId"],
+    "actions": [
+      {
+        "type": "style",
+        "property": "display",
+        "value": "none"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "onHover",
+    "target": "id",
+    "params": ["elementId"],
+    "actions": [
+      {
+        "type": "style",
+        "property": "opacity",
+        "value": "0.7"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "onLoad",
+    "target": "tag",
+    "params": ["body"],
+    "actions": [
+      {
+        "type": "style",
+        "property": "opacity",
+        "value": "1"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "onInput",
+    "target": "id",
+    "params": ["elementId"],
+    "actions": [
+      {
+        "type": "setText",
+        "value": ""
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "onSubmit",
+    "target": "id",
+    "params": ["formId"],
+    "actions": [
+      {
+        "type": "alert",
+        "value": "Form submitted!"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "onScroll",
+    "target": "tag",
+    "params": ["body"],
+    "actions": [
+      {
+        "type": "addClass",
+        "value": "scrolled"
+      }
+    ]
+  },
+  {
+    "type": "action",
+    "name": "changeStyle",
+    "category": "style",
+    "params": ["target", "property", "value"],
+    "description": "Change CSS style property of an element"
+  },
+  {
+    "type": "action",
+    "name": "animate",
+    "category": "animation",
+    "params": ["target", "animationName"],
+    "description": "Play CSS animation on element",
+    "presets": ["fadeIn", "fadeOut", "slideUp", "slideDown", "pulse", "bounce", "shake", "spin"]
+  },
+  {
+    "type": "action",
+    "name": "navigate",
+    "category": "navigation",
+    "params": ["url"],
+    "description": "Navigate to a URL or page"
+  },
+  {
+    "type": "action",
+    "name": "goToPage",
+    "category": "navigation",
+    "params": ["pageName"],
+    "description": "Navigate to another page in the project"
+  },
+  {
+    "type": "action",
+    "name": "openPage",
+    "category": "navigation",
+    "params": ["pageName"],
+    "description": "Open a page in a new tab/context"
+  },
+  {
+    "type": "action",
+    "name": "showHide",
+    "category": "visibility",
+    "params": ["target", "mode"],
+    "description": "Show, hide, or toggle element visibility",
+    "modes": ["show", "hide", "toggle"]
+  },
+  {
+    "type": "action",
+    "name": "setText",
+    "category": "content",
+    "params": ["target", "text"],
+    "description": "Set text content of an element"
+  },
+  {
+    "type": "action",
+    "name": "addClass",
+    "category": "class",
+    "params": ["target", "className"],
+    "description": "Add CSS class to element"
+  },
+  {
+    "type": "action",
+    "name": "removeClass",
+    "category": "class",
+    "params": ["target", "className"],
+    "description": "Remove CSS class from element"
+  },
+  {
+    "type": "action",
+    "name": "toggleClass",
+    "category": "class",
+    "params": ["target", "className"],
+    "description": "Toggle CSS class on element"
+  },
+  {
+    "type": "action",
+    "name": "alert",
+    "category": "dialog",
+    "params": ["message"],
+    "description": "Show browser alert dialog"
+  },
+  {
+    "type": "action",
+    "name": "consoleLog",
+    "category": "debug",
+    "params": ["message"],
+    "description": "Log message to console"
+  },
+  {
+    "type": "action",
+    "name": "setAttribute",
+    "category": "attribute",
+    "params": ["target", "attribute", "value"],
+    "description": "Set HTML attribute on element"
+  },
+  {
+    "type": "action",
+    "name": "setValue",
+    "category": "form",
+    "params": ["target", "value"],
+    "description": "Set value of form input"
+  },
+  {
+    "type": "action",
+    "name": "appendChild",
+    "category": "dom",
+    "params": ["target", "html"],
+    "description": "Append HTML content inside element"
+  },
+  {
+    "type": "action",
+    "name": "removeElement",
+    "category": "dom",
+    "params": ["target"],
+    "description": "Remove element from page"
+  },
+  {
+    "type": "action",
+    "name": "customJs",
+    "category": "advanced",
+    "params": ["code"],
+    "description": "Execute custom JavaScript code"
+  },
+  {
+    "type": "action",
+    "name": "fetchApi",
+    "category": "network",
+    "params": ["url", "method", "body"],
+    "description": "Make HTTP API request"
+  },
+  {
+    "type": "action",
+    "name": "localStorage",
+    "category": "storage",
+    "params": ["operation", "key", "value"],
+    "description": "Get or set localStorage values"
+  },
+  {
+    "type": "action",
+    "name": "scrollTo",
+    "category": "scroll",
+    "params": ["target"],
+    "description": "Scroll to element or position"
+  },
+  {
+    "type": "action",
+    "name": "copyClipboard",
+    "category": "utility",
+    "params": ["text"],
+    "description": "Copy text to clipboard"
+  },
+  {
+    "type": "action",
+    "name": "delay",
+    "category": "flow",
+    "params": ["milliseconds", "action"],
+    "description": "Wait then execute action"
+  }
+]

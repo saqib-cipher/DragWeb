@@ -161,6 +161,8 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         String id = "";
         String cssClass = "";
         boolean isContainer = view instanceof ViewGroup;
+        boolean isLocked = false;
+        boolean isHidden = false;
 
         if (view.getTag() instanceof Map) {
             Map<String, Object> widgetMap = (Map<String, Object>) view.getTag();
@@ -169,6 +171,12 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             }
             if (widgetMap.containsKey("id")) {
                 id = widgetMap.get("id").toString();
+            }
+            if (widgetMap.containsKey("locked")) {
+                isLocked = Boolean.TRUE.equals(widgetMap.get("locked"));
+            }
+            if (widgetMap.containsKey("hidden")) {
+                isHidden = Boolean.TRUE.equals(widgetMap.get("hidden"));
             }
             Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
             if (function != null) {
@@ -219,6 +227,8 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         node.isContainer = isContainer;
         node.childCount = isContainer ? ((ViewGroup) view).getChildCount() : 0;
         node.nodeId = System.identityHashCode(view);
+        node.isLocked = isLocked;
+        node.isHidden = isHidden;
 
         flatList.add(node);
 
@@ -235,7 +245,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         LinearLayout layout = new LinearLayout(context);
         layout.setOrientation(LinearLayout.HORIZONTAL);
         layout.setGravity(Gravity.CENTER_VERTICAL);
-        layout.setPadding(8, 6, 8, 6);
+        layout.setPadding(8, 8, 8, 8);
         layout.setLayoutParams(new RecyclerView.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return new ViewHolder(layout);
@@ -247,19 +257,32 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         LinearLayout layout = (LinearLayout) holder.itemView;
         layout.removeAllViews();
 
-        // Indent
-        int indentPx = node.depth * 16;
-        layout.setPadding(6 + indentPx, 5, 6, 5);
+        // Indent with tree lines
+        int indentPx = node.depth * 20;
+        layout.setPadding(8 + indentPx, 6, 8, 6);
+
+        // Tree connector line for children
+        if (node.depth > 0) {
+            TextView connector = new TextView(context);
+            connector.setText("\u2502 ");
+            connector.setTextSize(10);
+            connector.setTextColor(Color.parseColor("#37474F"));
+            LinearLayout.LayoutParams connParams = new LinearLayout.LayoutParams(
+                16, ViewGroup.LayoutParams.WRAP_CONTENT);
+            connector.setLayoutParams(connParams);
+            layout.addView(connector);
+        }
 
         // Drag handle (for non-root items)
-        if (node.depth > 0) {
+        if (node.depth > 0 && !node.isLocked) {
             TextView dragHandle = new TextView(context);
             dragHandle.setText("\u2261"); // hamburger icon
-            dragHandle.setTextSize(14);
-            dragHandle.setTextColor(Color.parseColor("#546E7A"));
+            dragHandle.setTextSize(16);
+            dragHandle.setTextColor(Color.parseColor("#78909C"));
             LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(
-                22, ViewGroup.LayoutParams.WRAP_CONTENT);
+                28, ViewGroup.LayoutParams.WRAP_CONTENT);
             dragHandle.setLayoutParams(handleParams);
+            dragHandle.setGravity(Gravity.CENTER);
             dragHandle.setOnTouchListener((v, event) -> {
                 if (event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
                     startDrag(holder);
@@ -271,10 +294,12 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
         // Collapse/expand arrow
         TextView arrow = new TextView(context);
-        arrow.setTextSize(11);
-        arrow.setTextColor(Color.parseColor("#78909C"));
-        LinearLayout.LayoutParams arrowParams = new LinearLayout.LayoutParams(20, ViewGroup.LayoutParams.WRAP_CONTENT);
+        arrow.setTextSize(12);
+        arrow.setTextColor(Color.parseColor("#90A4AE"));
+        LinearLayout.LayoutParams arrowParams = new LinearLayout.LayoutParams(24, ViewGroup.LayoutParams.WRAP_CONTENT);
+        arrowParams.setMargins(0, 0, 2, 0);
         arrow.setLayoutParams(arrowParams);
+        arrow.setGravity(Gravity.CENTER);
         if (node.isContainer && node.childCount > 0) {
             boolean collapsed = collapsedNodes.contains(node.nodeId);
             arrow.setText(collapsed ? "\u25B6" : "\u25BC");
@@ -295,7 +320,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
         // Tag icon indicator (colored dot)
         View dot = new View(context);
-        int dotSize = 10;
+        int dotSize = 12;
         LinearLayout.LayoutParams dotParams = new LinearLayout.LayoutParams(dotSize, dotSize);
         dotParams.setMargins(2, 0, 6, 0);
         dot.setLayoutParams(dotParams);
@@ -305,7 +330,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         dot.setBackground(dotBg);
         layout.addView(dot);
 
-        // Name + info
+        // Name + info column
         LinearLayout nameCol = new LinearLayout(context);
         nameCol.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams nameColParams = new LinearLayout.LayoutParams(
@@ -317,8 +342,12 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         if (node.isContainer && node.childCount > 0) {
             displayName += " (" + node.childCount + ")";
         }
+        // Add lock/hidden indicators
+        if (node.isLocked) displayName = "\uD83D\uDD12 " + displayName;
+        if (node.isHidden) displayName = "\uD83D\uDC41 " + displayName;
+
         nameView.setText(displayName);
-        nameView.setTextSize(11);
+        nameView.setTextSize(13);
         nameView.setSingleLine(true);
         nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
@@ -328,10 +357,18 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             nameView.setTypeface(null, Typeface.BOLD);
             GradientDrawable selectedBg = new GradientDrawable();
             selectedBg.setColor(Color.parseColor("#1A2196F3"));
-            selectedBg.setCornerRadius(8);
+            selectedBg.setCornerRadius(10);
+            selectedBg.setStroke(1, Color.parseColor("#2196F3"));
             layout.setBackground(selectedBg);
+        } else if (node.depth == 0) {
+            nameView.setTextColor(Color.parseColor("#ECEFF1"));
+            nameView.setTypeface(null, Typeface.BOLD);
+            GradientDrawable rootBg = new GradientDrawable();
+            rootBg.setColor(Color.parseColor("#0D37474F"));
+            rootBg.setCornerRadius(8);
+            layout.setBackground(rootBg);
         } else {
-            nameView.setTextColor(Color.parseColor("#B0BEC5"));
+            nameView.setTextColor(Color.parseColor("#CFD8DC"));
             nameView.setTypeface(null, Typeface.NORMAL);
             layout.setBackgroundColor(Color.TRANSPARENT);
         }
@@ -347,7 +384,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 info.append(".").append(node.cssClass);
             }
             infoView.setText(info.toString());
-            infoView.setTextSize(9);
+            infoView.setTextSize(10);
             infoView.setTextColor(Color.parseColor("#78909C"));
             infoView.setSingleLine(true);
             infoView.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -363,7 +400,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             }
         });
 
-        // Long click for drag reorder
+        // Long click for context actions
         layout.setOnLongClickListener(v -> {
             if (longClickListener != null && node.depth > 0) {
                 longClickListener.onItemLongClick(node.view);
@@ -409,6 +446,8 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         boolean isContainer;
         int childCount;
         int nodeId;
+        boolean isLocked;
+        boolean isHidden;
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

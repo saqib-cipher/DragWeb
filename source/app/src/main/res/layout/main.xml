@@ -48,6 +48,23 @@
 				android:singleLine="true"
 				android:ellipsize="end"
 				android:paddingLeft="4dp" />
+
+			<!-- Page selector spinner -->
+			<Spinner
+				android:id="@+id/spnPageSelector"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:minWidth="80dp"
+				android:minHeight="36dp" />
+
+			<Button
+				android:id="@+id/btnAddPage"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="+"
+				android:textSize="14sp"
+				style="?attr/materialIconButtonStyle" />
+
 			<Button
 				android:id="@+id/button4"
 				android:layout_width="wrap_content"
@@ -101,7 +118,7 @@
 				android:text="Assets" />
 		</com.google.android.material.tabs.TabLayout>
 
-		<!-- Main Area: Canvas + Hierarchy Panel side by side -->
+		<!-- Main Area: Canvas + Side Panels -->
 		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="0dp"
@@ -158,7 +175,7 @@
 							android:id="@+id/tvEventHint"
 							android:layout_width="match_parent"
 							android:layout_height="wrap_content"
-							android:text="Select a widget and add events.\nEvents: click, hover, input, load\nActions: change style, animate, navigate, show/hide, set text, add class, run JS"
+							android:text="Add logic blocks: select target by id, class, or tag.\nDrag blocks vertically to reorder flow."
 							android:textSize="13sp"
 							android:textColor="?attr/colorOnSurfaceVariant"
 							android:paddingBottom="12dp" />
@@ -190,7 +207,7 @@
 							style="?attr/materialButtonOutlinedStyle" />
 					</LinearLayout>
 
-					<!-- Assets panel (hidden by default) -->
+					<!-- Assets panel (file explorer - hidden by default) -->
 					<LinearLayout
 						android:id="@+id/assetsPanel"
 						android:layout_width="match_parent"
@@ -200,139 +217,50 @@
 						android:visibility="gone"
 						android:background="?attr/colorSurface">
 
-						<TextView
+						<LinearLayout
 							android:layout_width="match_parent"
 							android:layout_height="wrap_content"
-							android:text="Assets Manager"
-							android:textSize="16sp"
-							android:textStyle="bold"
-							android:textColor="?attr/colorOnSurface"
-							android:paddingBottom="8dp" />
-
-						<TextView
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="Import and manage images, icons, and files for your project."
-							android:textSize="13sp"
-							android:textColor="?attr/colorOnSurfaceVariant"
-							android:paddingBottom="12dp" />
-
-						<Button
-							android:id="@+id/btnImportImage"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="Import Image from Device"
-							android:textSize="13sp"
-							style="?attr/materialButtonOutlinedStyle" />
-
-						<Button
-							android:id="@+id/btnImportWidgets"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="Import JSON Widgets"
-							android:textSize="13sp"
-							android:layout_marginTop="8dp"
-							style="?attr/materialButtonOutlinedStyle" />
-
-						<Button
-							android:id="@+id/btnImportSvg"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="Import Custom SVG"
-							android:textSize="13sp"
-							android:layout_marginTop="8dp"
-							style="?attr/materialButtonOutlinedStyle" />
-
-						<Button
-							android:id="@+id/btnNewFolder"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="New Folder"
-							android:textSize="13sp"
-							android:layout_marginTop="8dp"
-							style="?attr/materialButtonOutlinedStyle" />
-
-						<View
-							android:layout_width="match_parent"
-							android:layout_height="1dp"
-							android:background="?attr/colorOutlineVariant"
-							android:layout_marginTop="12dp"
-							android:layout_marginBottom="8dp" />
-
-						<TextView
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="Icon Libraries"
-							android:textSize="14sp"
-							android:textStyle="bold"
-							android:textColor="?attr/colorOnSurface"
-							android:paddingBottom="8dp" />
-
-						<!-- Search for icon libraries -->
-						<com.google.android.material.textfield.TextInputLayout
-							android:id="@+id/searchIconLibLayout"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:hint="Search icons..."
-							app:boxCornerRadiusTopStart="8dp"
-							app:boxCornerRadiusTopEnd="8dp"
-							app:boxCornerRadiusBottomStart="8dp"
-							app:boxCornerRadiusBottomEnd="8dp"
-							style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense">
-							<com.google.android.material.textfield.TextInputEditText
-								android:id="@+id/etSearchIconLib"
-								android:layout_width="match_parent"
+							android:orientation="horizontal"
+							android:gravity="center_vertical"
+							android:paddingBottom="8dp">
+							<TextView
+								android:layout_width="0dp"
 								android:layout_height="wrap_content"
+								android:layout_weight="1"
+								android:text="File Explorer"
+								android:textSize="16sp"
+								android:textStyle="bold"
+								android:textColor="?attr/colorOnSurface" />
+							<Button
+								android:id="@+id/btnImportImage"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Import"
 								android:textSize="12sp"
-								android:inputType="text"
-								android:maxLines="1" />
-						</com.google.android.material.textfield.TextInputLayout>
+								style="?attr/materialButtonOutlinedStyle" />
+							<Button
+								android:id="@+id/btnNewFolder"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="New Folder"
+								android:textSize="12sp"
+								android:layout_marginStart="4dp"
+								style="?attr/materialButtonOutlinedStyle" />
+						</LinearLayout>
 
-						<com.google.android.material.chip.ChipGroup
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:layout_marginTop="8dp">
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipFontAwesome"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Font Awesome"
-								android:textSize="11sp"
-								style="@style/Widget.Material3.Chip.Assist" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipTablerIcons"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Tabler Icons"
-								android:textSize="11sp"
-								style="@style/Widget.Material3.Chip.Assist" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipBootstrapIcons"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Bootstrap Icons"
-								android:textSize="11sp"
-								style="@style/Widget.Material3.Chip.Assist" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCustomSvg"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Custom SVG"
-								android:textSize="11sp"
-								style="@style/Widget.Material3.Chip.Assist" />
-						</com.google.android.material.chip.ChipGroup>
-
-						<!-- Imported assets list -->
+						<!-- Current path breadcrumb -->
 						<TextView
+							android:id="@+id/tvAssetsPath"
 							android:layout_width="match_parent"
 							android:layout_height="wrap_content"
-							android:text="Project Files"
-							android:textSize="14sp"
-							android:textStyle="bold"
-							android:textColor="?attr/colorOnSurface"
-							android:paddingTop="12dp"
-							android:paddingBottom="4dp" />
+							android:text="/assets/"
+							android:textSize="12sp"
+							android:textColor="?attr/colorOnSurfaceVariant"
+							android:paddingBottom="8dp"
+							android:singleLine="true"
+							android:ellipsize="start" />
 
+						<!-- File list -->
 						<androidx.recyclerview.widget.RecyclerView
 							android:id="@+id/rvAssets"
 							android:layout_width="match_parent"
@@ -340,14 +268,26 @@
 							android:layout_weight="1"
 							android:layout_marginTop="4dp"
 							android:clipToPadding="false" />
+
+						<!-- Hidden buttons kept for backwards compat -->
+						<Button
+							android:id="@+id/btnImportWidgets"
+							android:layout_width="0dp"
+							android:layout_height="0dp"
+							android:visibility="gone" />
+						<Button
+							android:id="@+id/btnImportSvg"
+							android:layout_width="0dp"
+							android:layout_height="0dp"
+							android:visibility="gone" />
 					</LinearLayout>
 				</FrameLayout>
 			</LinearLayout>
 
-			<!-- Right side panel: Hierarchy Tree -->
+			<!-- Right side panel: Widgets + Hierarchy stacked -->
 			<com.google.android.material.card.MaterialCardView
 				android:id="@+id/rightPanelCard"
-				android:layout_width="160dp"
+				android:layout_width="180dp"
 				android:layout_height="match_parent"
 				android:layout_margin="4dp"
 				app:cardCornerRadius="12dp"
@@ -359,11 +299,13 @@
 					android:layout_height="match_parent"
 					android:orientation="vertical"
 					android:padding="6dp">
+
+					<!-- Hierarchy section -->
 					<TextView
 						android:layout_width="match_parent"
 						android:layout_height="wrap_content"
 						android:text="Hierarchy"
-						android:textSize="13sp"
+						android:textSize="14sp"
 						android:textStyle="bold"
 						android:textColor="?attr/colorOnSurface"
 						android:gravity="center"
@@ -397,6 +339,91 @@
 						android:layout_weight="1"
 						android:layout_marginTop="4dp"
 						android:clipToPadding="false" />
+
+					<!-- Divider -->
+					<View
+						android:layout_width="match_parent"
+						android:layout_height="1dp"
+						android:background="?attr/colorOutlineVariant"
+						android:layout_marginVertical="4dp" />
+
+					<!-- Widget palette inline section -->
+					<TextView
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:text="Widgets"
+						android:textSize="14sp"
+						android:textStyle="bold"
+						android:textColor="?attr/colorOnSurface"
+						android:gravity="center"
+						android:paddingBottom="4dp" />
+
+					<!-- Category chips (compact) -->
+					<HorizontalScrollView
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:scrollbars="none">
+						<com.google.android.material.chip.ChipGroup
+							android:id="@+id/chipGroupCategories"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							app:singleSelection="true"
+							app:singleLine="true">
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatAll"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="All"
+								android:textSize="9sp"
+								android:checked="true"
+								style="@style/Widget.Material3.Chip.Filter" />
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatLayout"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Layout"
+								android:textSize="9sp"
+								style="@style/Widget.Material3.Chip.Filter" />
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatBasic"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Basic"
+								android:textSize="9sp"
+								style="@style/Widget.Material3.Chip.Filter" />
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatForm"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Form"
+								android:textSize="9sp"
+								style="@style/Widget.Material3.Chip.Filter" />
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatMedia"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Media"
+								android:textSize="9sp"
+								style="@style/Widget.Material3.Chip.Filter" />
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatAdvanced"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Adv"
+								android:textSize="9sp"
+								style="@style/Widget.Material3.Chip.Filter" />
+						</com.google.android.material.chip.ChipGroup>
+					</HorizontalScrollView>
+
+					<!-- Widget list (vertical) -->
+					<androidx.recyclerview.widget.RecyclerView
+						android:id="@+id/recyclerview1"
+						android:layout_width="match_parent"
+						android:layout_height="0dp"
+						android:layout_weight="1"
+						android:layout_marginTop="2dp"
+						android:clipToPadding="false"
+						tools:listitem="@layout/widgets" />
 				</LinearLayout>
 			</com.google.android.material.card.MaterialCardView>
 		</LinearLayout>
@@ -428,7 +455,7 @@
 				</LinearLayout>
 			</HorizontalScrollView>
 
-			<!-- Tabs: Basic / Styles / Layout / Event -->
+			<!-- Tabs: Basic / Styles / Layout -->
 			<LinearLayout
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
@@ -463,6 +490,7 @@
 					android:layout_height="wrap_content"
 					android:text="Event"
 					android:textSize="11sp"
+					android:visibility="gone"
 					style="@style/Widget.Material3.Chip.Filter" />
 			</LinearLayout>
 
@@ -487,6 +515,14 @@
 					android:text="No selection"
 					android:textSize="11sp"
 					android:visibility="gone" />
+
+				<!-- Copy widget button -->
+				<Button
+					android:id="@+id/btnCopyWidget"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					style="?attr/materialIconButtonStyle"
+					app:icon="@drawable/icon_copy_all_round" />
 
 				<Button
 					android:id="@+id/delete"
@@ -520,7 +556,7 @@
 		</LinearLayout>
 	</LinearLayout>
 
-	<!-- Left Drawer: Widgets Palette + Settings -->
+	<!-- Left Drawer: Widget Palette + Settings -->
 	<LinearLayout
 		android:layout_width="300dp"
 		android:layout_height="match_parent"
@@ -570,12 +606,12 @@
 				android:id="@+id/etSearchWidget"
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
-				android:textSize="12sp"
+				android:textSize="13sp"
 				android:inputType="text"
 				android:maxLines="1" />
 		</com.google.android.material.textfield.TextInputLayout>
 
-		<!-- Widget category chips -->
+		<!-- Widget category chips in drawer -->
 		<HorizontalScrollView
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
@@ -584,60 +620,46 @@
 			android:paddingLeft="8dp"
 			android:paddingRight="8dp">
 			<com.google.android.material.chip.ChipGroup
-				android:id="@+id/chipGroupCategories"
+				android:id="@+id/chipGroupDrawerCategories"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				app:singleSelection="true"
 				app:singleLine="true">
 				<com.google.android.material.chip.Chip
-					android:id="@+id/chipCatAll"
+					android:id="@+id/chipDrawerAll"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="All"
-					android:textSize="10sp"
+					android:textSize="11sp"
 					android:checked="true"
 					style="@style/Widget.Material3.Chip.Filter" />
 				<com.google.android.material.chip.Chip
-					android:id="@+id/chipCatLayout"
+					android:id="@+id/chipDrawerLayout"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="Layout"
-					android:textSize="10sp"
+					android:textSize="11sp"
 					style="@style/Widget.Material3.Chip.Filter" />
 				<com.google.android.material.chip.Chip
-					android:id="@+id/chipCatBasic"
+					android:id="@+id/chipDrawerBasic"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="Basic"
-					android:textSize="10sp"
+					android:textSize="11sp"
 					style="@style/Widget.Material3.Chip.Filter" />
 				<com.google.android.material.chip.Chip
-					android:id="@+id/chipCatForm"
+					android:id="@+id/chipDrawerForm"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="Form"
-					android:textSize="10sp"
-					style="@style/Widget.Material3.Chip.Filter" />
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipCatMedia"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Media"
-					android:textSize="10sp"
-					style="@style/Widget.Material3.Chip.Filter" />
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipCatAdvanced"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Advanced"
-					android:textSize="10sp"
+					android:textSize="11sp"
 					style="@style/Widget.Material3.Chip.Filter" />
 			</com.google.android.material.chip.ChipGroup>
 		</HorizontalScrollView>
 
-		<!-- Widget RecyclerView -->
+		<!-- Widget list in drawer (vertical) with bigger text -->
 		<androidx.recyclerview.widget.RecyclerView
-			android:id="@+id/recyclerview1"
+			android:id="@+id/rvDrawerWidgets"
 			android:layout_width="match_parent"
 			android:layout_height="0dp"
 			android:layout_weight="1"
