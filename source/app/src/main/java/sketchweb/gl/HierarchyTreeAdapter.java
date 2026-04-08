@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -45,6 +46,10 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     private String filterQuery = "";
     private ViewGroup rootScreen;
     private ItemTouchHelper touchHelper;
+
+    // Drag reparenting state
+    private int dragFromPos = -1;
+    private int dragToPos = -1;
 
     public HierarchyTreeAdapter(Context context) {
         this.context = context;
@@ -94,35 +99,64 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
                 // Don't move root (body)
                 if (fromPos == 0 || toPos == 0) return false;
+                if (fromPos < 0 || toPos < 0) return false;
+                if (fromPos >= flatList.size() || toPos >= flatList.size()) return false;
 
                 TreeNode fromNode = flatList.get(fromPos);
                 TreeNode toNode = flatList.get(toPos);
 
-                // Perform the actual view reorder
-                if (fromNode.view != null && fromNode.view.getParent() instanceof ViewGroup) {
-                    ViewGroup parent = (ViewGroup) fromNode.view.getParent();
-                    int fromIndex = parent.indexOfChild(fromNode.view);
-                    if (fromIndex >= 0) {
-                        parent.removeView(fromNode.view);
-                        // Determine new index from target position
-                        ViewGroup targetParent = toNode.view.getParent() instanceof ViewGroup ?
-                            (ViewGroup) toNode.view.getParent() : parent;
-                        int toIndex = targetParent.indexOfChild(toNode.view);
-                        if (toIndex < 0) toIndex = targetParent.getChildCount();
-                        if (targetParent == parent && toPos > fromPos) {
-                            toIndex = Math.min(toIndex, parent.getChildCount());
-                        }
-                        targetParent.addView(fromNode.view, Math.min(toIndex, targetParent.getChildCount()));
+                // Don't move locked nodes
+                if (fromNode.isLocked) return false;
 
-                        if (reorderListener != null) {
-                            reorderListener.onReorder(fromNode.view, targetParent, toIndex);
+                // Perform the actual view reparenting/reorder
+                if (fromNode.view != null && fromNode.view.getParent() instanceof ViewGroup) {
+                    ViewGroup fromParent = (ViewGroup) fromNode.view.getParent();
+
+                    // Determine target parent and index
+                    ViewGroup targetParent;
+                    int targetIndex;
+
+                    if (toNode.isContainer && toNode.depth >= fromNode.depth) {
+                        // Moving INTO a container - add as first child
+                        targetParent = (ViewGroup) toNode.view;
+                        targetIndex = 0;
+                    } else if (toNode.view.getParent() instanceof ViewGroup) {
+                        // Moving BESIDE a sibling
+                        targetParent = (ViewGroup) toNode.view.getParent();
+                        targetIndex = targetParent.indexOfChild(toNode.view);
+                        if (toPos > fromPos && targetParent == fromParent) {
+                            // Adjust for removal offset when moving down in same parent
                         }
+                    } else {
+                        return false;
+                    }
+
+                    // Prevent dropping into own children
+                    if (isDescendantOf(targetParent, fromNode.view)) {
+                        return false;
+                    }
+
+                    fromParent.removeView(fromNode.view);
+
+                    // Recalculate index after removal
+                    if (targetParent == fromParent) {
+                        targetIndex = Math.min(targetIndex, targetParent.getChildCount());
+                    } else {
+                        targetIndex = Math.min(targetIndex, targetParent.getChildCount());
+                    }
+
+                    targetParent.addView(fromNode.view, Math.max(0, Math.min(targetIndex, targetParent.getChildCount())));
+
+                    if (reorderListener != null) {
+                        reorderListener.onReorder(fromNode.view, targetParent, targetIndex);
                     }
                 }
 
                 // Update flat list
-                Collections.swap(flatList, fromPos, toPos);
-                notifyItemMoved(fromPos, toPos);
+                if (fromPos >= 0 && toPos >= 0 && fromPos < flatList.size() && toPos < flatList.size()) {
+                    Collections.swap(flatList, fromPos, toPos);
+                    notifyItemMoved(fromPos, toPos);
+                }
                 return true;
             }
 
@@ -140,13 +174,26 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             public void clearView(@NonNull RecyclerView recyclerView,
                                   @NonNull RecyclerView.ViewHolder viewHolder) {
                 super.clearView(recyclerView, viewHolder);
-                // Rebuild tree after drag
+                // Rebuild tree after drag to refresh depths and structure
                 if (rootScreen != null) {
                     buildTree(rootScreen);
                 }
             }
         });
         touchHelper.attachToRecyclerView(rv);
+    }
+
+    private boolean isDescendantOf(View parent, View potentialAncestor) {
+        View current = parent;
+        while (current != null) {
+            if (current == potentialAncestor) return true;
+            if (current.getParent() instanceof View) {
+                current = (View) current.getParent();
+            } else {
+                break;
+            }
+        }
+        return false;
     }
 
     public void startDrag(RecyclerView.ViewHolder holder) {
@@ -160,6 +207,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         String name = forceName;
         String id = "";
         String cssClass = "";
+        String textPreview = "";
         boolean isContainer = view instanceof ViewGroup;
         boolean isLocked = false;
         boolean isHidden = false;
@@ -186,26 +234,19 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 if (function.containsKey("class")) {
                     cssClass = function.get("class").toString();
                 }
+                if (function.containsKey("text")) {
+                    textPreview = function.get("text").toString();
+                    if (textPreview.length() > 20) textPreview = textPreview.substring(0, 20) + "...";
+                }
             }
             if (name == null) {
-                if (function != null && function.containsKey("text")) {
-                    String text = function.get("text").toString();
-                    if (text.length() > 15) text = text.substring(0, 15) + "...";
-                    name = tag + " \"" + text + "\"";
-                } else if (!id.isEmpty()) {
-                    name = tag + " #" + id;
-                } else if (!cssClass.isEmpty()) {
-                    String shortClass = cssClass.length() > 12 ? cssClass.substring(0, 12) + ".." : cssClass;
-                    name = tag + " ." + shortClass;
-                } else {
-                    name = tag;
-                }
+                name = tag;
             }
         }
 
         // Apply filter
         if (!filterQuery.isEmpty() && depth > 0) {
-            String searchable = (name + " " + tag + " " + id + " " + cssClass).toLowerCase();
+            String searchable = (name + " " + tag + " " + id + " " + cssClass + " " + textPreview).toLowerCase();
             if (!searchable.contains(filterQuery)) {
                 if (isContainer) {
                     ViewGroup vg = (ViewGroup) view;
@@ -224,6 +265,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         node.name = name != null ? name : tag;
         node.id = id;
         node.cssClass = cssClass;
+        node.textPreview = textPreview;
         node.isContainer = isContainer;
         node.childCount = isContainer ? ((ViewGroup) view).getChildCount() : 0;
         node.nodeId = System.identityHashCode(view);
@@ -245,7 +287,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         LinearLayout layout = new LinearLayout(context);
         layout.setOrientation(LinearLayout.HORIZONTAL);
         layout.setGravity(Gravity.CENTER_VERTICAL);
-        layout.setPadding(8, 8, 8, 8);
+        layout.setPadding(12, 6, 12, 6);
         layout.setLayoutParams(new RecyclerView.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return new ViewHolder(layout);
@@ -257,30 +299,50 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         LinearLayout layout = (LinearLayout) holder.itemView;
         layout.removeAllViews();
 
-        // Indent with tree lines
-        int indentPx = node.depth * 20;
-        layout.setPadding(8 + indentPx, 6, 8, 6);
+        boolean isSelected = node.view == selectedWidgetView;
+        boolean isRoot = node.depth == 0;
 
-        // Tree connector line for children
-        if (node.depth > 0) {
-            TextView connector = new TextView(context);
-            connector.setText("\u2502 ");
-            connector.setTextSize(10);
-            connector.setTextColor(Color.parseColor("#37474F"));
-            LinearLayout.LayoutParams connParams = new LinearLayout.LayoutParams(
-                16, ViewGroup.LayoutParams.WRAP_CONTENT);
-            connector.setLayoutParams(connParams);
-            layout.addView(connector);
+        // Build the tree connector and indentation
+        int indentPx = node.depth * 24;
+
+        // Main row container with Material 3 card-like styling
+        LinearLayout cardRow = new LinearLayout(context);
+        cardRow.setOrientation(LinearLayout.HORIZONTAL);
+        cardRow.setGravity(Gravity.CENTER_VERTICAL);
+        cardRow.setPadding(12, 10, 12, 10);
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardParams.setMargins(indentPx, 2, 4, 2);
+        cardRow.setLayoutParams(cardParams);
+
+        // Apply Material 3 style background
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setCornerRadius(16);
+
+        if (isSelected) {
+            cardBg.setColor(Color.parseColor("#1A2196F3"));
+            cardBg.setStroke(2, Color.parseColor("#2196F3"));
+        } else if (isRoot) {
+            cardBg.setColor(Color.parseColor("#1A6750A4"));
+            cardBg.setStroke(2, Color.parseColor("#6750A4"));
+        } else if (node.isContainer) {
+            cardBg.setColor(Color.parseColor("#0D37474F"));
+            cardBg.setStroke(1, Color.parseColor("#49454F"));
+        } else {
+            cardBg.setColor(Color.TRANSPARENT);
+            cardBg.setStroke(1, Color.parseColor("#36343B"));
         }
+        cardRow.setBackground(cardBg);
 
-        // Drag handle (for non-root items)
-        if (node.depth > 0 && !node.isLocked) {
+        // Drag handle (for non-root, non-locked items)
+        if (!isRoot && !node.isLocked) {
             TextView dragHandle = new TextView(context);
-            dragHandle.setText("\u2261"); // hamburger icon
-            dragHandle.setTextSize(16);
-            dragHandle.setTextColor(Color.parseColor("#78909C"));
+            dragHandle.setText("\u2261");
+            dragHandle.setTextSize(20);
+            dragHandle.setTextColor(Color.parseColor("#938F99"));
             LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(
-                28, ViewGroup.LayoutParams.WRAP_CONTENT);
+                36, ViewGroup.LayoutParams.WRAP_CONTENT);
+            handleParams.setMargins(0, 0, 8, 0);
             dragHandle.setLayoutParams(handleParams);
             dragHandle.setGravity(Gravity.CENTER);
             dragHandle.setOnTouchListener((v, event) -> {
@@ -289,20 +351,21 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 }
                 return false;
             });
-            layout.addView(dragHandle);
+            cardRow.addView(dragHandle);
         }
 
-        // Collapse/expand arrow
-        TextView arrow = new TextView(context);
-        arrow.setTextSize(12);
-        arrow.setTextColor(Color.parseColor("#90A4AE"));
-        LinearLayout.LayoutParams arrowParams = new LinearLayout.LayoutParams(24, ViewGroup.LayoutParams.WRAP_CONTENT);
-        arrowParams.setMargins(0, 0, 2, 0);
-        arrow.setLayoutParams(arrowParams);
-        arrow.setGravity(Gravity.CENTER);
+        // Collapse/expand arrow for containers
         if (node.isContainer && node.childCount > 0) {
+            TextView arrow = new TextView(context);
+            arrow.setTextSize(14);
             boolean collapsed = collapsedNodes.contains(node.nodeId);
             arrow.setText(collapsed ? "\u25B6" : "\u25BC");
+            arrow.setTextColor(getTagColor(node.tag));
+            LinearLayout.LayoutParams arrowParams = new LinearLayout.LayoutParams(
+                28, ViewGroup.LayoutParams.WRAP_CONTENT);
+            arrowParams.setMargins(0, 0, 6, 0);
+            arrow.setLayoutParams(arrowParams);
+            arrow.setGravity(Gravity.CENTER);
             arrow.setOnClickListener(v -> {
                 if (collapsedNodes.contains(node.nodeId)) {
                     collapsedNodes.remove(node.nodeId);
@@ -313,22 +376,37 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                     buildTree(rootScreen);
                 }
             });
+            cardRow.addView(arrow);
         } else {
-            arrow.setText("  ");
+            // Spacer for alignment
+            View spacer = new View(context);
+            LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(28, 1);
+            spacerParams.setMargins(0, 0, 6, 0);
+            spacer.setLayoutParams(spacerParams);
+            cardRow.addView(spacer);
         }
-        layout.addView(arrow);
 
-        // Tag icon indicator (colored dot)
-        View dot = new View(context);
-        int dotSize = 12;
-        LinearLayout.LayoutParams dotParams = new LinearLayout.LayoutParams(dotSize, dotSize);
-        dotParams.setMargins(2, 0, 6, 0);
-        dot.setLayoutParams(dotParams);
-        GradientDrawable dotBg = new GradientDrawable();
-        dotBg.setShape(GradientDrawable.OVAL);
-        dotBg.setColor(getTagColor(node.tag));
-        dot.setBackground(dotBg);
-        layout.addView(dot);
+        // Tag color indicator (rounded pill)
+        TextView tagBadge = new TextView(context);
+        tagBadge.setTextSize(10);
+        tagBadge.setTypeface(null, Typeface.BOLD);
+        tagBadge.setTextColor(Color.WHITE);
+        tagBadge.setGravity(Gravity.CENTER);
+        tagBadge.setPadding(10, 2, 10, 2);
+
+        GradientDrawable badgeBg = new GradientDrawable();
+        badgeBg.setCornerRadius(12);
+        badgeBg.setColor(getTagColor(node.tag));
+        tagBadge.setBackground(badgeBg);
+
+        String badgeText = isRoot ? "body" : node.tag;
+        tagBadge.setText(badgeText);
+
+        LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        badgeParams.setMargins(0, 0, 8, 0);
+        tagBadge.setLayoutParams(badgeParams);
+        cardRow.addView(tagBadge);
 
         // Name + info column
         LinearLayout nameCol = new LinearLayout(context);
@@ -337,72 +415,75 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         nameCol.setLayoutParams(nameColParams);
 
+        // Primary label (bold, larger text)
         TextView nameView = new TextView(context);
-        String displayName = node.name;
-        if (node.isContainer && node.childCount > 0) {
-            displayName += " (" + node.childCount + ")";
-        }
-        // Add lock/hidden indicators
-        if (node.isLocked) displayName = "\uD83D\uDD12 " + displayName;
-        if (node.isHidden) displayName = "\uD83D\uDC41 " + displayName;
+        StringBuilder displayName = new StringBuilder();
 
-        nameView.setText(displayName);
-        nameView.setTextSize(13);
+        // Status icons
+        if (node.isLocked) displayName.append("\uD83D\uDD12 ");
+        if (node.isHidden) displayName.append("\uD83D\uDC41 ");
+
+        // Build display name like HTML: <tag> #id .class
+        if (!isRoot) {
+            displayName.append("<").append(node.tag).append(">");
+            if (!node.id.isEmpty()) {
+                displayName.append(" #").append(node.id);
+            }
+            if (!node.cssClass.isEmpty()) {
+                String shortClass = node.cssClass.length() > 15 ? node.cssClass.substring(0, 15) + ".." : node.cssClass;
+                displayName.append(" .").append(shortClass);
+            }
+        } else {
+            displayName.append("body");
+        }
+
+        if (node.isContainer && node.childCount > 0) {
+            displayName.append("  (").append(node.childCount).append(")");
+        }
+
+        nameView.setText(displayName.toString());
+        nameView.setTextSize(14);
         nameView.setSingleLine(true);
         nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        nameView.setTypeface(null, Typeface.BOLD);
 
-        boolean isSelected = node.view == selectedWidgetView;
         if (isSelected) {
             nameView.setTextColor(Color.parseColor("#2196F3"));
-            nameView.setTypeface(null, Typeface.BOLD);
-            GradientDrawable selectedBg = new GradientDrawable();
-            selectedBg.setColor(Color.parseColor("#1A2196F3"));
-            selectedBg.setCornerRadius(10);
-            selectedBg.setStroke(1, Color.parseColor("#2196F3"));
-            layout.setBackground(selectedBg);
-        } else if (node.depth == 0) {
-            nameView.setTextColor(Color.parseColor("#ECEFF1"));
-            nameView.setTypeface(null, Typeface.BOLD);
-            GradientDrawable rootBg = new GradientDrawable();
-            rootBg.setColor(Color.parseColor("#0D37474F"));
-            rootBg.setCornerRadius(8);
-            layout.setBackground(rootBg);
+        } else if (isRoot) {
+            nameView.setTextColor(Color.parseColor("#D0BCFF"));
+        } else if (node.isContainer) {
+            nameView.setTextColor(Color.parseColor("#E6E1E5"));
         } else {
-            nameView.setTextColor(Color.parseColor("#CFD8DC"));
-            nameView.setTypeface(null, Typeface.NORMAL);
-            layout.setBackgroundColor(Color.TRANSPARENT);
+            nameView.setTextColor(Color.parseColor("#CAC4D0"));
         }
         nameCol.addView(nameView);
 
-        // Show id/class info if present
-        if (!node.id.isEmpty() || !node.cssClass.isEmpty()) {
-            TextView infoView = new TextView(context);
-            StringBuilder info = new StringBuilder();
-            if (!node.id.isEmpty()) info.append("#").append(node.id);
-            if (!node.cssClass.isEmpty()) {
-                if (info.length() > 0) info.append(" ");
-                info.append(".").append(node.cssClass);
-            }
-            infoView.setText(info.toString());
-            infoView.setTextSize(10);
-            infoView.setTextColor(Color.parseColor("#78909C"));
-            infoView.setSingleLine(true);
-            infoView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            nameCol.addView(infoView);
+        // Secondary line: text preview
+        if (!node.textPreview.isEmpty()) {
+            TextView previewView = new TextView(context);
+            previewView.setText("\"" + node.textPreview + "\"");
+            previewView.setTextSize(11);
+            previewView.setTextColor(Color.parseColor("#938F99"));
+            previewView.setSingleLine(true);
+            previewView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            nameCol.addView(previewView);
         }
 
-        layout.addView(nameCol);
+        cardRow.addView(nameCol);
+
+        layout.setPadding(0, 0, 0, 0);
+        layout.addView(cardRow);
 
         // Click to select widget
-        layout.setOnClickListener(v -> {
-            if (clickListener != null && node.depth > 0) {
+        cardRow.setOnClickListener(v -> {
+            if (clickListener != null && !isRoot) {
                 clickListener.onItemClick(node.view);
             }
         });
 
         // Long click for context actions
-        layout.setOnLongClickListener(v -> {
-            if (longClickListener != null && node.depth > 0) {
+        cardRow.setOnLongClickListener(v -> {
+            if (longClickListener != null && !isRoot) {
                 longClickListener.onItemLongClick(node.view);
                 return true;
             }
@@ -419,7 +500,9 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         switch (tag) {
             case "div": case "section": return Color.parseColor("#42A5F5");
             case "header": case "footer": case "nav": return Color.parseColor("#26A69A");
-            case "p": case "h1": case "h2": case "h3": case "span": return Color.parseColor("#FFCA28");
+            case "main": case "article": case "aside": return Color.parseColor("#5C6BC0");
+            case "p": case "h1": case "h2": case "h3": case "h4": case "h5": case "h6":
+            case "span": return Color.parseColor("#FFCA28");
             case "button": return Color.parseColor("#FFA726");
             case "img": return Color.parseColor("#AB47BC");
             case "input": case "textarea": case "select": return Color.parseColor("#66BB6A");
@@ -429,9 +512,11 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             case "video": case "audio": return Color.parseColor("#EF5350");
             case "table": case "tr": case "td": case "th": return Color.parseColor("#8D6E63");
             case "label": return Color.parseColor("#FFCA28");
-            case "hr": return Color.parseColor("#90A4AE");
+            case "hr": case "br": return Color.parseColor("#90A4AE");
             case "iframe": return Color.parseColor("#7E57C2");
             case "canvas": case "svg": return Color.parseColor("#EC407A");
+            case "pre": case "blockquote": return Color.parseColor("#78909C");
+            case "body": case "unknown": return Color.parseColor("#6750A4");
             default: return Color.parseColor("#90A4AE");
         }
     }
@@ -443,6 +528,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         String name;
         String id = "";
         String cssClass = "";
+        String textPreview = "";
         boolean isContainer;
         int childCount;
         int nodeId;
