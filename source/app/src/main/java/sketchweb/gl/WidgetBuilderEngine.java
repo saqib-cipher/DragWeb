@@ -130,6 +130,14 @@ public class WidgetBuilderEngine {
                 defaultParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, 2);
                 defaultParams.setMargins(0, 12, 0, 12);
+            } else if (isLayoutTag(tag)) {
+                // Layout containers get full width by default
+                defaultParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+                defaultParams.setMargins(0, 4, 0, 4);
+                // Set minimum height for layout containers so they can receive drops
+                view.setMinimumHeight(60);
             } else {
                 defaultParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -449,6 +457,17 @@ public class WidgetBuilderEngine {
                     // ignore
                 }
             }
+        }
+    }
+
+    private boolean isLayoutTag(String tag) {
+        switch (tag) {
+            case "div": case "section": case "nav": case "header": case "footer":
+            case "main": case "article": case "aside": case "form":
+            case "ul": case "ol": case "table":
+                return true;
+            default:
+                return false;
         }
     }
 

@@ -542,9 +542,13 @@
 
 	<!-- Left Drawer: Widget Palette + Settings -->
 	<LinearLayout
+		android:id="@+id/drawerContent"
 		android:layout_width="300dp"
 		android:layout_height="match_parent"
 		android:layout_gravity="start"
+		android:fitsSystemWindows="true"
+		android:clickable="true"
+		android:focusable="true"
 		android:background="?attr/colorSurface"
 		android:orientation="vertical">
 

@@ -20,6 +20,9 @@ public class PageManager {
     private List<String> pages = new ArrayList<>();
     private String currentPage = "index";
 
+    // In-memory cache of page layouts to prevent data loss during page switching
+    private Map<String, String> pageLayoutCache = new HashMap<>();
+
     public PageManager(Context context, String projectId) {
         this.context = context;
         this.projectId = projectId;
@@ -50,11 +53,16 @@ public class PageManager {
     public void removePage(String pageName) {
         if ("index".equals(pageName)) return; // Can't remove index
         pages.remove(pageName);
+        pageLayoutCache.remove(pageName);
         savePageList();
-        // Delete layout file
+        // Delete layout files
         File layoutFile = getPageLayoutFile(pageName);
         if (layoutFile.exists()) {
             layoutFile.delete();
+        }
+        File internalFile = getInternalPageFile(pageName);
+        if (internalFile.exists()) {
+            internalFile.delete();
         }
     }
 
@@ -64,40 +72,100 @@ public class PageManager {
         if (idx >= 0) {
             pages.set(idx, newName);
             savePageList();
+            // Move cached layout
+            String cached = pageLayoutCache.remove(oldName);
+            if (cached != null) {
+                pageLayoutCache.put(newName, cached);
+            }
             // Rename layout file
             File oldFile = getPageLayoutFile(oldName);
             File newFile = getPageLayoutFile(newName);
             if (oldFile.exists()) {
                 oldFile.renameTo(newFile);
             }
+            File oldInternal = getInternalPageFile(oldName);
+            File newInternal = getInternalPageFile(newName);
+            if (oldInternal.exists()) {
+                oldInternal.renameTo(newInternal);
+            }
         }
     }
 
     public String loadPageLayout(String pageName) {
+        // Check in-memory cache first for unsaved changes
+        if (pageLayoutCache.containsKey(pageName)) {
+            String cached = pageLayoutCache.get(pageName);
+            if (cached != null && !cached.isEmpty()) {
+                return cached;
+            }
+        }
+
+        // Try external storage first (primary storage)
         File file = getPageLayoutFile(pageName);
         if (file.exists()) {
-            return FileUtil.readFile(file.getAbsolutePath());
+            String json = FileUtil.readFile(file.getAbsolutePath());
+            if (json != null && !json.isEmpty()) {
+                pageLayoutCache.put(pageName, json);
+                return json;
+            }
         }
-        // Try internal storage
+
+        // Try internal storage as fallback
         File internalFile = getInternalPageFile(pageName);
         if (internalFile.exists()) {
-            return FileUtil.readFile(internalFile.getAbsolutePath());
+            String json = FileUtil.readFile(internalFile.getAbsolutePath());
+            if (json != null && !json.isEmpty()) {
+                pageLayoutCache.put(pageName, json);
+                return json;
+            }
         }
+
         return "[]";
     }
 
     public void savePageLayout(String pageName, String json) {
-        // Save to internal
+        if (json == null || json.isEmpty()) {
+            json = "[]";
+        }
+
+        // Always update in-memory cache
+        pageLayoutCache.put(pageName, json);
+
+        // Save to internal storage
         File internalDir = new File(context.getFilesDir(), "projects");
         if (!internalDir.exists()) internalDir.mkdirs();
         File internalFile = new File(internalDir, projectId + "_" + pageName + ".json");
         FileUtil.writeFile(internalFile.getAbsolutePath(), json);
 
-        // Save to external
+        // Save to external storage
         File extFile = getPageLayoutFile(pageName);
         File extDir = extFile.getParentFile();
         if (!extDir.exists()) extDir.mkdirs();
         FileUtil.writeFile(extFile.getAbsolutePath(), json);
+    }
+
+    /**
+     * Save all cached page layouts to disk.
+     * Call this when saving the project to ensure nothing is lost.
+     */
+    public void saveAllPages() {
+        for (Map.Entry<String, String> entry : pageLayoutCache.entrySet()) {
+            String pageName = entry.getKey();
+            String json = entry.getValue();
+            if (json != null && !json.isEmpty()) {
+                // Save to internal storage
+                File internalDir = new File(context.getFilesDir(), "projects");
+                if (!internalDir.exists()) internalDir.mkdirs();
+                File internalFile = new File(internalDir, projectId + "_" + pageName + ".json");
+                FileUtil.writeFile(internalFile.getAbsolutePath(), json);
+
+                // Save to external storage
+                File extFile = getPageLayoutFile(pageName);
+                File extDir = extFile.getParentFile();
+                if (!extDir.exists()) extDir.mkdirs();
+                FileUtil.writeFile(extFile.getAbsolutePath(), json);
+            }
+        }
     }
 
     private File getPageLayoutFile(String pageName) {

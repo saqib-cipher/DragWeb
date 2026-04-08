@@ -1,9 +1,11 @@
 package sketchweb.gl;
 
+import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
@@ -60,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
 	private BlockDragDropManager blockDragDropManager;
 	private HierarchyTreeAdapter hierarchyAdapter;
 	private PageManager pageManager;
+	private ActivityResultLauncher<Intent> logicBlockLauncher;
 	private FileExplorerAdapter fileExplorerAdapter;
 
 	private ArrayList<HashMap<String, Object>> widgets = new ArrayList<>();
@@ -108,6 +111,26 @@ public class MainActivity extends AppCompatActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
+		// Register logic block activity launcher before setContentView
+		logicBlockLauncher = registerForActivityResult(
+			new ActivityResultContracts.StartActivityForResult(),
+			result -> {
+				if (result.getResultCode() == Activity.RESULT_OK) {
+					// Reload logic blocks from file after returning
+					if (logicBlockManager != null) {
+						File dir = new File(getFilesDir(), "projects");
+						File logicFile = new File(dir, projectId + ".logic");
+						if (logicFile.exists()) {
+							String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
+							logicBlockManager.fromJson(logicJson);
+						}
+						refreshLogicBlocksUI();
+					}
+				}
+			}
+		);
+
 		setContentView(R.layout.main);
 		initialize(savedInstanceState);
 		initializeLogic();
@@ -179,10 +202,13 @@ public class MainActivity extends AppCompatActivity {
 		btnDrawer.setOnClickListener(v -> {
 			try {
 				if (drawerLayout != null) {
-					if (drawerLayout.isDrawerOpen(androidx.core.view.GravityCompat.START)) {
-						drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START);
-					} else {
-						drawerLayout.openDrawer(androidx.core.view.GravityCompat.START);
+					View drawerContent = findViewById(R.id.drawerContent);
+					if (drawerContent != null) {
+						if (drawerLayout.isDrawerOpen(drawerContent)) {
+							drawerLayout.closeDrawer(drawerContent);
+						} else {
+							drawerLayout.openDrawer(drawerContent);
+						}
 					}
 				}
 			} catch (Exception e) {
@@ -397,34 +423,10 @@ public class MainActivity extends AppCompatActivity {
 		btnExport.setOnClickListener(v -> showExportDialog());
 
 		btnAddLogicBlock.setOnClickListener(v -> {
-			// Show block category picker for quick add
-			String[] categories = {"Add Event Block", "Add CSS Action", "Add HTML Action", "Add Logic Block", "Add Variable Block", "Add via Dialog (Legacy)"};
-			new MaterialAlertDialogBuilder(this)
-				.setTitle("Add Logic Block")
-				.setItems(categories, (dialog, which) -> {
-					switch (which) {
-						case 0:
-							showBlockPicker(BlockDragDropManager.CAT_EVENT);
-							break;
-						case 1:
-							showBlockPicker(BlockDragDropManager.CAT_CSS);
-							break;
-						case 2:
-							showBlockPicker(BlockDragDropManager.CAT_HTML);
-							break;
-						case 3:
-							showBlockPicker(BlockDragDropManager.CAT_LOGIC);
-							break;
-						case 4:
-							showBlockPicker(BlockDragDropManager.CAT_VARIABLE);
-							break;
-						case 5:
-							showAddLogicBlockDialog();
-							break;
-					}
-				})
-				.setNegativeButton("Cancel", null)
-				.show();
+			// Launch the dedicated Logic Block Activity
+			Intent intent = new Intent(this, LogicBlockActivity.class);
+			intent.putExtra("project_id", projectId);
+			logicBlockLauncher.launch(intent);
 		});
 
 		btnViewAllBlocks.setOnClickListener(v -> logicBlockManager.showBlocksDialog());
@@ -880,10 +882,14 @@ public class MainActivity extends AppCompatActivity {
 		spnPageSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
 			@Override
 			public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+				if (position < 0 || position >= pages.size()) return;
 				String selectedPage = pages.get(position);
 				if (!selectedPage.equals(pageManager.getCurrentPage())) {
+					// Save current page layout with all nested children
 					saveCurrentPageLayout();
+					// Switch to new page
 					pageManager.setCurrentPage(selectedPage);
+					// Load the new page layout
 					loadCurrentPageLayout();
 				}
 			}
@@ -932,6 +938,9 @@ public class MainActivity extends AppCompatActivity {
 		}
 		selector.clearSelection();
 		selector.attachTo(screen);
+		textview2.setText("No widget selected");
+		delete.setEnabled(false);
+		undoRedoManager.clear();
 		saveUndoState();
 		refreshHierarchy();
 		updateWidgetSpinnerFromTree();
@@ -1727,13 +1736,17 @@ public class MainActivity extends AppCompatActivity {
 	// ---- Project Save/Load ----
 
 	private void saveProject() {
-		// Save current page layout
+		// Save current page layout first
 		saveCurrentPageLayout();
+
+		// Save all cached pages to disk
+		pageManager.saveAllPages();
 
 		// Save main layout (index page for backwards compat)
 		projectDataManager.saveProject(screen, projectId);
 
 		File dir = new File(getFilesDir(), "projects");
+		if (!dir.exists()) dir.mkdirs();
 		File themeFile = new File(dir, projectId + ".theme");
 		FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
 
@@ -1766,11 +1779,33 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void loadProject() {
-		projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager);
+		// Try loading the current page from PageManager first
+		String pageJson = pageManager.loadPageLayout(pageManager.getCurrentPage());
+		boolean loadedFromPage = false;
 
-		for (int i = 0; i < screen.getChildCount(); i++) {
-			setupWidgetReorderDrag(screen.getChildAt(i));
+		if (pageJson != null && !"[]".equals(pageJson.trim())) {
+			screen.removeAllViews();
+			try {
+				List<Map<String, Object>> widgetTree = new Gson().fromJson(pageJson,
+					new TypeToken<List<Map<String, Object>>>(){}.getType());
+				if (widgetTree != null && !widgetTree.isEmpty()) {
+					for (Map<String, Object> nodeMap : widgetTree) {
+						rebuildView(nodeMap, screen);
+					}
+					loadedFromPage = true;
+				}
+			} catch (Exception e) {
+				Log.w("MainActivity", "Could not load page layout: " + e.getMessage());
+			}
 		}
+
+		// Fall back to legacy project data if page data is empty
+		if (!loadedFromPage) {
+			projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager);
+		}
+
+		// Register all loaded widgets for reorder drag
+		registerAllWidgetsForDrag(screen);
 
 		File dir = new File(getFilesDir(), "projects");
 		File themeFile = new File(dir, projectId + ".theme");
@@ -1785,9 +1820,19 @@ public class MainActivity extends AppCompatActivity {
 			logicBlockManager.fromJson(logicJson);
 		}
 
-		// Save initial page layout
+		// Save initial page layout so it's cached
 		if (pageManager != null && screen.getChildCount() > 0) {
 			saveCurrentPageLayout();
+		}
+	}
+
+	private void registerAllWidgetsForDrag(ViewGroup parent) {
+		for (int i = 0; i < parent.getChildCount(); i++) {
+			View child = parent.getChildAt(i);
+			setupWidgetReorderDrag(child);
+			if (child instanceof ViewGroup) {
+				registerAllWidgetsForDrag((ViewGroup) child);
+			}
 		}
 	}
 
