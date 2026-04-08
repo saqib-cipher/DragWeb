@@ -1021,70 +1021,75 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     // ---- Block Definitions ----
 
-    private BlockDef[] getBlocksForCategory(String category) {
-        switch (category) {
-            case CAT_EVENT: return new BlockDef[]{
-                new BlockDef("onClick", "On Click", "When element is clicked"),
-                new BlockDef("onHover", "On Hover", "When mouse hovers"),
-                new BlockDef("onLoad", "On Load", "When page loads"),
-                new BlockDef("onInput", "On Input", "When input changes"),
-                new BlockDef("onSubmit", "On Submit", "When form submits"),
-                new BlockDef("onScroll", "On Scroll", "When user scrolls"),
-                new BlockDef("onKeyDown", "On Key Down", "When key pressed"),
-                new BlockDef("onChange", "On Change", "When value changes"),
-            };
-            case CAT_CSS: return new BlockDef[]{
-                new BlockDef("setDisplay", "Set Display", "block/none/flex"),
-                new BlockDef("setColor", "Set Color", "Text color"),
-                new BlockDef("setBackground", "Set Background", "Background color"),
-                new BlockDef("setWidth", "Set Width", "Width value"),
-                new BlockDef("setHeight", "Set Height", "Height value"),
-                new BlockDef("setOpacity", "Set Opacity", "0 to 1"),
-                new BlockDef("setFontSize", "Set Font Size", "Text size"),
-                new BlockDef("setMargin", "Set Margin", "Outer spacing"),
-                new BlockDef("setPadding", "Set Padding", "Inner spacing"),
-                new BlockDef("setBorder", "Set Border", "Border style"),
-                new BlockDef("setRadius", "Set Radius", "Border radius"),
-                new BlockDef("addClass", "Add Class", "Add CSS class"),
-                new BlockDef("removeClass", "Remove Class", "Remove CSS class"),
-                new BlockDef("toggleClass", "Toggle Class", "Toggle CSS class"),
-            };
-            case CAT_HTML: return new BlockDef[]{
-                new BlockDef("setText", "Set Text", "Change text content"),
-                new BlockDef("setHTML", "Set HTML", "Set inner HTML"),
-                new BlockDef("showElement", "Show", "Show element"),
-                new BlockDef("hideElement", "Hide", "Hide element"),
-                new BlockDef("toggleElement", "Toggle", "Toggle visibility"),
-                new BlockDef("navigate", "Navigate", "Go to URL"),
-                new BlockDef("goToPage", "Go To Page", "Navigate to page"),
-                new BlockDef("alert", "Alert", "Show alert dialog"),
-                new BlockDef("scrollTo", "Scroll To", "Scroll to position"),
-                new BlockDef("focusInput", "Focus Input", "Focus input field"),
-                new BlockDef("setAttribute", "Set Attribute", "Set HTML attribute"),
-                new BlockDef("removeElement", "Remove", "Remove element"),
-            };
-            case CAT_LOGIC: return new BlockDef[]{
-                new BlockDef("ifBlock", "If", "Conditional execution"),
-                new BlockDef("ifElseBlock", "If / Else", "If-else conditional"),
-                new BlockDef("compareEqual", "Compare ==", "Check equality"),
-                new BlockDef("compareNotEqual", "Compare !=", "Check inequality"),
-                new BlockDef("compareGreater", "Compare >", "Greater than"),
-                new BlockDef("compareLess", "Compare <", "Less than"),
-                new BlockDef("delay", "Delay", "Wait then execute"),
-                new BlockDef("loop", "Loop", "Repeat N times"),
-            };
-            case CAT_VARIABLE: return new BlockDef[]{
-                new BlockDef("createVar", "Create Variable", "Declare a variable"),
-                new BlockDef("setVar", "Set Variable", "Assign a value"),
-                new BlockDef("getVar", "Get Variable", "Read variable value"),
-                new BlockDef("createVarString", "String Var", "String variable"),
-                new BlockDef("createVarNumber", "Number Var", "Number variable"),
-                new BlockDef("createVarBoolean", "Boolean Var", "Boolean variable"),
-            };
-            default: return new BlockDef[]{};
-        }
-    }
+ private BlockDef[] getBlocksForCategory(String category) {
+    switch (category) {
 
+        case CAT_EVENT: return new BlockDef[]{
+            new BlockDef("onClick", "On Click", "When element is clicked", CAT_EVENT),
+            new BlockDef("onHover", "On Hover", "When mouse hovers", CAT_EVENT),
+            new BlockDef("onLoad", "On Load", "When page loads", CAT_EVENT),
+            new BlockDef("onInput", "On Input", "When input changes", CAT_EVENT),
+            new BlockDef("onSubmit", "On Submit", "When form submits", CAT_EVENT),
+            new BlockDef("onScroll", "On Scroll", "When user scrolls", CAT_EVENT),
+            new BlockDef("onKeyDown", "On Key Down", "When key pressed", CAT_EVENT),
+            new BlockDef("onChange", "On Change", "When value changes", CAT_EVENT),
+        };
+
+        case CAT_CSS: return new BlockDef[]{
+            new BlockDef("setDisplay", "Set Display", "block/none/flex", CAT_CSS),
+            new BlockDef("setColor", "Set Color", "Text color", CAT_CSS),
+            new BlockDef("setBackground", "Set Background", "Background color", CAT_CSS),
+            new BlockDef("setWidth", "Set Width", "Width value", CAT_CSS),
+            new BlockDef("setHeight", "Set Height", "Height value", CAT_CSS),
+            new BlockDef("setOpacity", "Set Opacity", "0 to 1", CAT_CSS),
+            new BlockDef("setFontSize", "Set Font Size", "Text size", CAT_CSS),
+            new BlockDef("setMargin", "Set Margin", "Outer spacing", CAT_CSS),
+            new BlockDef("setPadding", "Set Padding", "Inner spacing", CAT_CSS),
+            new BlockDef("setBorder", "Set Border", "Border style", CAT_CSS),
+            new BlockDef("setRadius", "Set Radius", "Border radius", CAT_CSS),
+            new BlockDef("addClass", "Add Class", "Add CSS class", CAT_CSS),
+            new BlockDef("removeClass", "Remove Class", "Remove CSS class", CAT_CSS),
+            new BlockDef("toggleClass", "Toggle Class", "Toggle CSS class", CAT_CSS),
+        };
+
+        case CAT_HTML: return new BlockDef[]{
+            new BlockDef("setText", "Set Text", "Change text content", CAT_HTML),
+            new BlockDef("setHTML", "Set HTML", "Set inner HTML", CAT_HTML),
+            new BlockDef("showElement", "Show", "Show element", CAT_HTML),
+            new BlockDef("hideElement", "Hide", "Hide element", CAT_HTML),
+            new BlockDef("toggleElement", "Toggle", "Toggle visibility", CAT_HTML),
+            new BlockDef("navigate", "Navigate", "Go to URL", CAT_HTML),
+            new BlockDef("goToPage", "Go To Page", "Navigate to page", CAT_HTML),
+            new BlockDef("alert", "Alert", "Show alert dialog", CAT_HTML),
+            new BlockDef("scrollTo", "Scroll To", "Scroll to position", CAT_HTML),
+            new BlockDef("focusInput", "Focus Input", "Focus input field", CAT_HTML),
+            new BlockDef("setAttribute", "Set Attribute", "Set HTML attribute", CAT_HTML),
+            new BlockDef("removeElement", "Remove", "Remove element", CAT_HTML),
+        };
+
+        case CAT_LOGIC: return new BlockDef[]{
+            new BlockDef("ifBlock", "If", "Conditional execution", CAT_LOGIC),
+            new BlockDef("ifElseBlock", "If / Else", "If-else conditional", CAT_LOGIC),
+            new BlockDef("compareEqual", "Compare ==", "Check equality", CAT_LOGIC),
+            new BlockDef("compareNotEqual", "Compare !=", "Check inequality", CAT_LOGIC),
+            new BlockDef("compareGreater", "Compare >", "Greater than", CAT_LOGIC),
+            new BlockDef("compareLess", "Compare <", "Less than", CAT_LOGIC),
+            new BlockDef("delay", "Delay", "Wait then execute", CAT_LOGIC),
+            new BlockDef("loop", "Loop", "Repeat N times", CAT_LOGIC),
+        };
+
+        case CAT_VARIABLE: return new BlockDef[]{
+            new BlockDef("createVar", "Create Variable", "Declare a variable", CAT_VARIABLE),
+            new BlockDef("setVar", "Set Variable", "Assign a value", CAT_VARIABLE),
+            new BlockDef("getVar", "Get Variable", "Read variable value", CAT_VARIABLE),
+            new BlockDef("createVarString", "String Var", "String variable", CAT_VARIABLE),
+            new BlockDef("createVarNumber", "Number Var", "Number variable", CAT_VARIABLE),
+            new BlockDef("createVarBoolean", "Boolean Var", "Boolean variable", CAT_VARIABLE),
+        };
+
+        default: return new BlockDef[]{};
+    }
+}
     private int getCategoryColor(String category) {
         switch (category) {
             case CAT_EVENT: return COLOR_EVENT;
@@ -1232,10 +1237,11 @@ public class LogicBlockActivity extends AppCompatActivity {
         String description;
         String category;
 
-        BlockDef(String id, String label, String description) {
+        BlockDef(String id, String label, String description, String category) {
             this.id = id;
             this.label = label;
             this.description = description;
+this.category = category;
         }
     }
 }
