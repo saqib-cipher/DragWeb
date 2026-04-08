@@ -53,6 +53,18 @@ public class LogicBlockManager {
     public static final String ACTION_GO_TO_PAGE = "goToPage";
     public static final String ACTION_OPEN_PAGE = "openPage";
     public static final String ACTION_SET_HTML = "setHTML";
+    public static final String ACTION_FOCUS_INPUT = "focusInput";
+    public static final String ACTION_BLUR_INPUT = "blurInput";
+
+    // Logic block actions
+    public static final String ACTION_IF_BLOCK = "ifBlock";
+    public static final String ACTION_IF_ELSE_BLOCK = "ifElseBlock";
+    public static final String ACTION_LOOP = "loop";
+
+    // Variable block actions
+    public static final String ACTION_CREATE_VAR = "createVar";
+    public static final String ACTION_SET_VAR = "setVar";
+    public static final String ACTION_GET_VAR = "getVar";
 
     public static final String TARGET_MODE_ID = "id";
     public static final String TARGET_MODE_CLASS = "class";
@@ -353,16 +365,21 @@ public class LogicBlockManager {
         js.append("document.addEventListener('DOMContentLoaded', function() {\n");
 
         for (LogicBlock block : blocks) {
-            String selector = buildSelector(block);
             String eventName = block.event;
 
             js.append("  // ").append(block.event).append(" -> ").append(block.action).append("\n");
 
-            if (EVENT_LOAD.equals(eventName)) {
+            // Immediate blocks (logic/variable) - execute inline, no event listener
+            if ("immediate".equals(eventName)) {
+                js.append("  ").append(generateActionJs(block, "document.body"));
+                js.append("\n");
+            } else if (EVENT_LOAD.equals(eventName)) {
+                String selector = buildSelector(block);
                 js.append("  (function() {\n");
                 js.append("    ").append(generateActionJs(block, "document.body"));
                 js.append("  })();\n\n");
             } else {
+                String selector = buildSelector(block);
                 String jsEvent = eventName;
                 if ("hover".equals(eventName)) jsEvent = "mouseenter";
 
@@ -499,6 +516,93 @@ public class LogicBlockManager {
                 String ms = parts.length > 0 ? parts[0].trim() : "1000";
                 String delayedCode = parts.length > 1 ? parts[1].trim() : "// delayed action";
                 return "setTimeout(function(){" + delayedCode + "}," + ms + ");\n";
+            }
+
+            case ACTION_FOCUS_INPUT:
+                return elVar + ".focus();\n";
+
+            case ACTION_BLUR_INPUT:
+                return elVar + ".blur();\n";
+
+            case ACTION_IF_BLOCK: {
+                // params: left|operator|right|action
+                String[] parts = block.params.split("\\|", 5);
+                if (parts.length >= 4) {
+                    String left = parts[0].trim();
+                    String op = parts[1].trim();
+                    String right = parts[2].trim();
+                    String thenCode = parts[3].trim();
+                    return "if (" + left + " " + op + " " + right + ") { " + thenCode + " }\n";
+                }
+                return "// Invalid if block params\n";
+            }
+
+            case ACTION_IF_ELSE_BLOCK: {
+                // params: left|operator|right|action|elseAction
+                String[] parts = block.params.split("\\|", 5);
+                if (parts.length >= 5) {
+                    String left = parts[0].trim();
+                    String op = parts[1].trim();
+                    String right = parts[2].trim();
+                    String thenCode = parts[3].trim();
+                    String elseCode = parts[4].trim();
+                    return "if (" + left + " " + op + " " + right + ") { " + thenCode + " } else { " + elseCode + " }\n";
+                } else if (parts.length >= 4) {
+                    // Fallback: treat as if-block without else
+                    String left = parts[0].trim();
+                    String op = parts[1].trim();
+                    String right = parts[2].trim();
+                    String thenCode = parts[3].trim();
+                    return "if (" + left + " " + op + " " + right + ") { " + thenCode + " }\n";
+                }
+                return "// Invalid if-else block params\n";
+            }
+
+            case ACTION_LOOP: {
+                // params: count|action
+                String[] parts = block.params.split("\\|", 2);
+                String count = parts.length > 0 ? parts[0].trim() : "5";
+                String loopCode = parts.length > 1 ? parts[1].trim() : "// loop body";
+                return "for (var i = 0; i < " + count + "; i++) { " + loopCode + " }\n";
+            }
+
+            case ACTION_CREATE_VAR: {
+                // params: name|type|initialValue
+                String[] parts = block.params.split("\\|", 3);
+                String name = parts.length > 0 ? parts[0].trim() : "myVar";
+                String type = parts.length > 1 ? parts[1].trim() : "any";
+                String initVal = parts.length > 2 ? parts[2].trim() : "";
+                if (initVal.isEmpty()) {
+                    if ("number".equals(type)) initVal = "0";
+                    else if ("boolean".equals(type)) initVal = "false";
+                    else if ("string".equals(type)) initVal = "''";
+                    else initVal = "null";
+                } else {
+                    // Wrap string values in quotes if type is string and not already quoted
+                    if ("string".equals(type) && !initVal.startsWith("'") && !initVal.startsWith("\"")) {
+                        initVal = "'" + escapeJs(initVal) + "'";
+                    }
+                }
+                return "var " + name + " = " + initVal + ";\n";
+            }
+
+            case ACTION_SET_VAR: {
+                // params: name|value
+                String[] parts = block.params.split("\\|", 2);
+                String name = parts.length > 0 ? parts[0].trim() : "myVar";
+                String val = parts.length > 1 ? parts[1].trim() : "null";
+                return name + " = " + val + ";\n";
+            }
+
+            case ACTION_GET_VAR: {
+                // params: name|targetSelector
+                String[] parts = block.params.split("\\|", 2);
+                String name = parts.length > 0 ? parts[0].trim() : "myVar";
+                String target = parts.length > 1 ? parts[1].trim() : "";
+                if (!target.isEmpty()) {
+                    return "document.querySelector('" + escapeJs(target) + "').textContent = " + name + ";\n";
+                }
+                return "console.log(" + name + ");\n";
             }
 
             default:

@@ -85,7 +85,23 @@ public class PageCodeGenerator {
         StringBuilder html = new StringBuilder();
         html.append(indent).append("<").append(tag);
 
-        // Data attribute for logic targeting
+        // ID attribute for logic targeting
+        if (function.containsKey("id") && function.get("id") != null) {
+            String idVal = function.get("id").toString().trim();
+            if (!idVal.isEmpty()) {
+                html.append(" id=\"").append(escapeAttr(idVal)).append("\"");
+            }
+        }
+
+        // Class attribute for logic targeting
+        if (function.containsKey("class") && function.get("class") != null) {
+            String classVal = function.get("class").toString().trim();
+            if (!classVal.isEmpty()) {
+                html.append(" class=\"").append(escapeAttr(classVal)).append("\"");
+            }
+        }
+
+        // Data attribute for logic targeting (fallback selector)
         html.append(" data-widget=\"").append(tag).append("\"");
 
         // Inline Styles

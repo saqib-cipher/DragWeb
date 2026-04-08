@@ -354,90 +354,60 @@
 						android:layout_marginTop="4dp"
 						android:clipToPadding="false" />
 
-					<!-- Divider -->
-					<View
-						android:layout_width="match_parent"
-						android:layout_height="1dp"
-						android:background="?attr/colorOutlineVariant"
-						android:layout_marginVertical="4dp" />
-
-					<!-- Widget palette inline section -->
-					<TextView
-						android:layout_width="match_parent"
-						android:layout_height="wrap_content"
-						android:text="Widgets"
-						android:textSize="14sp"
-						android:textStyle="bold"
-						android:textColor="?attr/colorOnSurface"
-						android:gravity="center"
-						android:paddingBottom="4dp" />
-
-					<!-- Category chips (compact) -->
-					<HorizontalScrollView
-						android:layout_width="match_parent"
-						android:layout_height="wrap_content"
-						android:scrollbars="none">
-						<com.google.android.material.chip.ChipGroup
-							android:id="@+id/chipGroupCategories"
+					<!-- Hidden widget palette elements (moved to drawer only) -->
+					<com.google.android.material.chip.ChipGroup
+						android:id="@+id/chipGroupCategories"
+						android:layout_width="0dp"
+						android:layout_height="0dp"
+						android:visibility="gone">
+						<com.google.android.material.chip.Chip
+							android:id="@+id/chipCatAll"
 							android:layout_width="wrap_content"
 							android:layout_height="wrap_content"
-							app:singleSelection="true"
-							app:singleLine="true">
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatAll"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="All"
-								android:textSize="9sp"
-								android:checked="true"
-								style="@style/Widget.Material3.Chip.Filter" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatLayout"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Layout"
-								android:textSize="9sp"
-								style="@style/Widget.Material3.Chip.Filter" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatBasic"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Basic"
-								android:textSize="9sp"
-								style="@style/Widget.Material3.Chip.Filter" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatForm"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Form"
-								android:textSize="9sp"
-								style="@style/Widget.Material3.Chip.Filter" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatMedia"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Media"
-								android:textSize="9sp"
-								style="@style/Widget.Material3.Chip.Filter" />
-							<com.google.android.material.chip.Chip
-								android:id="@+id/chipCatAdvanced"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="Adv"
-								android:textSize="9sp"
-								style="@style/Widget.Material3.Chip.Filter" />
-						</com.google.android.material.chip.ChipGroup>
-					</HorizontalScrollView>
-
-					<!-- Widget list (vertical) -->
+							android:text="All"
+							android:visibility="gone"
+							style="@style/Widget.Material3.Chip.Filter" />
+						<com.google.android.material.chip.Chip
+							android:id="@+id/chipCatLayout"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:text="Layout"
+							android:visibility="gone"
+							style="@style/Widget.Material3.Chip.Filter" />
+						<com.google.android.material.chip.Chip
+							android:id="@+id/chipCatBasic"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:text="Basic"
+							android:visibility="gone"
+							style="@style/Widget.Material3.Chip.Filter" />
+						<com.google.android.material.chip.Chip
+							android:id="@+id/chipCatForm"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:text="Form"
+							android:visibility="gone"
+							style="@style/Widget.Material3.Chip.Filter" />
+						<com.google.android.material.chip.Chip
+							android:id="@+id/chipCatMedia"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:text="Media"
+							android:visibility="gone"
+							style="@style/Widget.Material3.Chip.Filter" />
+						<com.google.android.material.chip.Chip
+							android:id="@+id/chipCatAdvanced"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:text="Adv"
+							android:visibility="gone"
+							style="@style/Widget.Material3.Chip.Filter" />
+					</com.google.android.material.chip.ChipGroup>
 					<androidx.recyclerview.widget.RecyclerView
 						android:id="@+id/recyclerview1"
-						android:layout_width="match_parent"
+						android:layout_width="0dp"
 						android:layout_height="0dp"
-						android:layout_weight="1"
-						android:layout_marginTop="2dp"
-						android:clipToPadding="false"
-						tools:listitem="@layout/widgets" />
+						android:visibility="gone" />
 				</LinearLayout>
 			</com.google.android.material.card.MaterialCardView>
 		</LinearLayout>
