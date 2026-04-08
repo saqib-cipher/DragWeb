@@ -153,58 +153,72 @@
 							android:minHeight="540dp" />
 					</androidx.core.widget.NestedScrollView>
 
-					<!-- Event panel (hidden by default) -->
+					<!-- Event panel (hidden by default) - Block drag-drop system -->
 					<LinearLayout
 						android:id="@+id/eventPanel"
 						android:layout_width="match_parent"
 						android:layout_height="match_parent"
 						android:orientation="vertical"
-						android:padding="16dp"
+						android:padding="8dp"
 						android:visibility="gone"
 						android:background="?attr/colorSurface">
 
-						<TextView
+						<!-- Header row -->
+						<LinearLayout
 							android:layout_width="match_parent"
 							android:layout_height="wrap_content"
-							android:text="Logic Blocks"
-							android:textSize="16sp"
-							android:textStyle="bold"
-							android:textColor="?attr/colorOnSurface"
-							android:paddingBottom="8dp" />
-						<TextView
-							android:id="@+id/tvEventHint"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="Add logic blocks: select target by id, class, or tag.\nDrag blocks vertically to reorder flow."
-							android:textSize="13sp"
-							android:textColor="?attr/colorOnSurfaceVariant"
-							android:paddingBottom="12dp" />
+							android:orientation="horizontal"
+							android:gravity="center_vertical"
+							android:paddingBottom="4dp">
+							<TextView
+								android:layout_width="0dp"
+								android:layout_height="wrap_content"
+								android:layout_weight="1"
+								android:text="Logic Blocks"
+								android:textSize="16sp"
+								android:textStyle="bold"
+								android:textColor="?attr/colorOnSurface" />
+							<Button
+								android:id="@+id/btnViewAllBlocks"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="View All"
+								android:textSize="11sp"
+								style="?attr/materialButtonOutlinedStyle" />
+						</LinearLayout>
 
-						<ScrollView
+						<!-- Block editor container (populated dynamically by BlockDragDropManager) -->
+						<LinearLayout
+							android:id="@+id/blockEditorContainer"
 							android:layout_width="match_parent"
 							android:layout_height="0dp"
 							android:layout_weight="1"
-							android:layout_marginBottom="8dp">
-							<LinearLayout
-								android:id="@+id/blockContainer"
-								android:layout_width="match_parent"
-								android:layout_height="wrap_content"
-								android:orientation="vertical" />
-						</ScrollView>
+							android:orientation="vertical" />
 
-						<Button
-							android:id="@+id/btnAddLogicBlock"
+						<!-- Bottom action buttons -->
+						<LinearLayout
 							android:layout_width="match_parent"
 							android:layout_height="wrap_content"
-							android:text="+ Add Logic Block"
-							style="?attr/materialButtonOutlinedStyle" />
-						<Button
-							android:id="@+id/btnViewAllBlocks"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="View All Blocks"
-							android:layout_marginTop="8dp"
-							style="?attr/materialButtonOutlinedStyle" />
+							android:orientation="horizontal"
+							android:gravity="center"
+							android:paddingTop="4dp">
+							<Button
+								android:id="@+id/btnAddLogicBlock"
+								android:layout_width="0dp"
+								android:layout_height="wrap_content"
+								android:layout_weight="1"
+								android:text="+ Add Block"
+								android:textSize="12sp"
+								style="?attr/materialButtonOutlinedStyle" />
+						</LinearLayout>
+
+						<!-- Hidden blockContainer kept for backwards compat -->
+						<LinearLayout
+							android:id="@+id/blockContainer"
+							android:layout_width="0dp"
+							android:layout_height="0dp"
+							android:orientation="vertical"
+							android:visibility="gone" />
 					</LinearLayout>
 
 					<!-- Assets panel (file explorer - hidden by default) -->

@@ -350,8 +350,18 @@ public class HomeActivity extends AppCompatActivity {
 			if (files != null) {
 				for (File file : files) {
 					if (file.getName().endsWith(".json")) {
-						Map<String, String> project = new HashMap<>();
 						String fileId = file.getName().replace(".json", "");
+						// Skip page layout files (e.g. projectId_pageName.json)
+						// A page file has a corresponding base project .json or .meta
+						if (fileId.contains("_")) {
+							String baseId = fileId.substring(0, fileId.indexOf("_"));
+							File baseMeta = new File(dir, baseId + ".meta");
+							File baseJson = new File(dir, baseId + ".json");
+							if (baseMeta.exists() || baseJson.exists()) {
+								continue; // This is a page file, skip it
+							}
+						}
+						Map<String, String> project = new HashMap<>();
 						project.put("id", fileId);
 						project.put("path", file.getAbsolutePath());
 

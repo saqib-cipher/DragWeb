@@ -52,6 +52,7 @@ public class LogicBlockManager {
     public static final String ACTION_DELAY = "delay";
     public static final String ACTION_GO_TO_PAGE = "goToPage";
     public static final String ACTION_OPEN_PAGE = "openPage";
+    public static final String ACTION_SET_HTML = "setHTML";
 
     public static final String TARGET_MODE_ID = "id";
     public static final String TARGET_MODE_CLASS = "class";
@@ -119,7 +120,7 @@ public class LogicBlockManager {
         String[] actions = {
             "Change Style", "Animate", "Navigate To URL",
             "Go To Page", "Open Page (New Tab)",
-            "Show/Hide Element", "Set Text", "Add CSS Class",
+            "Show/Hide Element", "Set Text", "Set HTML", "Add CSS Class",
             "Remove CSS Class", "Toggle CSS Class", "Show Alert",
             "Console Log", "Set Attribute", "Remove Attribute",
             "Set Input Value", "Append Child HTML", "Remove Element",
@@ -129,7 +130,7 @@ public class LogicBlockManager {
         String[] actionKeys = {
             ACTION_CHANGE_STYLE, ACTION_ANIMATE, ACTION_NAVIGATE,
             ACTION_GO_TO_PAGE, ACTION_OPEN_PAGE,
-            ACTION_SHOW_HIDE, ACTION_SET_TEXT, ACTION_ADD_CLASS,
+            ACTION_SHOW_HIDE, ACTION_SET_TEXT, ACTION_SET_HTML, ACTION_ADD_CLASS,
             ACTION_REMOVE_CLASS, ACTION_TOGGLE_CLASS, ACTION_ALERT,
             ACTION_CONSOLE_LOG, ACTION_SET_ATTRIBUTE, ACTION_REMOVE_ATTRIBUTE,
             ACTION_SET_VALUE, ACTION_APPEND_CHILD, ACTION_REMOVE_ELEMENT,
@@ -191,6 +192,7 @@ public class LogicBlockManager {
             case ACTION_SET_ATTRIBUTE: return "attr:value (e.g. disabled:true)";
             case ACTION_REMOVE_ATTRIBUTE: return "Attribute name (e.g. disabled)";
             case ACTION_SET_VALUE: return "New input value";
+            case ACTION_SET_HTML: return "HTML content (e.g. <p>Hello</p>)";
             case ACTION_APPEND_CHILD: return "HTML to append (e.g. <p>Hello</p>)";
             case ACTION_REMOVE_ELEMENT: return "Selector to remove (or 'self')";
             case ACTION_CUSTOM_JS: return "JavaScript code";
@@ -436,6 +438,9 @@ public class LogicBlockManager {
 
             case ACTION_SET_VALUE:
                 return elVar + ".value = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_HTML:
+                return elVar + ".innerHTML = '" + escapeJs(block.params) + "';\n";
 
             case ACTION_APPEND_CHILD:
                 return elVar + ".insertAdjacentHTML('beforeend', '" + escapeJs(block.params) + "');\n";
