@@ -96,6 +96,8 @@ public class MainActivity extends AppCompatActivity {
 	private TextInputEditText etSearchWidget, etSearchHierarchy;
 	private ChipGroup chipGroupCategories;
 
+	private androidx.drawerlayout.widget.DrawerLayout drawerLayout;
+
 	private ActivityResultLauncher<android.content.Intent> importWidgetLauncher;
 	private ActivityResultLauncher<android.content.Intent> importImageLauncher;
 	private ActivityResultLauncher<android.content.Intent> importSvgLauncher;
@@ -172,11 +174,19 @@ public class MainActivity extends AppCompatActivity {
 		}
 		tvProjectTitle.setText(projectName);
 
-		// Drawer button
+		// Drawer button - store reference as field for reliability
+		drawerLayout = findViewById(R.id._main);
 		btnDrawer.setOnClickListener(v -> {
-			androidx.drawerlayout.widget.DrawerLayout drawer = findViewById(R.id._main);
-			if (drawer != null) {
-				drawer.openDrawer(androidx.core.view.GravityCompat.START);
+			try {
+				if (drawerLayout != null) {
+					if (drawerLayout.isDrawerOpen(androidx.core.view.GravityCompat.START)) {
+						drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START);
+					} else {
+						drawerLayout.openDrawer(androidx.core.view.GravityCompat.START);
+					}
+				}
+			} catch (Exception e) {
+				Log.w("MainActivity", "Drawer toggle error: " + e.getMessage());
 			}
 		});
 
@@ -388,7 +398,7 @@ public class MainActivity extends AppCompatActivity {
 
 		btnAddLogicBlock.setOnClickListener(v -> {
 			// Show block category picker for quick add
-			String[] categories = {"Add Event Block", "Add CSS Action", "Add HTML Action", "Add via Dialog (Legacy)"};
+			String[] categories = {"Add Event Block", "Add CSS Action", "Add HTML Action", "Add Logic Block", "Add Variable Block", "Add via Dialog (Legacy)"};
 			new MaterialAlertDialogBuilder(this)
 				.setTitle("Add Logic Block")
 				.setItems(categories, (dialog, which) -> {
@@ -403,6 +413,12 @@ public class MainActivity extends AppCompatActivity {
 							showBlockPicker(BlockDragDropManager.CAT_HTML);
 							break;
 						case 3:
+							showBlockPicker(BlockDragDropManager.CAT_LOGIC);
+							break;
+						case 4:
+							showBlockPicker(BlockDragDropManager.CAT_VARIABLE);
+							break;
+						case 5:
 							showAddLogicBlockDialog();
 							break;
 					}
@@ -1643,6 +1659,42 @@ public class MainActivity extends AppCompatActivity {
 					new BlockDragDropManager.BlockDef("removeClass", "Remove Class", "Remove CSS class", "css"),
 				};
 				break;
+			case BlockDragDropManager.CAT_HTML:
+				blocks = new BlockDragDropManager.BlockDef[]{
+					new BlockDragDropManager.BlockDef("setText", "Set Text", "Change text", "html"),
+					new BlockDragDropManager.BlockDef("setHTML", "Set HTML", "Set inner HTML", "html"),
+					new BlockDragDropManager.BlockDef("showElement", "Show Element", "Display element", "html"),
+					new BlockDragDropManager.BlockDef("hideElement", "Hide Element", "Hide element", "html"),
+					new BlockDragDropManager.BlockDef("focusInput", "Focus Input", "Focus an input field", "html"),
+					new BlockDragDropManager.BlockDef("blurInput", "Blur Input", "Remove focus", "html"),
+					new BlockDragDropManager.BlockDef("navigate", "Navigate", "Go to URL", "html"),
+					new BlockDragDropManager.BlockDef("goToPage", "Go To Page", "Navigate to page", "html"),
+					new BlockDragDropManager.BlockDef("alert", "Show Alert", "Browser alert", "html"),
+					new BlockDragDropManager.BlockDef("scrollTo", "Scroll To", "Scroll to position", "html"),
+				};
+				break;
+			case BlockDragDropManager.CAT_LOGIC:
+				blocks = new BlockDragDropManager.BlockDef[]{
+					new BlockDragDropManager.BlockDef("ifBlock", "If", "Conditional execution", "logic"),
+					new BlockDragDropManager.BlockDef("ifElseBlock", "If / Else", "If-else conditional", "logic"),
+					new BlockDragDropManager.BlockDef("compareEqual", "Compare ==", "Check equality", "logic"),
+					new BlockDragDropManager.BlockDef("compareNotEqual", "Compare !=", "Check inequality", "logic"),
+					new BlockDragDropManager.BlockDef("compareGreater", "Compare >", "Greater than", "logic"),
+					new BlockDragDropManager.BlockDef("compareLess", "Compare <", "Less than", "logic"),
+					new BlockDragDropManager.BlockDef("delay", "Delay", "Wait then execute", "logic"),
+					new BlockDragDropManager.BlockDef("loop", "Loop", "Repeat N times", "logic"),
+				};
+				break;
+			case BlockDragDropManager.CAT_VARIABLE:
+				blocks = new BlockDragDropManager.BlockDef[]{
+					new BlockDragDropManager.BlockDef("createVar", "Create Variable", "Declare a variable", "variable"),
+					new BlockDragDropManager.BlockDef("setVar", "Set Variable", "Assign a value", "variable"),
+					new BlockDragDropManager.BlockDef("getVar", "Get Variable", "Read variable value", "variable"),
+					new BlockDragDropManager.BlockDef("createVarString", "String Var", "Create string variable", "variable"),
+					new BlockDragDropManager.BlockDef("createVarNumber", "Number Var", "Create number variable", "variable"),
+					new BlockDragDropManager.BlockDef("createVarBoolean", "Boolean Var", "Create boolean variable", "variable"),
+				};
+				break;
 			default:
 				blocks = new BlockDragDropManager.BlockDef[]{
 					new BlockDragDropManager.BlockDef("setText", "Set Text", "Change text", "html"),
@@ -1741,6 +1793,7 @@ public class MainActivity extends AppCompatActivity {
 
 	private void saveUndoState() {
 		undoRedoManager.saveState(screen);
+		refreshHierarchy();
 	}
 
 	private void restoreState(List<Map<String, Object>> state) {
@@ -1822,23 +1875,64 @@ public class MainActivity extends AppCompatActivity {
 		LinearLayout customVarsContainer = dialogView.findViewById(R.id.customVarsContainer);
 		Button btnAddCssVar = dialogView.findViewById(R.id.btnAddCssVar);
 
-		etPrimary.setText(themeManager.getGlobalStyle("primaryColor"));
-		etSecondary.setText(themeManager.getGlobalStyle("secondaryColor"));
-		etAccent.setText(themeManager.getGlobalStyle("accentColor"));
-		etFont.setText(themeManager.getGlobalStyle("fontFamily"));
-		etBackground.setText(themeManager.getGlobalStyle("bodyBackground"));
-		etBodyColor.setText(themeManager.getGlobalStyle("bodyColor"));
-		etLinkColor.setText(themeManager.getGlobalStyle("linkColor"));
-		etBorderColor.setText(themeManager.getGlobalStyle("borderColor"));
+		// Track which theme is being edited in dialog
+		final String[] editingTheme = { themeManager.getCurrentTheme() };
 
-		if (ThemeManager.THEME_DARK.equals(themeManager.getCurrentTheme())) {
+		// Helper to populate fields from a theme
+		Runnable populateFields = () -> {
+			String t = editingTheme[0];
+			etPrimary.setText(themeManager.getStyleForTheme(t, "primaryColor"));
+			etSecondary.setText(themeManager.getStyleForTheme(t, "secondaryColor"));
+			etAccent.setText(themeManager.getStyleForTheme(t, "accentColor"));
+			etFont.setText(themeManager.getStyleForTheme(t, "fontFamily"));
+			etBackground.setText(themeManager.getStyleForTheme(t, "bodyBackground"));
+			etBodyColor.setText(themeManager.getStyleForTheme(t, "bodyColor"));
+			etLinkColor.setText(themeManager.getStyleForTheme(t, "linkColor"));
+			etBorderColor.setText(themeManager.getStyleForTheme(t, "borderColor"));
+		};
+
+		// Helper to save current field values into the editing theme
+		Runnable saveFieldsToTheme = () -> {
+			String t = editingTheme[0];
+			String primary = etPrimary.getText().toString().trim();
+			String secondary = etSecondary.getText().toString().trim();
+			String accent = etAccent.getText().toString().trim();
+			String font = etFont.getText().toString().trim();
+			String bg = etBackground.getText().toString().trim();
+			String bodyColor = etBodyColor.getText().toString().trim();
+			String linkColor = etLinkColor.getText().toString().trim();
+			String borderColor = etBorderColor.getText().toString().trim();
+			if (!primary.isEmpty()) themeManager.setStyleForTheme(t, "primaryColor", primary);
+			if (!secondary.isEmpty()) themeManager.setStyleForTheme(t, "secondaryColor", secondary);
+			if (!accent.isEmpty()) themeManager.setStyleForTheme(t, "accentColor", accent);
+			if (!font.isEmpty()) themeManager.setStyleForTheme(t, "fontFamily", font);
+			if (!bg.isEmpty()) themeManager.setStyleForTheme(t, "bodyBackground", bg);
+			if (!bodyColor.isEmpty()) themeManager.setStyleForTheme(t, "bodyColor", bodyColor);
+			if (!linkColor.isEmpty()) themeManager.setStyleForTheme(t, "linkColor", linkColor);
+			if (!borderColor.isEmpty()) themeManager.setStyleForTheme(t, "borderColor", borderColor);
+		};
+
+		populateFields.run();
+
+		if (ThemeManager.THEME_DARK.equals(editingTheme[0])) {
 			btnDark.performClick();
 		} else {
 			btnLight.performClick();
 		}
 
-		btnLight.setOnClickListener(v -> themeManager.setTheme(ThemeManager.THEME_LIGHT));
-		btnDark.setOnClickListener(v -> themeManager.setTheme(ThemeManager.THEME_DARK));
+		btnLight.setOnClickListener(v -> {
+			// Save current edits to the theme we were editing
+			saveFieldsToTheme.run();
+			editingTheme[0] = ThemeManager.THEME_LIGHT;
+			themeManager.setTheme(ThemeManager.THEME_LIGHT);
+			populateFields.run();
+		});
+		btnDark.setOnClickListener(v -> {
+			saveFieldsToTheme.run();
+			editingTheme[0] = ThemeManager.THEME_DARK;
+			themeManager.setTheme(ThemeManager.THEME_DARK);
+			populateFields.run();
+		});
 
 		Map<String, String> customVars = themeManager.getCustomCssVars();
 		for (Map.Entry<String, String> entry : customVars.entrySet()) {
@@ -1853,23 +1947,8 @@ public class MainActivity extends AppCompatActivity {
 			.setTitle("Theme Settings")
 			.setView(dialogView)
 			.setPositiveButton("Apply", (dialog, which) -> {
-				String primary = etPrimary.getText().toString().trim();
-				String secondary = etSecondary.getText().toString().trim();
-				String accent = etAccent.getText().toString().trim();
-				String font = etFont.getText().toString().trim();
-				String bg = etBackground.getText().toString().trim();
-				String bodyColor = etBodyColor.getText().toString().trim();
-				String linkColor = etLinkColor.getText().toString().trim();
-				String borderColor = etBorderColor.getText().toString().trim();
-
-				if (!primary.isEmpty()) themeManager.setGlobalStyle("primaryColor", primary);
-				if (!secondary.isEmpty()) themeManager.setGlobalStyle("secondaryColor", secondary);
-				if (!accent.isEmpty()) themeManager.setGlobalStyle("accentColor", accent);
-				if (!font.isEmpty()) themeManager.setGlobalStyle("fontFamily", font);
-				if (!bg.isEmpty()) themeManager.setGlobalStyle("bodyBackground", bg);
-				if (!bodyColor.isEmpty()) themeManager.setGlobalStyle("bodyColor", bodyColor);
-				if (!linkColor.isEmpty()) themeManager.setGlobalStyle("linkColor", linkColor);
-				if (!borderColor.isEmpty()) themeManager.setGlobalStyle("borderColor", borderColor);
+				// Save final edits
+				saveFieldsToTheme.run();
 
 				Map<String, String> newVars = new LinkedHashMap<>();
 				for (int i = 0; i < customVarsContainer.getChildCount(); i++) {
@@ -1886,7 +1965,7 @@ public class MainActivity extends AppCompatActivity {
 				}
 				themeManager.setCustomCssVars(newVars);
 
-				Toast.makeText(this, "Theme updated", Toast.LENGTH_SHORT).show();
+				Toast.makeText(this, "Theme updated (light + dark)", Toast.LENGTH_SHORT).show();
 			})
 			.setNegativeButton("Cancel", null)
 			.show();

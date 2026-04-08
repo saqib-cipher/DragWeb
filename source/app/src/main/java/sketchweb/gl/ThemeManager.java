@@ -10,65 +10,95 @@ public class ThemeManager {
     public static final String THEME_LIGHT = "light";
     public static final String THEME_DARK = "dark";
 
-    private Map<String, String> globalStyles = new LinkedHashMap<>();
+    // Separate style maps for each theme
+    private Map<String, String> lightStyles = new LinkedHashMap<>();
+    private Map<String, String> darkStyles = new LinkedHashMap<>();
     private Map<String, String> customCssVars = new LinkedHashMap<>();
     private String currentTheme = THEME_LIGHT;
 
     public ThemeManager() {
-        applyLightTheme();
+        initLightDefaults();
+        initDarkDefaults();
+    }
+
+    private void initLightDefaults() {
+        lightStyles.clear();
+        lightStyles.put("bodyBackground", "#FFFFFF");
+        lightStyles.put("bodyColor", "#333333");
+        lightStyles.put("fontFamily", "sans-serif");
+        lightStyles.put("primaryColor", "#2196F3");
+        lightStyles.put("secondaryColor", "#FF9800");
+        lightStyles.put("accentColor", "#4CAF50");
+        lightStyles.put("linkColor", "#1976D2");
+        lightStyles.put("borderColor", "#E0E0E0");
+        lightStyles.put("cardBackground", "#FFFFFF");
+        lightStyles.put("cardShadow", "0 2px 8px rgba(0,0,0,0.1)");
+    }
+
+    private void initDarkDefaults() {
+        darkStyles.clear();
+        darkStyles.put("bodyBackground", "#121212");
+        darkStyles.put("bodyColor", "#E0E0E0");
+        darkStyles.put("fontFamily", "sans-serif");
+        darkStyles.put("primaryColor", "#BB86FC");
+        darkStyles.put("secondaryColor", "#03DAC6");
+        darkStyles.put("accentColor", "#CF6679");
+        darkStyles.put("linkColor", "#BB86FC");
+        darkStyles.put("borderColor", "#333333");
+        darkStyles.put("cardBackground", "#1E1E1E");
+        darkStyles.put("cardShadow", "0 2px 8px rgba(0,0,0,0.3)");
     }
 
     public void setTheme(String theme) {
         currentTheme = theme;
-        if (THEME_DARK.equals(theme)) {
-            applyDarkTheme();
-        } else {
-            applyLightTheme();
-        }
     }
 
     public String getCurrentTheme() {
         return currentTheme;
     }
 
-    private void applyLightTheme() {
-        globalStyles.clear();
-        globalStyles.put("bodyBackground", "#FFFFFF");
-        globalStyles.put("bodyColor", "#333333");
-        globalStyles.put("fontFamily", "sans-serif");
-        globalStyles.put("primaryColor", "#2196F3");
-        globalStyles.put("secondaryColor", "#FF9800");
-        globalStyles.put("accentColor", "#4CAF50");
-        globalStyles.put("linkColor", "#1976D2");
-        globalStyles.put("borderColor", "#E0E0E0");
-        globalStyles.put("cardBackground", "#FFFFFF");
-        globalStyles.put("cardShadow", "0 2px 8px rgba(0,0,0,0.1)");
+    /** Get the active styles map (for the current theme) */
+    private Map<String, String> getActiveStyles() {
+        return THEME_DARK.equals(currentTheme) ? darkStyles : lightStyles;
     }
 
-    private void applyDarkTheme() {
-        globalStyles.clear();
-        globalStyles.put("bodyBackground", "#121212");
-        globalStyles.put("bodyColor", "#E0E0E0");
-        globalStyles.put("fontFamily", "sans-serif");
-        globalStyles.put("primaryColor", "#BB86FC");
-        globalStyles.put("secondaryColor", "#03DAC6");
-        globalStyles.put("accentColor", "#CF6679");
-        globalStyles.put("linkColor", "#BB86FC");
-        globalStyles.put("borderColor", "#333333");
-        globalStyles.put("cardBackground", "#1E1E1E");
-        globalStyles.put("cardShadow", "0 2px 8px rgba(0,0,0,0.3)");
+    /** Get the light theme styles */
+    public Map<String, String> getLightStyles() {
+        return new LinkedHashMap<>(lightStyles);
+    }
+
+    /** Get the dark theme styles */
+    public Map<String, String> getDarkStyles() {
+        return new LinkedHashMap<>(darkStyles);
     }
 
     public void setGlobalStyle(String key, String value) {
-        globalStyles.put(key, value);
+        getActiveStyles().put(key, value);
+    }
+
+    /** Set a style value for a specific theme */
+    public void setStyleForTheme(String theme, String key, String value) {
+        if (THEME_DARK.equals(theme)) {
+            darkStyles.put(key, value);
+        } else {
+            lightStyles.put(key, value);
+        }
     }
 
     public String getGlobalStyle(String key) {
-        return globalStyles.getOrDefault(key, "");
+        return getActiveStyles().getOrDefault(key, "");
+    }
+
+    /** Get a style from a specific theme */
+    public String getStyleForTheme(String theme, String key) {
+        if (THEME_DARK.equals(theme)) {
+            return darkStyles.getOrDefault(key, "");
+        }
+        return lightStyles.getOrDefault(key, "");
     }
 
     public Map<String, String> getAllStyles() {
-        return new LinkedHashMap<>(globalStyles);
+        return new LinkedHashMap<>(getActiveStyles());
     }
 
     // Custom CSS variables management
@@ -91,10 +121,9 @@ public class ThemeManager {
         }
     }
 
-    public String generateCssVariables() {
+    private String generateVarsBlock(Map<String, String> styles) {
         StringBuilder css = new StringBuilder();
-        css.append(":root {\n");
-        for (Map.Entry<String, String> entry : globalStyles.entrySet()) {
+        for (Map.Entry<String, String> entry : styles.entrySet()) {
             String cssVar = "--" + camelToKebab(entry.getKey());
             css.append("  ").append(cssVar).append(": ").append(entry.getValue()).append(";\n");
         }
@@ -106,7 +135,39 @@ public class ThemeManager {
             }
             css.append("  ").append(varName).append(": ").append(entry.getValue()).append(";\n");
         }
+        return css.toString();
+    }
+
+    public String generateCssVariables() {
+        StringBuilder css = new StringBuilder();
+        // Light theme as default :root
+        css.append(":root {\n");
+        css.append(generateVarsBlock(lightStyles));
+        css.append("}\n\n");
+
+        // Dark theme via prefers-color-scheme AND a .dark-theme class
+        css.append("@media (prefers-color-scheme: dark) {\n");
+        css.append("  :root {\n");
+        for (Map.Entry<String, String> entry : darkStyles.entrySet()) {
+            String lightVal = lightStyles.get(entry.getKey());
+            // Only output if different from light
+            if (lightVal == null || !lightVal.equals(entry.getValue())) {
+                String cssVar = "--" + camelToKebab(entry.getKey());
+                css.append("    ").append(cssVar).append(": ").append(entry.getValue()).append(";\n");
+            }
+        }
+        css.append("  }\n");
+        css.append("}\n\n");
+
+        // Also support explicit .dark-theme class on body/html
+        css.append(".dark-theme {\n");
+        css.append(generateVarsBlock(darkStyles));
+        css.append("}\n\n");
+
+        css.append(".light-theme {\n");
+        css.append(generateVarsBlock(lightStyles));
         css.append("}\n");
+
         return css.toString();
     }
 
@@ -140,8 +201,11 @@ public class ThemeManager {
     public String toJson() {
         Map<String, Object> data = new HashMap<>();
         data.put("theme", currentTheme);
-        data.put("styles", globalStyles);
+        data.put("lightStyles", lightStyles);
+        data.put("darkStyles", darkStyles);
         data.put("customVars", customCssVars);
+        // Backwards compat: also write "styles" as active theme
+        data.put("styles", getActiveStyles());
         return new Gson().toJson(data);
     }
 
@@ -151,9 +215,33 @@ public class ThemeManager {
             if (data.containsKey("theme")) {
                 currentTheme = data.get("theme").toString();
             }
-            if (data.containsKey("styles")) {
-                Map<String, String> styles = (Map<String, String>) data.get("styles");
-                globalStyles.putAll(styles);
+            // Load separate light/dark styles if available
+            if (data.containsKey("lightStyles")) {
+                Map<String, String> ls = (Map<String, String>) data.get("lightStyles");
+                if (ls != null) {
+                    lightStyles.clear();
+                    lightStyles.putAll(ls);
+                }
+            }
+            if (data.containsKey("darkStyles")) {
+                Map<String, String> ds = (Map<String, String>) data.get("darkStyles");
+                if (ds != null) {
+                    darkStyles.clear();
+                    darkStyles.putAll(ds);
+                }
+            }
+            // Backwards compat: if no separate maps, load from "styles"
+            if (!data.containsKey("lightStyles") && !data.containsKey("darkStyles")) {
+                if (data.containsKey("styles")) {
+                    Map<String, String> styles = (Map<String, String>) data.get("styles");
+                    if (styles != null) {
+                        if (THEME_DARK.equals(currentTheme)) {
+                            darkStyles.putAll(styles);
+                        } else {
+                            lightStyles.putAll(styles);
+                        }
+                    }
+                }
             }
             if (data.containsKey("customVars")) {
                 Map<String, String> vars = (Map<String, String>) data.get("customVars");
@@ -162,7 +250,8 @@ public class ThemeManager {
                 }
             }
         } catch (Exception e) {
-            applyLightTheme();
+            initLightDefaults();
+            initDarkDefaults();
         }
     }
 
