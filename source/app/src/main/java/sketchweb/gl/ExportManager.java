@@ -1,6 +1,8 @@
 package sketchweb.gl;
 
 import android.content.Context;
+import android.os.Environment;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import java.io.File;
@@ -62,13 +64,33 @@ public class ExportManager {
         return result;
     }
 
-    public File exportAsZip(View screen, String projectName, LogicBlockManager logicBlockManager) throws IOException {
+    public File exportAsZip(View screen, String projectName, String projectId, LogicBlockManager logicBlockManager) throws IOException {
         ExportResult result = generateExportFiles(screen, projectName, logicBlockManager);
         if (!result.success) {
             throw new IOException(result.message);
         }
 
-        File zipFile = new File(context.getFilesDir(), "exports/" + sanitizeFileName(projectName) + ".zip");
+        String zipFileName = sanitizeFileName(projectName) + "_" + sanitizeFileName(projectId) + ".zip";
+
+        // Try saving to external storage first: /.DragWeb/export/
+        File zipFile = null;
+        try {
+            String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.DragWeb/export";
+            File extDir = new File(extPath);
+            if (!extDir.exists()) extDir.mkdirs();
+            zipFile = new File(extDir, zipFileName);
+        } catch (Exception e) {
+            Log.w("ExportManager", "External storage unavailable, using internal: " + e.getMessage());
+        }
+
+        // Fallback to internal storage
+        if (zipFile == null || (!zipFile.getParentFile().exists() && !zipFile.getParentFile().mkdirs())) {
+            File internalDir = new File(context.getFilesDir(), "exports");
+            if (!internalDir.exists()) internalDir.mkdirs();
+            zipFile = new File(internalDir, zipFileName);
+        }
+
         try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(zipFile)))) {
             addToZip(zos, "index.html", result.htmlContent);
             addToZip(zos, "style.css", result.cssContent);
