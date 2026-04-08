@@ -29,27 +29,28 @@ public class LogicBlockManager {
     public static final String EVENT_KEYDOWN = "keydown";
     public static final String EVENT_CHANGE = "change";
 
-    public static final String ACTION_CHANGE_STYLE = "changeStyle";
-    public static final String ACTION_ANIMATE = "animate";
+    public static final String ACTION_SET_DISPLAY = "setDisplay";
+    public static final String ACTION_SET_POSITION = "setPosition";
+    public static final String ACTION_SET_OVERFLOW = "setOverflow";
+    public static final String ACTION_SET_COLOR = "setColor";
+    public static final String ACTION_SET_BACKGROUND = "setBackground";
+    public static final String ACTION_SET_WIDTH = "setWidth";
+    public static final String ACTION_SET_HEIGHT = "setHeight";
+    public static final String ACTION_SET_MARGIN = "setMargin";
+    public static final String ACTION_SET_PADDING = "setPadding";
+    public static final String ACTION_SET_BORDER = "setBorder";
+    public static final String ACTION_SET_RADIUS = "setRadius";
+    public static final String ACTION_SET_OPACITY = "setOpacity";
     public static final String ACTION_NAVIGATE = "navigate";
-    public static final String ACTION_SHOW_HIDE = "showHide";
+    public static final String ACTION_SHOW = "show";
+    public static final String ACTION_HIDE = "hide";
     public static final String ACTION_SET_TEXT = "setText";
+    public static final String ACTION_SET_HTML = "setHTML";
+    public static final String ACTION_SET_HREF = "setHref";
     public static final String ACTION_ADD_CLASS = "addClass";
     public static final String ACTION_REMOVE_CLASS = "removeClass";
     public static final String ACTION_TOGGLE_CLASS = "toggleClass";
-    public static final String ACTION_ALERT = "alert";
-    public static final String ACTION_CONSOLE_LOG = "consoleLog";
-    public static final String ACTION_SET_ATTRIBUTE = "setAttribute";
-    public static final String ACTION_REMOVE_ATTRIBUTE = "removeAttribute";
-    public static final String ACTION_SET_VALUE = "setValue";
-    public static final String ACTION_APPEND_CHILD = "appendChild";
-    public static final String ACTION_REMOVE_ELEMENT = "removeElement";
-    public static final String ACTION_CUSTOM_JS = "customJs";
-    public static final String ACTION_FETCH_API = "fetchApi";
-    public static final String ACTION_LOCAL_STORAGE = "localStorage";
     public static final String ACTION_SCROLL_TO = "scrollTo";
-    public static final String ACTION_COPY_CLIPBOARD = "copyClipboard";
-    public static final String ACTION_DELAY = "delay";
     public static final String ACTION_GO_TO_PAGE = "goToPage";
     public static final String ACTION_OPEN_PAGE = "openPage";
 
@@ -117,24 +118,56 @@ public class LogicBlockManager {
 
     private void showActionDialog(String targetWidgetTag, String targetMode, String event, OnBlockAddedListener listener) {
         String[] actions = {
-            "Change Style", "Animate", "Navigate To URL",
-            "Go To Page", "Open Page (New Tab)",
-            "Show/Hide Element", "Set Text", "Add CSS Class",
-            "Remove CSS Class", "Toggle CSS Class", "Show Alert",
-            "Console Log", "Set Attribute", "Remove Attribute",
-            "Set Input Value", "Append Child HTML", "Remove Element",
-            "Custom JavaScript", "Fetch API", "LocalStorage Set/Get",
-            "Scroll To", "Copy to Clipboard", "Delay Then Run"
+            "CSS: setDisplay",
+            "CSS: setPosition",
+            "CSS: setOverflow",
+            "CSS: setColor",
+            "CSS: setBackground",
+            "CSS: setWidth",
+            "CSS: setHeight",
+            "CSS: setMargin",
+            "CSS: setPadding",
+            "CSS: setBorder",
+            "CSS: setRadius",
+            "CSS: setOpacity",
+            "CSS: addClass",
+            "CSS: removeClass",
+            "CSS: toggleClass",
+            "HTML: setHref",
+            "HTML: scrollTo",
+            "HTML: setText",
+            "HTML: setHTML",
+            "HTML: show",
+            "HTML: hide",
+            "HTML: goToPage",
+            "HTML: openPage",
+            "HTML: navigateToUrl"
         };
         String[] actionKeys = {
-            ACTION_CHANGE_STYLE, ACTION_ANIMATE, ACTION_NAVIGATE,
-            ACTION_GO_TO_PAGE, ACTION_OPEN_PAGE,
-            ACTION_SHOW_HIDE, ACTION_SET_TEXT, ACTION_ADD_CLASS,
-            ACTION_REMOVE_CLASS, ACTION_TOGGLE_CLASS, ACTION_ALERT,
-            ACTION_CONSOLE_LOG, ACTION_SET_ATTRIBUTE, ACTION_REMOVE_ATTRIBUTE,
-            ACTION_SET_VALUE, ACTION_APPEND_CHILD, ACTION_REMOVE_ELEMENT,
-            ACTION_CUSTOM_JS, ACTION_FETCH_API, ACTION_LOCAL_STORAGE,
-            ACTION_SCROLL_TO, ACTION_COPY_CLIPBOARD, ACTION_DELAY
+            ACTION_SET_DISPLAY,
+            ACTION_SET_POSITION,
+            ACTION_SET_OVERFLOW,
+            ACTION_SET_COLOR,
+            ACTION_SET_BACKGROUND,
+            ACTION_SET_WIDTH,
+            ACTION_SET_HEIGHT,
+            ACTION_SET_MARGIN,
+            ACTION_SET_PADDING,
+            ACTION_SET_BORDER,
+            ACTION_SET_RADIUS,
+            ACTION_SET_OPACITY,
+            ACTION_ADD_CLASS,
+            ACTION_REMOVE_CLASS,
+            ACTION_TOGGLE_CLASS,
+            ACTION_SET_HREF,
+            ACTION_SCROLL_TO,
+            ACTION_SET_TEXT,
+            ACTION_SET_HTML,
+            ACTION_SHOW,
+            ACTION_HIDE,
+            ACTION_GO_TO_PAGE,
+            ACTION_OPEN_PAGE,
+            ACTION_NAVIGATE
         };
 
         new MaterialAlertDialogBuilder(context)
@@ -176,29 +209,30 @@ public class LogicBlockManager {
 
     private String getHintForAction(String action) {
         switch (action) {
-            case ACTION_CHANGE_STYLE: return "property:value (e.g. color:red)";
-            case ACTION_ANIMATE: return "animation name (e.g. fadeIn, slideUp, pulse)";
+            case ACTION_SET_DISPLAY: return "none, flex, block, inline-block";
+            case ACTION_SET_POSITION: return "static, relative, absolute, fixed";
+            case ACTION_SET_OVERFLOW: return "hidden, scroll, auto, visible";
+            case ACTION_SET_COLOR: return "Text color (e.g. #222222)";
+            case ACTION_SET_BACKGROUND: return "Color/gradient (e.g. #111 or linear-gradient(...))";
+            case ACTION_SET_WIDTH: return "Width value (e.g. 100%, 240px)";
+            case ACTION_SET_HEIGHT: return "Height value (e.g. auto, 60px)";
+            case ACTION_SET_MARGIN: return "Margin value (e.g. 8px or 8px 12px)";
+            case ACTION_SET_PADDING: return "Padding value (e.g. 8px or 8px 12px)";
+            case ACTION_SET_BORDER: return "Border value (e.g. 1px solid #ddd)";
+            case ACTION_SET_RADIUS: return "Border radius (e.g. 8px)";
+            case ACTION_SET_OPACITY: return "0 to 1 (e.g. 0.7)";
             case ACTION_NAVIGATE: return "URL (e.g. https://example.com)";
             case ACTION_GO_TO_PAGE: return "Page name (e.g. about, contact)";
             case ACTION_OPEN_PAGE: return "Page name to open in new tab";
-            case ACTION_SHOW_HIDE: return "toggle, show, or hide";
+            case ACTION_SHOW: return "Show selected target";
+            case ACTION_HIDE: return "Hide selected target";
             case ACTION_SET_TEXT: return "New text content";
+            case ACTION_SET_HTML: return "HTML content (e.g. <b>Hello</b>)";
+            case ACTION_SET_HREF: return "URL or #section";
             case ACTION_ADD_CLASS: return "CSS class name to add";
             case ACTION_REMOVE_CLASS: return "CSS class name to remove";
             case ACTION_TOGGLE_CLASS: return "CSS class name to toggle";
-            case ACTION_ALERT: return "Alert message";
-            case ACTION_CONSOLE_LOG: return "Message to log";
-            case ACTION_SET_ATTRIBUTE: return "attr:value (e.g. disabled:true)";
-            case ACTION_REMOVE_ATTRIBUTE: return "Attribute name (e.g. disabled)";
-            case ACTION_SET_VALUE: return "New input value";
-            case ACTION_APPEND_CHILD: return "HTML to append (e.g. <p>Hello</p>)";
-            case ACTION_REMOVE_ELEMENT: return "Selector to remove (or 'self')";
-            case ACTION_CUSTOM_JS: return "JavaScript code";
-            case ACTION_FETCH_API: return "URL|method|body (e.g. /api/data|GET|)";
-            case ACTION_LOCAL_STORAGE: return "set:key:value or get:key";
-            case ACTION_SCROLL_TO: return "top, bottom, or selector";
-            case ACTION_COPY_CLIPBOARD: return "Text to copy (or 'self' for element text)";
-            case ACTION_DELAY: return "ms|action (e.g. 1000|alert:Done!)";
+            case ACTION_SCROLL_TO: return "id/class/tag value to scroll to (e.g. #section1)";
             default: return "Parameters";
         }
     }
@@ -299,7 +333,8 @@ public class LogicBlockManager {
                 actionRow.addView(doLabel);
 
                 TextView actionLabel = new TextView(context);
-                actionLabel.setText(block.action + "(" + block.params + ")");
+                actionLabel.setText("[" + getActionCategory(block.action).toUpperCase() + "] "
+                    + block.action + "(" + block.params + ")");
                 actionLabel.setTextColor(Color.parseColor("#81C784"));
                 actionLabel.setTextSize(11);
                 actionRow.addView(actionLabel);
@@ -378,15 +413,41 @@ public class LogicBlockManager {
 
     private String generateActionJs(LogicBlock block, String elVar) {
         switch (block.action) {
-            case ACTION_CHANGE_STYLE: {
-                String[] parts = block.params.split(":", 2);
-                if (parts.length == 2) {
-                    return elVar + ".style." + parts[0].trim() + " = '" + parts[1].trim() + "';\n";
-                }
-                return "// Invalid style params\n";
-            }
-            case ACTION_ANIMATE:
-                return elVar + ".style.animation = '" + block.params + " 0.5s ease';\n";
+            case ACTION_SET_DISPLAY:
+                return elVar + ".style.display = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_POSITION:
+                return elVar + ".style.position = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_OVERFLOW:
+                return elVar + ".style.overflow = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_COLOR:
+                return elVar + ".style.color = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_BACKGROUND:
+                return elVar + ".style.background = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_WIDTH:
+                return elVar + ".style.width = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_HEIGHT:
+                return elVar + ".style.height = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_MARGIN:
+                return elVar + ".style.margin = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_PADDING:
+                return elVar + ".style.padding = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_BORDER:
+                return elVar + ".style.border = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_RADIUS:
+                return elVar + ".style.borderRadius = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_OPACITY:
+                return elVar + ".style.opacity = '" + escapeJs(block.params) + "';\n";
 
             case ACTION_NAVIGATE:
                 return "window.location.href = '" + escapeJs(block.params) + "';\n";
@@ -397,17 +458,20 @@ public class LogicBlockManager {
             case ACTION_OPEN_PAGE:
                 return "window.open('" + escapeJs(block.params) + ".html', '_blank');\n";
 
-            case ACTION_SHOW_HIDE:
-                if ("toggle".equals(block.params)) {
-                    return elVar + ".style.display = " + elVar + ".style.display === 'none' ? '' : 'none';\n";
-                } else if ("hide".equals(block.params)) {
-                    return elVar + ".style.display = 'none';\n";
-                } else {
-                    return elVar + ".style.display = '';\n";
-                }
+            case ACTION_SHOW:
+                return elVar + ".style.display = '';\n";
+
+            case ACTION_HIDE:
+                return elVar + ".style.display = 'none';\n";
 
             case ACTION_SET_TEXT:
                 return elVar + ".textContent = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_HTML:
+                return elVar + ".innerHTML = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_HREF:
+                return elVar + ".setAttribute('href', '" + escapeJs(block.params) + "');\n";
 
             case ACTION_ADD_CLASS:
                 return elVar + ".classList.add('" + escapeJs(block.params) + "');\n";
@@ -418,83 +482,8 @@ public class LogicBlockManager {
             case ACTION_TOGGLE_CLASS:
                 return elVar + ".classList.toggle('" + escapeJs(block.params) + "');\n";
 
-            case ACTION_ALERT:
-                return "alert('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_CONSOLE_LOG:
-                return "console.log('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_SET_ATTRIBUTE: {
-                String[] parts = block.params.split(":", 2);
-                if (parts.length == 2) {
-                    return elVar + ".setAttribute('" + escapeJs(parts[0].trim()) + "', '" + escapeJs(parts[1].trim()) + "');\n";
-                }
-                return "// Invalid attribute params\n";
-            }
-            case ACTION_REMOVE_ATTRIBUTE:
-                return elVar + ".removeAttribute('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_SET_VALUE:
-                return elVar + ".value = '" + escapeJs(block.params) + "';\n";
-
-            case ACTION_APPEND_CHILD:
-                return elVar + ".insertAdjacentHTML('beforeend', '" + escapeJs(block.params) + "');\n";
-
-            case ACTION_REMOVE_ELEMENT:
-                if ("self".equals(block.params)) {
-                    return elVar + ".remove();\n";
-                }
-                return "document.querySelector('" + escapeJs(block.params) + "')?.remove();\n";
-
-            case ACTION_CUSTOM_JS:
-                return block.params + "\n";
-
-            case ACTION_FETCH_API: {
-                String[] parts = block.params.split("\\|", 3);
-                String url = parts.length > 0 ? parts[0].trim() : "";
-                String method = parts.length > 1 ? parts[1].trim() : "GET";
-                String body = parts.length > 2 ? parts[2].trim() : "";
-                StringBuilder fetchJs = new StringBuilder();
-                fetchJs.append("fetch('").append(escapeJs(url)).append("', {method:'").append(method).append("'");
-                if (!body.isEmpty()) {
-                    fetchJs.append(",headers:{'Content-Type':'application/json'},body:'").append(escapeJs(body)).append("'");
-                }
-                fetchJs.append("}).then(r=>r.json()).then(data=>{console.log(data)}).catch(e=>console.error(e));\n");
-                return fetchJs.toString();
-            }
-
-            case ACTION_LOCAL_STORAGE: {
-                String[] parts = block.params.split(":", 3);
-                if (parts.length >= 2 && "set".equals(parts[0])) {
-                    String key = parts[1];
-                    String val = parts.length > 2 ? parts[2] : "";
-                    return "localStorage.setItem('" + escapeJs(key) + "','" + escapeJs(val) + "');\n";
-                } else if (parts.length >= 2 && "get".equals(parts[0])) {
-                    return "var _val = localStorage.getItem('" + escapeJs(parts[1]) + "'); console.log(_val);\n";
-                }
-                return "// Invalid localStorage params\n";
-            }
-
             case ACTION_SCROLL_TO:
-                if ("top".equals(block.params)) {
-                    return "window.scrollTo({top:0,behavior:'smooth'});\n";
-                } else if ("bottom".equals(block.params)) {
-                    return "window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});\n";
-                }
                 return "document.querySelector('" + escapeJs(block.params) + "')?.scrollIntoView({behavior:'smooth'});\n";
-
-            case ACTION_COPY_CLIPBOARD:
-                if ("self".equals(block.params)) {
-                    return "navigator.clipboard.writeText(" + elVar + ".textContent);\n";
-                }
-                return "navigator.clipboard.writeText('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_DELAY: {
-                String[] parts = block.params.split("\\|", 2);
-                String ms = parts.length > 0 ? parts[0].trim() : "1000";
-                String delayedCode = parts.length > 1 ? parts[1].trim() : "// delayed action";
-                return "setTimeout(function(){" + delayedCode + "}," + ms + ");\n";
-            }
 
             default:
                 return "// Unknown action\n";
@@ -503,6 +492,38 @@ public class LogicBlockManager {
 
     private String escapeJs(String str) {
         return str.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+    }
+
+    public String getActionCategory(String action) {
+        if (ACTION_SET_DISPLAY.equals(action)
+            || ACTION_SET_POSITION.equals(action)
+            || ACTION_SET_OVERFLOW.equals(action)
+            || ACTION_SET_COLOR.equals(action)
+            || ACTION_SET_BACKGROUND.equals(action)
+            || ACTION_SET_WIDTH.equals(action)
+            || ACTION_SET_HEIGHT.equals(action)
+            || ACTION_SET_MARGIN.equals(action)
+            || ACTION_SET_PADDING.equals(action)
+            || ACTION_SET_BORDER.equals(action)
+            || ACTION_SET_RADIUS.equals(action)
+            || ACTION_SET_OPACITY.equals(action)
+            || ACTION_ADD_CLASS.equals(action)
+            || ACTION_REMOVE_CLASS.equals(action)
+            || ACTION_TOGGLE_CLASS.equals(action)) {
+            return "css";
+        }
+        if (ACTION_SET_HREF.equals(action)
+            || ACTION_SCROLL_TO.equals(action)
+            || ACTION_SET_TEXT.equals(action)
+            || ACTION_SET_HTML.equals(action)
+            || ACTION_SHOW.equals(action)
+            || ACTION_HIDE.equals(action)
+            || ACTION_GO_TO_PAGE.equals(action)
+            || ACTION_OPEN_PAGE.equals(action)
+            || ACTION_NAVIGATE.equals(action)) {
+            return "html";
+        }
+        return "logic";
     }
 
     public String toJson() {

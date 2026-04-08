@@ -91,12 +91,15 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                                   @NonNull RecyclerView.ViewHolder target) {
                 int fromPos = viewHolder.getAdapterPosition();
                 int toPos = target.getAdapterPosition();
+                if (fromPos == RecyclerView.NO_POSITION || toPos == RecyclerView.NO_POSITION) return false;
+                if (fromPos < 0 || toPos < 0 || fromPos >= flatList.size() || toPos >= flatList.size()) return false;
 
                 // Don't move root (body)
                 if (fromPos == 0 || toPos == 0) return false;
 
                 TreeNode fromNode = flatList.get(fromPos);
                 TreeNode toNode = flatList.get(toPos);
+                if (fromNode.view == null || toNode.view == null) return false;
 
                 // Perform the actual view reorder
                 if (fromNode.view != null && fromNode.view.getParent() instanceof ViewGroup) {
@@ -285,9 +288,13 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             dragHandle.setGravity(Gravity.CENTER);
             dragHandle.setOnTouchListener((v, event) -> {
                 if (event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
-                    startDrag(holder);
+                    int pos = holder.getBindingAdapterPosition();
+                    if (pos != RecyclerView.NO_POSITION && pos > 0) {
+                        startDrag(holder);
+                    }
+                    return true;
                 }
-                return false;
+                return true;
             });
             layout.addView(dragHandle);
         }

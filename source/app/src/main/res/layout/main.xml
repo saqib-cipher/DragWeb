@@ -345,7 +345,8 @@
 						android:layout_width="match_parent"
 						android:layout_height="1dp"
 						android:background="?attr/colorOutlineVariant"
-						android:layout_marginVertical="4dp" />
+						android:layout_marginVertical="4dp"
+						android:visibility="gone" />
 
 					<!-- Widget palette inline section -->
 					<TextView
@@ -356,13 +357,15 @@
 						android:textStyle="bold"
 						android:textColor="?attr/colorOnSurface"
 						android:gravity="center"
-						android:paddingBottom="4dp" />
+						android:paddingBottom="4dp"
+						android:visibility="gone" />
 
 					<!-- Category chips (compact) -->
 					<HorizontalScrollView
 						android:layout_width="match_parent"
 						android:layout_height="wrap_content"
-						android:scrollbars="none">
+						android:scrollbars="none"
+						android:visibility="gone">
 						<com.google.android.material.chip.ChipGroup
 							android:id="@+id/chipGroupCategories"
 							android:layout_width="wrap_content"
@@ -420,9 +423,10 @@
 						android:id="@+id/recyclerview1"
 						android:layout_width="match_parent"
 						android:layout_height="0dp"
-						android:layout_weight="1"
+						android:layout_weight="0"
 						android:layout_marginTop="2dp"
 						android:clipToPadding="false"
+						android:visibility="gone"
 						tools:listitem="@layout/widgets" />
 				</LinearLayout>
 			</com.google.android.material.card.MaterialCardView>

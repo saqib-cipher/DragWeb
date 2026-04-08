@@ -97,6 +97,7 @@ public class MainActivity extends AppCompatActivity {
 	private ActivityResultLauncher<android.content.Intent> importWidgetLauncher;
 	private ActivityResultLauncher<android.content.Intent> importImageLauncher;
 	private ActivityResultLauncher<android.content.Intent> importSvgLauncher;
+	private String lastHierarchySignature = "";
 
 	// Track if a dialog is currently showing to avoid duplicates
 	private boolean isDialogShowing = false;
@@ -171,9 +172,13 @@ public class MainActivity extends AppCompatActivity {
 
 		// Drawer button
 		btnDrawer.setOnClickListener(v -> {
-			androidx.drawerlayout.widget.DrawerLayout drawer = findViewById(R.id._main);
-			if (drawer != null) {
-				drawer.openDrawer(androidx.core.view.GravityCompat.START);
+			try {
+				androidx.drawerlayout.widget.DrawerLayout drawer = findViewById(R.id._main);
+				if (drawer != null) {
+					drawer.openDrawer(androidx.core.view.GravityCompat.START);
+				}
+			} catch (Exception e) {
+				Log.w("MainActivity", "Drawer open failed: " + e.getMessage());
 			}
 		});
 
@@ -490,6 +495,7 @@ public class MainActivity extends AppCompatActivity {
 		loadProject();
 		saveUndoState();
 		refreshHierarchy();
+		setupRealtimeHierarchySync();
 	}
 
 	// ---- Add Logic Block with target selector ----
@@ -1100,6 +1106,48 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
+	private void setupRealtimeHierarchySync() {
+		if (screen == null) return;
+		lastHierarchySignature = computeHierarchySignature(screen);
+		screen.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+			String currentSignature = computeHierarchySignature(screen);
+			if (!currentSignature.equals(lastHierarchySignature)) {
+				lastHierarchySignature = currentSignature;
+				refreshHierarchy();
+				updateWidgetSpinnerFromTree();
+			}
+		});
+	}
+
+	private String computeHierarchySignature(View view) {
+		StringBuilder sb = new StringBuilder();
+		appendHierarchySignature(view, sb);
+		return sb.toString();
+	}
+
+	private void appendHierarchySignature(View view, StringBuilder sb) {
+		sb.append(view.getClass().getSimpleName()).append('#').append(System.identityHashCode(view));
+		Object tagObj = view.getTag();
+		if (tagObj instanceof Map) {
+			Map<String, Object> map = (Map<String, Object>) tagObj;
+			Object tag = map.get("tag");
+			if (tag != null) sb.append(':').append(tag.toString());
+			Object fnObj = map.get("function");
+			if (fnObj instanceof Map) {
+				Map<String, Object> fn = (Map<String, Object>) fnObj;
+				if (fn.get("id") != null) sb.append("|id=").append(fn.get("id"));
+				if (fn.get("class") != null) sb.append("|class=").append(fn.get("class"));
+			}
+		}
+		if (view instanceof ViewGroup) {
+			ViewGroup group = (ViewGroup) view;
+			sb.append('{').append(group.getChildCount()).append('}');
+			for (int i = 0; i < group.getChildCount(); i++) {
+				appendHierarchySignature(group.getChildAt(i), sb);
+			}
+		}
+	}
+
 	// ---- Widget Spinner ----
 
 	private void updateWidgetSpinnerFromTree() {
@@ -1601,7 +1649,10 @@ public class MainActivity extends AppCompatActivity {
 
 			// Target label
 			TextView targetLabel = new TextView(this);
-			targetLabel.setText("TARGET " + block.targetWidget);
+			String modePrefix = "#";
+			if (LogicBlockManager.TARGET_MODE_CLASS.equals(block.targetMode)) modePrefix = ".";
+			else if (LogicBlockManager.TARGET_MODE_TAG.equals(block.targetMode)) modePrefix = "";
+			targetLabel.setText("TARGET " + modePrefix + block.targetWidget);
 			targetLabel.setTextColor(Color.parseColor("#64B5F6"));
 			targetLabel.setTextSize(11);
 			targetLabel.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -1615,7 +1666,8 @@ public class MainActivity extends AppCompatActivity {
 			blockView.addView(eventLabel);
 
 			TextView actionLabel = new TextView(this);
-			actionLabel.setText("DO " + block.action + "(" + block.params + ")");
+			String category = logicBlockManager.getActionCategory(block.action).toUpperCase();
+			actionLabel.setText("DO [" + category + "] " + block.action + "(" + block.params + ")");
 			actionLabel.setTextColor(Color.parseColor("#4CAF50"));
 			actionLabel.setTextSize(12);
 			blockView.addView(actionLabel);
@@ -1776,6 +1828,7 @@ public class MainActivity extends AppCompatActivity {
 
 	private void showThemeDialog() {
 		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_theme_settings, null);
+		com.google.android.material.button.MaterialButtonToggleGroup toggleTheme = dialogView.findViewById(R.id.toggleTheme);
 		Button btnLight = dialogView.findViewById(R.id.btnLightTheme);
 		Button btnDark = dialogView.findViewById(R.id.btnDarkTheme);
 		TextInputEditText etPrimary = dialogView.findViewById(R.id.etPrimaryColor);
@@ -1789,28 +1842,64 @@ public class MainActivity extends AppCompatActivity {
 		LinearLayout customVarsContainer = dialogView.findViewById(R.id.customVarsContainer);
 		Button btnAddCssVar = dialogView.findViewById(R.id.btnAddCssVar);
 
-		etPrimary.setText(themeManager.getGlobalStyle("primaryColor"));
-		etSecondary.setText(themeManager.getGlobalStyle("secondaryColor"));
-		etAccent.setText(themeManager.getGlobalStyle("accentColor"));
-		etFont.setText(themeManager.getGlobalStyle("fontFamily"));
-		etBackground.setText(themeManager.getGlobalStyle("bodyBackground"));
-		etBodyColor.setText(themeManager.getGlobalStyle("bodyColor"));
-		etLinkColor.setText(themeManager.getGlobalStyle("linkColor"));
-		etBorderColor.setText(themeManager.getGlobalStyle("borderColor"));
+		Map<String, String> lightStyles = themeManager.getStylesForTheme(ThemeManager.THEME_LIGHT);
+		Map<String, String> darkStyles = themeManager.getStylesForTheme(ThemeManager.THEME_DARK);
+		Map<String, String> lightVars = themeManager.getCustomVarsForTheme(ThemeManager.THEME_LIGHT);
+		Map<String, String> darkVars = themeManager.getCustomVarsForTheme(ThemeManager.THEME_DARK);
+		String[] selectedTheme = {themeManager.getCurrentTheme()};
 
-		if (ThemeManager.THEME_DARK.equals(themeManager.getCurrentTheme())) {
-			btnDark.performClick();
-		} else {
-			btnLight.performClick();
-		}
+		Runnable renderCurrentTheme = () -> {
+			Map<String, String> styles = ThemeManager.THEME_DARK.equals(selectedTheme[0]) ? darkStyles : lightStyles;
+			etPrimary.setText(styles.getOrDefault("primaryColor", ""));
+			etSecondary.setText(styles.getOrDefault("secondaryColor", ""));
+			etAccent.setText(styles.getOrDefault("accentColor", ""));
+			etFont.setText(styles.getOrDefault("fontFamily", ""));
+			etBackground.setText(styles.getOrDefault("bodyBackground", ""));
+			etBodyColor.setText(styles.getOrDefault("bodyColor", ""));
+			etLinkColor.setText(styles.getOrDefault("linkColor", ""));
+			etBorderColor.setText(styles.getOrDefault("borderColor", ""));
 
-		btnLight.setOnClickListener(v -> themeManager.setTheme(ThemeManager.THEME_LIGHT));
-		btnDark.setOnClickListener(v -> themeManager.setTheme(ThemeManager.THEME_DARK));
+			customVarsContainer.removeAllViews();
+			Map<String, String> vars = ThemeManager.THEME_DARK.equals(selectedTheme[0]) ? darkVars : lightVars;
+			for (Map.Entry<String, String> entry : vars.entrySet()) {
+				addCssVarRow(customVarsContainer, entry.getKey(), entry.getValue());
+			}
 
-		Map<String, String> customVars = themeManager.getCustomCssVars();
-		for (Map.Entry<String, String> entry : customVars.entrySet()) {
-			addCssVarRow(customVarsContainer, entry.getKey(), entry.getValue());
-		}
+			if (toggleTheme != null) {
+				toggleTheme.check(ThemeManager.THEME_DARK.equals(selectedTheme[0]) ? R.id.btnDarkTheme : R.id.btnLightTheme);
+			}
+		};
+
+		Runnable captureCurrentTheme = () -> {
+			Map<String, String> styles = ThemeManager.THEME_DARK.equals(selectedTheme[0]) ? darkStyles : lightStyles;
+			putIfNotBlank(styles, "primaryColor", etPrimary);
+			putIfNotBlank(styles, "secondaryColor", etSecondary);
+			putIfNotBlank(styles, "accentColor", etAccent);
+			putIfNotBlank(styles, "fontFamily", etFont);
+			putIfNotBlank(styles, "bodyBackground", etBackground);
+			putIfNotBlank(styles, "bodyColor", etBodyColor);
+			putIfNotBlank(styles, "linkColor", etLinkColor);
+			putIfNotBlank(styles, "borderColor", etBorderColor);
+
+			Map<String, String> vars = ThemeManager.THEME_DARK.equals(selectedTheme[0]) ? darkVars : lightVars;
+			vars.clear();
+			readCssVarRows(customVarsContainer, vars);
+		};
+
+		btnLight.setOnClickListener(v -> {
+			if (ThemeManager.THEME_LIGHT.equals(selectedTheme[0])) return;
+			captureCurrentTheme.run();
+			selectedTheme[0] = ThemeManager.THEME_LIGHT;
+			renderCurrentTheme.run();
+		});
+		btnDark.setOnClickListener(v -> {
+			if (ThemeManager.THEME_DARK.equals(selectedTheme[0])) return;
+			captureCurrentTheme.run();
+			selectedTheme[0] = ThemeManager.THEME_DARK;
+			renderCurrentTheme.run();
+		});
+
+		renderCurrentTheme.run();
 
 		if (btnAddCssVar != null) {
 			btnAddCssVar.setOnClickListener(v -> addCssVarRow(customVarsContainer, "", ""));
@@ -1820,43 +1909,40 @@ public class MainActivity extends AppCompatActivity {
 			.setTitle("Theme Settings")
 			.setView(dialogView)
 			.setPositiveButton("Apply", (dialog, which) -> {
-				String primary = etPrimary.getText().toString().trim();
-				String secondary = etSecondary.getText().toString().trim();
-				String accent = etAccent.getText().toString().trim();
-				String font = etFont.getText().toString().trim();
-				String bg = etBackground.getText().toString().trim();
-				String bodyColor = etBodyColor.getText().toString().trim();
-				String linkColor = etLinkColor.getText().toString().trim();
-				String borderColor = etBorderColor.getText().toString().trim();
-
-				if (!primary.isEmpty()) themeManager.setGlobalStyle("primaryColor", primary);
-				if (!secondary.isEmpty()) themeManager.setGlobalStyle("secondaryColor", secondary);
-				if (!accent.isEmpty()) themeManager.setGlobalStyle("accentColor", accent);
-				if (!font.isEmpty()) themeManager.setGlobalStyle("fontFamily", font);
-				if (!bg.isEmpty()) themeManager.setGlobalStyle("bodyBackground", bg);
-				if (!bodyColor.isEmpty()) themeManager.setGlobalStyle("bodyColor", bodyColor);
-				if (!linkColor.isEmpty()) themeManager.setGlobalStyle("linkColor", linkColor);
-				if (!borderColor.isEmpty()) themeManager.setGlobalStyle("borderColor", borderColor);
-
-				Map<String, String> newVars = new LinkedHashMap<>();
-				for (int i = 0; i < customVarsContainer.getChildCount(); i++) {
-					View row = customVarsContainer.getChildAt(i);
-					TextInputEditText etName = row.findViewWithTag("varName");
-					TextInputEditText etValue = row.findViewWithTag("varValue");
-					if (etName != null && etValue != null) {
-						String name = etName.getText().toString().trim();
-						String val = etValue.getText().toString().trim();
-						if (!name.isEmpty() && !val.isEmpty()) {
-							newVars.put(name, val);
-						}
-					}
-				}
-				themeManager.setCustomCssVars(newVars);
+				captureCurrentTheme.run();
+				themeManager.setStylesForTheme(ThemeManager.THEME_LIGHT, lightStyles);
+				themeManager.setStylesForTheme(ThemeManager.THEME_DARK, darkStyles);
+				themeManager.setCustomVarsForTheme(ThemeManager.THEME_LIGHT, lightVars);
+				themeManager.setCustomVarsForTheme(ThemeManager.THEME_DARK, darkVars);
+				themeManager.setTheme(selectedTheme[0]);
 
 				Toast.makeText(this, "Theme updated", Toast.LENGTH_SHORT).show();
 			})
 			.setNegativeButton("Cancel", null)
 			.show();
+	}
+
+	private void putIfNotBlank(Map<String, String> map, String key, TextInputEditText editText) {
+		if (map == null || editText == null) return;
+		String value = editText.getText() != null ? editText.getText().toString().trim() : "";
+		if (!value.isEmpty()) {
+			map.put(key, value);
+		}
+	}
+
+	private void readCssVarRows(LinearLayout container, Map<String, String> outMap) {
+		if (container == null || outMap == null) return;
+		for (int i = 0; i < container.getChildCount(); i++) {
+			View row = container.getChildAt(i);
+			TextInputEditText etName = row.findViewWithTag("varName");
+			TextInputEditText etValue = row.findViewWithTag("varValue");
+			if (etName == null || etValue == null) continue;
+			String name = etName.getText() != null ? etName.getText().toString().trim() : "";
+			String val = etValue.getText() != null ? etValue.getText().toString().trim() : "";
+			if (!name.isEmpty() && !val.isEmpty()) {
+				outMap.put(name, val);
+			}
+		}
 	}
 
 	private void addCssVarRow(LinearLayout container, String name, String value) {
