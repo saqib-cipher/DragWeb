@@ -26,7 +26,6 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.widget.NestedScrollView;
-import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.chip.Chip;
@@ -41,6 +40,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -63,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
 	private ArrayList<HashMap<String, Object>> filteredWidgets = new ArrayList<>();
 	private ArrayList<HashMap<String, Object>> design = new ArrayList<>();
 
+	private String projectId = "";
 	private String projectName = "Untitled";
 
 	// Views
@@ -70,7 +71,6 @@ public class MainActivity extends AppCompatActivity {
 	private LinearLayout topBar;
 	private LinearLayout screen;
 	private LinearLayout rightPanel;
-	private LinearLayout leftPanel;
 	private LinearLayout bottomPanel;
 	private LinearLayout eventPanel;
 	private LinearLayout assetsPanel;
@@ -78,12 +78,12 @@ public class MainActivity extends AppCompatActivity {
 	private Button button5, button4, delete, btnImportWidgets, btnImportImage, btnImportSvg;
 	private Button btnDrawer, btnBack, btnUndo, btnRedo, btnTheme, btnExport, btnViewStyles;
 	private Button btnAddLogicBlock, btnViewAllBlocks;
-	private Button btnLoadCustomWidgets, btnLoadCustomBlocks;
+	private Button btnLoadCustomWidgets, btnLoadCustomBlocks, btnNewFolder;
 	private TextView textview2, tvProjectTitle;
 	private RecyclerView recyclerview3, recyclerview1, recyclerviewRightPanel, rvAssets;
 	private android.widget.Spinner widgetSpinner;
-	private TabLayout tabLayout, tabWidgetCategories;
-	private Chip chipBasic, chipStyles, chipEvent;
+	private TabLayout tabLayout;
+	private Chip chipBasic, chipStyles, chipLayout, chipEvent;
 	private TextInputEditText etSearchWidget, etSearchHierarchy;
 	private ChipGroup chipGroupCategories;
 
@@ -104,7 +104,6 @@ public class MainActivity extends AppCompatActivity {
 		topBar = findViewById(R.id.topBar);
 		screen = findViewById(R.id.screen);
 		rightPanel = findViewById(R.id.rightPanel);
-		leftPanel = findViewById(R.id.leftPanel);
 		bottomPanel = findViewById(R.id.bottomPanel);
 		eventPanel = findViewById(R.id.eventPanel);
 		assetsPanel = findViewById(R.id.assetsPanel);
@@ -115,6 +114,7 @@ public class MainActivity extends AppCompatActivity {
 		btnImportWidgets = findViewById(R.id.btnImportWidgets);
 		btnImportImage = findViewById(R.id.btnImportImage);
 		btnImportSvg = findViewById(R.id.btnImportSvg);
+		btnNewFolder = findViewById(R.id.btnNewFolder);
 		textview2 = findViewById(R.id.textview2);
 		recyclerview3 = findViewById(R.id.recyclerview3);
 		recyclerview1 = findViewById(R.id.recyclerview1);
@@ -134,21 +134,28 @@ public class MainActivity extends AppCompatActivity {
 		btnLoadCustomBlocks = findViewById(R.id.btnLoadCustomBlocks);
 		tvProjectTitle = findViewById(R.id.tvProjectTitle);
 		tabLayout = findViewById(R.id.tabLayout);
-		tabWidgetCategories = findViewById(R.id.tabWidgetCategories);
 		chipBasic = findViewById(R.id.chipBasic);
 		chipStyles = findViewById(R.id.chipStyles);
+		chipLayout = findViewById(R.id.chipLayout);
 		chipEvent = findViewById(R.id.chipEvent);
 		etSearchWidget = findViewById(R.id.etSearchWidget);
 		etSearchHierarchy = findViewById(R.id.etSearchHierarchy);
 		chipGroupCategories = findViewById(R.id.chipGroupCategories);
 
-		// Get project name from intent
+		// Get project info from intent
+		if (getIntent().hasExtra("project_id")) {
+			projectId = getIntent().getStringExtra("project_id");
+		}
 		if (getIntent().hasExtra("project_name")) {
 			projectName = getIntent().getStringExtra("project_name");
 		}
+		// Backwards compatibility: if no ID, use name
+		if (projectId.isEmpty() && !projectName.isEmpty()) {
+			projectId = projectName;
+		}
 		tvProjectTitle.setText(projectName);
 
-		// Drawer button
+		// Drawer button - opens widget palette drawer
 		btnDrawer.setOnClickListener(v -> {
 			androidx.drawerlayout.widget.DrawerLayout drawer = findViewById(R.id._main);
 			if (drawer != null) {
@@ -204,6 +211,11 @@ public class MainActivity extends AppCompatActivity {
 			});
 		}
 
+		// New folder button
+		if (btnNewFolder != null) {
+			btnNewFolder.setOnClickListener(v -> showNewFolderDialog());
+		}
+
 		// Custom JSON loaders
 		if (btnLoadCustomWidgets != null) {
 			btnLoadCustomWidgets.setOnClickListener(v -> loadCustomWidgetsFromDevice());
@@ -215,12 +227,16 @@ public class MainActivity extends AppCompatActivity {
 		// Icon library chips
 		Chip chipFontAwesome = findViewById(R.id.chipFontAwesome);
 		Chip chipTablerIcons = findViewById(R.id.chipTablerIcons);
+		Chip chipBootstrapIcons = findViewById(R.id.chipBootstrapIcons);
 		Chip chipCustomSvg = findViewById(R.id.chipCustomSvg);
 		if (chipFontAwesome != null) {
 			chipFontAwesome.setOnClickListener(v -> addIconLibraryWidget("Font Awesome", "fa"));
 		}
 		if (chipTablerIcons != null) {
 			chipTablerIcons.setOnClickListener(v -> addIconLibraryWidget("Tabler Icons", "tabler"));
+		}
+		if (chipBootstrapIcons != null) {
+			chipBootstrapIcons.setOnClickListener(v -> addIconLibraryWidget("Bootstrap Icons", "bi"));
 		}
 		if (chipCustomSvg != null) {
 			chipCustomSvg.setOnClickListener(v -> {
@@ -275,8 +291,7 @@ public class MainActivity extends AppCompatActivity {
 							if (mimeType == null) mimeType = "image/png";
 							String src = "data:" + mimeType + ";base64," + base64Image;
 
-							// Save asset to project directory
-							saveAssetToProject(projectName, uri, base64Image, mimeType);
+							saveAssetToProject(projectId, uri, base64Image, mimeType);
 
 							HashMap<String, Object> newImgWidget = new HashMap<>();
 							newImgWidget.put("tag", "img");
@@ -382,29 +397,22 @@ public class MainActivity extends AppCompatActivity {
 				}
 			}
 			logicBlockManager.showAddBlockDialog(targetTag, block -> {
-				Toast.makeText(this, "Block added: " + block.event + " → " + block.action, Toast.LENGTH_SHORT).show();
+				Toast.makeText(this, "Block added: " + block.event + " -> " + block.action, Toast.LENGTH_SHORT).show();
 				refreshLogicBlocksUI();
 			});
 		});
 
 		btnViewAllBlocks.setOnClickListener(v -> logicBlockManager.showBlocksDialog());
 
-		// Setup top tab layout (View / Event / Assets)
+		// Setup tabs and chips
 		setupTabLayout();
-
-		// Setup widget category chips
 		setupWidgetCategoryChips();
-
-		// Setup bottom chips
 		setupBottomChips();
-
-		// Setup search
 		setupWidgetSearch();
 		setupHierarchySearch();
 	}
 
 	private void initializeLogic() {
-		// Initialize engines
 		engine = new WidgetBuilderEngine(this);
 		widgetUpdater = new WidgetUpdater(this, engine);
 		codeGenerator = new PageCodeGenerator();
@@ -432,36 +440,37 @@ public class MainActivity extends AppCompatActivity {
 		});
 		selector.attachTo(screen);
 
-		// Setup initial spinner
 		updateWidgetSpinnerFromTree();
 
-		// Load widgets from JSON asset registry
+		// Load widgets
 		widgetRegistry = new WidgetRegistry(this);
 		widgets = widgetRegistry.getAllWidgets();
 		filteredWidgets = new ArrayList<>(widgets);
 
-		// Auto-load custom widgets from device
 		autoLoadCustomConfigs();
 
-		// Use LinearLayoutManager for vertical clean list
 		recyclerview1.setAdapter(new Recyclerview1Adapter(filteredWidgets));
 		recyclerview1.setLayoutManager(new LinearLayoutManager(this));
 
-		// Setup hierarchy tree
+		// Setup hierarchy tree with drag support
 		hierarchyAdapter = new HierarchyTreeAdapter(this);
 		hierarchyAdapter.setOnItemClickListener(widgetView -> {
 			selector.clearSelection();
 			widgetView.performClick();
 		});
 		hierarchyAdapter.setOnItemLongClickListener(widgetView -> {
-			// Start drag for hierarchy reorder
 			ClipData.Item item = new ClipData.Item("reorder:" + widgetView.hashCode());
 			ClipData dragData = new ClipData("reorder", new String[]{"text/plain"}, item);
 			View.DragShadowBuilder shadow = new View.DragShadowBuilder(widgetView);
 			widgetView.startDragAndDrop(dragData, shadow, widgetView, 0);
 		});
+		hierarchyAdapter.setOnReorderListener((movedView, newParent, newIndex) -> {
+			saveUndoState();
+			updateWidgetSpinnerFromTree();
+		});
 		recyclerviewRightPanel.setAdapter(hierarchyAdapter);
 		recyclerviewRightPanel.setLayoutManager(new LinearLayoutManager(this));
+		hierarchyAdapter.attachToRecyclerView(recyclerviewRightPanel);
 
 		// Drop zone
 		dropZoneManager = new DropZoneManager(this, screen, widgets, engine, selector);
@@ -481,16 +490,9 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 
-		// Setup design list
 		buildDesignList();
-
-		// Load project if it exists
 		loadProject();
-
-		// Save initial undo state
 		saveUndoState();
-
-		// Initial hierarchy refresh
 		refreshHierarchy();
 	}
 
@@ -553,15 +555,9 @@ public class MainActivity extends AppCompatActivity {
 			@Override
 			public void onTabSelected(TabLayout.Tab tab) {
 				switch (tab.getPosition()) {
-					case 0: // View
-						showViewMode();
-						break;
-					case 1: // Event
-						showEventMode();
-						break;
-					case 2: // Assets
-						showAssetsMode();
-						break;
+					case 0: showViewMode(); break;
+					case 1: showEventMode(); break;
+					case 2: showAssetsMode(); break;
 				}
 			}
 			@Override
@@ -572,40 +568,31 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void showViewMode() {
-		LinearLayout scre = findViewById(R.id.scre);
-		if (scre != null) scre.setVisibility(View.VISIBLE);
+		vscroll2.setVisibility(View.VISIBLE);
 		eventPanel.setVisibility(View.GONE);
 		if (assetsPanel != null) assetsPanel.setVisibility(View.GONE);
 		bottomPanel.setVisibility(View.VISIBLE);
 		View rightPanelCard = findViewById(R.id.rightPanelCard);
 		if (rightPanelCard != null) rightPanelCard.setVisibility(View.VISIBLE);
-		View leftPanelCard = findViewById(R.id.leftPanelCard);
-		if (leftPanelCard != null) leftPanelCard.setVisibility(View.VISIBLE);
 	}
 
 	private void showEventMode() {
-		LinearLayout scre = findViewById(R.id.scre);
-		if (scre != null) scre.setVisibility(View.GONE);
+		vscroll2.setVisibility(View.GONE);
 		eventPanel.setVisibility(View.VISIBLE);
 		if (assetsPanel != null) assetsPanel.setVisibility(View.GONE);
 		bottomPanel.setVisibility(View.GONE);
 		View rightPanelCard = findViewById(R.id.rightPanelCard);
 		if (rightPanelCard != null) rightPanelCard.setVisibility(View.GONE);
-		View leftPanelCard = findViewById(R.id.leftPanelCard);
-		if (leftPanelCard != null) leftPanelCard.setVisibility(View.GONE);
 		refreshLogicBlocksUI();
 	}
 
 	private void showAssetsMode() {
-		LinearLayout scre = findViewById(R.id.scre);
-		if (scre != null) scre.setVisibility(View.GONE);
+		vscroll2.setVisibility(View.GONE);
 		eventPanel.setVisibility(View.GONE);
 		if (assetsPanel != null) assetsPanel.setVisibility(View.VISIBLE);
 		bottomPanel.setVisibility(View.GONE);
 		View rightPanelCard = findViewById(R.id.rightPanelCard);
 		if (rightPanelCard != null) rightPanelCard.setVisibility(View.GONE);
-		View leftPanelCard = findViewById(R.id.leftPanelCard);
-		if (leftPanelCard != null) leftPanelCard.setVisibility(View.GONE);
 	}
 
 	// ---- Widget Category Chips ----
@@ -623,28 +610,8 @@ public class MainActivity extends AppCompatActivity {
 			else if (checkedId == R.id.chipCatBasic) filterWidgetsByCategory("basic");
 			else if (checkedId == R.id.chipCatForm) filterWidgetsByCategory("form");
 			else if (checkedId == R.id.chipCatMedia) filterWidgetsByCategory("media");
+			else if (checkedId == R.id.chipCatAdvanced) filterWidgetsByCategory("advanced");
 			else filterWidgetsByCategory("all");
-		});
-
-		// Also keep drawer tabs working
-		setupWidgetCategoryTabs();
-	}
-
-	private void setupWidgetCategoryTabs() {
-		if (tabWidgetCategories == null) return;
-		String[] categories = {"all", "layout", "basic", "form", "media", "advanced"};
-		tabWidgetCategories.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-			@Override
-			public void onTabSelected(TabLayout.Tab tab) {
-				int pos = tab.getPosition();
-				if (pos >= 0 && pos < categories.length) {
-					filterWidgetsByCategory(categories[pos]);
-				}
-			}
-			@Override
-			public void onTabUnselected(TabLayout.Tab tab) {}
-			@Override
-			public void onTabReselected(TabLayout.Tab tab) {}
 		});
 	}
 
@@ -669,6 +636,7 @@ public class MainActivity extends AppCompatActivity {
 		chipBasic.setOnCheckedChangeListener((btn, checked) -> {
 			if (checked) {
 				chipStyles.setChecked(false);
+				chipLayout.setChecked(false);
 				chipEvent.setChecked(false);
 				buildDesignList();
 			}
@@ -676,14 +644,24 @@ public class MainActivity extends AppCompatActivity {
 		chipStyles.setOnCheckedChangeListener((btn, checked) -> {
 			if (checked) {
 				chipBasic.setChecked(false);
+				chipLayout.setChecked(false);
 				chipEvent.setChecked(false);
 				buildAdvancedDesignList();
+			}
+		});
+		chipLayout.setOnCheckedChangeListener((btn, checked) -> {
+			if (checked) {
+				chipBasic.setChecked(false);
+				chipStyles.setChecked(false);
+				chipEvent.setChecked(false);
+				buildLayoutDesignList();
 			}
 		});
 		chipEvent.setOnCheckedChangeListener((btn, checked) -> {
 			if (checked) {
 				chipBasic.setChecked(false);
 				chipStyles.setChecked(false);
+				chipLayout.setChecked(false);
 				buildEventDesignList();
 			}
 		});
@@ -691,7 +669,6 @@ public class MainActivity extends AppCompatActivity {
 
 	private void refreshWidgetList() {
 		widgets = widgetRegistry.getAllWidgets();
-		filterWidgetsByCategory("all");
 		filteredWidgets.clear();
 		filteredWidgets.addAll(widgets);
 		if (recyclerview1.getAdapter() != null) {
@@ -705,14 +682,13 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	// ---- Widget Spinner (shows all tree-based widgets) ----
+	// ---- Widget Spinner ----
 
 	private void updateWidgetSpinnerFromTree() {
 		List<String> items = new ArrayList<>();
 		items.add("body (screen)");
 		collectWidgetNames(screen, items, 0);
 
-		// Highlight selected
 		int selectedIndex = 0;
 		View selectedView = selector.getSelectedView();
 		if (selectedView != null) {
@@ -723,20 +699,15 @@ public class MainActivity extends AppCompatActivity {
 		}
 
 		android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
-			this,
-			android.R.layout.simple_spinner_item,
-			items
-		);
+			this, android.R.layout.simple_spinner_item, items);
 		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 		widgetSpinner.setAdapter(adapter);
 		widgetSpinner.setSelection(selectedIndex);
 
-		// Spinner selection listener to sync with hierarchy
-		final int finalSelectedIndex = selectedIndex;
 		widgetSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
 			@Override
 			public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-				if (position == 0) return; // body
+				if (position == 0) return;
 				View targetView = findViewAtTreeIndex(screen, position, new int[]{1});
 				if (targetView != null && targetView != selector.getSelectedView()) {
 					selector.clearSelection();
@@ -758,8 +729,11 @@ public class MainActivity extends AppCompatActivity {
 			if (tagObj instanceof Map) {
 				Map<String, Object> tagData = (Map<String, Object>) tagObj;
 				String tag = tagData.containsKey("tag") ? tagData.get("tag").toString() : "?";
-				String id = tagData.containsKey("id") ? tagData.get("id").toString() : "";
+				String id = "";
 				Map<String, Object> fn = (Map<String, Object>) tagData.get("function");
+				if (fn != null && fn.containsKey("id")) {
+					id = fn.get("id").toString();
+				}
 				String text = "";
 				if (fn != null && fn.containsKey("text")) {
 					text = fn.get("text").toString();
@@ -811,43 +785,34 @@ public class MainActivity extends AppCompatActivity {
 			switch (action) {
 				case DragEvent.ACTION_DRAG_STARTED:
 					return event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
-
 				case DragEvent.ACTION_DRAG_ENTERED:
 					v.setBackgroundColor(Color.parseColor("#90A4AE"));
 					return true;
-
 				case DragEvent.ACTION_DRAG_EXITED:
 					v.setBackgroundColor(Color.parseColor("#B0BEC5"));
 					return true;
-
 				case DragEvent.ACTION_DROP:
 					v.setBackgroundColor(Color.parseColor("#B0BEC5"));
 					ClipData data = event.getClipData();
-
 					if (data != null && data.getItemCount() > 0) {
 						try {
 							String dragText = data.getItemAt(0).getText().toString();
-							// Check if it's a reorder drag
 							if (dragText.startsWith("reorder:")) {
 								handleReorderDrop(dragText, event);
 								return true;
 							}
-
 							int pos = Integer.parseInt(dragText);
 							if (pos < 0 || pos >= filteredWidgets.size()) return false;
 							Map<String, Object> widgetDefinition = filteredWidgets.get(pos);
 							View newWidgetView = engine.createWidget(widgetDefinition.get("tag").toString());
-
 							if (newWidgetView != null) {
 								applyWidgetDefaults(newWidgetView, widgetDefinition);
-
 								int targetIndex = findDropIndex(screen, event.getY());
 								if (targetIndex >= 0 && targetIndex <= screen.getChildCount()) {
 									screen.addView(newWidgetView, targetIndex);
 								} else {
 									screen.addView(newWidgetView);
 								}
-
 								selector.registerView(newWidgetView);
 								setupWidgetReorderDrag(newWidgetView);
 								newWidgetView.performClick();
@@ -864,15 +829,11 @@ public class MainActivity extends AppCompatActivity {
 						}
 					}
 					return true;
-
 				case DragEvent.ACTION_DRAG_ENDED:
 					v.setBackgroundColor(Color.parseColor("#B0BEC5"));
 					return true;
-
 				case DragEvent.ACTION_DRAG_LOCATION:
-					highlightDropPosition(screen, event.getY());
 					return true;
-
 				default:
 					return false;
 			}
@@ -889,13 +850,11 @@ public class MainActivity extends AppCompatActivity {
 					newFunction = new HashMap<>();
 					newWidgetMap.put("function", newFunction);
 				}
-
 				for (Map.Entry<String, Object> entry : defFunction.entrySet()) {
 					if (!"style".equals(entry.getKey())) {
 						newFunction.put(entry.getKey(), entry.getValue());
 					}
 				}
-
 				Map<String, Object> defStyle = (Map<String, Object>) defFunction.get("style");
 				if (defStyle != null) {
 					Map<String, Object> newStyle = (Map<String, Object>) newFunction.get("style");
@@ -919,10 +878,6 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}
 		return parent.getChildCount();
-	}
-
-	private void highlightDropPosition(ViewGroup parent, float dropY) {
-		// Visual feedback for drop position
 	}
 
 	private void setupWidgetReorderDrag(View widget) {
@@ -996,7 +951,6 @@ public class MainActivity extends AppCompatActivity {
 		String jsonStr = style != null ? new Gson().toJson(style) : "{}";
 		String cssStr = generateCssFromStyle(widgetMap, style);
 
-		// Default show JSON
 		tvContent.setText(formatJson(jsonStr));
 
 		tabFormat.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
@@ -1051,10 +1005,28 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
+	// ---- New Folder Dialog ----
+
+	private void showNewFolderDialog() {
+		showStyleDialog("Create New Folder", "Folder name", value -> {
+			try {
+				String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+					+ "/.dragweb/projects/" + projectId + "/assets/" + value;
+				File dir = new File(basePath);
+				if (dir.mkdirs()) {
+					Toast.makeText(this, "Folder created: " + value, Toast.LENGTH_SHORT).show();
+				} else {
+					Toast.makeText(this, "Could not create folder", Toast.LENGTH_SHORT).show();
+				}
+			} catch (Exception e) {
+				Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+			}
+		});
+	}
+
 	// ---- Custom JSON Support ----
 
 	private void autoLoadCustomConfigs() {
-		// Auto-load user custom widgets from device path
 		String widgetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
 			+ "/.dragweb/custom/widgets.json";
 		File customWidgetsFile = new File(widgetsPath);
@@ -1069,7 +1041,6 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}
 
-		// Auto-load custom blocks
 		String blocksPath = Environment.getExternalStorageDirectory().getAbsolutePath()
 			+ "/.dragweb/custom/blocks.json";
 		File customBlocksFile = new File(blocksPath);
@@ -1094,12 +1065,11 @@ public class MainActivity extends AppCompatActivity {
 				String json = FileUtil.readFile(widgetsPath);
 				widgetRegistry.importCustomWidgets(json);
 				refreshWidgetList();
-				Toast.makeText(this, "Custom widgets loaded from " + widgetsPath, Toast.LENGTH_LONG).show();
+				Toast.makeText(this, "Custom widgets loaded", Toast.LENGTH_SHORT).show();
 			} catch (Exception e) {
 				Toast.makeText(this, "Failed to load: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 			}
 		} else {
-			// Create the directory structure
 			File dir = new File(Environment.getExternalStorageDirectory(), ".dragweb/custom");
 			dir.mkdirs();
 			Toast.makeText(this, "Place widgets.json in:\n" + widgetsPath, Toast.LENGTH_LONG).show();
@@ -1114,7 +1084,7 @@ public class MainActivity extends AppCompatActivity {
 			try {
 				String json = FileUtil.readFile(blocksPath);
 				logicBlockManager.fromJson(json);
-				Toast.makeText(this, "Custom blocks loaded from " + blocksPath, Toast.LENGTH_LONG).show();
+				Toast.makeText(this, "Custom blocks loaded", Toast.LENGTH_SHORT).show();
 			} catch (Exception e) {
 				Toast.makeText(this, "Failed to load: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 			}
@@ -1127,11 +1097,10 @@ public class MainActivity extends AppCompatActivity {
 
 	// ---- Assets Management ----
 
-	private void saveAssetToProject(String projectName, android.net.Uri uri, String base64, String mimeType) {
+	private void saveAssetToProject(String projectId, android.net.Uri uri, String base64, String mimeType) {
 		try {
-			// Save to external storage project directory
 			String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-				+ "/.dragweb/projects/" + projectName + "/assets";
+				+ "/.dragweb/projects/" + projectId + "/assets";
 			File assetsDir = new File(basePath);
 			if (!assetsDir.exists()) assetsDir.mkdirs();
 
@@ -1195,7 +1164,6 @@ public class MainActivity extends AppCompatActivity {
 			blockView.setOrientation(LinearLayout.VERTICAL);
 			blockView.setPadding(16, 12, 16, 12);
 
-			// Event label
 			TextView eventLabel = new TextView(this);
 			eventLabel.setText("WHEN " + block.event.toUpperCase() + " on <" + block.targetWidget + ">");
 			eventLabel.setTextColor(Color.parseColor("#FF9800"));
@@ -1203,7 +1171,6 @@ public class MainActivity extends AppCompatActivity {
 			eventLabel.setTypeface(null, android.graphics.Typeface.BOLD);
 			blockView.addView(eventLabel);
 
-			// Action label
 			TextView actionLabel = new TextView(this);
 			actionLabel.setText("DO " + block.action + "(" + block.params + ")");
 			actionLabel.setTextColor(Color.parseColor("#4CAF50"));
@@ -1229,72 +1196,58 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	// ---- Project Save/Load ----
+	// ---- Project Save/Load (uses project ID) ----
 
 	private void saveProject() {
-		// Save to internal storage
-		projectDataManager.saveProject(screen, projectName);
+		projectDataManager.saveProject(screen, projectId);
 
 		File dir = new File(getFilesDir(), "projects");
-		File themeFile = new File(dir, projectName + ".theme");
+		File themeFile = new File(dir, projectId + ".theme");
 		FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
 
-		File logicFile = new File(dir, projectName + ".logic");
+		File logicFile = new File(dir, projectId + ".logic");
 		FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
 
-		// Also save to external storage for persistence across reinstalls
 		saveProjectToExternal();
-
 		Toast.makeText(this, "Project saved", Toast.LENGTH_SHORT).show();
 	}
 
 	private void saveProjectToExternal() {
 		try {
 			String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-				+ "/.dragweb/projects/" + projectName;
+				+ "/.dragweb/projects/" + projectId;
 			File extDir = new File(basePath);
 			if (!extDir.exists()) extDir.mkdirs();
 
-			// Save layout JSON
 			File internalDir = new File(getFilesDir(), "projects");
-			File layoutFile = new File(internalDir, projectName + ".json");
+			File layoutFile = new File(internalDir, projectId + ".json");
 			if (layoutFile.exists()) {
 				String json = FileUtil.readFile(layoutFile.getAbsolutePath());
 				FileUtil.writeFile(new File(extDir, "layout.json").getAbsolutePath(), json);
 			}
 
-			// Save theme
 			FileUtil.writeFile(new File(extDir, "theme.json").getAbsolutePath(), themeManager.toJson());
-
-			// Save logic
 			FileUtil.writeFile(new File(extDir, "logic.json").getAbsolutePath(), logicBlockManager.toJson());
-
-			// Save styles
-			File stylesFile = new File(internalDir, projectName + ".theme");
-			if (stylesFile.exists()) {
-				String styles = FileUtil.readFile(stylesFile.getAbsolutePath());
-				FileUtil.writeFile(new File(extDir, "styles.json").getAbsolutePath(), styles);
-			}
 		} catch (Exception e) {
 			Log.w("MainActivity", "Could not save to external: " + e.getMessage());
 		}
 	}
 
 	private void loadProject() {
-		projectDataManager.loadProject(screen, projectName, engine, selector, dropZoneManager);
+		projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager);
 
 		for (int i = 0; i < screen.getChildCount(); i++) {
 			setupWidgetReorderDrag(screen.getChildAt(i));
 		}
 
 		File dir = new File(getFilesDir(), "projects");
-		File themeFile = new File(dir, projectName + ".theme");
+		File themeFile = new File(dir, projectId + ".theme");
 		if (themeFile.exists()) {
 			String themeJson = FileUtil.readFile(themeFile.getAbsolutePath());
 			themeManager.fromJson(themeJson);
 		}
 
-		File logicFile = new File(dir, projectName + ".logic");
+		File logicFile = new File(dir, projectId + ".logic");
 		if (logicFile.exists()) {
 			String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
 			logicBlockManager.fromJson(logicJson);
@@ -1339,19 +1292,32 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	// ---- Theme Dialog ----
+	// ---- Theme Dialog (with CSS variable management) ----
 
 	private void showThemeDialog() {
 		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_theme_settings, null);
 		Button btnLight = dialogView.findViewById(R.id.btnLightTheme);
 		Button btnDark = dialogView.findViewById(R.id.btnDarkTheme);
 		TextInputEditText etPrimary = dialogView.findViewById(R.id.etPrimaryColor);
+		TextInputEditText etSecondary = dialogView.findViewById(R.id.etSecondaryColor);
+		TextInputEditText etAccent = dialogView.findViewById(R.id.etAccentColor);
 		TextInputEditText etFont = dialogView.findViewById(R.id.etFontFamily);
 		TextInputEditText etBackground = dialogView.findViewById(R.id.etBodyBackground);
+		TextInputEditText etBodyColor = dialogView.findViewById(R.id.etBodyColor);
+		TextInputEditText etLinkColor = dialogView.findViewById(R.id.etLinkColor);
+		TextInputEditText etBorderColor = dialogView.findViewById(R.id.etBorderColor);
+		LinearLayout customVarsContainer = dialogView.findViewById(R.id.customVarsContainer);
+		Button btnAddCssVar = dialogView.findViewById(R.id.btnAddCssVar);
 
+		// Set current values
 		etPrimary.setText(themeManager.getGlobalStyle("primaryColor"));
+		etSecondary.setText(themeManager.getGlobalStyle("secondaryColor"));
+		etAccent.setText(themeManager.getGlobalStyle("accentColor"));
 		etFont.setText(themeManager.getGlobalStyle("fontFamily"));
 		etBackground.setText(themeManager.getGlobalStyle("bodyBackground"));
+		etBodyColor.setText(themeManager.getGlobalStyle("bodyColor"));
+		etLinkColor.setText(themeManager.getGlobalStyle("linkColor"));
+		etBorderColor.setText(themeManager.getGlobalStyle("borderColor"));
 
 		if (ThemeManager.THEME_DARK.equals(themeManager.getCurrentTheme())) {
 			btnDark.performClick();
@@ -1362,20 +1328,94 @@ public class MainActivity extends AppCompatActivity {
 		btnLight.setOnClickListener(v -> themeManager.setTheme(ThemeManager.THEME_LIGHT));
 		btnDark.setOnClickListener(v -> themeManager.setTheme(ThemeManager.THEME_DARK));
 
+		// Load existing custom CSS vars
+		Map<String, String> customVars = themeManager.getCustomCssVars();
+		for (Map.Entry<String, String> entry : customVars.entrySet()) {
+			addCssVarRow(customVarsContainer, entry.getKey(), entry.getValue());
+		}
+
+		if (btnAddCssVar != null) {
+			btnAddCssVar.setOnClickListener(v -> addCssVarRow(customVarsContainer, "", ""));
+		}
+
 		new MaterialAlertDialogBuilder(this)
 			.setTitle("Theme Settings")
 			.setView(dialogView)
 			.setPositiveButton("Apply", (dialog, which) -> {
 				String primary = etPrimary.getText().toString().trim();
+				String secondary = etSecondary.getText().toString().trim();
+				String accent = etAccent.getText().toString().trim();
 				String font = etFont.getText().toString().trim();
 				String bg = etBackground.getText().toString().trim();
+				String bodyColor = etBodyColor.getText().toString().trim();
+				String linkColor = etLinkColor.getText().toString().trim();
+				String borderColor = etBorderColor.getText().toString().trim();
+
 				if (!primary.isEmpty()) themeManager.setGlobalStyle("primaryColor", primary);
+				if (!secondary.isEmpty()) themeManager.setGlobalStyle("secondaryColor", secondary);
+				if (!accent.isEmpty()) themeManager.setGlobalStyle("accentColor", accent);
 				if (!font.isEmpty()) themeManager.setGlobalStyle("fontFamily", font);
 				if (!bg.isEmpty()) themeManager.setGlobalStyle("bodyBackground", bg);
+				if (!bodyColor.isEmpty()) themeManager.setGlobalStyle("bodyColor", bodyColor);
+				if (!linkColor.isEmpty()) themeManager.setGlobalStyle("linkColor", linkColor);
+				if (!borderColor.isEmpty()) themeManager.setGlobalStyle("borderColor", borderColor);
+
+				// Collect custom CSS vars from dynamic rows
+				Map<String, String> newVars = new LinkedHashMap<>();
+				for (int i = 0; i < customVarsContainer.getChildCount(); i++) {
+					View row = customVarsContainer.getChildAt(i);
+					TextInputEditText etName = row.findViewWithTag("varName");
+					TextInputEditText etValue = row.findViewWithTag("varValue");
+					if (etName != null && etValue != null) {
+						String name = etName.getText().toString().trim();
+						String val = etValue.getText().toString().trim();
+						if (!name.isEmpty() && !val.isEmpty()) {
+							newVars.put(name, val);
+						}
+					}
+				}
+				themeManager.setCustomCssVars(newVars);
+
 				Toast.makeText(this, "Theme updated", Toast.LENGTH_SHORT).show();
 			})
 			.setNegativeButton("Cancel", null)
 			.show();
+	}
+
+	private void addCssVarRow(LinearLayout container, String name, String value) {
+		LinearLayout row = new LinearLayout(this);
+		row.setOrientation(LinearLayout.HORIZONTAL);
+		row.setPadding(0, 4, 0, 4);
+
+		TextInputEditText etName = new TextInputEditText(this);
+		etName.setHint("--var-name");
+		etName.setText(name);
+		etName.setTextSize(12);
+		etName.setTag("varName");
+		LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+		nameParams.setMarginEnd(4);
+		etName.setLayoutParams(nameParams);
+
+		TextInputEditText etValue = new TextInputEditText(this);
+		etValue.setHint("value");
+		etValue.setText(value);
+		etValue.setTextSize(12);
+		etValue.setTag("varValue");
+		LinearLayout.LayoutParams valueParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+		etValue.setLayoutParams(valueParams);
+
+		Button btnRemove = new Button(this);
+		btnRemove.setText("X");
+		btnRemove.setTextSize(10);
+		btnRemove.setOnClickListener(v -> container.removeView(row));
+		LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+			ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+		btnRemove.setLayoutParams(btnParams);
+
+		row.addView(etName);
+		row.addView(etValue);
+		row.addView(btnRemove);
+		container.addView(row);
 	}
 
 	// ---- Export Dialog ----
@@ -1422,16 +1462,16 @@ public class MainActivity extends AppCompatActivity {
 		dialog.show();
 	}
 
-	// ---- Design Property List ----
+	// ---- Design Property Lists ----
 
 	private void buildDesignList() {
 		design.clear();
-		View selected = selector.getSelectedView();
 		String tag = getSelectedTag();
 
-		// Context-aware styles based on widget type
 		List<String> items = new ArrayList<>();
 		items.add("Edittext");
+		items.add("SetId");
+		items.add("SetClass");
 		items.add("Color");
 		items.add("Background");
 		items.add("Width");
@@ -1440,13 +1480,21 @@ public class MainActivity extends AppCompatActivity {
 		items.add("Margin");
 
 		if ("img".equals(tag)) {
-			items.add(0, "ImageSrc");
+			items.add(1, "ImageSrc");
 		}
 		if ("p".equals(tag) || "h1".equals(tag) || "h2".equals(tag) || "h3".equals(tag)
 			|| "span".equals(tag) || "label".equals(tag) || "a".equals(tag) || "button".equals(tag)) {
 			items.add("TextSize");
 			items.add("Font");
 			items.add("TextAlign");
+		}
+		if ("a".equals(tag)) {
+			items.add("SetHref");
+			items.add("SetTarget");
+		}
+		if ("input".equals(tag) || "textarea".equals(tag)) {
+			items.add("SetPlaceholder");
+			items.add("SetType");
 		}
 		items.add("BorderRadius");
 		items.add("BorderWidth");
@@ -1464,13 +1512,33 @@ public class MainActivity extends AppCompatActivity {
 	private void buildAdvancedDesignList() {
 		design.clear();
 		String[] items = {
-			"Elevation", "Gravity", "Opacity", "Rotation",
-			"FlexDir", "JustifyContent", "AlignItems", "Gap",
-			"Display", "Position", "Overflow", "BoxShadow",
-			"TextDecor", "LineHeight", "LetterSpace", "ZIndex",
+			"Elevation", "Opacity", "Rotation",
+			"BoxShadow", "TextDecor", "LineHeight", "LetterSpace",
+			"ZIndex", "Overflow", "Cursor",
 			"BorderTop", "BorderRight", "BorderBottom", "BorderLeft",
 			"RadiusTL", "RadiusTR", "RadiusBL", "RadiusBR",
-			"Gradient", "CssVar"
+			"Gradient", "CssVar", "CustomStyle"
+		};
+		for (String item : items) {
+			HashMap<String, Object> map = new HashMap<>();
+			map.put("edit", item);
+			design.add(map);
+		}
+		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
+		recyclerview3.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+	}
+
+	private void buildLayoutDesignList() {
+		design.clear();
+		String[] items = {
+			"Display", "Position", "FlexDir", "FlexWrap",
+			"JustifyContent", "AlignItems", "AlignSelf", "AlignContent",
+			"Gap", "RowGap", "ColGap",
+			"GridCols", "GridRows", "GridGap",
+			"Float", "Clear",
+			"Top", "Right", "Bottom", "Left",
+			"MinWidth", "MaxWidth", "MinHeight", "MaxHeight",
+			"ObjectFit", "AspectRatio"
 		};
 		for (String item : items) {
 			HashMap<String, Object> map = new HashMap<>();
@@ -1485,7 +1553,9 @@ public class MainActivity extends AppCompatActivity {
 		design.clear();
 		String[] items = {
 			"OnClick", "OnHover", "OnInput", "OnLoad",
-			"Animate", "Navigate", "ShowHide", "SetText"
+			"OnSubmit", "OnScroll", "OnKeyDown", "OnChange",
+			"Animate", "Navigate", "ShowHide", "SetText",
+			"CustomJS"
 		};
 		for (String item : items) {
 			HashMap<String, Object> map = new HashMap<>();
@@ -1516,10 +1586,7 @@ public class MainActivity extends AppCompatActivity {
 		}
 
 		String editType = design.get(position).get("edit").toString();
-
-		// Get target tag for logic blocks
 		String targetTag = getSelectedTag();
-		final String fTargetTag = targetTag;
 
 		switch (editType) {
 			case "Edittext":
@@ -1527,6 +1594,56 @@ public class MainActivity extends AppCompatActivity {
 					Map<String, Object> style = new HashMap<>();
 					style.put("text", value);
 					widgetUpdater.updateWidget(selected, value, style);
+					saveUndoState();
+				});
+				break;
+			case "SetId":
+				showStyleDialog("Set Element ID", "my-element", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("id", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					refreshHierarchy();
+				});
+				break;
+			case "SetClass":
+				showStyleDialog("Set CSS Classes", "class1 class2", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("class", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					refreshHierarchy();
+				});
+				break;
+			case "SetHref":
+				showStyleDialog("Set Link URL", "https://example.com", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("href", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "SetTarget":
+				showChoiceDialog("Link Target", new String[]{"_self", "_blank", "_parent", "_top"}, value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("target", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "SetPlaceholder":
+				showStyleDialog("Set Placeholder", "Enter text...", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("placeholder", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "SetType":
+				showChoiceDialog("Input Type", new String[]{"text", "password", "email", "number", "tel", "url", "date", "time", "color", "range", "file", "checkbox", "radio", "submit", "reset", "hidden"}, value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("type", value);
+					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 				});
 				break;
@@ -1593,9 +1710,6 @@ public class MainActivity extends AppCompatActivity {
 					saveUndoState();
 				});
 				break;
-			case "Gravity":
-				showGravityDialog(selected);
-				break;
 			case "Opacity":
 				showStyleDialog("Set Opacity", "0.0 - 1.0", value -> {
 					Map<String, Object> style = new HashMap<>();
@@ -1612,10 +1726,43 @@ public class MainActivity extends AppCompatActivity {
 					saveUndoState();
 				});
 				break;
+			case "Cursor":
+				showChoiceDialog("Cursor", new String[]{"default", "pointer", "text", "move", "not-allowed", "grab", "crosshair", "wait", "help"}, value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("cursor", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			// Layout styles
+			case "Display":
+				showChoiceDialog("Display", new String[]{"block", "flex", "grid", "inline", "inline-block", "inline-flex", "none", "contents"}, value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("display", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "Position":
+				showChoiceDialog("Position", new String[]{"static", "relative", "absolute", "fixed", "sticky"}, value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("position", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
 			case "FlexDir":
 				showChoiceDialog("Flex Direction", new String[]{"row", "column", "row-reverse", "column-reverse"}, value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("flexDirection", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "FlexWrap":
+				showChoiceDialog("Flex Wrap", new String[]{"nowrap", "wrap", "wrap-reverse"}, value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("flexWrap", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 				});
@@ -1636,21 +1783,102 @@ public class MainActivity extends AppCompatActivity {
 					saveUndoState();
 				});
 				break;
-			case "Gap":
-				showStyleDialogWithUnits("Set Gap", "8", "gap", selected);
-				break;
-			case "Display":
-				showChoiceDialog("Display", new String[]{"block", "flex", "grid", "inline", "inline-block", "none"}, value -> {
+			case "AlignSelf":
+				showChoiceDialog("Align Self", new String[]{"auto", "flex-start", "center", "flex-end", "stretch", "baseline"}, value -> {
 					Map<String, Object> style = new HashMap<>();
-					style.put("display", value);
+					style.put("alignSelf", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 				});
 				break;
-			case "Position":
-				showChoiceDialog("Position", new String[]{"static", "relative", "absolute", "fixed", "sticky"}, value -> {
+			case "AlignContent":
+				showChoiceDialog("Align Content", new String[]{"flex-start", "center", "flex-end", "stretch", "space-between", "space-around"}, value -> {
 					Map<String, Object> style = new HashMap<>();
-					style.put("position", value);
+					style.put("alignContent", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "Gap":
+				showStyleDialogWithUnits("Set Gap", "8", "gap", selected);
+				break;
+			case "RowGap":
+				showStyleDialogWithUnits("Set Row Gap", "8", "rowGap", selected);
+				break;
+			case "ColGap":
+				showStyleDialogWithUnits("Set Column Gap", "8", "columnGap", selected);
+				break;
+			case "GridCols":
+				showStyleDialog("Grid Template Columns", "repeat(3, 1fr)", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("gridTemplateColumns", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "GridRows":
+				showStyleDialog("Grid Template Rows", "auto", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("gridTemplateRows", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "GridGap":
+				showStyleDialogWithUnits("Grid Gap", "16", "gridGap", selected);
+				break;
+			case "Float":
+				showChoiceDialog("Float", new String[]{"none", "left", "right"}, value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("float", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "Clear":
+				showChoiceDialog("Clear", new String[]{"none", "left", "right", "both"}, value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("clear", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "Top":
+				showStyleDialogWithUnits("Top", "0", "top", selected);
+				break;
+			case "Right":
+				showStyleDialogWithUnits("Right", "0", "right", selected);
+				break;
+			case "Bottom":
+				showStyleDialogWithUnits("Bottom", "0", "bottom", selected);
+				break;
+			case "Left":
+				showStyleDialogWithUnits("Left", "0", "left", selected);
+				break;
+			case "MinWidth":
+				showStyleDialogWithUnits("Min Width", "0", "minWidth", selected);
+				break;
+			case "MaxWidth":
+				showStyleDialogWithUnits("Max Width", "100", "maxWidth", selected);
+				break;
+			case "MinHeight":
+				showStyleDialogWithUnits("Min Height", "0", "minHeight", selected);
+				break;
+			case "MaxHeight":
+				showStyleDialogWithUnits("Max Height", "100", "maxHeight", selected);
+				break;
+			case "ObjectFit":
+				showChoiceDialog("Object Fit", new String[]{"fill", "contain", "cover", "none", "scale-down"}, value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("objectFit", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+				});
+				break;
+			case "AspectRatio":
+				showStyleDialog("Aspect Ratio", "16/9", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("aspectRatio", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 				});
@@ -1698,7 +1926,6 @@ public class MainActivity extends AppCompatActivity {
 					saveUndoState();
 				});
 				break;
-			// Per-side borders
 			case "BorderTop":
 				showStyleDialog("Border Top", "2px solid #000", value -> {
 					Map<String, Object> style = new HashMap<>();
@@ -1731,7 +1958,6 @@ public class MainActivity extends AppCompatActivity {
 					saveUndoState();
 				});
 				break;
-			// Per-corner radius
 			case "RadiusTL":
 				showStyleDialogWithUnits("Top-Left Radius", "8", "borderTopLeftRadius", selected);
 				break;
@@ -1744,7 +1970,6 @@ public class MainActivity extends AppCompatActivity {
 			case "RadiusBR":
 				showStyleDialogWithUnits("Bottom-Right Radius", "8", "borderBottomRightRadius", selected);
 				break;
-			// Gradient
 			case "Gradient":
 				showStyleDialog("Set Gradient", "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", value -> {
 					Map<String, Object> style = new HashMap<>();
@@ -1753,25 +1978,31 @@ public class MainActivity extends AppCompatActivity {
 					saveUndoState();
 				});
 				break;
-			// CSS Variable
 			case "CssVar":
 				showCssVariableDialog(selected);
 				break;
+			case "CustomStyle":
+				showStyleDialog("Custom CSS Property", "property:value", value -> {
+					String[] parts = value.split(":", 2);
+					if (parts.length == 2) {
+						Map<String, Object> style = new HashMap<>();
+						style.put(parts[0].trim(), parts[1].trim());
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+					}
+				});
+				break;
 			// Event items
-			case "OnClick":
-			case "OnHover":
-			case "OnInput":
-			case "OnLoad":
-				logicBlockManager.showAddBlockDialog(fTargetTag, block -> {
+			case "OnClick": case "OnHover": case "OnInput": case "OnLoad":
+			case "OnSubmit": case "OnScroll": case "OnKeyDown": case "OnChange":
+				logicBlockManager.showAddBlockDialog(targetTag, block -> {
 					Toast.makeText(this, block.event + " event added", Toast.LENGTH_SHORT).show();
 					refreshLogicBlocksUI();
 				});
 				break;
-			case "Animate":
-			case "Navigate":
-			case "ShowHide":
-			case "SetText":
-				logicBlockManager.showAddBlockDialog(fTargetTag, block -> {
+			case "Animate": case "Navigate": case "ShowHide": case "SetText":
+			case "CustomJS":
+				logicBlockManager.showAddBlockDialog(targetTag, block -> {
 					Toast.makeText(this, "Action added", Toast.LENGTH_SHORT).show();
 					refreshLogicBlocksUI();
 				});
@@ -1779,7 +2010,7 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	// ---- Style Dialog with Unit Chips (px / rem / %) ----
+	// ---- Style Dialog with Unit Chips ----
 
 	private void showStyleDialogWithUnits(String title, String defaultValue, String cssProperty, View targetView) {
 		LinearLayout layout = new LinearLayout(this);
@@ -1795,13 +2026,11 @@ public class MainActivity extends AppCompatActivity {
 		inputLayout.addView(inputField);
 		layout.addView(inputLayout);
 
-		// Unit chips
 		LinearLayout chipRow = new LinearLayout(this);
 		chipRow.setOrientation(LinearLayout.HORIZONTAL);
 		chipRow.setPadding(0, 8, 0, 8);
 
 		final String[] selectedUnit = {"px"};
-
 		String[] units = {"px", "rem", "%", "em", "vh", "vw", "auto"};
 		for (String unit : units) {
 			Chip chip = new Chip(this);
@@ -1811,7 +2040,6 @@ public class MainActivity extends AppCompatActivity {
 			chip.setChecked("px".equals(unit));
 			chip.setOnClickListener(v -> {
 				selectedUnit[0] = unit;
-				// Uncheck all others
 				for (int i = 0; i < chipRow.getChildCount(); i++) {
 					View child = chipRow.getChildAt(i);
 					if (child instanceof Chip) {
@@ -1854,7 +2082,6 @@ public class MainActivity extends AppCompatActivity {
 		inputLayout.addView(inputField);
 		layout.addView(inputLayout);
 
-		// Preset color grid
 		LinearLayout colorRow1 = new LinearLayout(this);
 		colorRow1.setOrientation(LinearLayout.HORIZONTAL);
 		colorRow1.setPadding(0, 12, 0, 4);
@@ -1865,18 +2092,13 @@ public class MainActivity extends AppCompatActivity {
 		String[] presetColors1 = {"#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#2196F3"};
 		String[] presetColors2 = {"#4CAF50", "#FF9800", "#795548", "#607D8B", "#000000", "#FFFFFF"};
 
-		for (String color : presetColors1) {
-			addColorSwatch(colorRow1, color, inputField);
-		}
-		for (String color : presetColors2) {
-			addColorSwatch(colorRow2, color, inputField);
-		}
+		for (String color : presetColors1) addColorSwatch(colorRow1, color, inputField);
+		for (String color : presetColors2) addColorSwatch(colorRow2, color, inputField);
 		layout.addView(colorRow1);
 		layout.addView(colorRow2);
 
-		// CSS variable support
 		TextView cssVarHint = new TextView(this);
-		cssVarHint.setText("CSS Variables: var(--primary), var(--accent)");
+		cssVarHint.setText("CSS Variables: var(--primary-color), var(--accent-color)");
 		cssVarHint.setTextSize(11);
 		cssVarHint.setPadding(0, 0, 0, 12);
 		layout.addView(cssVarHint);
@@ -1913,18 +2135,32 @@ public class MainActivity extends AppCompatActivity {
 	// ---- CSS Variable Dialog ----
 
 	private void showCssVariableDialog(View targetView) {
-		String[] cssVars = {
-			"var(--primary-color)", "var(--secondary-color)", "var(--accent-color)",
-			"var(--body-background)", "var(--body-color)", "var(--link-color)",
-			"var(--border-color)", "var(--card-background)", "var(--font-family)"
-		};
+		// Get all CSS vars from theme + custom
+		List<String> vars = new ArrayList<>();
+		vars.add("var(--primary-color)");
+		vars.add("var(--secondary-color)");
+		vars.add("var(--accent-color)");
+		vars.add("var(--body-background)");
+		vars.add("var(--body-color)");
+		vars.add("var(--link-color)");
+		vars.add("var(--border-color)");
+		vars.add("var(--card-background)");
+		vars.add("var(--font-family)");
+
+		// Add custom vars
+		Map<String, String> customVars = themeManager.getCustomCssVars();
+		for (String key : customVars.keySet()) {
+			String varName = key.startsWith("--") ? "var(" + key + ")" : "var(--" + key + ")";
+			vars.add(varName);
+		}
+
+		String[] cssVars = vars.toArray(new String[0]);
 
 		new MaterialAlertDialogBuilder(this)
 			.setTitle("Apply CSS Variable")
 			.setItems(cssVars, (dialog, which) -> {
 				String varName = cssVars[which];
-				// Ask which property to apply it to
-				String[] properties = {"color", "backgroundColor", "borderColor", "fontFamily"};
+				String[] properties = {"color", "backgroundColor", "borderColor", "fontFamily", "background"};
 				new MaterialAlertDialogBuilder(this)
 					.setTitle("Apply to Property")
 					.setItems(properties, (d2, w2) -> {
@@ -1936,19 +2172,6 @@ public class MainActivity extends AppCompatActivity {
 					.show();
 			})
 			.setNegativeButton("Cancel", null)
-			.show();
-	}
-
-	private void showGravityDialog(View selected) {
-		String[] options = {"Left", "Center", "Right", "Top", "Bottom"};
-		new MaterialAlertDialogBuilder(this)
-			.setTitle("Set Gravity")
-			.setItems(options, (dialog, which) -> {
-				Map<String, Object> style = new HashMap<>();
-				style.put("textAlign", options[which].toLowerCase());
-				widgetUpdater.updateWidget(selected, "", style);
-				saveUndoState();
-			})
 			.show();
 	}
 
@@ -2023,10 +2246,8 @@ public class MainActivity extends AppCompatActivity {
 
 			String editType = design.get(position).get("edit").toString();
 			textview1.setText(editType);
-
 			int iconRes = getDesignIcon(editType);
 			imageview1.setImageResource(iconRes);
-
 			cardview1.setOnClickListener(v -> handleDesignItemClick(position));
 		}
 
@@ -2043,53 +2264,46 @@ public class MainActivity extends AppCompatActivity {
 	private int getDesignIcon(String editType) {
 		switch (editType) {
 			case "Edittext": return R.drawable.cursor_text;
+			case "SetId": case "SetClass": return R.drawable.icon_design_services_round;
+			case "SetHref": case "SetTarget": return R.drawable.icon_web_round;
+			case "SetPlaceholder": case "SetType": return R.drawable.cursor_text;
 			case "ImageSrc": return R.drawable.default_image;
 			case "TextSize": return R.drawable.textsize;
 			case "TextAlign": return R.drawable.focus_centered;
 			case "Color": return R.drawable.textcolor;
 			case "Font": return R.drawable.alphabet_latin;
 			case "Background": return R.drawable.background;
-			case "BorderRadius": return R.drawable.border_radius;
-			case "BorderWidth": return R.drawable.border_style;
+			case "BorderRadius": case "RadiusTL": case "RadiusTR": case "RadiusBL": case "RadiusBR":
+				return R.drawable.border_radius;
+			case "BorderWidth": case "BorderTop": case "BorderRight": case "BorderBottom": case "BorderLeft":
+				return R.drawable.border_style;
 			case "BorderColor": return R.drawable.freezerowcolumn;
 			case "Padding": return R.drawable.box_padding;
 			case "Margin": return R.drawable.box_margin;
-			case "Elevation": return R.drawable.emphasis;
-			case "Gravity": return R.drawable.focus_centered;
+			case "Elevation": case "BoxShadow": case "ZIndex": return R.drawable.emphasis;
 			case "Opacity": return R.drawable.droplet;
 			case "Rotation": return R.drawable.rotate;
-			case "Width":
-			case "Height": return R.drawable.border_sides;
-			case "FlexDir":
-			case "JustifyContent":
-			case "AlignItems":
-			case "Gap": return R.drawable.freezerowcolumn;
-			case "Display":
-			case "Position": return R.drawable.box_padding;
+			case "Cursor": return R.drawable.cursor_text;
+			case "Width": case "Height": case "MinWidth": case "MaxWidth": case "MinHeight": case "MaxHeight":
+				return R.drawable.border_sides;
+			case "Display": case "Position": case "Float": case "Clear":
+			case "Top": case "Right": case "Bottom": case "Left":
+				return R.drawable.box_padding;
+			case "FlexDir": case "FlexWrap": case "JustifyContent": case "AlignItems":
+			case "AlignSelf": case "AlignContent": case "Gap": case "RowGap": case "ColGap":
+			case "GridCols": case "GridRows": case "GridGap":
+				return R.drawable.freezerowcolumn;
+			case "ObjectFit": case "AspectRatio": return R.drawable.resize;
 			case "Overflow": return R.drawable.resize;
-			case "BoxShadow": return R.drawable.emphasis;
 			case "TextDecor": return R.drawable.cursor_text;
-			case "LineHeight":
-			case "LetterSpace": return R.drawable.textsize;
-			case "ZIndex": return R.drawable.emphasis;
-			case "BorderTop":
-			case "BorderRight":
-			case "BorderBottom":
-			case "BorderLeft": return R.drawable.border_style;
-			case "RadiusTL":
-			case "RadiusTR":
-			case "RadiusBL":
-			case "RadiusBR": return R.drawable.border_radius;
+			case "LineHeight": case "LetterSpace": return R.drawable.textsize;
 			case "Gradient": return R.drawable.background;
-			case "CssVar": return R.drawable.icon_design_services_round;
-			case "OnClick":
-			case "OnHover":
-			case "OnInput":
-			case "OnLoad": return R.drawable.icon_build_round;
-			case "Animate":
-			case "Navigate":
-			case "ShowHide":
-			case "SetText": return R.drawable.icon_design_services_round;
+			case "CssVar": case "CustomStyle": return R.drawable.icon_design_services_round;
+			case "OnClick": case "OnHover": case "OnInput": case "OnLoad":
+			case "OnSubmit": case "OnScroll": case "OnKeyDown": case "OnChange":
+				return R.drawable.icon_build_round;
+			case "Animate": case "Navigate": case "ShowHide": case "SetText": case "CustomJS":
+				return R.drawable.icon_design_services_round;
 			default: return R.drawable.cursor_text;
 		}
 	}
@@ -2110,7 +2324,6 @@ public class MainActivity extends AppCompatActivity {
 		@Override
 		public void onBindViewHolder(ViewHolder holder, final int position) {
 			View view = holder.itemView;
-			LinearLayout linear1 = view.findViewById(R.id.linear1);
 			TextView textview1 = view.findViewById(R.id.textview1);
 			TextView tvWidgetTag = view.findViewById(R.id.tvWidgetTag);
 			View colorIndicator = view.findViewById(R.id.colorIndicator);
