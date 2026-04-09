@@ -7,7 +7,16 @@ import java.util.Map;
 
 public class PageCodeGenerator {
 
+    // Project info for default header
+    private String projectName = "";
+    private String projectLogoPath = "";
+
     public PageCodeGenerator() {}
+
+    public void setProjectInfo(String name, String logoPath) {
+        this.projectName = name != null ? name : "";
+        this.projectLogoPath = logoPath != null ? logoPath : "";
+    }
 
     public String generateAllCode(View screen) {
         return generateFullCode(screen, null, null);
@@ -16,6 +25,9 @@ public class PageCodeGenerator {
     public String generateFullCode(View screen, ThemeManager themeManager, LogicBlockManager logicBlockManager) {
         StringBuilder htmlBuilder = new StringBuilder();
         appendHtmlHeader(htmlBuilder, themeManager);
+
+        // Add default page header with project name and logo
+        appendDefaultPageHeader(htmlBuilder);
 
         if (screen instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) screen;
@@ -36,6 +48,9 @@ public class PageCodeGenerator {
         StringBuilder htmlBuilder = new StringBuilder();
         appendHtmlHeader(htmlBuilder, themeManager);
 
+        // Add default page header with project name and logo
+        appendDefaultPageHeader(htmlBuilder);
+
         if (widgetTree != null) {
             for (Map<String, Object> nodeMap : widgetTree) {
                 htmlBuilder.append(generateHtmlForNode(nodeMap, 1));
@@ -46,11 +61,30 @@ public class PageCodeGenerator {
         return htmlBuilder.toString();
     }
 
+    private void appendDefaultPageHeader(StringBuilder htmlBuilder) {
+        if (projectName.isEmpty()) return;
+
+        htmlBuilder.append("  <header class=\"dragweb-default-header\" style=\"display: flex; align-items: center; padding: 12px 24px; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; font-family: inherit;\">\n");
+
+        // Logo if available
+        if (!projectLogoPath.isEmpty()) {
+            htmlBuilder.append("    <img src=\"").append(escapeAttr(projectLogoPath))
+                .append("\" alt=\"Logo\" style=\"height: 40px; width: auto; margin-right: 12px;\" />\n");
+        }
+
+        // Project name / site name
+        htmlBuilder.append("    <span style=\"font-size: 20px; font-weight: 700; color: #333333;\">")
+            .append(escapeHtml(projectName)).append("</span>\n");
+
+        htmlBuilder.append("  </header>\n");
+    }
+
     private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager) {
+        String pageTitle = projectName.isEmpty() ? "DragWeb Page" : escapeHtml(projectName);
         htmlBuilder.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
         htmlBuilder.append("  <meta charset=\"UTF-8\">\n");
         htmlBuilder.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-        htmlBuilder.append("  <title>DragWeb Page</title>\n");
+        htmlBuilder.append("  <title>").append(pageTitle).append("</title>\n");
         htmlBuilder.append("  <style>\n");
 
         // Theme CSS variables

@@ -64,9 +64,12 @@ public class WidgetBuilderEngine {
             case "article":
             case "aside":
             case "form":
-                view = new LinearLayout(context);
-                ((LinearLayout) view).setOrientation(LinearLayout.VERTICAL);
-                view.setMinimumHeight(40);
+                LinearLayout layoutView = new LinearLayout(context);
+                layoutView.setOrientation(LinearLayout.VERTICAL);
+                layoutView.setMinimumHeight(60);
+                // Ensure layout containers have padding so nested drops work easily
+                layoutView.setPadding(8, 8, 8, 8);
+                view = layoutView;
                 break;
             case "ul":
             case "ol":
@@ -109,9 +112,11 @@ public class WidgetBuilderEngine {
                 view = iframeView;
                 break;
             case "table":
-                view = new LinearLayout(context);
-                ((LinearLayout) view).setOrientation(LinearLayout.VERTICAL);
-                view.setMinimumHeight(40);
+                LinearLayout tableView = new LinearLayout(context);
+                tableView.setOrientation(LinearLayout.VERTICAL);
+                tableView.setMinimumHeight(60);
+                tableView.setPadding(8, 8, 8, 8);
+                view = tableView;
                 break;
             default:
                 view = new TextView(context);

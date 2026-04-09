@@ -68,7 +68,7 @@ public class WidgetSelector {
         }
     }
 
-    private void selectView(View view) {
+    public void selectView(View view) {
         clearSelection();
 
         selectedView = view;
@@ -78,14 +78,23 @@ public class WidgetSelector {
 
         if (listener != null) {
             String widgetName = "Unknown";
+            String widgetId = "";
             Object tagObj = view.getTag();
             if (tagObj instanceof Map) {
                 Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
                 if (widgetMap.containsKey("tag")) {
                     widgetName = widgetMap.get("tag").toString();
                 }
+                Map<String, Object> fn = (Map<String, Object>) widgetMap.get("function");
+                if (fn != null && fn.containsKey("id")) {
+                    widgetId = fn.get("id").toString();
+                }
             }
-            listener.onWidgetSelected(widgetName + " Widget");
+            String display = widgetName + " Widget";
+            if (!widgetId.isEmpty()) {
+                display = widgetName + " #" + widgetId;
+            }
+            listener.onWidgetSelected(display);
         }
     }
 }
