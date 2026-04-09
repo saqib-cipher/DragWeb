@@ -20,6 +20,9 @@ import java.util.Map;
 import java.util.Set;
 
 public class DropZoneManager {
+    public interface OnTreeChangedListener {
+        void onTreeChanged();
+    }
 
     private static final Set<String> LAYOUT_TAGS = new HashSet<>(Arrays.asList(
         "div", "section", "header", "footer", "nav", "main", "article", "aside", "form", "ul", "ol", "table",
@@ -31,6 +34,7 @@ public class DropZoneManager {
     private ArrayList<HashMap<String, Object>> widgets;
     private WidgetBuilderEngine engine;
     private WidgetSelector selector;
+    private OnTreeChangedListener treeChangedListener;
 
     public DropZoneManager(Context context, View screen, ArrayList<HashMap<String, Object>> widgets, WidgetBuilderEngine engine, WidgetSelector selector) {
         this.context = context;
@@ -38,6 +42,10 @@ public class DropZoneManager {
         this.widgets = widgets;
         this.engine = engine;
         this.selector = selector;
+    }
+
+    public void setOnTreeChangedListener(OnTreeChangedListener listener) {
+        this.treeChangedListener = listener;
     }
 
     private boolean isLayoutWidget(View view) {
@@ -111,6 +119,9 @@ public class DropZoneManager {
                                         oldParent.removeView(draggedView);
                                         int targetIdx = findDropIndex(container, event.getY());
                                         container.addView(draggedView, Math.min(targetIdx, container.getChildCount()));
+                                        if (treeChangedListener != null) {
+                                            treeChangedListener.onTreeChanged();
+                                        }
                                         return true;
                                     }
                                     return false;
@@ -163,6 +174,9 @@ public class DropZoneManager {
 
                                     // Make new view drop target if it is a container
                                     registerWidgetAsDropZoneIfContainer(newWidgetView);
+                                    if (treeChangedListener != null) {
+                                        treeChangedListener.onTreeChanged();
+                                    }
                                 }
                                 return true; // Handled drop
                             } catch (NumberFormatException e) {

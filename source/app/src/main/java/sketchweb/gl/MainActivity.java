@@ -537,6 +537,11 @@ public class MainActivity extends AppCompatActivity {
 
 		// Drop zone
 		dropZoneManager = new DropZoneManager(this, screen, widgets, engine, selector);
+		dropZoneManager.setOnTreeChangedListener(() -> {
+			saveUndoState();
+			updateWidgetSpinnerFromTree();
+			refreshHierarchy();
+		});
 		setupCanvasDragListener();
 
 		// File explorer for assets
@@ -954,6 +959,8 @@ public class MainActivity extends AppCompatActivity {
 			pageManager.addPage(pageName);
 			pageManager.setCurrentPage(pageName);
 			screen.removeAllViews();
+			ensureDefaultHeaderOnCanvas();
+			saveCurrentPageLayout();
 			saveUndoState();
 			refreshHierarchy();
 			updatePageSpinner();
@@ -981,6 +988,8 @@ public class MainActivity extends AppCompatActivity {
 		} catch (Exception e) {
 			Log.w("MainActivity", "Could not load page layout: " + e.getMessage());
 		}
+		ensureDefaultHeaderOnCanvas();
+		saveCurrentPageLayout();
 		selector.clearSelection();
 		selector.attachTo(screen);
 		textview2.setText("No widget selected");
@@ -1440,6 +1449,13 @@ public class MainActivity extends AppCompatActivity {
 
 	/** Get the project logo path from assets storage. */
 	private String getProjectLogoPath() {
+		String configuredPath = getLogoPathFromProjectConfig();
+		if (!configuredPath.isEmpty()) {
+			String abs = configuredPathToAbsolute(configuredPath);
+			if (!abs.isEmpty()) {
+				return abs;
+			}
+		}
 		try {
 			String assetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
 				+ "/.dragweb/projects/" + projectId + "/assets";
@@ -1458,6 +1474,128 @@ public class MainActivity extends AppCompatActivity {
 			Log.w("MainActivity", "Could not find project logo: " + e.getMessage());
 		}
 		return "";
+	}
+
+	private String getProjectLogoPathForExport() {
+		String configuredPath = getLogoPathFromProjectConfig();
+		if (!configuredPath.isEmpty()) {
+			return configuredPath;
+		}
+		String abs = getProjectLogoPath();
+		if (abs.contains("/assets/")) {
+			return "assets/" + abs.substring(abs.lastIndexOf('/') + 1);
+		}
+		return "";
+	}
+
+	private String getLogoPathFromProjectConfig() {
+		try {
+			File metaFile = new File(getFilesDir(), "projects/" + projectId + ".meta");
+			if (metaFile.exists()) {
+				Map<String, String> meta = new Gson().fromJson(
+					FileUtil.readFile(metaFile.getAbsolutePath()),
+					new TypeToken<Map<String, String>>(){}.getType()
+				);
+				if (meta != null && meta.containsKey("logoPath")) {
+					String rel = meta.get("logoPath");
+					if (rel != null && !rel.trim().isEmpty()) return rel.trim();
+				}
+			}
+		} catch (Exception e) {
+			Log.w("MainActivity", "Could not load logo path from config: " + e.getMessage());
+		}
+		return "";
+	}
+
+	private String configuredPathToAbsolute(String configured) {
+		if (configured == null || configured.isEmpty()) return "";
+		if (configured.startsWith("/")) return configured;
+		if (configured.startsWith("assets/")) {
+			return Environment.getExternalStorageDirectory().getAbsolutePath()
+				+ "/.dragweb/projects/" + projectId + "/" + configured;
+		}
+		return "";
+	}
+
+	private boolean hasDefaultHeaderWidget() {
+		for (int i = 0; i < screen.getChildCount(); i++) {
+			View child = screen.getChildAt(i);
+			Object tagObj = child.getTag();
+			if (!(tagObj instanceof Map)) continue;
+			Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
+			if (!"header".equals(String.valueOf(widgetMap.get("tag")))) continue;
+			Map<String, Object> fn = (Map<String, Object>) widgetMap.get("function");
+			if (fn == null) continue;
+			String id = fn.containsKey("id") ? String.valueOf(fn.get("id")) : "";
+			String cssClass = fn.containsKey("class") ? String.valueOf(fn.get("class")) : "";
+			if ("dragweb-default-header".equals(id) || cssClass.contains("dragweb-default-header")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void ensureDefaultHeaderOnCanvas() {
+		if (hasDefaultHeaderWidget()) return;
+		Map<String, Object> headerNode = buildDefaultHeaderNode();
+		rebuildViewAt(headerNode, screen, 0);
+	}
+
+	private Map<String, Object> buildDefaultHeaderNode() {
+		Map<String, Object> headerNode = new HashMap<>();
+		headerNode.put("tag", "header");
+
+		Map<String, Object> headerFunction = new HashMap<>();
+		headerFunction.put("id", "dragweb-default-header");
+		headerFunction.put("class", "dragweb-default-header");
+		Map<String, Object> headerStyle = new HashMap<>();
+		headerStyle.put("width", "100%");
+		headerStyle.put("padding", "12");
+		headerStyle.put("margin", "0");
+		headerStyle.put("backgroundColor", "#ffffff");
+		headerStyle.put("borderColor", "#e5e7eb");
+		headerStyle.put("borderWidth", "1");
+		headerStyle.put("borderRadius", "0");
+		headerStyle.put("flexDirection", "row");
+		headerStyle.put("alignItems", "center");
+		headerFunction.put("style", headerStyle);
+		headerNode.put("function", headerFunction);
+
+		List<Map<String, Object>> children = new ArrayList<>();
+
+		String logoAbsPath = getProjectLogoPath();
+		if (!logoAbsPath.isEmpty()) {
+			Map<String, Object> logoNode = new HashMap<>();
+			logoNode.put("tag", "img");
+			Map<String, Object> logoFn = new HashMap<>();
+			logoFn.put("src", logoAbsPath);
+			logoFn.put("alt", "Logo");
+			logoFn.put("class", "dragweb-default-logo");
+			Map<String, Object> logoStyle = new HashMap<>();
+			logoStyle.put("width", "40");
+			logoStyle.put("height", "40");
+			logoStyle.put("margin", "0");
+			logoFn.put("style", logoStyle);
+			logoNode.put("function", logoFn);
+			children.add(logoNode);
+		}
+
+		Map<String, Object> titleNode = new HashMap<>();
+		titleNode.put("tag", "span");
+		Map<String, Object> titleFn = new HashMap<>();
+		titleFn.put("text", projectName != null && !projectName.isEmpty() ? projectName : "DragWeb Project");
+		titleFn.put("class", "dragweb-default-title");
+		Map<String, Object> titleStyle = new HashMap<>();
+		titleStyle.put("fontSize", "20");
+		titleStyle.put("fontWeight", "bold");
+		titleStyle.put("color", "#1f2937");
+		titleStyle.put("margin", "0");
+		titleFn.put("style", titleStyle);
+		titleNode.put("function", titleFn);
+		children.add(titleNode);
+
+		headerNode.put("children", children);
+		return headerNode;
 	}
 
 	private View findViewByHash(ViewGroup parent, int hash) {
@@ -1488,7 +1626,7 @@ public class MainActivity extends AppCompatActivity {
 		}
 
 		PageCodeGenerator codeGen = new PageCodeGenerator();
-		codeGen.setProjectInfo(projectName, getProjectLogoPath());
+		codeGen.setProjectInfo(projectName, getProjectLogoPathForExport());
 		ArrayList<String> pageNames = new ArrayList<>();
 		ArrayList<String> pageCodes = new ArrayList<>();
 
@@ -2007,6 +2145,7 @@ public class MainActivity extends AppCompatActivity {
 					new BlockDragDropManager.BlockDef("focusInput", "Focus Input", "Focus an input field", "html"),
 					new BlockDragDropManager.BlockDef("blurInput", "Blur Input", "Remove focus", "html"),
 					new BlockDragDropManager.BlockDef("navigate", "Navigate", "Go to URL", "html"),
+					new BlockDragDropManager.BlockDef("setHref", "Set Href", "Set href attribute", "html"),
 					new BlockDragDropManager.BlockDef("goToPage", "Go To Page", "Navigate to page", "html"),
 					new BlockDragDropManager.BlockDef("alert", "Show Alert", "Browser alert", "html"),
 					new BlockDragDropManager.BlockDef("scrollTo", "Scroll To", "Scroll to position", "html"),
@@ -2040,6 +2179,7 @@ public class MainActivity extends AppCompatActivity {
 					new BlockDragDropManager.BlockDef("showElement", "Show Element", "Display element", "html"),
 					new BlockDragDropManager.BlockDef("hideElement", "Hide Element", "Hide element", "html"),
 					new BlockDragDropManager.BlockDef("navigate", "Navigate", "Go to URL", "html"),
+					new BlockDragDropManager.BlockDef("setHref", "Set Href", "Set href attribute", "html"),
 					new BlockDragDropManager.BlockDef("goToPage", "Go To Page", "Navigate to page", "html"),
 					new BlockDragDropManager.BlockDef("alert", "Show Alert", "Browser alert", "html"),
 					new BlockDragDropManager.BlockDef("scrollTo", "Scroll To", "Scroll to position", "html"),
@@ -2157,6 +2297,8 @@ public class MainActivity extends AppCompatActivity {
 		if (!loadedFromPage) {
 			projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager);
 		}
+
+		ensureDefaultHeaderOnCanvas();
 
 		// Register all loaded widgets for reorder drag
 		registerAllWidgetsForDrag(screen);

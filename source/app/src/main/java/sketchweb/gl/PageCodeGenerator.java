@@ -2,14 +2,20 @@ package sketchweb.gl;
 
 import android.view.View;
 import android.view.ViewGroup;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class PageCodeGenerator {
 
     // Project info for default header
     private String projectName = "";
     private String projectLogoPath = "";
+    private final Map<String, String> styleClassMap = new HashMap<>();
+    private final List<String> styleRules = new ArrayList<>();
+    private int styleClassCounter = 1;
 
     public PageCodeGenerator() {}
 
@@ -23,19 +29,19 @@ public class PageCodeGenerator {
     }
 
     public String generateFullCode(View screen, ThemeManager themeManager, LogicBlockManager logicBlockManager) {
-        StringBuilder htmlBuilder = new StringBuilder();
-        appendHtmlHeader(htmlBuilder, themeManager);
-
-        // Add default page header with project name and logo
-        appendDefaultPageHeader(htmlBuilder);
+        resetStyleCache();
+        StringBuilder bodyBuilder = new StringBuilder();
 
         if (screen instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) screen;
             for (int i = 0; i < vg.getChildCount(); i++) {
-                htmlBuilder.append(generateHtmlForView(vg.getChildAt(i), 1));
+                bodyBuilder.append(generateHtmlForView(vg.getChildAt(i), 1));
             }
         }
 
+        StringBuilder htmlBuilder = new StringBuilder();
+        appendHtmlHeader(htmlBuilder, themeManager);
+        htmlBuilder.append(bodyBuilder);
         appendHtmlFooter(htmlBuilder, logicBlockManager);
         return htmlBuilder.toString();
     }
@@ -45,38 +51,20 @@ public class PageCodeGenerator {
      * This allows generating code for pages that aren't currently loaded on screen.
      */
     public String generateFullCodeFromTree(List<Map<String, Object>> widgetTree, ThemeManager themeManager, LogicBlockManager logicBlockManager) {
-        StringBuilder htmlBuilder = new StringBuilder();
-        appendHtmlHeader(htmlBuilder, themeManager);
-
-        // Add default page header with project name and logo
-        appendDefaultPageHeader(htmlBuilder);
+        resetStyleCache();
+        StringBuilder bodyBuilder = new StringBuilder();
 
         if (widgetTree != null) {
             for (Map<String, Object> nodeMap : widgetTree) {
-                htmlBuilder.append(generateHtmlForNode(nodeMap, 1));
+                bodyBuilder.append(generateHtmlForNode(nodeMap, 1));
             }
         }
 
+        StringBuilder htmlBuilder = new StringBuilder();
+        appendHtmlHeader(htmlBuilder, themeManager);
+        htmlBuilder.append(bodyBuilder);
         appendHtmlFooter(htmlBuilder, logicBlockManager);
         return htmlBuilder.toString();
-    }
-
-    private void appendDefaultPageHeader(StringBuilder htmlBuilder) {
-        if (projectName.isEmpty()) return;
-
-        htmlBuilder.append("  <header class=\"dragweb-default-header\" style=\"display: flex; align-items: center; padding: 12px 24px; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; font-family: inherit;\">\n");
-
-        // Logo if available
-        if (!projectLogoPath.isEmpty()) {
-            htmlBuilder.append("    <img src=\"").append(escapeAttr(projectLogoPath))
-                .append("\" alt=\"Logo\" style=\"height: 40px; width: auto; margin-right: 12px;\" />\n");
-        }
-
-        // Project name / site name
-        htmlBuilder.append("    <span style=\"font-size: 20px; font-weight: 700; color: #333333;\">")
-            .append(escapeHtml(projectName)).append("</span>\n");
-
-        htmlBuilder.append("  </header>\n");
     }
 
     private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager) {
@@ -104,26 +92,21 @@ public class PageCodeGenerator {
         htmlBuilder.append("    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }\n");
         htmlBuilder.append("    @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }\n");
         htmlBuilder.append("    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }\n");
+        for (String styleRule : styleRules) {
+            htmlBuilder.append(styleRule);
+        }
 
         htmlBuilder.append("  </style>\n");
         htmlBuilder.append("</head>\n<body>\n");
     }
 
     private void appendHtmlFooter(StringBuilder htmlBuilder, LogicBlockManager logicBlockManager) {
-        htmlBuilder.append("\n  <script>\n");
-        htmlBuilder.append("    document.addEventListener('DOMContentLoaded', function() {\n");
-        htmlBuilder.append("      console.log('Page loaded successfully!');\n");
-        htmlBuilder.append("    });\n");
-
-        // Logic blocks JS
-        if (logicBlockManager != null) {
-            String logicJs = logicBlockManager.generateJavaScript();
-            if (logicJs != null && !logicJs.isEmpty()) {
-                htmlBuilder.append("\n").append(logicJs);
-            }
+        String logicJs = logicBlockManager != null ? logicBlockManager.generateJavaScript() : "";
+        if (logicJs != null && !logicJs.trim().isEmpty()) {
+            htmlBuilder.append("\n  <script>\n");
+            htmlBuilder.append(logicJs);
+            htmlBuilder.append("  </script>\n");
         }
-
-        htmlBuilder.append("  </script>\n");
         htmlBuilder.append("</body>\n</html>");
     }
 
@@ -152,29 +135,28 @@ public class PageCodeGenerator {
         }
 
         // Class attribute
+        Map<String, Object> style = function.containsKey("style") ? (Map<String, Object>) function.get("style") : null;
+        String styleClass = classForStyle(style);
+        StringBuilder classes = new StringBuilder();
         if (function.containsKey("class") && function.get("class") != null) {
             String classVal = function.get("class").toString().trim();
             if (!classVal.isEmpty()) {
-                html.append(" class=\"").append(escapeAttr(classVal)).append("\"");
+                classes.append(classVal);
             }
+        }
+        if (!styleClass.isEmpty()) {
+            if (classes.length() > 0) classes.append(" ");
+            classes.append(styleClass);
+        }
+        if (classes.length() > 0) {
+            html.append(" class=\"").append(escapeAttr(classes.toString())).append("\"");
         }
 
         html.append(" data-widget=\"").append(tag).append("\"");
 
-        // Inline Styles
-        Map<String, Object> style = function.containsKey("style") ? (Map<String, Object>) function.get("style") : null;
-        if (style != null && !style.isEmpty()) {
-            html.append(" style=\"");
-            for (Map.Entry<String, Object> entry : style.entrySet()) {
-                String cssKey = camelToKebab(entry.getKey());
-                html.append(cssKey).append(": ").append(entry.getValue()).append("; ");
-            }
-            html.append("\"");
-        }
-
         // Tag-specific attributes
         if ("img".equals(tag) && function.containsKey("src")) {
-            html.append(" src=\"").append(escapeAttr(function.get("src").toString())).append("\"");
+            html.append(" src=\"").append(escapeAttr(resolveAssetPath(function.get("src").toString()))).append("\"");
             html.append(" alt=\"Image\"");
         }
         if (("input".equals(tag) || "textarea".equals(tag)) && function.containsKey("type")) {
@@ -256,30 +238,29 @@ public class PageCodeGenerator {
         }
 
         // Class attribute for logic targeting
+        Map<String, Object> style = (Map<String, Object>) function.get("style");
+        String styleClass = classForStyle(style);
+        StringBuilder classes = new StringBuilder();
         if (function.containsKey("class") && function.get("class") != null) {
             String classVal = function.get("class").toString().trim();
             if (!classVal.isEmpty()) {
-                html.append(" class=\"").append(escapeAttr(classVal)).append("\"");
+                classes.append(classVal);
             }
+        }
+        if (!styleClass.isEmpty()) {
+            if (classes.length() > 0) classes.append(" ");
+            classes.append(styleClass);
+        }
+        if (classes.length() > 0) {
+            html.append(" class=\"").append(escapeAttr(classes.toString())).append("\"");
         }
 
         // Data attribute for logic targeting (fallback selector)
         html.append(" data-widget=\"").append(tag).append("\"");
 
-        // Inline Styles
-        Map<String, Object> style = (Map<String, Object>) function.get("style");
-        if (style != null && !style.isEmpty()) {
-            html.append(" style=\"");
-            for (Map.Entry<String, Object> entry : style.entrySet()) {
-                String cssKey = camelToKebab(entry.getKey());
-                html.append(cssKey).append(": ").append(entry.getValue()).append("; ");
-            }
-            html.append("\"");
-        }
-
         // Tag-specific attributes
         if ("img".equals(tag) && function.containsKey("src")) {
-            html.append(" src=\"").append(escapeAttr(function.get("src").toString())).append("\"");
+            html.append(" src=\"").append(escapeAttr(resolveAssetPath(function.get("src").toString()))).append("\"");
             html.append(" alt=\"Image\"");
         }
         if (("input".equals(tag) || "textarea".equals(tag)) && function.containsKey("type")) {
@@ -355,5 +336,46 @@ public class PageCodeGenerator {
             sb.append(str);
         }
         return sb.toString();
+    }
+
+    private void resetStyleCache() {
+        styleClassMap.clear();
+        styleRules.clear();
+        styleClassCounter = 1;
+    }
+
+    private String classForStyle(Map<String, Object> style) {
+        if (style == null || style.isEmpty()) return "";
+        TreeMap<String, Object> sorted = new TreeMap<>(style);
+        StringBuilder key = new StringBuilder();
+        for (Map.Entry<String, Object> entry : sorted.entrySet()) {
+            key.append(entry.getKey()).append("=").append(String.valueOf(entry.getValue())).append(";");
+        }
+        String styleKey = key.toString();
+        if (styleClassMap.containsKey(styleKey)) {
+            return styleClassMap.get(styleKey);
+        }
+
+        String className = "dw-s" + styleClassCounter++;
+        styleClassMap.put(styleKey, className);
+        StringBuilder rule = new StringBuilder();
+        rule.append("    .").append(className).append(" { ");
+        for (Map.Entry<String, Object> entry : sorted.entrySet()) {
+            rule.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
+        }
+        rule.append("}\n");
+        styleRules.add(rule.toString());
+        return className;
+    }
+
+    private String resolveAssetPath(String rawSrc) {
+        if (rawSrc == null) return "";
+        if (rawSrc.startsWith("data:")) return rawSrc;
+        if (rawSrc.startsWith("assets/")) return rawSrc;
+        int idx = rawSrc.indexOf("/assets/");
+        if (idx >= 0) {
+            return "assets/" + rawSrc.substring(idx + "/assets/".length());
+        }
+        return rawSrc;
     }
 }

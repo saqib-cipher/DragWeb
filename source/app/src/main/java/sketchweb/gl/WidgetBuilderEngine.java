@@ -186,7 +186,16 @@ public class WidgetBuilderEngine {
                         iv.setImageResource(R.drawable.default_image);
                     }
                 } else {
-                    iv.setImageResource(R.drawable.default_image);
+                    try {
+                        android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeFile(src);
+                        if (bmp != null) {
+                            iv.setImageBitmap(bmp);
+                        } else {
+                            iv.setImageResource(R.drawable.default_image);
+                        }
+                    } catch (Exception e) {
+                        iv.setImageResource(R.drawable.default_image);
+                    }
                 }
             } else {
                 iv.setImageResource(R.drawable.default_image);

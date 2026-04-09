@@ -449,6 +449,26 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
         cardRow.addView(nameCol);
 
+        // More options button
+        if (!isRoot) {
+            TextView moreBtn = new TextView(context);
+            moreBtn.setText("\u22EE");
+            moreBtn.setTextSize(18);
+            moreBtn.setTextColor(Color.parseColor("#A8A4AE"));
+            moreBtn.setPadding(10, 2, 10, 2);
+            moreBtn.setGravity(Gravity.CENTER);
+            GradientDrawable moreBg = new GradientDrawable();
+            moreBg.setColor(Color.parseColor("#14363A40"));
+            moreBg.setCornerRadius(10);
+            moreBtn.setBackground(moreBg);
+            moreBtn.setOnClickListener(v -> {
+                if (longClickListener != null) {
+                    longClickListener.onItemLongClick(node.view);
+                }
+            });
+            cardRow.addView(moreBtn);
+        }
+
         layout.setPadding(0, 0, 0, 0);
         layout.addView(cardRow);
 
