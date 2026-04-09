@@ -20,6 +20,15 @@ import java.util.Map;
 
 public class LogicBlockManager {
 
+    // Page-based events (Sketchware pattern)
+    public static final String EVENT_PAGE_LOAD = "pageLoad";
+    public static final String EVENT_VISIBLE = "visible";
+    public static final String EVENT_HIDDEN = "hidden";
+    public static final String EVENT_DESTROY = "destroy";
+    public static final String EVENT_PAGE_SCROLL = "pageScroll";
+    public static final String EVENT_PAGE_INPUT = "pageInput";
+
+    // Element events
     public static final String EVENT_CLICK = "click";
     public static final String EVENT_HOVER = "hover";
     public static final String EVENT_INPUT = "input";
@@ -43,6 +52,8 @@ public class LogicBlockManager {
     public static final String ACTION_REMOVE_ATTRIBUTE = "removeAttribute";
     public static final String ACTION_SET_VALUE = "setValue";
     public static final String ACTION_APPEND_CHILD = "appendChild";
+    public static final String ACTION_PREPEND_CHILD = "prependChild";
+    public static final String ACTION_CREATE_ELEMENT = "createElement";
     public static final String ACTION_REMOVE_ELEMENT = "removeElement";
     public static final String ACTION_CUSTOM_JS = "customJs";
     public static final String ACTION_FETCH_API = "fetchApi";
@@ -55,6 +66,9 @@ public class LogicBlockManager {
     public static final String ACTION_SET_HTML = "setHTML";
     public static final String ACTION_FOCUS_INPUT = "focusInput";
     public static final String ACTION_BLUR_INPUT = "blurInput";
+    public static final String ACTION_SET_HREF = "setHref";
+    public static final String ACTION_SET_TRANSFORM = "setTransform";
+    public static final String ACTION_SET_TRANSITION = "setTransition";
 
     // Logic block actions
     public static final String ACTION_IF_BLOCK = "ifBlock";
@@ -101,6 +115,32 @@ public class LogicBlockManager {
         return result;
     }
 
+    /**
+     * Get blocks filtered by a specific page event type.
+     */
+    public List<LogicBlock> getBlocksForEvent(String eventType) {
+        List<LogicBlock> result = new ArrayList<>();
+        for (LogicBlock block : blocks) {
+            if (eventType.equals(block.event)) {
+                result.add(block);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Count blocks for a specific event type.
+     */
+    public int getBlockCountForEvent(String eventType) {
+        int count = 0;
+        for (LogicBlock block : blocks) {
+            if (eventType.equals(block.event)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public void showAddBlockDialog(String targetWidgetTag, OnBlockAddedListener listener) {
         showAddBlockDialog(targetWidgetTag, TARGET_MODE_ID, listener);
     }
@@ -135,9 +175,11 @@ public class LogicBlockManager {
             "Show/Hide Element", "Set Text", "Set HTML", "Add CSS Class",
             "Remove CSS Class", "Toggle CSS Class", "Show Alert",
             "Console Log", "Set Attribute", "Remove Attribute",
-            "Set Input Value", "Append Child HTML", "Remove Element",
+            "Set Input Value", "Append Child HTML", "Prepend Child HTML",
+            "Create Element", "Remove Element",
             "Custom JavaScript", "Fetch API", "LocalStorage Set/Get",
-            "Scroll To", "Copy to Clipboard", "Delay Then Run"
+            "Scroll To", "Copy to Clipboard", "Delay Then Run",
+            "Set Href"
         };
         String[] actionKeys = {
             ACTION_CHANGE_STYLE, ACTION_ANIMATE, ACTION_NAVIGATE,
@@ -145,9 +187,11 @@ public class LogicBlockManager {
             ACTION_SHOW_HIDE, ACTION_SET_TEXT, ACTION_SET_HTML, ACTION_ADD_CLASS,
             ACTION_REMOVE_CLASS, ACTION_TOGGLE_CLASS, ACTION_ALERT,
             ACTION_CONSOLE_LOG, ACTION_SET_ATTRIBUTE, ACTION_REMOVE_ATTRIBUTE,
-            ACTION_SET_VALUE, ACTION_APPEND_CHILD, ACTION_REMOVE_ELEMENT,
+            ACTION_SET_VALUE, ACTION_APPEND_CHILD, ACTION_PREPEND_CHILD,
+            ACTION_CREATE_ELEMENT, ACTION_REMOVE_ELEMENT,
             ACTION_CUSTOM_JS, ACTION_FETCH_API, ACTION_LOCAL_STORAGE,
-            ACTION_SCROLL_TO, ACTION_COPY_CLIPBOARD, ACTION_DELAY
+            ACTION_SCROLL_TO, ACTION_COPY_CLIPBOARD, ACTION_DELAY,
+            ACTION_SET_HREF
         };
 
         new MaterialAlertDialogBuilder(context)
@@ -206,6 +250,8 @@ public class LogicBlockManager {
             case ACTION_SET_VALUE: return "New input value";
             case ACTION_SET_HTML: return "HTML content (e.g. <p>Hello</p>)";
             case ACTION_APPEND_CHILD: return "HTML to append (e.g. <p>Hello</p>)";
+            case ACTION_PREPEND_CHILD: return "HTML to prepend (e.g. <p>First</p>)";
+            case ACTION_CREATE_ELEMENT: return "tag|content (e.g. p|Hello World)";
             case ACTION_REMOVE_ELEMENT: return "Selector to remove (or 'self')";
             case ACTION_CUSTOM_JS: return "JavaScript code";
             case ACTION_FETCH_API: return "URL|method|body (e.g. /api/data|GET|)";
@@ -213,6 +259,9 @@ public class LogicBlockManager {
             case ACTION_SCROLL_TO: return "top, bottom, or selector";
             case ACTION_COPY_CLIPBOARD: return "Text to copy (or 'self' for element text)";
             case ACTION_DELAY: return "ms|action (e.g. 1000|alert:Done!)";
+            case ACTION_SET_HREF: return "URL or #section-id";
+            case ACTION_SET_TRANSFORM: return "CSS transform (e.g. rotate(45deg))";
+            case ACTION_SET_TRANSITION: return "CSS transition (e.g. all 0.3s ease)";
             default: return "Parameters";
         }
     }
@@ -221,7 +270,7 @@ public class LogicBlockManager {
         if (blocks.isEmpty()) {
             new MaterialAlertDialogBuilder(context)
                 .setTitle("Logic Blocks")
-                .setMessage("No logic blocks added yet.\nSelect a widget and add events from the Event tab.")
+                .setMessage("No logic blocks added yet.\nSelect an event from the Event tab to add blocks.")
                 .setPositiveButton("OK", null)
                 .show();
             return;
@@ -233,11 +282,11 @@ public class LogicBlockManager {
         container.setPadding(24, 16, 24, 16);
         scrollView.addView(container);
 
-        // Group blocks by widget
+        // Group blocks by event
         Map<String, List<Integer>> groupedBlocks = new HashMap<>();
         for (int i = 0; i < blocks.size(); i++) {
             LogicBlock block = blocks.get(i);
-            String key = block.targetWidget;
+            String key = block.event != null ? block.event : "immediate";
             if (!groupedBlocks.containsKey(key)) {
                 groupedBlocks.put(key, new ArrayList<>());
             }
@@ -245,24 +294,13 @@ public class LogicBlockManager {
         }
 
         for (Map.Entry<String, List<Integer>> entry : groupedBlocks.entrySet()) {
-            TextView widgetHeader = new TextView(context);
-            // Show target with mode prefix
-            String headerTarget = entry.getKey();
-            if (!blocks.isEmpty()) {
-                for (int idx : entry.getValue()) {
-                    LogicBlock b = blocks.get(idx);
-                    if (TARGET_MODE_ID.equals(b.targetMode)) headerTarget = "#" + b.targetWidget;
-                    else if (TARGET_MODE_CLASS.equals(b.targetMode)) headerTarget = "." + b.targetWidget;
-                    else if (TARGET_MODE_TAG.equals(b.targetMode)) headerTarget = "<" + b.targetWidget + ">";
-                    break;
-                }
-            }
-            widgetHeader.setText(headerTarget);
-            widgetHeader.setTextColor(Color.parseColor("#64B5F6"));
-            widgetHeader.setTextSize(13);
-            widgetHeader.setTypeface(null, Typeface.BOLD);
-            widgetHeader.setPadding(0, 12, 0, 6);
-            container.addView(widgetHeader);
+            TextView eventHeader = new TextView(context);
+            eventHeader.setText(getEventDisplayName(entry.getKey()));
+            eventHeader.setTextColor(Color.parseColor("#FF9800"));
+            eventHeader.setTextSize(13);
+            eventHeader.setTypeface(null, Typeface.BOLD);
+            eventHeader.setPadding(0, 12, 0, 6);
+            container.addView(eventHeader);
 
             for (int index : entry.getValue()) {
                 LogicBlock block = blocks.get(index);
@@ -283,30 +321,34 @@ public class LogicBlockManager {
                 blockParams.setMargins(0, 3, 0, 3);
                 blockView.setLayoutParams(blockParams);
 
-                // Event label
-                LinearLayout eventRow = new LinearLayout(context);
-                eventRow.setOrientation(LinearLayout.HORIZONTAL);
+                // Target info
+                if (block.targetWidget != null && !block.targetWidget.isEmpty()) {
+                    LinearLayout targetRow = new LinearLayout(context);
+                    targetRow.setOrientation(LinearLayout.HORIZONTAL);
 
-                TextView whenLabel = new TextView(context);
-                whenLabel.setText("WHEN ");
-                whenLabel.setTextColor(Color.parseColor("#FF9800"));
-                whenLabel.setTextSize(11);
-                whenLabel.setTypeface(null, Typeface.BOLD);
-                eventRow.addView(whenLabel);
+                    TextView targetLabel = new TextView(context);
+                    targetLabel.setText("TARGET ");
+                    targetLabel.setTextColor(Color.parseColor("#9C27B0"));
+                    targetLabel.setTextSize(11);
+                    targetLabel.setTypeface(null, Typeface.BOLD);
+                    targetRow.addView(targetLabel);
 
-                TextView eventLabel = new TextView(context);
-                eventLabel.setText(block.event.toUpperCase());
-                eventLabel.setTextColor(Color.parseColor("#FFB74D"));
-                eventLabel.setTextSize(11);
-                eventRow.addView(eventLabel);
-                blockView.addView(eventRow);
+                    String modePrefix = "id".equals(block.targetMode) ? "#" :
+                        "class".equals(block.targetMode) ? "." : "";
+                    TextView targetValue = new TextView(context);
+                    targetValue.setText(modePrefix + block.targetWidget);
+                    targetValue.setTextColor(Color.parseColor("#CE93D8"));
+                    targetValue.setTextSize(11);
+                    targetRow.addView(targetValue);
+                    blockView.addView(targetRow);
+                }
 
                 // Action label
                 LinearLayout actionRow = new LinearLayout(context);
                 actionRow.setOrientation(LinearLayout.HORIZONTAL);
 
                 TextView doLabel = new TextView(context);
-                doLabel.setText("  DO  ");
+                doLabel.setText("DO ");
                 doLabel.setTextColor(Color.parseColor("#4CAF50"));
                 doLabel.setTextSize(11);
                 doLabel.setTypeface(null, Typeface.BOLD);
@@ -343,6 +385,30 @@ public class LogicBlockManager {
             .show();
     }
 
+    /**
+     * Get display name for an event type.
+     */
+    public static String getEventDisplayName(String eventType) {
+        switch (eventType) {
+            case EVENT_PAGE_LOAD: return "On Page Load";
+            case EVENT_VISIBLE: return "On Visible";
+            case EVENT_HIDDEN: return "On Hidden";
+            case EVENT_DESTROY: return "On Destroy";
+            case EVENT_PAGE_SCROLL: return "On Scroll";
+            case EVENT_PAGE_INPUT: return "On Input";
+            case EVENT_CLICK: return "On Click";
+            case EVENT_HOVER: return "On Hover";
+            case EVENT_INPUT: return "On Input";
+            case EVENT_LOAD: return "On Load";
+            case EVENT_SUBMIT: return "On Submit";
+            case EVENT_SCROLL: return "On Scroll";
+            case EVENT_KEYDOWN: return "On Key Down";
+            case EVENT_CHANGE: return "On Change";
+            case "immediate": return "Immediate";
+            default: return eventType;
+        }
+    }
+
     private String buildSelector(LogicBlock block) {
         String target = block.targetWidget;
         String mode = block.targetMode;
@@ -353,10 +419,13 @@ public class LogicBlockManager {
         } else if (TARGET_MODE_TAG.equals(mode)) {
             return target;
         }
-        // Fallback: data-widget attribute
         return "[data-widget='" + target + "']";
     }
 
+    /**
+     * Generate JavaScript with HTML-first approach.
+     * Prefers modifying HTML/CSS directly over heavy JS.
+     */
     public String generateJavaScript() {
         if (blocks.isEmpty()) return "";
 
@@ -367,18 +436,59 @@ public class LogicBlockManager {
         for (LogicBlock block : blocks) {
             String eventName = block.event;
 
-            js.append("  // ").append(block.event).append(" -> ").append(block.action).append("\n");
+            js.append("  // ").append(eventName != null ? eventName : "immediate")
+              .append(" -> ").append(block.action).append("\n");
 
-            // Immediate blocks (logic/variable) - execute inline, no event listener
+            // Immediate blocks (logic/variable) - execute inline
             if ("immediate".equals(eventName)) {
                 js.append("  ").append(generateActionJs(block, "document.body"));
                 js.append("\n");
-            } else if (EVENT_LOAD.equals(eventName)) {
-                String selector = buildSelector(block);
+            }
+            // Page-based events
+            else if (EVENT_PAGE_LOAD.equals(eventName) || EVENT_LOAD.equals(eventName)) {
+                js.append("  // Page Load - execute immediately in DOMContentLoaded\n");
                 js.append("  (function() {\n");
-                js.append("    ").append(generateActionJs(block, "document.body"));
+                String el = resolveElement(block);
+                js.append("    ").append(generateActionJs(block, el));
                 js.append("  })();\n\n");
-            } else {
+            }
+            else if (EVENT_VISIBLE.equals(eventName)) {
+                js.append("  document.addEventListener('visibilitychange', function() {\n");
+                js.append("    if (!document.hidden) {\n");
+                String el = resolveElement(block);
+                js.append("      ").append(generateActionJs(block, el));
+                js.append("    }\n");
+                js.append("  });\n\n");
+            }
+            else if (EVENT_HIDDEN.equals(eventName)) {
+                js.append("  document.addEventListener('visibilitychange', function() {\n");
+                js.append("    if (document.hidden) {\n");
+                String el = resolveElement(block);
+                js.append("      ").append(generateActionJs(block, el));
+                js.append("    }\n");
+                js.append("  });\n\n");
+            }
+            else if (EVENT_DESTROY.equals(eventName)) {
+                js.append("  window.addEventListener('beforeunload', function() {\n");
+                String el = resolveElement(block);
+                js.append("    ").append(generateActionJs(block, el));
+                js.append("  });\n\n");
+            }
+            else if (EVENT_PAGE_SCROLL.equals(eventName)) {
+                js.append("  window.addEventListener('scroll', function() {\n");
+                String el = resolveElement(block);
+                js.append("    ").append(generateActionJs(block, el));
+                js.append("  });\n\n");
+            }
+            else if (EVENT_PAGE_INPUT.equals(eventName)) {
+                js.append("  document.querySelectorAll('input, textarea, select').forEach(function(el) {\n");
+                js.append("    el.addEventListener('input', function(event) {\n");
+                js.append("      ").append(generateActionJs(block, "el"));
+                js.append("    });\n");
+                js.append("  });\n\n");
+            }
+            // Element-scoped events
+            else {
                 String selector = buildSelector(block);
                 String jsEvent = eventName;
                 if ("hover".equals(eventName)) jsEvent = "mouseenter";
@@ -393,6 +503,17 @@ public class LogicBlockManager {
 
         js.append("});\n");
         return js.toString();
+    }
+
+    /**
+     * Resolve element variable for page-level events that may target specific elements.
+     */
+    private String resolveElement(LogicBlock block) {
+        if (block.targetWidget != null && !block.targetWidget.isEmpty()) {
+            String selector = buildSelector(block);
+            return "document.querySelector('" + selector + "')";
+        }
+        return "document.body";
     }
 
     private String generateActionJs(LogicBlock block, String elVar) {
@@ -462,6 +583,18 @@ public class LogicBlockManager {
             case ACTION_APPEND_CHILD:
                 return elVar + ".insertAdjacentHTML('beforeend', '" + escapeJs(block.params) + "');\n";
 
+            case ACTION_PREPEND_CHILD:
+                return elVar + ".insertAdjacentHTML('afterbegin', '" + escapeJs(block.params) + "');\n";
+
+            case ACTION_CREATE_ELEMENT: {
+                String[] parts = block.params.split("\\|", 2);
+                String tag = parts.length > 0 ? parts[0].trim() : "div";
+                String content = parts.length > 1 ? parts[1].trim() : "";
+                return "var newEl = document.createElement('" + escapeJs(tag) + "'); "
+                    + "newEl.textContent = '" + escapeJs(content) + "'; "
+                    + elVar + ".appendChild(newEl);\n";
+            }
+
             case ACTION_REMOVE_ELEMENT:
                 if ("self".equals(block.params)) {
                     return elVar + ".remove();\n";
@@ -524,8 +657,18 @@ public class LogicBlockManager {
             case ACTION_BLUR_INPUT:
                 return elVar + ".blur();\n";
 
+            case ACTION_SET_HREF: {
+                // HTML-first: directly modify href attribute
+                return elVar + ".setAttribute('href', '" + escapeJs(block.params) + "');\n";
+            }
+
+            case ACTION_SET_TRANSFORM:
+                return elVar + ".style.transform = '" + escapeJs(block.params) + "';\n";
+
+            case ACTION_SET_TRANSITION:
+                return elVar + ".style.transition = '" + escapeJs(block.params) + "';\n";
+
             case ACTION_IF_BLOCK: {
-                // params: left|operator|right|action
                 String[] parts = block.params.split("\\|", 5);
                 if (parts.length >= 4) {
                     String left = parts[0].trim();
@@ -538,7 +681,6 @@ public class LogicBlockManager {
             }
 
             case ACTION_IF_ELSE_BLOCK: {
-                // params: left|operator|right|action|elseAction
                 String[] parts = block.params.split("\\|", 5);
                 if (parts.length >= 5) {
                     String left = parts[0].trim();
@@ -548,7 +690,6 @@ public class LogicBlockManager {
                     String elseCode = parts[4].trim();
                     return "if (" + left + " " + op + " " + right + ") { " + thenCode + " } else { " + elseCode + " }\n";
                 } else if (parts.length >= 4) {
-                    // Fallback: treat as if-block without else
                     String left = parts[0].trim();
                     String op = parts[1].trim();
                     String right = parts[2].trim();
@@ -559,7 +700,6 @@ public class LogicBlockManager {
             }
 
             case ACTION_LOOP: {
-                // params: count|action
                 String[] parts = block.params.split("\\|", 2);
                 String count = parts.length > 0 ? parts[0].trim() : "5";
                 String loopCode = parts.length > 1 ? parts[1].trim() : "// loop body";
@@ -567,7 +707,6 @@ public class LogicBlockManager {
             }
 
             case ACTION_CREATE_VAR: {
-                // params: name|type|initialValue
                 String[] parts = block.params.split("\\|", 3);
                 String name = parts.length > 0 ? parts[0].trim() : "myVar";
                 String type = parts.length > 1 ? parts[1].trim() : "any";
@@ -576,10 +715,10 @@ public class LogicBlockManager {
                     if ("number".equals(type)) initVal = "0";
                     else if ("boolean".equals(type)) initVal = "false";
                     else if ("string".equals(type)) initVal = "''";
+                    else if ("color".equals(type)) initVal = "'#000000'";
                     else initVal = "null";
                 } else {
-                    // Wrap string values in quotes if type is string and not already quoted
-                    if ("string".equals(type) && !initVal.startsWith("'") && !initVal.startsWith("\"")) {
+                    if (("string".equals(type) || "color".equals(type)) && !initVal.startsWith("'") && !initVal.startsWith("\"")) {
                         initVal = "'" + escapeJs(initVal) + "'";
                     }
                 }
@@ -587,7 +726,6 @@ public class LogicBlockManager {
             }
 
             case ACTION_SET_VAR: {
-                // params: name|value
                 String[] parts = block.params.split("\\|", 2);
                 String name = parts.length > 0 ? parts[0].trim() : "myVar";
                 String val = parts.length > 1 ? parts[1].trim() : "null";
@@ -595,7 +733,6 @@ public class LogicBlockManager {
             }
 
             case ACTION_GET_VAR: {
-                // params: name|targetSelector
                 String[] parts = block.params.split("\\|", 2);
                 String name = parts.length > 0 ? parts[0].trim() : "myVar";
                 String target = parts.length > 1 ? parts[1].trim() : "";
