@@ -34,7 +34,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.LinkedHashMap;
 
 /**
  * Logic Block editor with puzzle-like block design, improved palette width,
