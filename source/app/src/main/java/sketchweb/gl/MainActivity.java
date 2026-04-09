@@ -1451,11 +1451,13 @@ public class MainActivity extends AppCompatActivity {
 	private void showPreview() {
 		PageCodeGenerator codeGen = new PageCodeGenerator();
 		String finalHtml = codeGen.generateFullCode(screen, themeManager, logicBlockManager);
-		Bundle bundle = new Bundle();
-		bundle.putString("finalCode", finalHtml);
-		PreviewBottomdialogFragmentActivity fragment = new PreviewBottomdialogFragmentActivity();
-		fragment.setArguments(bundle);
-		fragment.show(getSupportFragmentManager(), "fragment");
+
+
+		Intent intent = new Intent(this, PreviewFullscreenActivity.class);
+		intent.putExtra("finalCode", finalHtml);
+		startActivity(intent);
+
+
 	}
 
 	// ---- View Applied Styles Dialog ----

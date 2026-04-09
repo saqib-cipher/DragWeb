@@ -404,6 +404,23 @@ public class LogicBlockActivity extends AppCompatActivity {
         til.setHint(hint);
         TextInputEditText input = new TextInputEditText(this);
         til.addView(input);
+
+        // Add color picker preview feature if it's a color attribute
+        boolean isColor = actionDef.id.equals("setColor") || actionDef.id.equals("setBackground");
+        if (isColor) {
+            input.addTextChangedListener(new android.text.TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    try {
+                        til.setBoxBackgroundColor(Color.parseColor(s.toString()));
+                    } catch (Exception e) {
+                        til.setBoxBackgroundColor(Color.TRANSPARENT);
+                    }
+                }
+                @Override public void afterTextChanged(android.text.Editable s) {}
+            });
+        }
+
         layout.addView(til);
 
         new MaterialAlertDialogBuilder(this)
@@ -937,19 +954,29 @@ public class LogicBlockActivity extends AppCompatActivity {
     // ---- Undo/Redo ----
 
     private void saveUndoState() {
-        undoStack.add(logicBlockManager.toJson());
-        if (undoStack.size() > MAX_UNDO) undoStack.remove(0);
+        // Only save if it's different from the last state
+        String currentState = logicBlockManager.toJson();
+        if (undoStack.isEmpty() || !undoStack.get(undoStack.size() - 1).equals(currentState)) {
+            undoStack.add(currentState);
+            if (undoStack.size() > MAX_UNDO) undoStack.remove(0);
+        }
         redoStack.clear();
     }
 
     private void undo() {
-        if (undoStack.size() <= 1) {
+        if (undoStack.isEmpty()) {
             Toast.makeText(this, "Nothing to undo", Toast.LENGTH_SHORT).show();
             return;
         }
-        redoStack.add(logicBlockManager.toJson());
-        undoStack.remove(undoStack.size() - 1);
-        logicBlockManager.fromJson(undoStack.get(undoStack.size() - 1));
+        String currentState = logicBlockManager.toJson();
+        // If current state matches the top of stack, we pop it first
+        if (undoStack.size() > 1 && undoStack.get(undoStack.size() - 1).equals(currentState)) {
+            undoStack.remove(undoStack.size() - 1);
+        }
+
+        redoStack.add(currentState);
+        String previousState = undoStack.remove(undoStack.size() - 1);
+        logicBlockManager.fromJson(previousState);
         refreshWorkspace();
     }
 
@@ -1031,14 +1058,15 @@ public class LogicBlockActivity extends AppCompatActivity {
     switch (category) {
 
         case CAT_EVENT: return new BlockDef[]{
-            new BlockDef("onClick", "On Click", "When element is clicked", CAT_EVENT),
-            new BlockDef("onHover", "On Hover", "When mouse hovers", CAT_EVENT),
-            new BlockDef("onLoad", "On Load", "When page loads", CAT_EVENT),
-            new BlockDef("onInput", "On Input", "When input changes", CAT_EVENT),
-            new BlockDef("onSubmit", "On Submit", "When form submits", CAT_EVENT),
-            new BlockDef("onScroll", "On Scroll", "When user scrolls", CAT_EVENT),
-            new BlockDef("onKeyDown", "On Key Down", "When key pressed", CAT_EVENT),
-            new BlockDef("onChange", "On Change", "When value changes", CAT_EVENT),
+            new BlockDef("onPageLoad", "onPageLoad", "When page loads", CAT_EVENT),
+            new BlockDef("onVisible", "onVisible", "When element is visible", CAT_EVENT),
+            new BlockDef("onHidden", "onHidden", "When element is hidden", CAT_EVENT),
+            new BlockDef("onDestroy", "onDestroy", "When element is destroyed", CAT_EVENT),
+            new BlockDef("onScroll", "onScroll", "When user scrolls", CAT_EVENT),
+            new BlockDef("onInput", "onInput", "When input changes", CAT_EVENT),
+            new BlockDef("onClick", "onClick", "When element is clicked", CAT_EVENT),
+            new BlockDef("onHover", "onHover", "When mouse hovers", CAT_EVENT),
+            new BlockDef("onSubmit", "onSubmit", "When form submits", CAT_EVENT),
         };
 
         case CAT_CSS: return new BlockDef[]{
@@ -1059,18 +1087,16 @@ public class LogicBlockActivity extends AppCompatActivity {
         };
 
         case CAT_HTML: return new BlockDef[]{
-            new BlockDef("setText", "Set Text", "Change text content", CAT_HTML),
-            new BlockDef("setHTML", "Set HTML", "Set inner HTML", CAT_HTML),
-            new BlockDef("showElement", "Show", "Show element", CAT_HTML),
-            new BlockDef("hideElement", "Hide", "Hide element", CAT_HTML),
-            new BlockDef("toggleElement", "Toggle", "Toggle visibility", CAT_HTML),
-            new BlockDef("navigate", "Navigate", "Go to URL", CAT_HTML),
-            new BlockDef("goToPage", "Go To Page", "Navigate to page", CAT_HTML),
-            new BlockDef("alert", "Alert", "Show alert dialog", CAT_HTML),
-            new BlockDef("scrollTo", "Scroll To", "Scroll to position", CAT_HTML),
-            new BlockDef("focusInput", "Focus Input", "Focus input field", CAT_HTML),
-            new BlockDef("setAttribute", "Set Attribute", "Set HTML attribute", CAT_HTML),
-            new BlockDef("removeElement", "Remove", "Remove element", CAT_HTML),
+            new BlockDef("setHref", "setHref", "Set link href", CAT_HTML),
+            new BlockDef("scrollTo", "scrollTo", "Scroll to id/class", CAT_HTML),
+            new BlockDef("setText", "setText", "Set text content", CAT_HTML),
+            new BlockDef("setHTML", "setHTML", "Set inner HTML", CAT_HTML),
+            new BlockDef("showElement", "show", "Show element", CAT_HTML),
+            new BlockDef("hideElement", "hide", "Hide element", CAT_HTML),
+            new BlockDef("createElement", "createElement", "Create element", CAT_HTML),
+            new BlockDef("removeElement", "removeElement", "Remove element", CAT_HTML),
+            new BlockDef("appendElement", "append", "Append child", CAT_HTML),
+            new BlockDef("prependElement", "prepend", "Prepend child", CAT_HTML),
         };
 
         case CAT_LOGIC: return new BlockDef[]{
@@ -1143,6 +1169,10 @@ public class LogicBlockActivity extends AppCompatActivity {
             case "focusInput": return "focusInput";
             case "setAttribute": return "setAttribute";
             case "removeElement": return "removeElement";
+            case "setHref": return "setHref";
+            case "createElement": return "createElement";
+            case "appendElement": return "appendElement";
+            case "prependElement": return "prependElement";
             default: return id;
         }
     }
