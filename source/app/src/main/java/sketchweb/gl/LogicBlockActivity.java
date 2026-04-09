@@ -34,6 +34,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 /**
  * Logic Block editor with puzzle-like block design, improved palette width,
@@ -551,10 +552,7 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         TextInputLayout til = new TextInputLayout(this);
         til.setHint(hint);
-        til.setBoxCornerRadiiResources(R.dimen.m3_comp_filled_text_field_container_shape,
-            R.dimen.m3_comp_filled_text_field_container_shape,
-            R.dimen.m3_comp_filled_text_field_container_shape,
-            R.dimen.m3_comp_filled_text_field_container_shape);
+        til.setBoxCornerRadii(16f, 16f, 16f, 16f);
         TextInputEditText input = new TextInputEditText(this);
         input.setMinHeight(48);
         input.setPadding(16, 12, 16, 12);
