@@ -1449,13 +1449,65 @@ public class MainActivity extends AppCompatActivity {
 	// ---- Preview ----
 
 	private void showPreview() {
+		// Save current page first so its layout is up to date
+		saveCurrentPageLayout();
+
+		// Save current logic blocks
+		if (logicBlockManager != null) {
+			File dir = new File(getFilesDir(), "projects");
+			if (!dir.exists()) dir.mkdirs();
+			String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+			File logicFile = new File(dir, projectId + "_" + currentPageName + ".logic");
+			FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
+		}
+
 		PageCodeGenerator codeGen = new PageCodeGenerator();
-		String finalHtml = codeGen.generateFullCode(screen, themeManager, logicBlockManager);
-		Bundle bundle = new Bundle();
-		bundle.putString("finalCode", finalHtml);
-		PreviewBottomdialogFragmentActivity fragment = new PreviewBottomdialogFragmentActivity();
-		fragment.setArguments(bundle);
-		fragment.show(getSupportFragmentManager(), "fragment");
+		ArrayList<String> pageNames = new ArrayList<>();
+		ArrayList<String> pageCodes = new ArrayList<>();
+
+		List<String> allPages = pageManager != null ? pageManager.getPages() : new ArrayList<>();
+		if (allPages.isEmpty()) allPages.add("index");
+
+		String currentPage = pageManager != null ? pageManager.getCurrentPage() : "index";
+
+		for (String pageName : allPages) {
+			pageNames.add(pageName);
+
+			if (pageName.equals(currentPage)) {
+				// Current page: generate from live screen
+				String html = codeGen.generateFullCode(screen, themeManager, logicBlockManager);
+				pageCodes.add(html);
+			} else {
+				// Other pages: generate from saved JSON data
+				String pageJson = pageManager.loadPageLayout(pageName);
+				LogicBlockManager pageLogic = new LogicBlockManager(this);
+				File dir = new File(getFilesDir(), "projects");
+				File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+				if (logicFile.exists()) {
+					String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
+					pageLogic.fromJson(logicJson);
+				}
+
+				try {
+					List<Map<String, Object>> widgetTree = new Gson().fromJson(pageJson,
+						new TypeToken<List<Map<String, Object>>>(){}.getType());
+					String html = codeGen.generateFullCodeFromTree(widgetTree, themeManager, pageLogic);
+					pageCodes.add(html);
+				} catch (Exception e) {
+					pageCodes.add("<html><body><p>Error loading page: " + pageName + "</p></body></html>");
+				}
+			}
+		}
+
+		// Find the index of the current page to start on that tab
+		int startIndex = pageNames.indexOf(currentPage);
+		if (startIndex < 0) startIndex = 0;
+
+		Intent previewIntent = new Intent(this, PreviewActivity.class);
+		previewIntent.putStringArrayListExtra("page_names", pageNames);
+		previewIntent.putStringArrayListExtra("page_codes", pageCodes);
+		previewIntent.putExtra("start_page_index", startIndex);
+		startActivity(previewIntent);
 	}
 
 	// ---- View Applied Styles Dialog ----
@@ -1685,6 +1737,213 @@ public class MainActivity extends AppCompatActivity {
 		if (blockDragDropManager != null) {
 			blockDragDropManager.refreshWorkspace();
 		}
+
+		// Populate the event list container with events from all pages
+		populateEventList();
+	}
+
+	private void populateEventList() {
+		LinearLayout eventListContainer = findViewById(R.id.eventListContainer);
+		if (eventListContainer == null) return;
+		eventListContainer.removeAllViews();
+
+		// Update page name header
+		TextView tvEventPageName = findViewById(R.id.tvEventPageName);
+		if (tvEventPageName != null) {
+			tvEventPageName.setText("All Page Events");
+		}
+
+		List<String> allPages = pageManager != null ? pageManager.getPages() : new ArrayList<>();
+		if (allPages.isEmpty()) allPages.add("index");
+
+		// All event types to show
+		String[][] eventTypes = {
+			{LogicBlockManager.EVENT_PAGE_LOAD, "On Page Load", "#FF9800"},
+			{LogicBlockManager.EVENT_VISIBLE, "On Visible", "#FF9800"},
+			{LogicBlockManager.EVENT_HIDDEN, "On Hidden", "#FF9800"},
+			{LogicBlockManager.EVENT_DESTROY, "On Destroy", "#FF9800"},
+			{LogicBlockManager.EVENT_PAGE_SCROLL, "On Scroll", "#FF9800"},
+			{LogicBlockManager.EVENT_PAGE_INPUT, "On Page Input", "#FF9800"},
+			{LogicBlockManager.EVENT_CLICK, "On Click", "#4CAF50"},
+			{LogicBlockManager.EVENT_HOVER, "On Hover", "#4CAF50"},
+			{LogicBlockManager.EVENT_INPUT, "On Input", "#4CAF50"},
+			{LogicBlockManager.EVENT_SUBMIT, "On Submit", "#4CAF50"},
+			{LogicBlockManager.EVENT_SCROLL, "On Scroll", "#4CAF50"},
+			{LogicBlockManager.EVENT_KEYDOWN, "On Key Down", "#4CAF50"},
+			{LogicBlockManager.EVENT_CHANGE, "On Change", "#4CAF50"},
+		};
+
+		String currentPage = pageManager != null ? pageManager.getCurrentPage() : "index";
+		File dir = new File(getFilesDir(), "projects");
+
+		for (String pageName : allPages) {
+			// Load logic blocks for this page
+			LogicBlockManager pageLogic;
+			if (pageName.equals(currentPage)) {
+				pageLogic = logicBlockManager;
+			} else {
+				pageLogic = new LogicBlockManager(this);
+				File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+				if (logicFile.exists()) {
+					String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
+					pageLogic.fromJson(logicJson);
+				}
+			}
+
+			int totalBlocks = pageLogic.getBlocks().size();
+
+			// Page header
+			TextView pageHeader = new TextView(this);
+			pageHeader.setText(pageName.toUpperCase() + " (" + totalBlocks + " blocks)");
+			pageHeader.setTextColor(Color.parseColor("#6200EE"));
+			pageHeader.setTextSize(14);
+			pageHeader.setTypeface(null, android.graphics.Typeface.BOLD);
+			pageHeader.setPadding(4, 16, 4, 8);
+			eventListContainer.addView(pageHeader);
+
+			if (totalBlocks == 0) {
+				// Show empty state for this page
+				TextView emptyText = new TextView(this);
+				emptyText.setText("No logic blocks added. Tap + to add.");
+				emptyText.setTextSize(12);
+				emptyText.setPadding(8, 4, 8, 12);
+				emptyText.setTextColor(Color.parseColor("#999999"));
+				eventListContainer.addView(emptyText);
+
+				// Add block button for empty page
+				addEventButton(eventListContainer, pageName, "Add Event Block", "#6200EE");
+			} else {
+				// Show each event type that has blocks
+				for (String[] eventInfo : eventTypes) {
+					String eventKey = eventInfo[0];
+					String eventLabel = eventInfo[1];
+					String eventColor = eventInfo[2];
+
+					int blockCount = pageLogic.getBlockCountForEvent(eventKey);
+					if (blockCount > 0) {
+						addEventCard(eventListContainer, pageName, eventKey, eventLabel, blockCount, eventColor);
+					}
+				}
+
+				// Also show blocks with no standard event (immediate/custom)
+				int otherCount = 0;
+				for (LogicBlockManager.LogicBlock block : pageLogic.getBlocks()) {
+					boolean matched = false;
+					for (String[] eventInfo : eventTypes) {
+						if (eventInfo[0].equals(block.event)) {
+							matched = true;
+							break;
+						}
+					}
+					if (!matched) otherCount++;
+				}
+				if (otherCount > 0) {
+					addEventCard(eventListContainer, pageName, "immediate", "Immediate / Custom", otherCount, "#9E9E9E");
+				}
+
+				// Add button
+				addEventButton(eventListContainer, pageName, "Add More Blocks", "#6200EE");
+			}
+
+			// Divider
+			View divider = new View(this);
+			divider.setLayoutParams(new LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT, 1));
+			divider.setBackgroundColor(Color.parseColor("#33FFFFFF"));
+			eventListContainer.addView(divider);
+		}
+	}
+
+	private void addEventCard(LinearLayout container, String pageName, String eventKey, String eventLabel, int blockCount, String colorHex) {
+		LinearLayout card = new LinearLayout(this);
+		card.setOrientation(LinearLayout.HORIZONTAL);
+		card.setGravity(android.view.Gravity.CENTER_VERTICAL);
+		card.setPadding(16, 12, 16, 12);
+
+		android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+		bg.setCornerRadius(12);
+		bg.setColor(Color.parseColor("#1A" + colorHex.substring(1)));
+		bg.setStroke(1, Color.parseColor("#44" + colorHex.substring(1)));
+		card.setBackground(bg);
+
+		LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+			LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+		cardParams.setMargins(0, 4, 0, 4);
+		card.setLayoutParams(cardParams);
+
+		// Color indicator dot
+		View dot = new View(this);
+		android.graphics.drawable.GradientDrawable dotBg = new android.graphics.drawable.GradientDrawable();
+		dotBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+		dotBg.setColor(Color.parseColor(colorHex));
+		dot.setBackground(dotBg);
+		LinearLayout.LayoutParams dotParams = new LinearLayout.LayoutParams(12, 12);
+		dotParams.setMargins(0, 0, 12, 0);
+		dot.setLayoutParams(dotParams);
+		card.addView(dot);
+
+		// Event name
+		TextView tvEvent = new TextView(this);
+		tvEvent.setText(eventLabel);
+		tvEvent.setTextSize(13);
+		tvEvent.setTypeface(null, android.graphics.Typeface.BOLD);
+		tvEvent.setTextColor(Color.parseColor(colorHex));
+		LinearLayout.LayoutParams tvParams = new LinearLayout.LayoutParams(
+			0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+		tvEvent.setLayoutParams(tvParams);
+		card.addView(tvEvent);
+
+		// Block count badge
+		TextView tvCount = new TextView(this);
+		tvCount.setText(String.valueOf(blockCount));
+		tvCount.setTextSize(12);
+		tvCount.setTextColor(Color.WHITE);
+		tvCount.setGravity(android.view.Gravity.CENTER);
+		android.graphics.drawable.GradientDrawable countBg = new android.graphics.drawable.GradientDrawable();
+		countBg.setCornerRadius(20);
+		countBg.setColor(Color.parseColor(colorHex));
+		tvCount.setBackground(countBg);
+		tvCount.setPadding(16, 4, 16, 4);
+		tvCount.setMinWidth(32);
+		card.addView(tvCount);
+
+		// Click to open LogicBlockActivity for this page
+		card.setOnClickListener(v -> {
+			Intent intent = new Intent(this, LogicBlockActivity.class);
+			intent.putExtra("project_id", projectId);
+			intent.putExtra("page_name", pageName);
+			logicBlockLauncher.launch(intent);
+		});
+
+		container.addView(card);
+	}
+
+	private void addEventButton(LinearLayout container, String pageName, String label, String colorHex) {
+		TextView btnAdd = new TextView(this);
+		btnAdd.setText("+ " + label);
+		btnAdd.setTextSize(12);
+		btnAdd.setTextColor(Color.parseColor(colorHex));
+		btnAdd.setGravity(android.view.Gravity.CENTER);
+		btnAdd.setPadding(16, 10, 16, 10);
+
+		android.graphics.drawable.GradientDrawable btnBg = new android.graphics.drawable.GradientDrawable();
+		btnBg.setCornerRadius(8);
+		btnBg.setStroke(1, Color.parseColor("#44" + colorHex.substring(1)));
+		btnAdd.setBackground(btnBg);
+
+		LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+			LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+		btnParams.setMargins(0, 4, 0, 8);
+		btnAdd.setLayoutParams(btnParams);
+
+		btnAdd.setOnClickListener(v -> {
+			Intent intent = new Intent(this, LogicBlockActivity.class);
+			intent.putExtra("project_id", projectId);
+			intent.putExtra("page_name", pageName);
+			logicBlockLauncher.launch(intent);
+		});
+
+		container.addView(btnAdd);
 	}
 
 	private void showBlockPicker(String category) {
