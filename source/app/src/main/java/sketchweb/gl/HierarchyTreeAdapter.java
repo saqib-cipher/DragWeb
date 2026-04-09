@@ -148,7 +148,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 // Update flat list using notifyDataSetChanged for stability
                 if (fromPos >= 0 && toPos >= 0 && fromPos < flatList.size() && toPos < flatList.size()) {
                     Collections.swap(flatList, fromPos, toPos);
-                    notifyDataSetChanged();
+                    notifyItemMoved(fromPos, toPos);
                 }
                 return true;
             }
