@@ -7,6 +7,54 @@
       "blocks": [
         {
           "type": "event",
+          "name": "onPageLoad",
+          "label": "On Page Load",
+          "description": "When page finishes loading",
+          "target": "tag",
+          "params": ["body"]
+        },
+        {
+          "type": "event",
+          "name": "onVisible",
+          "label": "On Visible",
+          "description": "When page becomes visible",
+          "target": "tag",
+          "params": ["body"]
+        },
+        {
+          "type": "event",
+          "name": "onHidden",
+          "label": "On Hidden",
+          "description": "When page is hidden",
+          "target": "tag",
+          "params": ["body"]
+        },
+        {
+          "type": "event",
+          "name": "onDestroy",
+          "label": "On Destroy",
+          "description": "When page is about to unload",
+          "target": "tag",
+          "params": ["body"]
+        },
+        {
+          "type": "event",
+          "name": "onScroll",
+          "label": "On Scroll",
+          "description": "When user scrolls the page",
+          "target": "tag",
+          "params": ["body"]
+        },
+        {
+          "type": "event",
+          "name": "onInput",
+          "label": "On Input",
+          "description": "When input value changes",
+          "target": "id",
+          "params": ["elementId"]
+        },
+        {
+          "type": "event",
           "name": "onClick",
           "label": "On Click",
           "description": "When element is clicked",
@@ -23,35 +71,11 @@
         },
         {
           "type": "event",
-          "name": "onLoad",
-          "label": "On Load",
-          "description": "When page loads",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onInput",
-          "label": "On Input",
-          "description": "When input value changes",
-          "target": "id",
-          "params": ["elementId"]
-        },
-        {
-          "type": "event",
           "name": "onSubmit",
           "label": "On Submit",
           "description": "When form is submitted",
           "target": "id",
           "params": ["formId"]
-        },
-        {
-          "type": "event",
-          "name": "onScroll",
-          "label": "On Scroll",
-          "description": "When user scrolls",
-          "target": "tag",
-          "params": ["body"]
         },
         {
           "type": "event",
@@ -180,6 +204,34 @@
         },
         {
           "type": "css",
+          "name": "setZIndex",
+          "label": "Set Z-Index",
+          "description": "Stack order",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setFlex",
+          "label": "Set Flex",
+          "description": "Flex layout properties",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setTransform",
+          "label": "Set Transform",
+          "description": "rotate, scale, translate",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setTransition",
+          "label": "Set Transition",
+          "description": "CSS transition animation",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
           "name": "addClass",
           "label": "Add Class",
           "description": "Add CSS class to element",
@@ -265,10 +317,38 @@
         },
         {
           "type": "html",
+          "name": "createElement",
+          "label": "Create Element",
+          "description": "Create and append new element",
+          "params": ["tag", "content"]
+        },
+        {
+          "type": "html",
           "name": "removeElement",
           "label": "Remove Element",
           "description": "Remove from DOM",
           "params": ["selector"]
+        },
+        {
+          "type": "html",
+          "name": "appendHTML",
+          "label": "Append",
+          "description": "Append HTML to end",
+          "params": ["html"]
+        },
+        {
+          "type": "html",
+          "name": "prependHTML",
+          "label": "Prepend",
+          "description": "Prepend HTML to start",
+          "params": ["html"]
+        },
+        {
+          "type": "html",
+          "name": "focusInput",
+          "label": "Focus Input",
+          "description": "Focus an input field",
+          "params": []
         },
         {
           "type": "html",
@@ -292,7 +372,134 @@
           "params": ["pageName"]
         }
       ]
+    },
+    {
+      "id": "logic",
+      "label": "Logic",
+      "color": "#E91E63",
+      "blocks": [
+        {
+          "type": "logic",
+          "name": "ifBlock",
+          "label": "If",
+          "description": "Conditional execution",
+          "params": ["left", "operator", "right", "action"]
+        },
+        {
+          "type": "logic",
+          "name": "ifElseBlock",
+          "label": "If / Else",
+          "description": "If-else conditional",
+          "params": ["left", "operator", "right", "thenAction", "elseAction"]
+        },
+        {
+          "type": "logic",
+          "name": "compareEqual",
+          "label": "Compare ==",
+          "description": "Check equality",
+          "params": ["left", "right"]
+        },
+        {
+          "type": "logic",
+          "name": "compareNotEqual",
+          "label": "Compare !=",
+          "description": "Check inequality",
+          "params": ["left", "right"]
+        },
+        {
+          "type": "logic",
+          "name": "compareGreater",
+          "label": "Compare >",
+          "description": "Greater than",
+          "params": ["left", "right"]
+        },
+        {
+          "type": "logic",
+          "name": "compareLess",
+          "label": "Compare <",
+          "description": "Less than",
+          "params": ["left", "right"]
+        },
+        {
+          "type": "logic",
+          "name": "delay",
+          "label": "Delay",
+          "description": "Wait then execute",
+          "params": ["ms", "action"]
+        },
+        {
+          "type": "logic",
+          "name": "loop",
+          "label": "Loop",
+          "description": "Repeat N times",
+          "params": ["count", "action"]
+        }
+      ]
+    },
+    {
+      "id": "variable",
+      "label": "Variables",
+      "color": "#00BCD4",
+      "blocks": [
+        {
+          "type": "variable",
+          "name": "createVar",
+          "label": "Create Variable",
+          "description": "Declare a variable",
+          "params": ["name", "type", "value"]
+        },
+        {
+          "type": "variable",
+          "name": "createVarString",
+          "label": "String Var",
+          "description": "String variable",
+          "params": ["name", "value"]
+        },
+        {
+          "type": "variable",
+          "name": "createVarNumber",
+          "label": "Number Var",
+          "description": "Number variable",
+          "params": ["name", "value"]
+        },
+        {
+          "type": "variable",
+          "name": "createVarBoolean",
+          "label": "Boolean Var",
+          "description": "Boolean variable",
+          "params": ["name", "value"]
+        },
+        {
+          "type": "variable",
+          "name": "createVarColor",
+          "label": "Color Var",
+          "description": "Color variable",
+          "params": ["name", "value"]
+        },
+        {
+          "type": "variable",
+          "name": "setVar",
+          "label": "Set Variable",
+          "description": "Assign a value",
+          "params": ["name", "value"]
+        },
+        {
+          "type": "variable",
+          "name": "getVar",
+          "label": "Get Variable",
+          "description": "Read variable value",
+          "params": ["name"]
+        }
+      ]
     }
+  ],
+  "pageEvents": [
+    {"id": "onPageLoad", "label": "On Page Load", "description": "Runs when the page finishes loading", "icon": "load"},
+    {"id": "onVisible", "label": "On Visible", "description": "Runs when page becomes visible", "icon": "visible"},
+    {"id": "onHidden", "label": "On Hidden", "description": "Runs when page is hidden/background", "icon": "hidden"},
+    {"id": "onDestroy", "label": "On Destroy", "description": "Runs when page is about to close", "icon": "destroy"},
+    {"id": "onScroll", "label": "On Scroll", "description": "Runs when user scrolls the page", "icon": "scroll"},
+    {"id": "onInput", "label": "On Input", "description": "Runs when any input changes", "icon": "input"}
   ],
   "targetSystem": {
     "modes": [
@@ -300,19 +507,5 @@
       {"id": "class", "label": "By Class", "prefix": ".", "example": "btn-primary"},
       {"id": "tag", "label": "By Tag", "prefix": "", "example": "button"}
     ]
-  },
-  "blockStructureExample": {
-    "type": "event",
-    "name": "onClick",
-    "target": "id",
-    "value": "btn1",
-    "actions": [
-      {
-        "type": "css",
-        "name": "setDisplay",
-        "value": "none"
-      }
-    ]
-  },
-  "jsOutputExample": "document.getElementById('btn1').style.display = 'none';"
+  }
 }

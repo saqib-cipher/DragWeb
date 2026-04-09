@@ -14,7 +14,9 @@
         android:layout_height="wrap_content"
         android:background="?attr/colorSurfaceContainerHigh"
         app:title="Logic Blocks"
+        app:subtitle="Page Event"
         app:titleTextColor="?attr/colorOnSurface"
+        app:subtitleTextColor="?attr/colorOnSurfaceVariant"
         app:navigationIcon="@drawable/icon_arrow_back_round"
         app:navigationIconTint="?attr/colorOnSurface" />
 
@@ -24,43 +26,44 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="12dp"
+        android:padding="10dp"
         android:background="?attr/colorSurfaceContainer">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Target:"
-            android:textSize="14sp"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface"
-            android:paddingEnd="8dp" />
+            android:paddingEnd="6dp" />
 
         <Spinner
             android:id="@+id/spnTargetMode"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:minWidth="80dp"
+            android:layout_height="36dp"
+            android:minWidth="70dp"
             android:background="?attr/colorSurfaceContainerHighest" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="6dp"
             android:hint="Element selector"
-            app:boxCornerRadiusTopStart="12dp"
-            app:boxCornerRadiusTopEnd="12dp"
-            app:boxCornerRadiusBottomStart="12dp"
-            app:boxCornerRadiusBottomEnd="12dp"
+            app:boxCornerRadiusTopStart="10dp"
+            app:boxCornerRadiusTopEnd="10dp"
+            app:boxCornerRadiusBottomStart="10dp"
+            app:boxCornerRadiusBottomEnd="10dp"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense">
-            <com.google.android.material.textfield.TextInputEditText
+            <AutoCompleteTextView
                 android:id="@+id/etTargetSelector"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:inputType="text"
-                android:maxLines="1" />
+                android:maxLines="1"
+                android:completionThreshold="1" />
         </com.google.android.material.textfield.TextInputLayout>
     </LinearLayout>
 
@@ -104,25 +107,25 @@
         android:layout_height="wrap_content"
         android:scrollbars="none"
         android:background="?attr/colorSurfaceContainer"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp">
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
 
         <LinearLayout
             android:id="@+id/blockPaletteContainer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp" />
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp" />
     </HorizontalScrollView>
 
-    <!-- Toolbar: Undo, Redo, Copy, Paste, View JS -->
+    <!-- Toolbar: Undo, Redo, Copy, View JS -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="6dp"
+        android:padding="4dp"
         android:background="?attr/colorSurfaceContainerHigh">
 
         <Button
@@ -148,12 +151,22 @@
             android:layout_height="1dp"
             android:layout_weight="1" />
 
+        <!-- Block count indicator -->
+        <TextView
+            android:id="@+id/tvBlockCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0 blocks"
+            android:textSize="11sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:paddingEnd="8dp" />
+
         <Button
             android:id="@+id/btnBlockViewJs"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="View JS"
-            android:textSize="12sp"
+            android:textSize="11sp"
             style="?attr/materialButtonOutlinedStyle" />
 
         <Button
@@ -161,8 +174,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="+ Add"
-            android:textSize="12sp"
-            android:layout_marginStart="8dp"
+            android:textSize="11sp"
+            android:layout_marginStart="6dp"
             style="?attr/materialButtonStyle" />
     </LinearLayout>
 
@@ -178,8 +191,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="12dp"
-            android:minHeight="400dp" />
+            android:padding="10dp"
+            android:minHeight="300dp" />
     </androidx.core.widget.NestedScrollView>
 
 </LinearLayout>

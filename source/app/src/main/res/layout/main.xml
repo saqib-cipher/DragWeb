@@ -153,28 +153,29 @@
 							android:minHeight="540dp" />
 					</androidx.core.widget.NestedScrollView>
 
-					<!-- Event panel (hidden by default) - Block drag-drop system -->
+					<!-- Event panel (hidden by default) - Page-based event system -->
 					<LinearLayout
 						android:id="@+id/eventPanel"
 						android:layout_width="match_parent"
 						android:layout_height="match_parent"
 						android:orientation="vertical"
-						android:padding="8dp"
 						android:visibility="gone"
 						android:background="?attr/colorSurface">
 
-						<!-- Header row -->
+						<!-- Header row with page name -->
 						<LinearLayout
 							android:layout_width="match_parent"
 							android:layout_height="wrap_content"
 							android:orientation="horizontal"
 							android:gravity="center_vertical"
-							android:paddingBottom="4dp">
+							android:padding="10dp"
+							android:background="?attr/colorSurfaceContainerHigh">
 							<TextView
+								android:id="@+id/tvEventPageName"
 								android:layout_width="0dp"
 								android:layout_height="wrap_content"
 								android:layout_weight="1"
-								android:text="Logic Blocks"
+								android:text="Page Events"
 								android:textSize="16sp"
 								android:textStyle="bold"
 								android:textColor="?attr/colorOnSurface" />
@@ -182,37 +183,38 @@
 								android:id="@+id/btnViewAllBlocks"
 								android:layout_width="wrap_content"
 								android:layout_height="wrap_content"
-								android:text="View All"
+								android:text="View JS"
 								android:textSize="11sp"
 								style="?attr/materialButtonOutlinedStyle" />
 						</LinearLayout>
 
-						<!-- Block editor container (populated dynamically by BlockDragDropManager) -->
-						<LinearLayout
-							android:id="@+id/blockEditorContainer"
+						<!-- Page events list (Sketchware-style event list) -->
+						<androidx.core.widget.NestedScrollView
 							android:layout_width="match_parent"
 							android:layout_height="0dp"
 							android:layout_weight="1"
-							android:orientation="vertical" />
+							android:fillViewport="true">
 
-						<!-- Bottom action buttons -->
-						<LinearLayout
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:orientation="horizontal"
-							android:gravity="center"
-							android:paddingTop="4dp">
-							<Button
-								android:id="@+id/btnAddLogicBlock"
-								android:layout_width="0dp"
+							<LinearLayout
+								android:id="@+id/eventListContainer"
+								android:layout_width="match_parent"
 								android:layout_height="wrap_content"
-								android:layout_weight="1"
-								android:text="+ Add Block"
-								android:textSize="12sp"
-								style="?attr/materialButtonOutlinedStyle" />
-						</LinearLayout>
+								android:orientation="vertical"
+								android:padding="8dp" />
+						</androidx.core.widget.NestedScrollView>
 
-						<!-- Hidden blockContainer kept for backwards compat -->
+						<!-- Hidden containers kept for backwards compat -->
+						<LinearLayout
+							android:id="@+id/blockEditorContainer"
+							android:layout_width="0dp"
+							android:layout_height="0dp"
+							android:orientation="vertical"
+							android:visibility="gone" />
+						<Button
+							android:id="@+id/btnAddLogicBlock"
+							android:layout_width="0dp"
+							android:layout_height="0dp"
+							android:visibility="gone" />
 						<LinearLayout
 							android:id="@+id/blockContainer"
 							android:layout_width="0dp"
