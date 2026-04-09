@@ -229,27 +229,36 @@ public class HomeActivity extends AppCompatActivity {
 			ZipOutputStream zos = new ZipOutputStream(new java.io.BufferedOutputStream(fos));
 
 			File dir = new File(getFilesDir(), "projects");
-			String[] extensions = {".json", ".meta", ".theme", ".logic"};
-			for (String ext : extensions) {
-				File file = new File(dir, projectId + ext);
-				if (file.exists()) {
-					byte[] buffer = new byte[1024];
-					FileInputStream fis = new FileInputStream(file);
-					zos.putNextEntry(new ZipEntry(file.getName()));
-					int length;
-					while ((length = fis.read(buffer)) > 0) {
-						zos.write(buffer, 0, length);
+
+			// Include all project files: .json, .meta, .theme, and per-page .logic files
+			File[] allFiles = dir.listFiles();
+			if (allFiles != null) {
+				for (File file : allFiles) {
+					if (!file.isFile()) continue;
+					String name = file.getName();
+					// Include files that belong to this project
+					// Matches: projectId.json, projectId.meta, projectId.theme,
+					//          projectId_pageName.json, projectId_pageName.logic
+					if (name.startsWith(projectId + ".") || name.startsWith(projectId + "_")) {
+						byte[] buffer = new byte[1024];
+						FileInputStream fis = new FileInputStream(file);
+						zos.putNextEntry(new ZipEntry(file.getName()));
+						int length;
+						while ((length = fis.read(buffer)) > 0) {
+							zos.write(buffer, 0, length);
+						}
+						zos.closeEntry();
+						fis.close();
 					}
-					zos.closeEntry();
-					fis.close();
 				}
 			}
 
+			// Include external project directory (pages, assets, etc.)
 			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
 				+ "/.dragweb/projects/" + projectId;
 			File extDir = new File(extPath);
 			if (extDir.exists()) {
-				addDirectoryToZip(zos, extDir, "assets/");
+				addDirectoryToZip(zos, extDir, "external/");
 			}
 
 			zos.close();
@@ -281,21 +290,40 @@ public class HomeActivity extends AppCompatActivity {
 	}
 
 	private void performImport(Uri uri) {
-		File dir = new File(getFilesDir(), "projects");
-		if (!dir.exists()) {
-			dir.mkdirs();
+		File internalDir = new File(getFilesDir(), "projects");
+		if (!internalDir.exists()) {
+			internalDir.mkdirs();
 		}
 
 		try {
-			String canonicalDirPath = dir.getCanonicalPath();
+			String canonicalDirPath = internalDir.getCanonicalPath();
+			String extBasePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+				+ "/.dragweb/projects";
+			File extBaseDir = new File(extBasePath);
+			if (!extBaseDir.exists()) extBaseDir.mkdirs();
+			String canonicalExtPath = extBaseDir.getCanonicalPath();
+
 			java.io.InputStream fis = getContentResolver().openInputStream(uri);
 			ZipInputStream zis = new ZipInputStream(new java.io.BufferedInputStream(fis));
 			ZipEntry entry;
 			while ((entry = zis.getNextEntry()) != null) {
-				File outFile = new File(dir, entry.getName());
-				String canonicalFilePath = outFile.getCanonicalPath();
+				String entryName = entry.getName();
 
-				if (!canonicalFilePath.startsWith(canonicalDirPath + File.separator)) {
+				// Route external/ prefixed entries to the external storage path
+				File outFile;
+				String safeCheckPath;
+				if (entryName.startsWith("external/")) {
+					String relativePath = entryName.substring("external/".length());
+					outFile = new File(extBaseDir, relativePath);
+					safeCheckPath = canonicalExtPath;
+				} else {
+					outFile = new File(internalDir, entryName);
+					safeCheckPath = canonicalDirPath;
+				}
+
+				String canonicalFilePath = outFile.getCanonicalPath();
+				if (!canonicalFilePath.startsWith(safeCheckPath + File.separator) &&
+				    !canonicalFilePath.equals(safeCheckPath)) {
 					zis.closeEntry();
 					continue;
 				}

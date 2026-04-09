@@ -447,6 +447,7 @@ public class MainActivity extends AppCompatActivity {
 		engine = new WidgetBuilderEngine(this);
 		widgetUpdater = new WidgetUpdater(this, engine);
 		codeGenerator = new PageCodeGenerator();
+		codeGenerator.setProjectInfo(projectName, getProjectLogoPath());
 		projectDataManager = new ProjectDataManager(this);
 		themeManager = new ThemeManager();
 		exportManager = new ExportManager(this, themeManager);
@@ -1424,14 +1425,39 @@ public class MainActivity extends AppCompatActivity {
 		int hash = Integer.parseInt(dragText.replace("reorder:", ""));
 		View draggedView = findViewByHash(screen, hash);
 		if (draggedView != null && draggedView.getParent() instanceof ViewGroup) {
-			ViewGroup parent = (ViewGroup) draggedView.getParent();
-			parent.removeView(draggedView);
+			ViewGroup oldParent = (ViewGroup) draggedView.getParent();
+			oldParent.removeView(draggedView);
 			int newIndex = findDropIndex(screen, event.getY());
 			screen.addView(draggedView, Math.min(newIndex, screen.getChildCount()));
+			// Re-register for reorder drag and nested drop zones
+			setupWidgetReorderDrag(draggedView);
+			dropZoneManager.registerWidgetAsDropZoneIfContainer(draggedView);
 			saveUndoState();
 			refreshHierarchy();
 			updateWidgetSpinnerFromTree();
 		}
+	}
+
+	/** Get the project logo path from assets storage. */
+	private String getProjectLogoPath() {
+		try {
+			String assetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+				+ "/.dragweb/projects/" + projectId + "/assets";
+			File assetsDir = new File(assetsPath);
+			if (assetsDir.exists()) {
+				// Look for a logo file (logo.png, logo.jpg, logo.svg)
+				String[] logoNames = {"logo.png", "logo.jpg", "logo.jpeg", "logo.svg", "logo.webp"};
+				for (String name : logoNames) {
+					File logoFile = new File(assetsDir, name);
+					if (logoFile.exists()) {
+						return logoFile.getAbsolutePath();
+					}
+				}
+			}
+		} catch (Exception e) {
+			Log.w("MainActivity", "Could not find project logo: " + e.getMessage());
+		}
+		return "";
 	}
 
 	private View findViewByHash(ViewGroup parent, int hash) {
@@ -1462,6 +1488,7 @@ public class MainActivity extends AppCompatActivity {
 		}
 
 		PageCodeGenerator codeGen = new PageCodeGenerator();
+		codeGen.setProjectInfo(projectName, getProjectLogoPath());
 		ArrayList<String> pageNames = new ArrayList<>();
 		ArrayList<String> pageCodes = new ArrayList<>();
 
@@ -2057,6 +2084,15 @@ public class MainActivity extends AppCompatActivity {
 		File logicFile = new File(dir, projectId + "_" + currentPageName + ".logic");
 		FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
 
+		// Save logic blocks for all pages to ensure nothing is lost
+		if (pageManager != null) {
+			for (String page : pageManager.getPages()) {
+				if (!page.equals(currentPageName)) {
+					// Other pages' logic is already on disk, no need to re-save
+				}
+			}
+		}
+
 		saveProjectToExternal();
 		Toast.makeText(this, "Project saved", Toast.LENGTH_SHORT).show();
 	}
@@ -2075,9 +2111,22 @@ public class MainActivity extends AppCompatActivity {
 				FileUtil.writeFile(new File(extDir, "layout.json").getAbsolutePath(), json);
 			}
 
-			String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+			// Save theme
 			FileUtil.writeFile(new File(extDir, "theme.json").getAbsolutePath(), themeManager.toJson());
-			FileUtil.writeFile(new File(extDir, currentPageName + "_logic.json").getAbsolutePath(), logicBlockManager.toJson());
+
+			// Save logic blocks for all pages
+			if (pageManager != null) {
+				for (String page : pageManager.getPages()) {
+					File logicFile = new File(internalDir, projectId + "_" + page + ".logic");
+					if (logicFile.exists()) {
+						String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
+						FileUtil.writeFile(new File(extDir, page + "_logic.json").getAbsolutePath(), logicJson);
+					}
+				}
+			} else {
+				String currentPageName = "index";
+				FileUtil.writeFile(new File(extDir, currentPageName + "_logic.json").getAbsolutePath(), logicBlockManager.toJson());
+			}
 		} catch (Exception e) {
 			Log.w("MainActivity", "Could not save to external: " + e.getMessage());
 		}
@@ -2391,6 +2440,7 @@ public class MainActivity extends AppCompatActivity {
 
 		dialogView.findViewById(R.id.cardExportPreview).setOnClickListener(v -> {
 			PageCodeGenerator gen = new PageCodeGenerator();
+			gen.setProjectInfo(projectName, getProjectLogoPath());
 			String html = gen.generateFullCode(screen, themeManager, logicBlockManager);
 			ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
 			clipboard.setPrimaryClip(ClipData.newPlainText("html", html));

@@ -6,10 +6,12 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.BufferedOutputStream;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -95,8 +97,81 @@ public class ExportManager {
             addToZip(zos, "index.html", result.htmlContent);
             addToZip(zos, "style.css", result.cssContent);
             addToZip(zos, "script.js", result.jsContent);
+
+            // Include project data files for full backup
+            includeProjectData(zos, projectId);
+
+            // Include assets
+            includeAssets(zos, projectId);
         }
         return zipFile;
+    }
+
+    /**
+     * Include all project data files in the ZIP export:
+     * layout JSON, theme, logic blocks, page layouts, metadata.
+     */
+    private void includeProjectData(ZipOutputStream zos, String projectId) {
+        File dir = new File(context.getFilesDir(), "projects");
+        if (!dir.exists()) return;
+
+        // Include all project-related files
+        File[] files = dir.listFiles();
+        if (files == null) return;
+
+        for (File file : files) {
+            if (!file.isFile()) continue;
+            String name = file.getName();
+            // Include files belonging to this project: projectId.json, projectId.meta,
+            // projectId.theme, projectId_pageName.logic, projectId_pageName.json
+            if (name.startsWith(projectId + ".") || name.startsWith(projectId + "_")) {
+                try {
+                    addFileToZip(zos, "data/" + name, file);
+                } catch (IOException e) {
+                    Log.w("ExportManager", "Could not add " + name + " to zip: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Include project assets (images, etc.) in the ZIP export.
+     */
+    private void includeAssets(ZipOutputStream zos, String projectId) {
+        try {
+            String assetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectId + "/assets";
+            File assetsDir = new File(assetsPath);
+            if (assetsDir.exists() && assetsDir.isDirectory()) {
+                addDirectoryToZip(zos, assetsDir, "assets/");
+            }
+        } catch (Exception e) {
+            Log.w("ExportManager", "Could not include assets: " + e.getMessage());
+        }
+    }
+
+    private void addFileToZip(ZipOutputStream zos, String entryName, File file) throws IOException {
+        byte[] buffer = new byte[4096];
+        FileInputStream fis = new FileInputStream(file);
+        zos.putNextEntry(new ZipEntry(entryName));
+        int length;
+        while ((length = fis.read(buffer)) > 0) {
+            zos.write(buffer, 0, length);
+        }
+        zos.closeEntry();
+        fis.close();
+    }
+
+    private void addDirectoryToZip(ZipOutputStream zos, File dir, String prefix) throws IOException {
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            if (file.isDirectory()) {
+                addDirectoryToZip(zos, file, prefix + file.getName() + "/");
+            } else {
+                addFileToZip(zos, prefix + file.getName(), file);
+            }
+        }
     }
 
     private String generateHtml(View screen, String projectName) {

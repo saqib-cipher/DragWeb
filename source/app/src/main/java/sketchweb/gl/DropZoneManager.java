@@ -22,7 +22,8 @@ import java.util.Set;
 public class DropZoneManager {
 
     private static final Set<String> LAYOUT_TAGS = new HashSet<>(Arrays.asList(
-        "div", "section", "header", "footer", "nav", "main", "article", "aside", "form", "ul", "ol", "table"
+        "div", "section", "header", "footer", "nav", "main", "article", "aside", "form", "ul", "ol", "table",
+        "linear", "container"
     ));
 
     private Context context;
@@ -95,12 +96,28 @@ public class DropZoneManager {
                         if (data != null && data.getItemCount() > 0) {
                             try {
                                 String dragText = data.getItemAt(0).getText().toString();
-                                // Skip reorder drags - let the main handler deal with them
+
+                                // Handle reorder drags into nested containers
                                 if (dragText.startsWith("reorder:")) {
+                                    int hash = Integer.parseInt(dragText.replace("reorder:", ""));
+                                    View draggedView = findViewByHash((ViewGroup) screen, hash);
+                                    if (draggedView != null && draggedView.getParent() instanceof ViewGroup) {
+                                        ViewGroup container = (ViewGroup) v;
+                                        // Prevent dropping into self or own children
+                                        if (draggedView == v || isDescendantOf(container, draggedView)) {
+                                            return false;
+                                        }
+                                        ViewGroup oldParent = (ViewGroup) draggedView.getParent();
+                                        oldParent.removeView(draggedView);
+                                        int targetIdx = findDropIndex(container, event.getY());
+                                        container.addView(draggedView, Math.min(targetIdx, container.getChildCount()));
+                                        return true;
+                                    }
                                     return false;
                                 }
 
                                 int pos = Integer.parseInt(dragText);
+                                if (pos < 0 || pos >= widgets.size()) return false;
                                 Map<String, Object> widgetDefinition = widgets.get(pos);
                                 View newWidgetView = engine.createWidget(widgetDefinition.get("tag").toString());
 
@@ -137,32 +154,9 @@ public class DropZoneManager {
 
                                     ViewGroup container = (ViewGroup) v;
 
-                                    // Position drop near closest child view
-                                    float dropY = event.getY();
-                                    int targetIndex = -1;
-                                    float minDistance = Float.MAX_VALUE;
-
-                                    for (int i = 0; i < container.getChildCount(); i++) {
-                                        View child = container.getChildAt(i);
-                                        float centerY = child.getY() + (child.getHeight() / 2);
-                                        float distance = Math.abs(dropY - centerY);
-                                        if (distance < minDistance) {
-                                            minDistance = distance;
-                                            targetIndex = i;
-                                        }
-                                    }
-
-                                    if (targetIndex != -1) {
-                                        View targetView = container.getChildAt(targetIndex);
-                                        float centerY = targetView.getY() + (targetView.getHeight() / 2);
-                                        if (dropY < centerY) {
-                                            container.addView(newWidgetView, targetIndex);
-                                        } else {
-                                            container.addView(newWidgetView, targetIndex + 1);
-                                        }
-                                    } else {
-                                        container.addView(newWidgetView); // fallback to end
-                                    }
+                                    // Accurate child insertion based on drop Y position
+                                    int targetIndex = findDropIndex(container, event.getY());
+                                    container.addView(newWidgetView, Math.min(targetIndex, container.getChildCount()));
 
                                     selector.registerView(newWidgetView);
                                     newWidgetView.performClick();
@@ -191,6 +185,42 @@ public class DropZoneManager {
                 }
             }
         });
+    }
+
+    private int findDropIndex(ViewGroup parent, float dropY) {
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            View child = parent.getChildAt(i);
+            float centerY = child.getY() + (child.getHeight() / 2f);
+            if (dropY < centerY) {
+                return i;
+            }
+        }
+        return parent.getChildCount();
+    }
+
+    private boolean isDescendantOf(View parent, View potentialAncestor) {
+        View current = parent;
+        while (current != null) {
+            if (current == potentialAncestor) return true;
+            if (current.getParent() instanceof View) {
+                current = (View) current.getParent();
+            } else {
+                break;
+            }
+        }
+        return false;
+    }
+
+    private View findViewByHash(ViewGroup parent, int hash) {
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            View child = parent.getChildAt(i);
+            if (child.hashCode() == hash) return child;
+            if (child instanceof ViewGroup) {
+                View found = findViewByHash((ViewGroup) child, hash);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private void highlightDropZone(View v, boolean highlight) {

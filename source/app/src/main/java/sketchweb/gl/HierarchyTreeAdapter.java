@@ -124,9 +124,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                         // Moving BESIDE a sibling
                         targetParent = (ViewGroup) toNode.view.getParent();
                         targetIndex = targetParent.indexOfChild(toNode.view);
-                        if (toPos > fromPos && targetParent == fromParent) {
-                            // Adjust for removal offset when moving down in same parent
-                        }
                     } else {
                         return false;
                     }
@@ -139,23 +136,19 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                     fromParent.removeView(fromNode.view);
 
                     // Recalculate index after removal
-                    if (targetParent == fromParent) {
-                        targetIndex = Math.min(targetIndex, targetParent.getChildCount());
-                    } else {
-                        targetIndex = Math.min(targetIndex, targetParent.getChildCount());
-                    }
+                    targetIndex = Math.min(targetIndex, targetParent.getChildCount());
 
-                    targetParent.addView(fromNode.view, Math.max(0, Math.min(targetIndex, targetParent.getChildCount())));
+                    targetParent.addView(fromNode.view, Math.max(0, targetIndex));
 
                     if (reorderListener != null) {
                         reorderListener.onReorder(fromNode.view, targetParent, targetIndex);
                     }
                 }
 
-                // Update flat list
+                // Update flat list using notifyDataSetChanged for stability
                 if (fromPos >= 0 && toPos >= 0 && fromPos < flatList.size() && toPos < flatList.size()) {
                     Collections.swap(flatList, fromPos, toPos);
-                    notifyItemMoved(fromPos, toPos);
+                    notifyDataSetChanged();
                 }
                 return true;
             }
@@ -167,7 +160,8 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
             @Override
             public boolean isLongPressDragEnabled() {
-                return false;
+                // Enable direct drag without requiring long press
+                return true;
             }
 
             @Override
@@ -334,25 +328,8 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         }
         cardRow.setBackground(cardBg);
 
-        // Drag handle (for non-root, non-locked items)
-        if (!isRoot && !node.isLocked) {
-            TextView dragHandle = new TextView(context);
-            dragHandle.setText("\u2261");
-            dragHandle.setTextSize(20);
-            dragHandle.setTextColor(Color.parseColor("#938F99"));
-            LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(
-                36, ViewGroup.LayoutParams.WRAP_CONTENT);
-            handleParams.setMargins(0, 0, 8, 0);
-            dragHandle.setLayoutParams(handleParams);
-            dragHandle.setGravity(Gravity.CENTER);
-            dragHandle.setOnTouchListener((v, event) -> {
-                if (event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
-                    startDrag(holder);
-                }
-                return false;
-            });
-            cardRow.addView(dragHandle);
-        }
+        // Items can now be dragged directly (no hamburger handle needed)
+        // The ItemTouchHelper has isLongPressDragEnabled=true for direct drag
 
         // Collapse/expand arrow for containers
         if (node.isContainer && node.childCount > 0) {

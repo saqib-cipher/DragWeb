@@ -12,6 +12,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -58,7 +59,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     // Views
     private MaterialToolbar toolbar;
     private Spinner spnTargetMode;
-    private TextInputEditText etTargetSelector;
+    private AutoCompleteTextView etTargetSelector;
     private TabLayout tabCategories;
     private LinearLayout blockPaletteContainer;
     private LinearLayout blockWorkspace;
@@ -109,6 +110,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     private void initViews() {
         toolbar = findViewById(R.id.toolbarLogic);
         spnTargetMode = findViewById(R.id.spnTargetMode);
+        // etTargetSelector is an AutoCompleteTextView in layout XML, not TextInputEditText
         etTargetSelector = findViewById(R.id.etTargetSelector);
         tabCategories = findViewById(R.id.tabBlockCategories);
         blockPaletteContainer = findViewById(R.id.blockPaletteContainer);
