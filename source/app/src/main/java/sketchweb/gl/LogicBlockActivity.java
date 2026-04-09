@@ -25,6 +25,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.tabs.TabLayout;
+import android.widget.AutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -58,7 +59,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     // Views
     private MaterialToolbar toolbar;
     private Spinner spnTargetMode;
-    private TextInputEditText etTargetSelector;
+    private AutoCompleteTextView etTargetSelector;
     private TabLayout tabCategories;
     private LinearLayout blockPaletteContainer;
     private LinearLayout blockWorkspace;
