@@ -120,10 +120,13 @@ public class MainActivity extends AppCompatActivity {
 					// Reload logic blocks from file after returning
 					if (logicBlockManager != null) {
 						File dir = new File(getFilesDir(), "projects");
-						File logicFile = new File(dir, projectId + ".logic");
+						String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+						File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
 						if (logicFile.exists()) {
 							String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
 							logicBlockManager.fromJson(logicJson);
+						} else {
+							logicBlockManager.fromJson("[]");
 						}
 						refreshLogicBlocksUI();
 					}
@@ -426,6 +429,7 @@ public class MainActivity extends AppCompatActivity {
 			// Launch the dedicated Logic Block Activity
 			Intent intent = new Intent(this, LogicBlockActivity.class);
 			intent.putExtra("project_id", projectId);
+			intent.putExtra("page_name", pageManager != null ? pageManager.getCurrentPage() : "index");
 			logicBlockLauncher.launch(intent);
 		});
 
@@ -452,6 +456,22 @@ public class MainActivity extends AppCompatActivity {
 			// Blocks changed via drag-drop, workspace is already refreshed internally
 		});
 		pageManager = new PageManager(this, projectId);
+
+		// Load logic blocks for the initial page
+		File dir = new File(getFilesDir(), "projects");
+		String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+		File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+		if (logicFile.exists()) {
+			String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
+			logicBlockManager.fromJson(logicJson);
+		} else {
+			// fallback for older projects, or clear
+			File oldLogicFile = new File(dir, projectId + ".logic");
+			if (oldLogicFile.exists()) {
+				String logicJson = FileUtil.readFile(oldLogicFile.getAbsolutePath());
+				logicBlockManager.fromJson(logicJson);
+			}
+		}
 
 		// Set up block editor in event panel
 		if (blockEditorContainer != null) {
@@ -887,10 +907,34 @@ public class MainActivity extends AppCompatActivity {
 				if (!selectedPage.equals(pageManager.getCurrentPage())) {
 					// Save current page layout with all nested children
 					saveCurrentPageLayout();
+
+					// Save current logic blocks for current page
+					if (logicBlockManager != null) {
+						File dir = new File(getFilesDir(), "projects");
+						if (!dir.exists()) dir.mkdirs();
+						String oldPageName = pageManager.getCurrentPage();
+						File logicFile = new File(dir, projectId + "_" + oldPageName + ".logic");
+						FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
+					}
+
 					// Switch to new page
 					pageManager.setCurrentPage(selectedPage);
+
 					// Load the new page layout
 					loadCurrentPageLayout();
+
+					// Load logic blocks for new page
+					if (logicBlockManager != null) {
+						File dir = new File(getFilesDir(), "projects");
+						File logicFile = new File(dir, projectId + "_" + selectedPage + ".logic");
+						if (logicFile.exists()) {
+							String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
+							logicBlockManager.fromJson(logicJson);
+						} else {
+							logicBlockManager.fromJson("[]"); // clear for new page
+						}
+						refreshLogicBlocksUI();
+					}
 				}
 			}
 			@Override
@@ -1750,7 +1794,8 @@ public class MainActivity extends AppCompatActivity {
 		File themeFile = new File(dir, projectId + ".theme");
 		FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
 
-		File logicFile = new File(dir, projectId + ".logic");
+		String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+		File logicFile = new File(dir, projectId + "_" + currentPageName + ".logic");
 		FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
 
 		saveProjectToExternal();
@@ -1771,8 +1816,9 @@ public class MainActivity extends AppCompatActivity {
 				FileUtil.writeFile(new File(extDir, "layout.json").getAbsolutePath(), json);
 			}
 
+			String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
 			FileUtil.writeFile(new File(extDir, "theme.json").getAbsolutePath(), themeManager.toJson());
-			FileUtil.writeFile(new File(extDir, "logic.json").getAbsolutePath(), logicBlockManager.toJson());
+			FileUtil.writeFile(new File(extDir, currentPageName + "_logic.json").getAbsolutePath(), logicBlockManager.toJson());
 		} catch (Exception e) {
 			Log.w("MainActivity", "Could not save to external: " + e.getMessage());
 		}

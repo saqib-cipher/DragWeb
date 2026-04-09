@@ -79,11 +79,14 @@ public class LogicBlockActivity extends AppCompatActivity {
         projectId = getIntent().getStringExtra("project_id");
         if (projectId == null) projectId = "";
 
+        String pageName = getIntent().getStringExtra("page_name");
+        if (pageName == null || pageName.isEmpty()) pageName = "index";
+
         logicBlockManager = new LogicBlockManager(this);
 
         // Load existing blocks
         File dir = new File(getFilesDir(), "projects");
-        File logicFile = new File(dir, projectId + ".logic");
+        File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
         if (logicFile.exists()) {
             String json = FileUtil.readFile(logicFile.getAbsolutePath());
             if (json != null && !json.isEmpty()) {
@@ -996,7 +999,10 @@ public class LogicBlockActivity extends AppCompatActivity {
     private void saveAndFinish() {
         File dir = new File(getFilesDir(), "projects");
         if (!dir.exists()) dir.mkdirs();
-        File logicFile = new File(dir, projectId + ".logic");
+        String pageName = getIntent().getStringExtra("page_name");
+        if (pageName == null || pageName.isEmpty()) pageName = "index";
+
+        File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
         FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
 
         // Also save to external
@@ -1005,7 +1011,7 @@ public class LogicBlockActivity extends AppCompatActivity {
                 + "/.dragweb/projects/" + projectId;
             File extDir = new File(basePath);
             if (!extDir.exists()) extDir.mkdirs();
-            FileUtil.writeFile(new File(extDir, "logic.json").getAbsolutePath(), logicBlockManager.toJson());
+            FileUtil.writeFile(new File(extDir, pageName + "_logic.json").getAbsolutePath(), logicBlockManager.toJson());
         } catch (Exception e) {
             Log.w("LogicBlockActivity", "Could not save to external: " + e.getMessage());
         }
