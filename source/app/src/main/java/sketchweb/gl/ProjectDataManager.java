@@ -1,6 +1,7 @@
 package sketchweb.gl;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Environment;
 import android.util.Log;
 import android.view.View;
@@ -10,14 +11,23 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 public class ProjectDataManager {
 
@@ -33,7 +43,6 @@ public class ProjectDataManager {
         List<Map<String, Object>> widgetTree = serializeViewTree(screen);
         String json = gson.toJson(widgetTree);
 
-        // Save to internal storage only; external save is handled by MainActivity
         File dir = new File(context.getFilesDir(), "projects");
         if (!dir.exists()) {
             dir.mkdirs();
@@ -66,7 +75,6 @@ public class ProjectDataManager {
             projectBundle.put("pages", pageManager.getPages());
             projectBundle.put("currentPage", pageManager.getCurrentPage());
 
-            // Save all page layouts
             Map<String, String> pageLayouts = new HashMap<>();
             for (String page : pageManager.getPages()) {
                 String pageJson = pageManager.loadPageLayout(page);
@@ -95,7 +103,6 @@ public class ProjectDataManager {
                     }
                 }
             }
-            // Also include current page's in-memory logic
             allLogic.put(pageManager.getCurrentPage(), logicBlockManager.toJson());
             projectBundle.put("logicBlocks", allLogic);
         }
@@ -134,19 +141,16 @@ public class ProjectDataManager {
             Log.e(TAG, "Failed to save full project: " + e.getMessage());
         }
 
-        // Write to external storage
         saveToExternalStorage(projectId, bundleJson);
     }
 
     /**
      * Load full project data from a JSON bundle.
-     * Restores pages, widgets, styles, logic blocks, and events.
      */
     public Map<String, Object> loadFullProject(String projectId) {
         File dir = new File(context.getFilesDir(), "projects");
         File bundleFile = new File(dir, projectId + ".json");
 
-        // Try internal first
         if (!bundleFile.exists()) {
             bundleFile = tryLoadExternalBundle(projectId);
         }
@@ -158,7 +162,6 @@ public class ProjectDataManager {
                 new TypeToken<Map<String, Object>>(){}.getType());
 
             if (bundle != null && bundle.containsKey("version")) {
-                // This is a v2 full bundle
                 return bundle;
             }
         } catch (Exception e) {
@@ -166,6 +169,182 @@ public class ProjectDataManager {
         }
 
         return null;
+    }
+
+    /**
+     * Export a single project as a ZIP file to the given URI.
+     * Contains: all internal project files + external assets directory.
+     */
+    public boolean exportProjectAsZip(Uri uri, String projectId) {
+        try {
+            OutputStream fos = context.getContentResolver().openOutputStream(uri);
+            if (fos == null) return false;
+
+            ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos));
+            File dir = new File(context.getFilesDir(), "projects");
+
+            // Add all project files from internal storage
+            File[] allFiles = dir.listFiles();
+            if (allFiles != null) {
+                for (File file : allFiles) {
+                    if (!file.isFile()) continue;
+                    String name = file.getName();
+                    if (name.startsWith(projectId + ".") || name.startsWith(projectId + "_")) {
+                        addFileToZip(zos, "projects/" + name, file);
+                    }
+                }
+            }
+
+            // Add external assets
+            String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectId;
+            File extDir = new File(extPath);
+            if (extDir.exists()) {
+                addDirectoryToZip(zos, extDir, "external/" + projectId + "/");
+            }
+
+            zos.close();
+            fos.close();
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Export project ZIP failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Export all projects as a ZIP file to the given URI.
+     */
+    public boolean exportAllProjectsAsZip(Uri uri) {
+        File dir = new File(context.getFilesDir(), "projects");
+        if (!dir.exists() || dir.listFiles() == null) return false;
+
+        try {
+            OutputStream fos = context.getContentResolver().openOutputStream(uri);
+            if (fos == null) return false;
+
+            ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos));
+
+            // Add all internal project files
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile()) {
+                        addFileToZip(zos, "projects/" + file.getName(), file);
+                    }
+                }
+            }
+
+            // Add all external project directories
+            String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects";
+            File extDir = new File(extPath);
+            if (extDir.exists()) {
+                addDirectoryToZip(zos, extDir, "external/");
+            }
+
+            zos.close();
+            fos.close();
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Export all projects ZIP failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Import project(s) from a ZIP file URI.
+     * Restores all internal project files and external assets.
+     * Returns list of project IDs that were imported.
+     */
+    public List<String> importProjectsFromZip(Uri uri) {
+        List<String> importedIds = new ArrayList<>();
+        File internalDir = new File(context.getFilesDir(), "projects");
+        if (!internalDir.exists()) internalDir.mkdirs();
+
+        try {
+            String canonicalDirPath = internalDir.getCanonicalPath();
+            String extBasePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects";
+            File extBaseDir = new File(extBasePath);
+            if (!extBaseDir.exists()) extBaseDir.mkdirs();
+            String canonicalExtPath = extBaseDir.getCanonicalPath();
+
+            InputStream fis = context.getContentResolver().openInputStream(uri);
+            if (fis == null) return importedIds;
+
+            ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis));
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                String entryName = entry.getName();
+
+                File outFile;
+                String safeCheckPath;
+                if (entryName.startsWith("external/")) {
+                    String relativePath = entryName.substring("external/".length());
+                    outFile = new File(extBaseDir, relativePath);
+                    safeCheckPath = canonicalExtPath;
+                } else if (entryName.startsWith("projects/")) {
+                    String relativePath = entryName.substring("projects/".length());
+                    outFile = new File(internalDir, relativePath);
+                    safeCheckPath = canonicalDirPath;
+
+                    // Track imported project IDs from .json files
+                    if (relativePath.endsWith(".json") && !relativePath.contains("_")) {
+                        String pid = relativePath.replace(".json", "");
+                        if (!importedIds.contains(pid)) {
+                            importedIds.add(pid);
+                        }
+                    }
+                } else {
+                    // Legacy format without prefix - treat as internal
+                    outFile = new File(internalDir, entryName);
+                    safeCheckPath = canonicalDirPath;
+
+                    if (entryName.endsWith(".json") && !entryName.contains("_") && !entryName.contains("/")) {
+                        String pid = entryName.replace(".json", "");
+                        if (!importedIds.contains(pid)) {
+                            importedIds.add(pid);
+                        }
+                    }
+                }
+
+                // Path traversal protection
+                String canonicalFilePath = outFile.getCanonicalPath();
+                if (!canonicalFilePath.startsWith(safeCheckPath + File.separator) &&
+                    !canonicalFilePath.equals(safeCheckPath)) {
+                    zis.closeEntry();
+                    continue;
+                }
+
+                if (entry.isDirectory()) {
+                    if (!outFile.exists()) outFile.mkdirs();
+                    zis.closeEntry();
+                    continue;
+                }
+
+                File parentFile = outFile.getParentFile();
+                if (parentFile != null && !parentFile.exists()) {
+                    parentFile.mkdirs();
+                }
+
+                FileOutputStream fos = new FileOutputStream(outFile);
+                byte[] buffer = new byte[4096];
+                int count;
+                while ((count = zis.read(buffer)) != -1) {
+                    fos.write(buffer, 0, count);
+                }
+                fos.close();
+                zis.closeEntry();
+            }
+            zis.close();
+            fis.close();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Import projects from ZIP failed: " + e.getMessage());
+        }
+
+        return importedIds;
     }
 
     /**
@@ -216,7 +395,6 @@ public class ProjectDataManager {
         if (bundle == null || pageManager == null) return;
 
         try {
-            // Restore pages list
             if (bundle.containsKey("pages")) {
                 List<String> pages = (List<String>) bundle.get("pages");
                 if (pages != null) {
@@ -228,7 +406,6 @@ public class ProjectDataManager {
                 }
             }
 
-            // Restore page layouts
             if (bundle.containsKey("pageLayouts")) {
                 Map<String, String> pageLayouts = (Map<String, String>) bundle.get("pageLayouts");
                 if (pageLayouts != null) {
@@ -239,6 +416,32 @@ public class ProjectDataManager {
             }
         } catch (Exception e) {
             Log.w(TAG, "Could not restore page layouts: " + e.getMessage());
+        }
+    }
+
+    // ---- Helper methods ----
+
+    private void addFileToZip(ZipOutputStream zos, String entryName, File file) throws IOException {
+        byte[] buffer = new byte[4096];
+        FileInputStream fis = new FileInputStream(file);
+        zos.putNextEntry(new ZipEntry(entryName));
+        int length;
+        while ((length = fis.read(buffer)) > 0) {
+            zos.write(buffer, 0, length);
+        }
+        zos.closeEntry();
+        fis.close();
+    }
+
+    private void addDirectoryToZip(ZipOutputStream zos, File dir, String prefix) throws IOException {
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            if (file.isDirectory()) {
+                addDirectoryToZip(zos, file, prefix + file.getName() + "/");
+            } else {
+                addFileToZip(zos, prefix + file.getName(), file);
+            }
         }
     }
 
@@ -287,9 +490,7 @@ public class ProjectDataManager {
         File dir = new File(context.getFilesDir(), "projects");
         File file = new File(dir, projectId + ".json");
 
-        // Try internal storage first
         if (!file.exists()) {
-            // Try loading from external persistent storage
             file = tryLoadFromExternal(projectId, dir);
         }
 
@@ -317,7 +518,6 @@ public class ProjectDataManager {
                 + "/.dragweb/projects/" + projectId + "/layout.json";
             File extFile = new File(extPath);
             if (extFile.exists()) {
-                // Copy to internal storage for consistency
                 String json = FileUtil.readFile(extPath);
                 if (json != null && !json.isEmpty()) {
                     if (!internalDir.exists()) internalDir.mkdirs();

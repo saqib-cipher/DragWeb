@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.DragEvent;
 import android.view.Gravity;
@@ -23,30 +24,29 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Separate activity for Logic Block editing with puzzle-like block design,
- * Material 3 expressive styling, and Sketchware-Pro-like spinner selection.
+ * Logic Block editor with puzzle-like block design, improved palette width,
+ * better input UI, and AutoComplete for widget IDs/classes from current page.
  */
 public class LogicBlockActivity extends AppCompatActivity {
 
-    // Block categories
     private static final String CAT_EVENT = "event";
     private static final String CAT_CSS = "css";
     private static final String CAT_HTML = "html";
     private static final String CAT_LOGIC = "logic";
     private static final String CAT_VARIABLE = "variable";
 
-    // Category colors
     private static final int COLOR_EVENT = Color.parseColor("#FF9800");
     private static final int COLOR_CSS = Color.parseColor("#2196F3");
     private static final int COLOR_HTML = Color.parseColor("#4CAF50");
@@ -55,22 +55,32 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     private LogicBlockManager logicBlockManager;
     private String projectId;
+    private String pageName;
 
     // Views
     private MaterialToolbar toolbar;
     private Spinner spnTargetMode;
     private AutoCompleteTextView etTargetSelector;
-    private TabLayout tabCategories;
+    private com.google.android.material.tabs.TabLayout tabCategories;
     private LinearLayout blockPaletteContainer;
     private LinearLayout blockWorkspace;
     private Button btnBlockUndo, btnBlockRedo, btnBlockViewJs, btnBlockAdd;
+    private TextView tvBlockCount;
 
     private String currentCategory = CAT_EVENT;
+
+    // AutoComplete suggestions
+    private List<String> widgetIds = new ArrayList<>();
+    private List<String> widgetClasses = new ArrayList<>();
 
     // Undo/redo
     private List<String> undoStack = new ArrayList<>();
     private List<String> redoStack = new ArrayList<>();
     private static final int MAX_UNDO = 30;
+
+    // Saved event/target state so we don't re-ask every time
+    private String lastSelectedEvent = "click";
+    private String lastSelectedTarget = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,7 +90,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         projectId = getIntent().getStringExtra("project_id");
         if (projectId == null) projectId = "";
 
-        String pageName = getIntent().getStringExtra("page_name");
+        pageName = getIntent().getStringExtra("page_name");
         if (pageName == null || pageName.isEmpty()) pageName = "index";
 
         logicBlockManager = new LogicBlockManager(this);
@@ -95,6 +105,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             }
         }
 
+        loadWidgetSuggestions();
         initViews();
         setupToolbar();
         setupTargetSelector();
@@ -107,10 +118,81 @@ public class LogicBlockActivity extends AppCompatActivity {
         saveUndoState();
     }
 
+    /**
+     * Load widget IDs and classes from the current page's layout data
+     * to populate AutoComplete suggestions.
+     */
+    private void loadWidgetSuggestions() {
+        widgetIds.clear();
+        widgetClasses.clear();
+
+        try {
+            // Load page layout JSON
+            File dir = new File(getFilesDir(), "projects");
+            File pageFile = new File(dir, projectId + "_" + pageName + ".json");
+            String json = null;
+            if (pageFile.exists()) {
+                json = FileUtil.readFile(pageFile.getAbsolutePath());
+            }
+            if (json == null || json.isEmpty() || "[]".equals(json.trim())) {
+                // Try loading from main project file
+                File mainFile = new File(dir, projectId + ".json");
+                if (mainFile.exists()) {
+                    json = FileUtil.readFile(mainFile.getAbsolutePath());
+                }
+            }
+
+            if (json != null && !json.isEmpty()) {
+                List<Map<String, Object>> tree = new Gson().fromJson(json,
+                    new TypeToken<List<Map<String, Object>>>(){}.getType());
+                if (tree != null) {
+                    for (Map<String, Object> node : tree) {
+                        collectSuggestionsFromNode(node);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w("LogicBlockActivity", "Could not load widget suggestions: " + e.getMessage());
+        }
+    }
+
+    private void collectSuggestionsFromNode(Map<String, Object> node) {
+        if (node == null) return;
+        Map<String, Object> function = (Map<String, Object>) node.get("function");
+        if (function != null) {
+            if (function.containsKey("id")) {
+                String id = function.get("id").toString().trim();
+                if (!id.isEmpty() && !widgetIds.contains(id)) {
+                    widgetIds.add(id);
+                }
+            }
+            if (function.containsKey("class")) {
+                String cls = function.get("class").toString().trim();
+                if (!cls.isEmpty()) {
+                    for (String c : cls.split("\\s+")) {
+                        if (!c.isEmpty() && !widgetClasses.contains(c)) {
+                            widgetClasses.add(c);
+                        }
+                    }
+                }
+            }
+        }
+        // Recurse children
+        if (node.containsKey("children")) {
+            Object childrenObj = node.get("children");
+            if (childrenObj instanceof List) {
+                for (Object child : (List) childrenObj) {
+                    if (child instanceof Map) {
+                        collectSuggestionsFromNode((Map<String, Object>) child);
+                    }
+                }
+            }
+        }
+    }
+
     private void initViews() {
         toolbar = findViewById(R.id.toolbarLogic);
         spnTargetMode = findViewById(R.id.spnTargetMode);
-        // etTargetSelector is an AutoCompleteTextView in layout XML, not TextInputEditText
         etTargetSelector = findViewById(R.id.etTargetSelector);
         tabCategories = findViewById(R.id.tabBlockCategories);
         blockPaletteContainer = findViewById(R.id.blockPaletteContainer);
@@ -119,12 +201,12 @@ public class LogicBlockActivity extends AppCompatActivity {
         btnBlockRedo = findViewById(R.id.btnBlockRedo);
         btnBlockViewJs = findViewById(R.id.btnBlockViewJs);
         btnBlockAdd = findViewById(R.id.btnBlockAdd);
+        tvBlockCount = findViewById(R.id.tvBlockCount);
     }
 
     private void setupToolbar() {
-        toolbar.setNavigationOnClickListener(v -> {
-            saveAndFinish();
-        });
+        toolbar.setNavigationOnClickListener(v -> saveAndFinish());
+        toolbar.setSubtitle(pageName + " - Logic Editor");
     }
 
     private void setupTargetSelector() {
@@ -133,6 +215,31 @@ public class LogicBlockActivity extends AppCompatActivity {
             android.R.layout.simple_spinner_item, modes);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spnTargetMode.setAdapter(adapter);
+
+        // Update AutoComplete suggestions when target mode changes
+        spnTargetMode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int pos, long id) {
+                updateAutoCompleteSuggestions();
+            }
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+
+        updateAutoCompleteSuggestions();
+    }
+
+    private void updateAutoCompleteSuggestions() {
+        List<String> suggestions;
+        int pos = spnTargetMode.getSelectedItemPosition();
+        if (pos == 1) {
+            suggestions = widgetClasses;
+        } else {
+            suggestions = widgetIds;
+        }
+        ArrayAdapter<String> autoAdapter = new ArrayAdapter<>(this,
+            android.R.layout.simple_dropdown_item_1line, suggestions);
+        etTargetSelector.setAdapter(autoAdapter);
     }
 
     private String getTargetMode() {
@@ -150,9 +257,9 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private void setupCategoryTabs() {
-        tabCategories.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+        tabCategories.addOnTabSelectedListener(new com.google.android.material.tabs.TabLayout.OnTabSelectedListener() {
             @Override
-            public void onTabSelected(TabLayout.Tab tab) {
+            public void onTabSelected(com.google.android.material.tabs.TabLayout.Tab tab) {
                 switch (tab.getPosition()) {
                     case 0: showCategory(CAT_EVENT); break;
                     case 1: showCategory(CAT_CSS); break;
@@ -162,9 +269,9 @@ public class LogicBlockActivity extends AppCompatActivity {
                 }
             }
             @Override
-            public void onTabUnselected(TabLayout.Tab tab) {}
+            public void onTabUnselected(com.google.android.material.tabs.TabLayout.Tab tab) {}
             @Override
-            public void onTabReselected(TabLayout.Tab tab) {}
+            public void onTabReselected(com.google.android.material.tabs.TabLayout.Tab tab) {}
         });
     }
 
@@ -229,25 +336,25 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private View createPuzzleBlock(BlockDef def, int baseColor) {
-        // Puzzle-shaped block with notch and tab
         LinearLayout block = new LinearLayout(this);
         block.setOrientation(LinearLayout.VERTICAL);
-        block.setPadding(16, 12, 16, 12);
+        block.setPadding(20, 14, 20, 14);
 
+        // Wider blocks for better readability
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.setMargins(6, 4, 6, 4);
         block.setLayoutParams(params);
+        block.setMinimumWidth(140);
 
-        // Puzzle-like shape with rounded corners and colored border
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadii(new float[]{16, 16, 16, 16, 16, 16, 4, 4}); // Puzzle notch effect
+        bg.setCornerRadii(new float[]{16, 16, 16, 16, 16, 16, 4, 4});
         bg.setColor(adjustAlpha(baseColor, 30));
         bg.setStroke(3, baseColor);
         block.setBackground(bg);
         block.setElevation(4);
 
-        // Top notch indicator (puzzle connector)
+        // Top notch indicator
         View topNotch = new View(this);
         GradientDrawable notchBg = new GradientDrawable();
         notchBg.setCornerRadius(4);
@@ -255,26 +362,27 @@ public class LogicBlockActivity extends AppCompatActivity {
         topNotch.setBackground(notchBg);
         LinearLayout.LayoutParams notchParams = new LinearLayout.LayoutParams(24, 6);
         notchParams.gravity = Gravity.CENTER_HORIZONTAL;
-        notchParams.setMargins(0, 0, 0, 6);
+        notchParams.setMargins(0, 0, 0, 8);
         topNotch.setLayoutParams(notchParams);
         block.addView(topNotch);
 
-        // Block name
+        // Block name (larger, bolder)
         TextView nameText = new TextView(this);
         nameText.setText(def.label);
         nameText.setTextColor(baseColor);
-        nameText.setTextSize(13);
+        nameText.setTextSize(14);
         nameText.setTypeface(null, Typeface.BOLD);
         block.addView(nameText);
 
         // Description
         TextView descText = new TextView(this);
         descText.setText(def.description);
-        descText.setTextColor(Color.parseColor("#999999"));
-        descText.setTextSize(10);
+        descText.setTextColor(Color.parseColor("#AAAAAA"));
+        descText.setTextSize(11);
+        descText.setPadding(0, 2, 0, 0);
         block.addView(descText);
 
-        // Bottom tab (puzzle connector out)
+        // Bottom tab
         View bottomTab = new View(this);
         GradientDrawable tabBg = new GradientDrawable();
         tabBg.setCornerRadius(4);
@@ -282,7 +390,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         bottomTab.setBackground(tabBg);
         LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(24, 6);
         tabParams.gravity = Gravity.CENTER_HORIZONTAL;
-        tabParams.setMargins(0, 6, 0, 0);
+        tabParams.setMargins(0, 8, 0, 0);
         bottomTab.setLayoutParams(tabParams);
         block.addView(bottomTab);
 
@@ -301,15 +409,13 @@ public class LogicBlockActivity extends AppCompatActivity {
         return block;
     }
 
-    // ---- Add Block Dialogs (Spinner-based) ----
+    // ---- Add Block (streamlined - no selector event dialog every time) ----
 
     private void showAddBlockDialog() {
-        // Use spinners instead of dialogs for selection (Sketchware-Pro style)
         String target = getTargetValue();
         String targetMode = getTargetMode();
 
         if (CAT_LOGIC.equals(currentCategory) || CAT_VARIABLE.equals(currentCategory)) {
-            // Logic and Variable blocks don't need target
             showBlockPickerSpinner(currentCategory);
         } else {
             if (target.isEmpty()) {
@@ -328,9 +434,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             labels[i] = blocks[i].label + " - " + blocks[i].description;
         }
 
-        // Event spinner selection
         if (CAT_EVENT.equals(category)) {
-            // Select event, then action
             new MaterialAlertDialogBuilder(this)
                 .setTitle("Select Event")
                 .setItems(labels, (dialog, which) -> {
@@ -348,20 +452,68 @@ public class LogicBlockActivity extends AppCompatActivity {
                 .setNegativeButton("Cancel", null)
                 .show();
         } else {
-            // CSS/HTML action - select action, then event
+            // CSS/HTML: directly add with last selected event (no re-asking)
             new MaterialAlertDialogBuilder(this)
                 .setTitle("Select Action")
                 .setItems(labels, (dialog, which) -> {
                     BlockDef actionDef = blocks[which];
-                    showEventPickerForAction(actionDef);
+                    // Use the last selected event directly; user can change it if needed
+                    showValueInputForBlock(
+                        new BlockDef(lastSelectedEvent,
+                            getEventLabel(lastSelectedEvent), "", CAT_EVENT),
+                        actionDef);
                 })
                 .setNegativeButton("Cancel", null)
+                .setNeutralButton("Change Event", (dialog, which) -> {
+                    // Offer event picker first, then come back
+                    showEventPickerThenAction(blocks, labels);
+                })
                 .show();
         }
     }
 
+    /**
+     * Let user pick event first, then pick action from the same category.
+     */
+    private void showEventPickerThenAction(BlockDef[] actionBlocks, String[] actionLabels) {
+        String[] events = {"On Click", "On Hover", "On Load", "On Input", "On Submit", "On Scroll"};
+        String[] eventKeys = {"click", "hover", "load", "input", "submit", "scroll"};
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Select Event")
+            .setItems(events, (dialog, which) -> {
+                lastSelectedEvent = eventKeys[which];
+                // Now show action picker
+                new MaterialAlertDialogBuilder(this)
+                    .setTitle("Select Action (on " + events[which] + ")")
+                    .setItems(actionLabels, (d2, w2) -> {
+                        BlockDef actionDef = actionBlocks[w2];
+                        showValueInputForBlock(
+                            new BlockDef(lastSelectedEvent, events[which], "", CAT_EVENT),
+                            actionDef);
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    private String getEventLabel(String eventKey) {
+        switch (eventKey) {
+            case "click": return "On Click";
+            case "hover": return "On Hover";
+            case "load": return "On Load";
+            case "input": return "On Input";
+            case "submit": return "On Submit";
+            case "scroll": return "On Scroll";
+            case "keydown": return "On Key Down";
+            case "change": return "On Change";
+            default: return eventKey;
+        }
+    }
+
     private void showActionPickerForEvent(BlockDef eventDef) {
-        // Combine CSS and HTML actions
         BlockDef[] cssBlocks = getBlocksForCategory(CAT_CSS);
         BlockDef[] htmlBlocks = getBlocksForCategory(CAT_HTML);
 
@@ -375,20 +527,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             .setTitle("Select Action for " + eventDef.label)
             .setItems(labels.toArray(new String[0]), (dialog, which) -> {
                 BlockDef actionDef = allActions.get(which);
-                showValueInputForBlock(eventDef, actionDef);
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
-    }
-
-    private void showEventPickerForAction(BlockDef actionDef) {
-        String[] events = {"On Click", "On Hover", "On Load", "On Input", "On Submit", "On Scroll"};
-        String[] eventKeys = {"click", "hover", "load", "input", "submit", "scroll"};
-
-        new MaterialAlertDialogBuilder(this)
-            .setTitle("Select Event for " + actionDef.label)
-            .setItems(events, (dialog, which) -> {
-                BlockDef eventDef = new BlockDef(eventKeys[which], events[which], "", CAT_EVENT);
+                lastSelectedEvent = eventDef.id;
                 showValueInputForBlock(eventDef, actionDef);
             })
             .setNegativeButton("Cancel", null)
@@ -400,11 +539,25 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(48, 16, 48, 0);
+        layout.setPadding(48, 24, 48, 8);
+
+        // Show event info
+        TextView eventInfo = new TextView(this);
+        eventInfo.setText("Event: " + eventDef.label + "  |  Target: " + getTargetValue());
+        eventInfo.setTextColor(Color.parseColor("#FF9800"));
+        eventInfo.setTextSize(12);
+        eventInfo.setPadding(0, 0, 0, 12);
+        layout.addView(eventInfo);
 
         TextInputLayout til = new TextInputLayout(this);
         til.setHint(hint);
+        til.setBoxCornerRadiiResources(R.dimen.m3_comp_filled_text_field_container_shape,
+            R.dimen.m3_comp_filled_text_field_container_shape,
+            R.dimen.m3_comp_filled_text_field_container_shape,
+            R.dimen.m3_comp_filled_text_field_container_shape);
         TextInputEditText input = new TextInputEditText(this);
+        input.setMinHeight(48);
+        input.setPadding(16, 12, 16, 12);
         til.addView(input);
         layout.addView(til);
 
@@ -432,15 +585,18 @@ public class LogicBlockActivity extends AppCompatActivity {
                 Toast.makeText(this, "Enter a target selector first", Toast.LENGTH_SHORT).show();
                 return;
             }
+            lastSelectedEvent = def.id;
             showActionPickerForEvent(def);
         } else {
-            // CSS/HTML action
+            // CSS/HTML action - use last event directly
             String target = getTargetValue();
             if (target.isEmpty()) {
                 Toast.makeText(this, "Enter a target selector first", Toast.LENGTH_SHORT).show();
                 return;
             }
-            showEventPickerForAction(def);
+            showValueInputForBlock(
+                new BlockDef(lastSelectedEvent, getEventLabel(lastSelectedEvent), "", CAT_EVENT),
+                def);
         }
     }
 
@@ -468,13 +624,12 @@ public class LogicBlockActivity extends AppCompatActivity {
     private void showLogicBlockInput(BlockDef def) {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(48, 16, 48, 0);
+        layout.setPadding(48, 24, 48, 8);
 
         switch (def.id) {
             case "ifBlock":
             case "ifElseBlock": {
                 TextInputLayout tilLeft = createTil("Left value");
-                TextInputEditText inputLeft = (TextInputEditText) tilLeft.getEditText();
                 layout.addView(tilLeft);
 
                 TextInputLayout tilOp = createTil("Operator (==, !=, >, <)");
@@ -574,7 +729,6 @@ public class LogicBlockActivity extends AppCompatActivity {
                 break;
             }
             default: {
-                // Comparison blocks
                 String op = "==";
                 if ("compareNotEqual".equals(def.id)) op = "!=";
                 else if ("compareGreater".equals(def.id)) op = ">";
@@ -612,7 +766,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     private void showVariableBlockInput(BlockDef def) {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(48, 16, 48, 0);
+        layout.setPadding(48, 24, 48, 8);
 
         switch (def.id) {
             case "createVar":
@@ -696,12 +850,18 @@ public class LogicBlockActivity extends AppCompatActivity {
         }
     }
 
-    // ---- Workspace Rendering (Puzzle Blocks) ----
+    // ---- Workspace Rendering ----
 
     private void refreshWorkspace() {
         blockWorkspace.removeAllViews();
 
         List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+
+        // Update block count
+        if (tvBlockCount != null) {
+            tvBlockCount.setText(blocks.size() + " block" + (blocks.size() != 1 ? "s" : ""));
+        }
+
         if (blocks.isEmpty()) {
             TextView empty = new TextView(this);
             empty.setText("Drag blocks here or tap + Add\nto build your logic");
@@ -727,16 +887,14 @@ public class LogicBlockActivity extends AppCompatActivity {
         else if (isVar) baseColor = COLOR_VARIABLE;
         else baseColor = COLOR_EVENT;
 
-        // Outer card with puzzle shape
         LinearLayout puzzleCard = new LinearLayout(this);
         puzzleCard.setOrientation(LinearLayout.VERTICAL);
-        puzzleCard.setPadding(16, 12, 16, 12);
+        puzzleCard.setPadding(18, 14, 18, 14);
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardParams.setMargins(4, 2, 4, 2);
+        cardParams.setMargins(4, 3, 4, 3);
         puzzleCard.setLayoutParams(cardParams);
 
-        // Puzzle shape background
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadii(new float[]{16, 16, 16, 16, 16, 16, 4, 4});
         bg.setColor(adjustAlpha(baseColor, 20));
@@ -804,7 +962,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             paramsView.setText(formatLogicParams(block));
             paramsView.setTextColor(Color.parseColor("#F48FB1"));
             paramsView.setTextSize(12);
-            paramsView.setPadding(4, 4, 4, 0);
+            paramsView.setPadding(4, 6, 4, 0);
             puzzleCard.addView(paramsView);
         } else {
             LinearLayout row = createBlockRow();
@@ -816,7 +974,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             paramsView.setText(block.params);
             paramsView.setTextColor(Color.parseColor("#80DEEA"));
             paramsView.setTextSize(12);
-            paramsView.setPadding(4, 4, 4, 0);
+            paramsView.setPadding(4, 6, 4, 0);
             puzzleCard.addView(paramsView);
         }
 
@@ -904,10 +1062,10 @@ public class LogicBlockActivity extends AppCompatActivity {
         badge.setTextColor(Color.WHITE);
         badge.setTextSize(10);
         badge.setTypeface(null, Typeface.BOLD);
-        badge.setPadding(12, 4, 12, 4);
+        badge.setPadding(14, 5, 14, 5);
 
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(10);
+        bg.setCornerRadius(12);
         bg.setColor(color);
         badge.setBackground(bg);
         return badge;
@@ -917,10 +1075,12 @@ public class LogicBlockActivity extends AppCompatActivity {
         TextInputLayout til = new TextInputLayout(this);
         til.setHint(hint);
         TextInputEditText input = new TextInputEditText(this);
+        input.setMinHeight(48);
+        input.setPadding(16, 12, 16, 12);
         til.addView(input);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.setMargins(0, 4, 0, 4);
+        params.setMargins(0, 6, 0, 6);
         til.setLayoutParams(params);
         return til;
     }
@@ -1001,15 +1161,13 @@ public class LogicBlockActivity extends AppCompatActivity {
     private void saveAndFinish() {
         File dir = new File(getFilesDir(), "projects");
         if (!dir.exists()) dir.mkdirs();
-        String pageName = getIntent().getStringExtra("page_name");
-        if (pageName == null || pageName.isEmpty()) pageName = "index";
 
         File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
         FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
 
         // Also save to external
         try {
-            String basePath = android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
+            String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
                 + "/.dragweb/projects/" + projectId;
             File extDir = new File(basePath);
             if (!extDir.exists()) extDir.mkdirs();
@@ -1029,75 +1187,76 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     // ---- Block Definitions ----
 
- private BlockDef[] getBlocksForCategory(String category) {
-    switch (category) {
+    private BlockDef[] getBlocksForCategory(String category) {
+        switch (category) {
+            case CAT_EVENT: return new BlockDef[]{
+                new BlockDef("onClick", "On Click", "When element is clicked", CAT_EVENT),
+                new BlockDef("onHover", "On Hover", "When mouse hovers", CAT_EVENT),
+                new BlockDef("onLoad", "On Load", "When page loads", CAT_EVENT),
+                new BlockDef("onInput", "On Input", "When input changes", CAT_EVENT),
+                new BlockDef("onSubmit", "On Submit", "When form submits", CAT_EVENT),
+                new BlockDef("onScroll", "On Scroll", "When user scrolls", CAT_EVENT),
+                new BlockDef("onKeyDown", "On Key Down", "When key pressed", CAT_EVENT),
+                new BlockDef("onChange", "On Change", "When value changes", CAT_EVENT),
+            };
 
-        case CAT_EVENT: return new BlockDef[]{
-            new BlockDef("onClick", "On Click", "When element is clicked", CAT_EVENT),
-            new BlockDef("onHover", "On Hover", "When mouse hovers", CAT_EVENT),
-            new BlockDef("onLoad", "On Load", "When page loads", CAT_EVENT),
-            new BlockDef("onInput", "On Input", "When input changes", CAT_EVENT),
-            new BlockDef("onSubmit", "On Submit", "When form submits", CAT_EVENT),
-            new BlockDef("onScroll", "On Scroll", "When user scrolls", CAT_EVENT),
-            new BlockDef("onKeyDown", "On Key Down", "When key pressed", CAT_EVENT),
-            new BlockDef("onChange", "On Change", "When value changes", CAT_EVENT),
-        };
+            case CAT_CSS: return new BlockDef[]{
+                new BlockDef("setDisplay", "Set Display", "block/none/flex", CAT_CSS),
+                new BlockDef("setColor", "Set Color", "Text color", CAT_CSS),
+                new BlockDef("setBackground", "Set Background", "Background color", CAT_CSS),
+                new BlockDef("setWidth", "Set Width", "Width value", CAT_CSS),
+                new BlockDef("setHeight", "Set Height", "Height value", CAT_CSS),
+                new BlockDef("setOpacity", "Set Opacity", "0 to 1", CAT_CSS),
+                new BlockDef("setFontSize", "Set Font Size", "Text size", CAT_CSS),
+                new BlockDef("setMargin", "Set Margin", "Outer spacing", CAT_CSS),
+                new BlockDef("setPadding", "Set Padding", "Inner spacing", CAT_CSS),
+                new BlockDef("setBorder", "Set Border", "Border style", CAT_CSS),
+                new BlockDef("setRadius", "Set Radius", "Border radius", CAT_CSS),
+                new BlockDef("addClass", "Add Class", "Add CSS class", CAT_CSS),
+                new BlockDef("removeClass", "Remove Class", "Remove CSS class", CAT_CSS),
+                new BlockDef("toggleClass", "Toggle Class", "Toggle CSS class", CAT_CSS),
+            };
 
-        case CAT_CSS: return new BlockDef[]{
-            new BlockDef("setDisplay", "Set Display", "block/none/flex", CAT_CSS),
-            new BlockDef("setColor", "Set Color", "Text color", CAT_CSS),
-            new BlockDef("setBackground", "Set Background", "Background color", CAT_CSS),
-            new BlockDef("setWidth", "Set Width", "Width value", CAT_CSS),
-            new BlockDef("setHeight", "Set Height", "Height value", CAT_CSS),
-            new BlockDef("setOpacity", "Set Opacity", "0 to 1", CAT_CSS),
-            new BlockDef("setFontSize", "Set Font Size", "Text size", CAT_CSS),
-            new BlockDef("setMargin", "Set Margin", "Outer spacing", CAT_CSS),
-            new BlockDef("setPadding", "Set Padding", "Inner spacing", CAT_CSS),
-            new BlockDef("setBorder", "Set Border", "Border style", CAT_CSS),
-            new BlockDef("setRadius", "Set Radius", "Border radius", CAT_CSS),
-            new BlockDef("addClass", "Add Class", "Add CSS class", CAT_CSS),
-            new BlockDef("removeClass", "Remove Class", "Remove CSS class", CAT_CSS),
-            new BlockDef("toggleClass", "Toggle Class", "Toggle CSS class", CAT_CSS),
-        };
+            case CAT_HTML: return new BlockDef[]{
+                new BlockDef("setText", "Set Text", "Change text content", CAT_HTML),
+                new BlockDef("setHTML", "Set HTML", "Set inner HTML", CAT_HTML),
+                new BlockDef("showElement", "Show", "Show element", CAT_HTML),
+                new BlockDef("hideElement", "Hide", "Hide element", CAT_HTML),
+                new BlockDef("toggleElement", "Toggle", "Toggle visibility", CAT_HTML),
+                new BlockDef("setHref", "Set Href", "Set link href (#section or URL)", CAT_HTML),
+                new BlockDef("navigate", "Navigate", "Go to URL via <a> link", CAT_HTML),
+                new BlockDef("goToPage", "Go To Page", "Navigate to page", CAT_HTML),
+                new BlockDef("setAttribute", "Set Attribute", "Set HTML attribute", CAT_HTML),
+                new BlockDef("scrollTo", "Scroll To", "Scroll to position", CAT_HTML),
+                new BlockDef("focusInput", "Focus Input", "Focus input field", CAT_HTML),
+                new BlockDef("alert", "Alert", "Show alert dialog", CAT_HTML),
+                new BlockDef("removeElement", "Remove", "Remove element", CAT_HTML),
+            };
 
-        case CAT_HTML: return new BlockDef[]{
-            new BlockDef("setText", "Set Text", "Change text content", CAT_HTML),
-            new BlockDef("setHTML", "Set HTML", "Set inner HTML", CAT_HTML),
-            new BlockDef("showElement", "Show", "Show element", CAT_HTML),
-            new BlockDef("hideElement", "Hide", "Hide element", CAT_HTML),
-            new BlockDef("toggleElement", "Toggle", "Toggle visibility", CAT_HTML),
-            new BlockDef("navigate", "Navigate", "Go to URL", CAT_HTML),
-            new BlockDef("goToPage", "Go To Page", "Navigate to page", CAT_HTML),
-            new BlockDef("alert", "Alert", "Show alert dialog", CAT_HTML),
-            new BlockDef("scrollTo", "Scroll To", "Scroll to position", CAT_HTML),
-            new BlockDef("focusInput", "Focus Input", "Focus input field", CAT_HTML),
-            new BlockDef("setAttribute", "Set Attribute", "Set HTML attribute", CAT_HTML),
-            new BlockDef("removeElement", "Remove", "Remove element", CAT_HTML),
-        };
+            case CAT_LOGIC: return new BlockDef[]{
+                new BlockDef("ifBlock", "If", "Conditional execution", CAT_LOGIC),
+                new BlockDef("ifElseBlock", "If / Else", "If-else conditional", CAT_LOGIC),
+                new BlockDef("compareEqual", "Compare ==", "Check equality", CAT_LOGIC),
+                new BlockDef("compareNotEqual", "Compare !=", "Check inequality", CAT_LOGIC),
+                new BlockDef("compareGreater", "Compare >", "Greater than", CAT_LOGIC),
+                new BlockDef("compareLess", "Compare <", "Less than", CAT_LOGIC),
+                new BlockDef("delay", "Delay", "Wait then execute", CAT_LOGIC),
+                new BlockDef("loop", "Loop", "Repeat N times", CAT_LOGIC),
+            };
 
-        case CAT_LOGIC: return new BlockDef[]{
-            new BlockDef("ifBlock", "If", "Conditional execution", CAT_LOGIC),
-            new BlockDef("ifElseBlock", "If / Else", "If-else conditional", CAT_LOGIC),
-            new BlockDef("compareEqual", "Compare ==", "Check equality", CAT_LOGIC),
-            new BlockDef("compareNotEqual", "Compare !=", "Check inequality", CAT_LOGIC),
-            new BlockDef("compareGreater", "Compare >", "Greater than", CAT_LOGIC),
-            new BlockDef("compareLess", "Compare <", "Less than", CAT_LOGIC),
-            new BlockDef("delay", "Delay", "Wait then execute", CAT_LOGIC),
-            new BlockDef("loop", "Loop", "Repeat N times", CAT_LOGIC),
-        };
+            case CAT_VARIABLE: return new BlockDef[]{
+                new BlockDef("createVar", "Create Variable", "Declare a variable", CAT_VARIABLE),
+                new BlockDef("setVar", "Set Variable", "Assign a value", CAT_VARIABLE),
+                new BlockDef("getVar", "Get Variable", "Read variable value", CAT_VARIABLE),
+                new BlockDef("createVarString", "String Var", "String variable", CAT_VARIABLE),
+                new BlockDef("createVarNumber", "Number Var", "Number variable", CAT_VARIABLE),
+                new BlockDef("createVarBoolean", "Boolean Var", "Boolean variable", CAT_VARIABLE),
+            };
 
-        case CAT_VARIABLE: return new BlockDef[]{
-            new BlockDef("createVar", "Create Variable", "Declare a variable", CAT_VARIABLE),
-            new BlockDef("setVar", "Set Variable", "Assign a value", CAT_VARIABLE),
-            new BlockDef("getVar", "Get Variable", "Read variable value", CAT_VARIABLE),
-            new BlockDef("createVarString", "String Var", "String variable", CAT_VARIABLE),
-            new BlockDef("createVarNumber", "Number Var", "Number variable", CAT_VARIABLE),
-            new BlockDef("createVarBoolean", "Boolean Var", "Boolean variable", CAT_VARIABLE),
-        };
-
-        default: return new BlockDef[]{};
+            default: return new BlockDef[]{};
+        }
     }
-}
+
     private int getCategoryColor(String category) {
         switch (category) {
             case CAT_EVENT: return COLOR_EVENT;
@@ -1138,6 +1297,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             case "setText": return "setText";
             case "setHTML": return "setHTML";
             case "showElement": case "hideElement": case "toggleElement": return "showHide";
+            case "setHref": return "setHref";
             case "navigate": return "navigate";
             case "goToPage": return "goToPage";
             case "alert": return "alert";
@@ -1179,10 +1339,12 @@ public class LogicBlockActivity extends AppCompatActivity {
             case "setHeight": return "Height (e.g. 200px)";
             case "setText": return "New text content";
             case "setHTML": return "HTML content";
+            case "setHref": return "URL, #section-id, or page.html";
             case "navigate": return "URL (e.g. https://example.com)";
             case "goToPage": return "Page name (e.g. about)";
             case "alert": return "Alert message";
             case "addClass": case "removeClass": case "toggleClass": return "CSS class name";
+            case "setAttribute": return "attr:value (e.g. disabled:true)";
             default: return "Value";
         }
     }
@@ -1232,6 +1394,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             case "setText": case "showHide": case "navigate":
             case "goToPage": case "scrollTo": case "alert":
             case "removeElement": case "setAttribute": case "focusInput":
+            case "setHref": case "setHTML":
                 return true;
             default: return false;
         }
@@ -1249,7 +1412,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             this.id = id;
             this.label = label;
             this.description = description;
-this.category = category;
+            this.category = category;
         }
     }
 }
