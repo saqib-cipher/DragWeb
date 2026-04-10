@@ -31,11 +31,8 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
-import java.util.zip.ZipInputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import android.net.Uri;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -54,7 +51,10 @@ public class HomeActivity extends AppCompatActivity {
 	private ActivityResultLauncher<String> backupLauncher;
 	private ActivityResultLauncher<String[]> importZipLauncher;
 	private ActivityResultLauncher<String> backupSingleLauncher;
+	private ActivityResultLauncher<String[]> projectLogoLauncher;
 	private String pendingBackupProject = null;
+	private Uri pendingProjectLogoUri = null;
+	private TextView pendingProjectLogoLabel = null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -119,6 +119,18 @@ public class HomeActivity extends AppCompatActivity {
 			uri -> {
 				if (uri != null) {
 					performImport(uri);
+				}
+			}
+		);
+
+		projectLogoLauncher = registerForActivityResult(
+			new ActivityResultContracts.OpenDocument(),
+			uri -> {
+				if (uri != null) {
+					pendingProjectLogoUri = uri;
+					if (pendingProjectLogoLabel != null) {
+						pendingProjectLogoLabel.setText("Logo selected");
+					}
 				}
 			}
 		);
@@ -189,172 +201,39 @@ public class HomeActivity extends AppCompatActivity {
 			Toast.makeText(this, "No projects to backup", Toast.LENGTH_SHORT).show();
 			return;
 		}
-
-		try {
-			java.io.OutputStream fos = getContentResolver().openOutputStream(uri);
-			ZipOutputStream zos = new ZipOutputStream(new java.io.BufferedOutputStream(fos));
-
-			File[] files = dir.listFiles();
-			for (File file : files) {
-				if (file.isFile()) {
-					byte[] buffer = new byte[1024];
-					FileInputStream fis = new FileInputStream(file);
-					zos.putNextEntry(new ZipEntry(file.getName()));
-					int length;
-					while ((length = fis.read(buffer)) > 0) {
-						zos.write(buffer, 0, length);
-					}
-					zos.closeEntry();
-					fis.close();
-				}
-			}
-
-			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/projects";
-			File extDir = new File(extPath);
-			if (extDir.exists()) {
-				addDirectoryToZip(zos, extDir, "external/");
-			}
-
-			zos.close();
-			fos.close();
-			Toast.makeText(this, "Backup successful", Toast.LENGTH_SHORT).show();
-		} catch (Exception e) {
-			Toast.makeText(this, "Backup failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
-		}
+		ProjectDataManager pdm = new ProjectDataManager(this);
+		boolean ok = pdm.exportAllProjectsAsZip(uri);
+		Toast.makeText(this, ok ? "Backup successful" : "Backup failed", Toast.LENGTH_SHORT).show();
 	}
 
 	private void performSingleProjectBackup(Uri uri, String projectId) {
-		try {
-			java.io.OutputStream fos = getContentResolver().openOutputStream(uri);
-			ZipOutputStream zos = new ZipOutputStream(new java.io.BufferedOutputStream(fos));
-
-			File dir = new File(getFilesDir(), "projects");
-
-			// Include all project files: .json, .meta, .theme, and per-page .logic files
-			File[] allFiles = dir.listFiles();
-			if (allFiles != null) {
-				for (File file : allFiles) {
-					if (!file.isFile()) continue;
-					String name = file.getName();
-					// Include files that belong to this project
-					// Matches: projectId.json, projectId.meta, projectId.theme,
-					//          projectId_pageName.json, projectId_pageName.logic
-					if (name.startsWith(projectId + ".") || name.startsWith(projectId + "_")) {
-						byte[] buffer = new byte[1024];
-						FileInputStream fis = new FileInputStream(file);
-						zos.putNextEntry(new ZipEntry(file.getName()));
-						int length;
-						while ((length = fis.read(buffer)) > 0) {
-							zos.write(buffer, 0, length);
-						}
-						zos.closeEntry();
-						fis.close();
-					}
-				}
-			}
-
-			// Include external project directory (pages, assets, etc.)
-			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-				+ "/.dragweb/projects/" + projectId;
-			File extDir = new File(extPath);
-			if (extDir.exists()) {
-				addDirectoryToZip(zos, extDir, "external/");
-			}
-
-			zos.close();
-			fos.close();
-			Toast.makeText(this, "Project backup successful", Toast.LENGTH_SHORT).show();
-		} catch (Exception e) {
-			Toast.makeText(this, "Backup failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
-		}
-	}
-
-	private void addDirectoryToZip(ZipOutputStream zos, File dir, String prefix) throws Exception {
-		File[] files = dir.listFiles();
-		if (files == null) return;
-		for (File file : files) {
-			if (file.isDirectory()) {
-				addDirectoryToZip(zos, file, prefix + file.getName() + "/");
-			} else {
-				byte[] buffer = new byte[1024];
-				FileInputStream fis = new FileInputStream(file);
-				zos.putNextEntry(new ZipEntry(prefix + file.getName()));
-				int length;
-				while ((length = fis.read(buffer)) > 0) {
-					zos.write(buffer, 0, length);
-				}
-				zos.closeEntry();
-				fis.close();
-			}
-		}
+		ProjectDataManager pdm = new ProjectDataManager(this);
+		boolean ok = pdm.exportSingleProjectAsZip(projectId, uri);
+		Toast.makeText(this, ok ? "Project backup successful" : "Backup failed", Toast.LENGTH_SHORT).show();
 	}
 
 	private void performImport(Uri uri) {
-		File internalDir = new File(getFilesDir(), "projects");
-		if (!internalDir.exists()) {
-			internalDir.mkdirs();
+		ProjectDataManager pdm = new ProjectDataManager(this);
+		ProjectDataManager.ImportResult result = pdm.importProjectsFromZip(uri);
+		if (!result.success) {
+			Toast.makeText(this, "Import failed: " + result.message, Toast.LENGTH_LONG).show();
+			return;
 		}
 
-		try {
-			String canonicalDirPath = internalDir.getCanonicalPath();
-			String extBasePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-				+ "/.dragweb/projects";
-			File extBaseDir = new File(extBasePath);
-			if (!extBaseDir.exists()) extBaseDir.mkdirs();
-			String canonicalExtPath = extBaseDir.getCanonicalPath();
+		loadProjects();
+		Toast.makeText(this, "Projects imported successfully", Toast.LENGTH_SHORT).show();
 
-			java.io.InputStream fis = getContentResolver().openInputStream(uri);
-			ZipInputStream zis = new ZipInputStream(new java.io.BufferedInputStream(fis));
-			ZipEntry entry;
-			while ((entry = zis.getNextEntry()) != null) {
-				String entryName = entry.getName();
-
-				// Route external/ prefixed entries to the external storage path
-				File outFile;
-				String safeCheckPath;
-				if (entryName.startsWith("external/")) {
-					String relativePath = entryName.substring("external/".length());
-					outFile = new File(extBaseDir, relativePath);
-					safeCheckPath = canonicalExtPath;
-				} else {
-					outFile = new File(internalDir, entryName);
-					safeCheckPath = canonicalDirPath;
+		// Auto-load after import when there is a clear target project.
+		if (result.importedProjectIds.size() == 1) {
+			String projectId = result.importedProjectIds.iterator().next();
+			String projectName = projectId;
+			for (Map<String, String> p : projectList) {
+				if (projectId.equals(p.get("id"))) {
+					projectName = p.getOrDefault("name", projectId);
+					break;
 				}
-
-				String canonicalFilePath = outFile.getCanonicalPath();
-				if (!canonicalFilePath.startsWith(safeCheckPath + File.separator) &&
-				    !canonicalFilePath.equals(safeCheckPath)) {
-					zis.closeEntry();
-					continue;
-				}
-
-				if (entry.isDirectory()) {
-					if (!outFile.exists()) outFile.mkdirs();
-					zis.closeEntry();
-					continue;
-				} else {
-					File parentFile = outFile.getParentFile();
-					if (parentFile != null && !parentFile.exists()) {
-						parentFile.mkdirs();
-					}
-				}
-
-				FileOutputStream fos = new FileOutputStream(outFile);
-				byte[] buffer = new byte[1024];
-				int count;
-				while ((count = zis.read(buffer)) != -1) {
-					fos.write(buffer, 0, count);
-				}
-				fos.close();
-				zis.closeEntry();
 			}
-			zis.close();
-			fis.close();
-
-			loadProjects();
-			Toast.makeText(this, "Projects imported successfully", Toast.LENGTH_SHORT).show();
-		} catch (Exception e) {
-			Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+			openProject(projectId, projectName);
 		}
 	}
 
@@ -476,9 +355,19 @@ public class HomeActivity extends AppCompatActivity {
 		TextInputEditText etName = dialogView.findViewById(R.id.etProjectName);
 		TextInputEditText etDesc = dialogView.findViewById(R.id.etProjectDescription);
 		TextView tvId = dialogView.findViewById(R.id.tvProjectId);
+		TextView tvLogoPath = dialogView.findViewById(R.id.tvLogoPath);
+		View btnSelectLogo = dialogView.findViewById(R.id.btnSelectLogo);
 
 		String newId = generateProjectId();
 		tvId.setText("ID: " + newId);
+		pendingProjectLogoUri = null;
+		pendingProjectLogoLabel = tvLogoPath;
+		if (tvLogoPath != null) {
+			tvLogoPath.setText("No logo selected");
+		}
+		if (btnSelectLogo != null) {
+			btnSelectLogo.setOnClickListener(v -> projectLogoLauncher.launch(new String[]{"image/*"}));
+		}
 
 		new MaterialAlertDialogBuilder(this)
 			.setTitle("New Project")
@@ -492,13 +381,18 @@ public class HomeActivity extends AppCompatActivity {
 					return;
 				}
 
-				createProject(newId, name, desc);
+				createProject(newId, name, desc, pendingProjectLogoUri);
+				pendingProjectLogoUri = null;
+				pendingProjectLogoLabel = null;
 			})
-			.setNegativeButton("Cancel", null)
+			.setNegativeButton("Cancel", (dialog, which) -> {
+				pendingProjectLogoUri = null;
+				pendingProjectLogoLabel = null;
+			})
 			.show();
 	}
 
-	private void createProject(String projectId, String name, String description) {
+	private void createProject(String projectId, String name, String description, Uri logoUri) {
 		File dir = new File(getFilesDir(), "projects");
 		if (!dir.exists()) dir.mkdirs();
 
@@ -514,19 +408,79 @@ public class HomeActivity extends AppCompatActivity {
 		meta.put("description", description.isEmpty() ? "Website project" : description);
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 		meta.put("created", sdf.format(new Date()));
-		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
+		String logoRelPath = "";
 
 		// Create external directory structure
 		try {
 			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
 				+ "/.dragweb/projects/" + projectId;
 			new File(extPath).mkdirs();
-			new File(extPath + "/assets").mkdirs();
+			File assetsDir = new File(extPath + "/assets");
+			assetsDir.mkdirs();
+			if (logoUri != null) {
+				String fileName = resolveLogoFileName(logoUri);
+				File logoFile = new File(assetsDir, fileName);
+				if (copyUriToFile(logoUri, logoFile)) {
+					logoRelPath = "assets/" + fileName;
+				}
+			}
+
+			File configFile = new File(extPath, "project.config.json");
+			Map<String, String> config = new HashMap<>();
+			config.put("id", projectId);
+			config.put("name", name);
+			config.put("description", description.isEmpty() ? "Website project" : description);
+			config.put("logoPath", logoRelPath);
+			FileUtil.writeFile(configFile.getAbsolutePath(), new Gson().toJson(config));
 		} catch (Exception e) {
 			Log.w("HomeActivity", "Could not create external project dir");
 		}
+		meta.put("logoPath", logoRelPath);
+		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
 
 		openProject(projectId, name);
+	}
+
+	private String resolveLogoFileName(Uri logoUri) {
+		try {
+			String name = null;
+			android.database.Cursor c = getContentResolver().query(
+				logoUri,
+				new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
+				null, null, null
+			);
+			if (c != null) {
+				if (c.moveToFirst()) {
+					int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+					if (idx >= 0) name = c.getString(idx);
+				}
+				c.close();
+			}
+			if (name != null && !name.isEmpty() && name.contains(".")) {
+				String ext = name.substring(name.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+				if (ext.matches("png|jpg|jpeg|webp|gif|svg")) {
+					return "logo." + ext;
+				}
+			}
+		} catch (Exception e) {
+			// ignore
+		}
+		return "logo.png";
+	}
+
+	private boolean copyUriToFile(Uri uri, File dest) {
+		try (InputStream in = getContentResolver().openInputStream(uri);
+		     OutputStream out = new java.io.FileOutputStream(dest)) {
+			byte[] buffer = new byte[4096];
+			int len;
+			while ((len = in.read(buffer)) != -1) {
+				out.write(buffer, 0, len);
+			}
+			return true;
+		} catch (Exception e) {
+			Log.w("HomeActivity", "Could not copy logo file: " + e.getMessage());
+			return false;
+		}
 	}
 
 	private void openProject(String projectId, String projectName) {

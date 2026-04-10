@@ -55,6 +55,7 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     private LogicBlockManager logicBlockManager;
     private String projectId;
+    private String pageName = "index";
 
     // Views
     private MaterialToolbar toolbar;
@@ -80,7 +81,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         projectId = getIntent().getStringExtra("project_id");
         if (projectId == null) projectId = "";
 
-        String pageName = getIntent().getStringExtra("page_name");
+        pageName = getIntent().getStringExtra("page_name");
         if (pageName == null || pageName.isEmpty()) pageName = "index";
 
         logicBlockManager = new LogicBlockManager(this);
@@ -98,6 +99,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         initViews();
         setupToolbar();
         setupTargetSelector();
+        setupSelectorAutocomplete();
         setupCategoryTabs();
         setupToolbarButtons();
         setupWorkspaceDragDrop();
@@ -133,6 +135,61 @@ public class LogicBlockActivity extends AppCompatActivity {
             android.R.layout.simple_spinner_item, modes);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spnTargetMode.setAdapter(adapter);
+    }
+
+    private void setupSelectorAutocomplete() {
+        List<String> suggestions = new ArrayList<>();
+        try {
+            File pageFile = new File(getFilesDir(), "projects/" + projectId + "_" + pageName + ".json");
+            if (!pageFile.exists()) {
+                pageFile = new File(getFilesDir(), "projects/" + projectId + ".json");
+            }
+            if (pageFile.exists()) {
+                String json = FileUtil.readFile(pageFile.getAbsolutePath());
+                List<java.util.Map<String, Object>> tree = new com.google.gson.Gson().fromJson(
+                    json,
+                    new com.google.gson.reflect.TypeToken<List<java.util.Map<String, Object>>>(){}.getType()
+                );
+                collectSelectorSuggestions(tree, suggestions);
+            }
+        } catch (Exception e) {
+            Log.w("LogicBlockActivity", "Could not build selector autocomplete: " + e.getMessage());
+        }
+        ArrayAdapter<String> acAdapter = new ArrayAdapter<>(
+            this,
+            android.R.layout.simple_dropdown_item_1line,
+            suggestions
+        );
+        etTargetSelector.setAdapter(acAdapter);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectSelectorSuggestions(List<java.util.Map<String, Object>> tree, List<String> out) {
+        if (tree == null) return;
+        for (java.util.Map<String, Object> node : tree) {
+            Object fnObj = node.get("function");
+            if (fnObj instanceof java.util.Map) {
+                java.util.Map<String, Object> fn = (java.util.Map<String, Object>) fnObj;
+                Object idObj = fn.get("id");
+                if (idObj != null) {
+                    String id = idObj.toString().trim();
+                    if (!id.isEmpty()) {
+                        out.add(id);
+                    }
+                }
+                Object classObj = fn.get("class");
+                if (classObj != null) {
+                    String[] parts = classObj.toString().trim().split("\\s+");
+                    for (String part : parts) {
+                        if (!part.isEmpty()) out.add(part);
+                    }
+                }
+            }
+            Object childrenObj = node.get("children");
+            if (childrenObj instanceof List) {
+                collectSelectorSuggestions((List<java.util.Map<String, Object>>) childrenObj, out);
+            }
+        }
     }
 
     private String getTargetMode() {
@@ -235,7 +292,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         block.setPadding(16, 12, 16, 12);
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            dp(240), ViewGroup.LayoutParams.WRAP_CONTENT);
         params.setMargins(6, 4, 6, 4);
         block.setLayoutParams(params);
 
@@ -271,7 +328,8 @@ public class LogicBlockActivity extends AppCompatActivity {
         TextView descText = new TextView(this);
         descText.setText(def.description);
         descText.setTextColor(Color.parseColor("#999999"));
-        descText.setTextSize(10);
+        descText.setTextSize(11);
+        descText.setPadding(0, 4, 0, 0);
         block.addView(descText);
 
         // Bottom tab (puzzle connector out)
@@ -916,13 +974,21 @@ public class LogicBlockActivity extends AppCompatActivity {
     private TextInputLayout createTil(String hint) {
         TextInputLayout til = new TextInputLayout(this);
         til.setHint(hint);
+        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        til.setBoxCornerRadii(dp(10), dp(10), dp(10), dp(10));
         TextInputEditText input = new TextInputEditText(this);
+        input.setMinHeight(dp(44));
+        input.setPadding(dp(12), dp(10), dp(12), dp(10));
         til.addView(input);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.setMargins(0, 4, 0, 4);
         til.setLayoutParams(params);
         return til;
+    }
+
+    private int dp(int value) {
+        return Math.round(getResources().getDisplayMetrics().density * value);
     }
 
     private String getText(TextInputLayout til) {
@@ -1072,6 +1138,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             new BlockDef("scrollTo", "Scroll To", "Scroll to position", CAT_HTML),
             new BlockDef("focusInput", "Focus Input", "Focus input field", CAT_HTML),
             new BlockDef("setAttribute", "Set Attribute", "Set HTML attribute", CAT_HTML),
+            new BlockDef("setHref", "Set Href", "Set href (#section/page/link)", CAT_HTML),
             new BlockDef("removeElement", "Remove", "Remove element", CAT_HTML),
         };
 
@@ -1144,6 +1211,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             case "scrollTo": return "scrollTo";
             case "focusInput": return "focusInput";
             case "setAttribute": return "setAttribute";
+            case "setHref": return "setHref";
             case "removeElement": return "removeElement";
             default: return id;
         }
@@ -1180,6 +1248,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             case "setText": return "New text content";
             case "setHTML": return "HTML content";
             case "navigate": return "URL (e.g. https://example.com)";
+            case "setHref": return "Href (e.g. #section, about.html, https://...)";
             case "goToPage": return "Page name (e.g. about)";
             case "alert": return "Alert message";
             case "addClass": case "removeClass": case "toggleClass": return "CSS class name";
@@ -1231,7 +1300,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         switch (action) {
             case "setText": case "showHide": case "navigate":
             case "goToPage": case "scrollTo": case "alert":
-            case "removeElement": case "setAttribute": case "focusInput":
+            case "removeElement": case "setAttribute": case "setHref": case "focusInput":
                 return true;
             default: return false;
         }
