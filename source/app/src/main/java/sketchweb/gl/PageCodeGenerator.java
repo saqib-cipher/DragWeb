@@ -6,11 +6,15 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class PageCodeGenerator {
 
     private String projectName = "";
     private String projectLogoPath = "";
+    private final Map<String, String> styleClassMap = new HashMap<>();
+    private final List<String> styleRules = new ArrayList<>();
+    private int styleClassCounter = 1;
 
     // Collected CSS classes from widget styles — key = class name, value = css rules
     private Map<String, String> extractedClasses = new LinkedHashMap<>();
@@ -253,6 +257,13 @@ public class PageCodeGenerator {
                 html.append(indent);
             }
         }
+        if (!styleClass.isEmpty()) {
+            if (classes.length() > 0) classes.append(" ");
+            classes.append(styleClass);
+        }
+        if (classes.length() > 0) {
+            html.append(" class=\"").append(escapeAttr(classes.toString())).append("\"");
+        }
 
         html.append("</").append(tag).append(">\n");
         return html.toString();
@@ -354,5 +365,46 @@ public class PageCodeGenerator {
             sb.append(str);
         }
         return sb.toString();
+    }
+
+    private void resetStyleCache() {
+        styleClassMap.clear();
+        styleRules.clear();
+        styleClassCounter = 1;
+    }
+
+    private String classForStyle(Map<String, Object> style) {
+        if (style == null || style.isEmpty()) return "";
+        TreeMap<String, Object> sorted = new TreeMap<>(style);
+        StringBuilder key = new StringBuilder();
+        for (Map.Entry<String, Object> entry : sorted.entrySet()) {
+            key.append(entry.getKey()).append("=").append(String.valueOf(entry.getValue())).append(";");
+        }
+        String styleKey = key.toString();
+        if (styleClassMap.containsKey(styleKey)) {
+            return styleClassMap.get(styleKey);
+        }
+
+        String className = "dw-s" + styleClassCounter++;
+        styleClassMap.put(styleKey, className);
+        StringBuilder rule = new StringBuilder();
+        rule.append("    .").append(className).append(" { ");
+        for (Map.Entry<String, Object> entry : sorted.entrySet()) {
+            rule.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
+        }
+        rule.append("}\n");
+        styleRules.add(rule.toString());
+        return className;
+    }
+
+    private String resolveAssetPath(String rawSrc) {
+        if (rawSrc == null) return "";
+        if (rawSrc.startsWith("data:")) return rawSrc;
+        if (rawSrc.startsWith("assets/")) return rawSrc;
+        int idx = rawSrc.indexOf("/assets/");
+        if (idx >= 0) {
+            return "assets/" + rawSrc.substring(idx + "/assets/".length());
+        }
+        return rawSrc;
     }
 }

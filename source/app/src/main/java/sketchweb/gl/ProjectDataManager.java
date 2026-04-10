@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -37,6 +38,12 @@ public class ProjectDataManager {
 
     public ProjectDataManager(Context context) {
         this.context = context;
+    }
+
+    public static class ImportResult {
+        public final Set<String> importedProjectIds = new HashSet<>();
+        public boolean success;
+        public String message;
     }
 
     public void saveProject(View screen, String projectId) {
@@ -85,21 +92,38 @@ public class ProjectDataManager {
             projectBundle.put("pageLayouts", pageLayouts);
         }
 
-        // Save theme/styles
-        if (themeManager != null) {
-            projectBundle.put("theme", themeManager.toJson());
+        try (OutputStream fos = context.getContentResolver().openOutputStream(outputUri);
+             ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
+            if (internalProjectsDir.exists()) {
+                addDirectoryToZip(zos, internalProjectsDir, "internal/projects/");
+            }
+            if (externalProjectsDir.exists()) {
+                addDirectoryToZip(zos, externalProjectsDir, "external/projects/");
+            }
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to export all projects zip: " + e.getMessage());
+            return false;
         }
+    }
 
-        // Save logic blocks for all pages
-        if (logicBlockManager != null && pageManager != null) {
-            Map<String, String> allLogic = new HashMap<>();
-            File dir = new File(context.getFilesDir(), "projects");
-            for (String page : pageManager.getPages()) {
-                File logicFile = new File(dir, projectId + "_" + page + ".logic");
-                if (logicFile.exists()) {
-                    String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-                    if (logicJson != null && !logicJson.isEmpty()) {
-                        allLogic.put(page, logicJson);
+    public boolean exportSingleProjectAsZip(String projectId, Uri outputUri) {
+        File internalProjectsDir = new File(context.getFilesDir(), "projects");
+        String extProjectPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/projects/" + projectId;
+        File externalProjectDir = new File(extProjectPath);
+
+        try (OutputStream fos = context.getContentResolver().openOutputStream(outputUri);
+             ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
+
+            if (internalProjectsDir.exists()) {
+                File[] files = internalProjectsDir.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        if (!file.isFile()) continue;
+                        String name = file.getName();
+                        if (name.startsWith(projectId + ".") || name.startsWith(projectId + "_")) {
+                            addFileToZip(zos, file, "internal/projects/" + name);
+                        }
                     }
                 }
             }
@@ -107,38 +131,26 @@ public class ProjectDataManager {
             projectBundle.put("logicBlocks", allLogic);
         }
 
-        // Save asset file list
-        try {
-            String assetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-                + "/.dragweb/projects/" + projectId + "/assets";
-            File assetsDir = new File(assetsPath);
-            if (assetsDir.exists()) {
-                List<String> assetPaths = new ArrayList<>();
-                collectAssetPaths(assetsDir, assetsDir.getAbsolutePath(), assetPaths);
-                projectBundle.put("assetPaths", assetPaths);
+            if (externalProjectDir.exists()) {
+                addDirectoryToZip(zos, externalProjectDir, "external/projects/" + projectId + "/");
             }
+            return true;
         } catch (Exception e) {
-            Log.w(TAG, "Could not collect asset paths: " + e.getMessage());
+            Log.e(TAG, "Failed to export project zip: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public ImportResult importProjectsFromZip(Uri zipUri) {
+        ImportResult result = new ImportResult();
+        File internalProjectsDir = new File(context.getFilesDir(), "projects");
+        if (!internalProjectsDir.exists()) {
+            internalProjectsDir.mkdirs();
         }
 
-        // Save metadata
-        File dir = new File(context.getFilesDir(), "projects");
-        File metaFile = new File(dir, projectId + ".meta");
-        if (metaFile.exists()) {
-            String metaJson = FileUtil.readFile(metaFile.getAbsolutePath());
-            if (metaJson != null && !metaJson.isEmpty()) {
-                projectBundle.put("metadata", metaJson);
-            }
-        }
-
-        // Write to internal storage
-        String bundleJson = gson.toJson(projectBundle);
-        if (!dir.exists()) dir.mkdirs();
-        File bundleFile = new File(dir, projectId + ".json");
-        try (FileWriter writer = new FileWriter(bundleFile)) {
-            writer.write(bundleJson);
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to save full project: " + e.getMessage());
+        File externalProjectsDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/projects");
+        if (!externalProjectsDir.exists()) {
+            externalProjectsDir.mkdirs();
         }
 
         saveToExternalStorage(projectId, bundleJson);
@@ -155,20 +167,29 @@ public class ProjectDataManager {
             bundleFile = tryLoadExternalBundle(projectId);
         }
 
-        if (bundleFile == null || !bundleFile.exists()) return null;
+                if (entry.isDirectory()) {
+                    if (!outFile.exists()) outFile.mkdirs();
+                    zis.closeEntry();
+                    continue;
+                }
 
-        try (FileReader reader = new FileReader(bundleFile)) {
-            Map<String, Object> bundle = gson.fromJson(reader,
-                new TypeToken<Map<String, Object>>(){}.getType());
+                File parent = outFile.getParentFile();
+                if (parent != null && !parent.exists()) {
+                    parent.mkdirs();
+                }
 
             if (bundle != null && bundle.containsKey("version")) {
                 return bundle;
             }
-        } catch (Exception e) {
-            Log.w(TAG, "Could not parse full project bundle: " + e.getMessage());
-        }
 
-        return null;
+            result.success = true;
+            result.message = "Imported " + result.importedProjectIds.size() + " project(s)";
+        } catch (Exception e) {
+            result.success = false;
+            result.message = e.getMessage();
+            Log.e(TAG, "Failed to import projects zip: " + e.getMessage());
+        }
+        return result;
     }
 
     /**
@@ -366,25 +387,16 @@ public class ProjectDataManager {
                 File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
                 FileUtil.writeFile(logicFile.getAbsolutePath(), logicJson);
             }
-        } catch (Exception e) {
-            Log.w(TAG, "Could not restore logic blocks: " + e.getMessage());
         }
     }
 
-    /**
-     * Restore theme from a full project bundle.
-     */
-    public void restoreTheme(Map<String, Object> bundle, String projectId) {
-        if (bundle == null || !bundle.containsKey("theme")) return;
-
-        try {
-            String themeJson = bundle.get("theme").toString();
-            File dir = new File(context.getFilesDir(), "projects");
-            if (!dir.exists()) dir.mkdirs();
-            File themeFile = new File(dir, projectId + ".theme");
-            FileUtil.writeFile(themeFile.getAbsolutePath(), themeJson);
-        } catch (Exception e) {
-            Log.w(TAG, "Could not restore theme: " + e.getMessage());
+    private void captureProjectIdFromInternalFile(String fileName, Set<String> projectIds) {
+        if (fileName == null || fileName.isEmpty()) return;
+        String id = null;
+        if (fileName.contains("_")) {
+            id = fileName.substring(0, fileName.indexOf('_'));
+        } else if (fileName.contains(".")) {
+            id = fileName.substring(0, fileName.indexOf('.'));
         }
     }
 
@@ -450,39 +462,22 @@ public class ProjectDataManager {
         if (files == null) return;
         for (File file : files) {
             if (file.isDirectory()) {
-                collectAssetPaths(file, basePath, paths);
+                addDirectoryToZip(zos, file, prefix + file.getName() + "/");
             } else {
-                String relativePath = file.getAbsolutePath().substring(basePath.length());
-                paths.add(relativePath);
+                addFileToZip(zos, file, prefix + file.getName());
             }
         }
     }
 
-    private File tryLoadExternalBundle(String projectId) {
-        try {
-            String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-                + "/.dragweb/projects/" + projectId + "/project_bundle.json";
-            File extFile = new File(extPath);
-            if (extFile.exists()) {
-                return extFile;
+    private void addFileToZip(ZipOutputStream zos, File file, String entryName) throws IOException {
+        byte[] buffer = new byte[4096];
+        try (FileInputStream fis = new FileInputStream(file)) {
+            zos.putNextEntry(new ZipEntry(entryName));
+            int length;
+            while ((length = fis.read(buffer)) > 0) {
+                zos.write(buffer, 0, length);
             }
-        } catch (Exception e) {
-            Log.w(TAG, "Could not load external bundle: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private void saveToExternalStorage(String projectId, String json) {
-        try {
-            String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-                + "/.dragweb/projects/" + projectId;
-            File extDir = new File(basePath);
-            if (!extDir.exists()) extDir.mkdirs();
-
-            File layoutFile = new File(extDir, "layout.json");
-            FileUtil.writeFile(layoutFile.getAbsolutePath(), json);
-        } catch (Exception e) {
-            Log.w(TAG, "Could not save to external: " + e.getMessage());
+            zos.closeEntry();
         }
     }
 

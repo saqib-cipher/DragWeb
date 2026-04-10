@@ -34,6 +34,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+
+import java.io.InputStream;
+import java.io.OutputStream;
+
 import android.net.Uri;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -52,11 +56,17 @@ public class HomeActivity extends AppCompatActivity {
 	private ActivityResultLauncher<String> backupLauncher;
 	private ActivityResultLauncher<String[]> importZipLauncher;
 	private ActivityResultLauncher<String> backupSingleLauncher;
+
 	private ActivityResultLauncher<Intent> logoPickerLauncher;
 	private String pendingBackupProject = null;
 	private String pendingLogoProjectId = null;
 	private String pendingLogoProjectName = null;
 	private String pendingLogoProjectDesc = null;
+	private ActivityResultLauncher<String[]> projectLogoLauncher;
+	private String pendingBackupProject = null;
+	private Uri pendingProjectLogoUri = null;
+	private TextView pendingProjectLogoLabel = null;
+
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -125,6 +135,7 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		);
 
+
 		logoPickerLauncher = registerForActivityResult(
 			new ActivityResultContracts.StartActivityForResult(),
 			result -> {
@@ -142,6 +153,17 @@ public class HomeActivity extends AppCompatActivity {
 				pendingLogoProjectId = null;
 				pendingLogoProjectName = null;
 				pendingLogoProjectDesc = null;
+
+		projectLogoLauncher = registerForActivityResult(
+			new ActivityResultContracts.OpenDocument(),
+			uri -> {
+				if (uri != null) {
+					pendingProjectLogoUri = uri;
+					if (pendingProjectLogoLabel != null) {
+						pendingProjectLogoLabel.setText("Logo selected");
+					}
+				}
+
 			}
 		);
 
@@ -211,6 +233,14 @@ public class HomeActivity extends AppCompatActivity {
 		} else {
 			Toast.makeText(this, "Backup failed", Toast.LENGTH_LONG).show();
 		}
+		File dir = new File(getFilesDir(), "projects");
+		if (!dir.exists() || dir.listFiles() == null || dir.listFiles().length == 0) {
+			Toast.makeText(this, "No projects to backup", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		ProjectDataManager pdm = new ProjectDataManager(this);
+		boolean ok = pdm.exportAllProjectsAsZip(uri);
+		Toast.makeText(this, ok ? "Backup successful" : "Backup failed", Toast.LENGTH_SHORT).show();
 	}
 
 	private void performSingleProjectBackup(Uri uri, String projectId) {
@@ -221,6 +251,8 @@ public class HomeActivity extends AppCompatActivity {
 		} else {
 			Toast.makeText(this, "Backup failed", Toast.LENGTH_LONG).show();
 		}
+		boolean ok = pdm.exportSingleProjectAsZip(projectId, uri);
+		Toast.makeText(this, ok ? "Project backup successful" : "Backup failed", Toast.LENGTH_SHORT).show();
 	}
 
 	private void performImport(Uri uri) {
@@ -248,6 +280,26 @@ public class HomeActivity extends AppCompatActivity {
 			// Fallback: reload projects in case the ZIP had a legacy format
 			loadProjects();
 			Toast.makeText(this, "Projects imported", Toast.LENGTH_SHORT).show();
+		ProjectDataManager.ImportResult result = pdm.importProjectsFromZip(uri);
+		if (!result.success) {
+			Toast.makeText(this, "Import failed: " + result.message, Toast.LENGTH_LONG).show();
+			return;
+		}
+
+		loadProjects();
+		Toast.makeText(this, "Projects imported successfully", Toast.LENGTH_SHORT).show();
+
+		// Auto-load after import when there is a clear target project.
+		if (result.importedProjectIds.size() == 1) {
+			String projectId = result.importedProjectIds.iterator().next();
+			String projectName = projectId;
+			for (Map<String, String> p : projectList) {
+				if (projectId.equals(p.get("id"))) {
+					projectName = p.getOrDefault("name", projectId);
+					break;
+				}
+			}
+			openProject(projectId, projectName);
 		}
 	}
 
@@ -369,9 +421,19 @@ public class HomeActivity extends AppCompatActivity {
 		TextInputEditText etName = dialogView.findViewById(R.id.etProjectName);
 		TextInputEditText etDesc = dialogView.findViewById(R.id.etProjectDescription);
 		TextView tvId = dialogView.findViewById(R.id.tvProjectId);
+		TextView tvLogoPath = dialogView.findViewById(R.id.tvLogoPath);
+		View btnSelectLogo = dialogView.findViewById(R.id.btnSelectLogo);
 
 		String newId = generateProjectId();
 		tvId.setText("ID: " + newId);
+		pendingProjectLogoUri = null;
+		pendingProjectLogoLabel = tvLogoPath;
+		if (tvLogoPath != null) {
+			tvLogoPath.setText("No logo selected");
+		}
+		if (btnSelectLogo != null) {
+			btnSelectLogo.setOnClickListener(v -> projectLogoLauncher.launch(new String[]{"image/*"}));
+		}
 
 		new MaterialAlertDialogBuilder(this)
 			.setTitle("New Project")
@@ -387,8 +449,14 @@ public class HomeActivity extends AppCompatActivity {
 
 				// Offer logo selection
 				showLogoSelectionChoice(newId, name, desc);
+				createProject(newId, name, desc, pendingProjectLogoUri);
+				pendingProjectLogoUri = null;
+				pendingProjectLogoLabel = null;
 			})
-			.setNegativeButton("Cancel", null)
+			.setNegativeButton("Cancel", (dialog, which) -> {
+				pendingProjectLogoUri = null;
+				pendingProjectLogoLabel = null;
+			})
 			.show();
 	}
 
@@ -461,6 +529,7 @@ public class HomeActivity extends AppCompatActivity {
 	}
 
 	private void createProjectInternal(String projectId, String name, String description, String logoPath) {
+	private void createProject(String projectId, String name, String description, Uri logoUri) {
 		File dir = new File(getFilesDir(), "projects");
 		if (!dir.exists()) dir.mkdirs();
 
@@ -478,18 +547,79 @@ public class HomeActivity extends AppCompatActivity {
 			meta.put("logoPath", logoPath);
 		}
 		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
+		String logoRelPath = "";
 
 		// Create external directory structure
 		try {
 			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
 				+ "/.dragweb/projects/" + projectId;
 			new File(extPath).mkdirs();
-			new File(extPath + "/assets").mkdirs();
+			File assetsDir = new File(extPath + "/assets");
+			assetsDir.mkdirs();
+			if (logoUri != null) {
+				String fileName = resolveLogoFileName(logoUri);
+				File logoFile = new File(assetsDir, fileName);
+				if (copyUriToFile(logoUri, logoFile)) {
+					logoRelPath = "assets/" + fileName;
+				}
+			}
+
+			File configFile = new File(extPath, "project.config.json");
+			Map<String, String> config = new HashMap<>();
+			config.put("id", projectId);
+			config.put("name", name);
+			config.put("description", description.isEmpty() ? "Website project" : description);
+			config.put("logoPath", logoRelPath);
+			FileUtil.writeFile(configFile.getAbsolutePath(), new Gson().toJson(config));
 		} catch (Exception e) {
 			Log.w("HomeActivity", "Could not create external project dir");
 		}
+		meta.put("logoPath", logoRelPath);
+		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
 
 		openProject(projectId, name);
+	}
+
+	private String resolveLogoFileName(Uri logoUri) {
+		try {
+			String name = null;
+			android.database.Cursor c = getContentResolver().query(
+				logoUri,
+				new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
+				null, null, null
+			);
+			if (c != null) {
+				if (c.moveToFirst()) {
+					int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+					if (idx >= 0) name = c.getString(idx);
+				}
+				c.close();
+			}
+			if (name != null && !name.isEmpty() && name.contains(".")) {
+				String ext = name.substring(name.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+				if (ext.matches("png|jpg|jpeg|webp|gif|svg")) {
+					return "logo." + ext;
+				}
+			}
+		} catch (Exception e) {
+			// ignore
+		}
+		return "logo.png";
+	}
+
+	private boolean copyUriToFile(Uri uri, File dest) {
+		try (InputStream in = getContentResolver().openInputStream(uri);
+		     OutputStream out = new java.io.FileOutputStream(dest)) {
+			byte[] buffer = new byte[4096];
+			int len;
+			while ((len = in.read(buffer)) != -1) {
+				out.write(buffer, 0, len);
+			}
+			return true;
+		} catch (Exception e) {
+			Log.w("HomeActivity", "Could not copy logo file: " + e.getMessage());
+			return false;
+		}
 	}
 
 	private void openProject(String projectId, String projectName) {
