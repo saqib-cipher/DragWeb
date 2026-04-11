@@ -81,9 +81,14 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     public void buildTree(ViewGroup screen) {
         this.rootScreen = screen;
-        flatList.clear();
+        List<TreeNode> oldList = new ArrayList<>(flatList);
+        List<TreeNode> newList = new ArrayList<>();
+
+        flatList = newList;
         addNode(screen, 0, "body");
-        notifyDataSetChanged();
+
+        androidx.recyclerview.widget.DiffUtil.DiffResult diffResult = androidx.recyclerview.widget.DiffUtil.calculateDiff(new HierarchyTreeDiffCallback(oldList, newList));
+        diffResult.dispatchUpdatesTo(this);
     }
 
     public void attachToRecyclerView(RecyclerView rv) {
@@ -149,7 +154,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 if (fromPos >= 0 && toPos >= 0 && fromPos < flatList.size() && toPos < flatList.size()) {
                     Collections.swap(flatList, fromPos, toPos);
                     notifyItemMoved(fromPos, toPos);
-                    notifyDataSetChanged();
                 }
                 return true;
             }

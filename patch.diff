@@ -1,0 +1,20 @@
+<<<<<<< SEARCH
+        this.rootScreen = screen;
+        flatList.clear();
+        addNode(screen, 0, "body");
+        notifyDataSetChanged();
+    }
+=======
+        this.rootScreen = screen;
+        List<TreeNode> oldList = new ArrayList<>(flatList);
+        List<TreeNode> newList = new ArrayList<>();
+
+        // Temporarily swap list to build new one without affecting existing
+        List<TreeNode> temp = flatList;
+        flatList = newList;
+        addNode(screen, 0, "body");
+
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new HierarchyTreeDiffCallback(oldList, newList));
+        diffResult.dispatchUpdatesTo(this);
+    }
+>>>>>>> REPLACE

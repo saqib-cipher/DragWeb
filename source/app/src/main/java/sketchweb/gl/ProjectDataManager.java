@@ -51,12 +51,12 @@ public class ProjectDataManager {
         List<Map<String, Object>> widgetTree = serializeViewTree(screen);
         String json = gson.toJson(widgetTree);
 
-        // Save to internal storage only; external save is handled by MainActivity
         File dir = new File(context.getFilesDir(), "projects");
         if (!dir.exists()) {
             dir.mkdirs();
         }
 
+        // Only save as index.json. We remove the old behavior of projectId.json to avoid duplicates
         File file = new File(dir, projectId + ".json");
         try (FileWriter writer = new FileWriter(file)) {
             writer.write(json);
@@ -90,8 +90,7 @@ public class ProjectDataManager {
 
     public boolean exportSingleProjectAsZip(String projectId, Uri outputUri) {
         File internalProjectsDir = new File(context.getFilesDir(), "projects");
-        String extProjectPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/projects/" + projectId;
-        File externalProjectDir = new File(extProjectPath);
+        File externalProjectDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/projects/" + projectId);
 
         try (OutputStream fos = context.getContentResolver().openOutputStream(outputUri);
              ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
@@ -102,7 +101,7 @@ public class ProjectDataManager {
                     for (File file : files) {
                         if (!file.isFile()) continue;
                         String name = file.getName();
-                        if (name.startsWith(projectId + ".") || name.startsWith(projectId + "_")) {
+                        if (name.equals(projectId + ".json") || name.startsWith(projectId + "_")) {
                             addFileToZip(zos, file, "internal/projects/" + name);
                         }
                     }
@@ -155,11 +154,19 @@ public class ProjectDataManager {
                     captureProjectIdFromExternalEntry(relative, result.importedProjectIds);
                 } else if (entryName.startsWith("internal/projects/")) {
                     String relative = entryName.substring("internal/projects/".length());
+                    if (relative.endsWith("layout.json")) {
+                        zis.closeEntry();
+                        continue; // Skip redundant layout files
+                    }
                     outFile = new File(internalProjectsDir, relative);
                     safeBase = internalBase;
                     captureProjectIdFromInternalFile(relative, result.importedProjectIds);
                 } else {
                     // Legacy backup compatibility: treat root files as internal.
+                    if (entryName.endsWith("layout.json")) {
+                        zis.closeEntry();
+                        continue; // Skip redundant layout files
+                    }
                     outFile = new File(internalProjectsDir, entryName);
                     safeBase = internalBase;
                     captureProjectIdFromInternalFile(entryName, result.importedProjectIds);

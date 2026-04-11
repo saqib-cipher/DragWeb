@@ -1,112 +1,17 @@
 {
-  "blockCategories": [
-    {
-      "id": "event",
-      "label": "Events",
-      "color": "#FF9800",
-      "blocks": [
-        {
-          "type": "event",
-          "name": "onPageLoad",
-          "label": "On Page Load",
-          "description": "When page finishes loading",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onVisible",
-          "label": "On Visible",
-          "description": "When page becomes visible",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onHidden",
-          "label": "On Hidden",
-          "description": "When page is hidden",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onDestroy",
-          "label": "On Destroy",
-          "description": "When page is about to unload",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onScroll",
-          "label": "On Scroll",
-          "description": "When user scrolls the page",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onInput",
-          "label": "On Input",
-          "description": "When input value changes",
-          "target": "id",
-          "params": ["elementId"]
-        },
-        {
-          "type": "event",
-          "name": "onClick",
-          "label": "On Click",
-          "description": "When element is clicked",
-          "target": "id",
-          "params": ["elementId"]
-        },
-        {
-          "type": "event",
-          "name": "onHover",
-          "label": "On Hover",
-          "description": "When mouse hovers over element",
-          "target": "id",
-          "params": ["elementId"]
-        },
-        {
-          "type": "event",
-          "name": "onSubmit",
-          "label": "On Submit",
-          "description": "When form is submitted",
-          "target": "id",
-          "params": ["formId"]
-        },
-        {
-          "type": "event",
-          "name": "onKeyDown",
-          "label": "On Key Down",
-          "description": "When key is pressed",
-          "target": "id",
-          "params": ["elementId"]
-        },
-        {
-          "type": "event",
-          "name": "onChange",
-          "label": "On Change",
-          "description": "When value changes",
-          "target": "id",
-          "params": ["elementId"]
-        }
-      ]
-    },
+  "categories": [
     {
       "id": "css",
-      "label": "CSS Actions",
+      "label": "CSS Styling",
       "color": "#2196F3",
       "blocks": [
         {
           "type": "css",
           "name": "setDisplay",
           "label": "Set Display",
-          "description": "block, none, flex, grid",
+          "description": "block, inline, flex, grid, none",
           "params": ["value"],
-          "presets": ["block", "none", "flex", "grid", "inline-block", "inline"]
+          "presets": ["block", "inline-block", "flex", "grid", "none"]
         },
         {
           "type": "css",
@@ -118,38 +23,16 @@
         },
         {
           "type": "css",
-          "name": "setOverflow",
-          "label": "Set Overflow",
-          "description": "hidden, scroll, auto, visible",
-          "params": ["value"],
-          "presets": ["hidden", "scroll", "auto", "visible"]
-        },
-        {
-          "type": "css",
           "name": "setColor",
           "label": "Set Color",
-          "description": "Set text color",
+          "description": "Text color",
           "params": ["value"]
         },
         {
           "type": "css",
           "name": "setBackground",
           "label": "Set Background",
-          "description": "Color or gradient",
-          "params": ["value"]
-        },
-        {
-          "type": "css",
-          "name": "setWidth",
-          "label": "Set Width",
-          "description": "px, %, vw, auto",
-          "params": ["value"]
-        },
-        {
-          "type": "css",
-          "name": "setHeight",
-          "label": "Set Height",
-          "description": "px, %, vh, auto",
+          "description": "Background color or image",
           "params": ["value"]
         },
         {
@@ -255,7 +138,7 @@
     },
     {
       "id": "html",
-      "label": "HTML Actions",
+      "label": "HTML Attributes",
       "color": "#4CAF50",
       "blocks": [
         {
@@ -267,46 +150,10 @@
         },
         {
           "type": "html",
-          "name": "scrollTo",
-          "label": "Scroll To",
-          "description": "id, class, or position",
-          "params": ["target"],
-          "presets": ["top", "bottom"]
-        },
-        {
-          "type": "html",
-          "name": "setText",
-          "label": "Set Text",
-          "description": "Change text content",
-          "params": ["text"]
-        },
-        {
-          "type": "html",
-          "name": "setHTML",
-          "label": "Set HTML",
-          "description": "Set inner HTML",
-          "params": ["html"]
-        },
-        {
-          "type": "html",
-          "name": "showElement",
-          "label": "Show Element",
-          "description": "Display element",
-          "params": []
-        },
-        {
-          "type": "html",
-          "name": "hideElement",
-          "label": "Hide Element",
-          "description": "Hide element",
-          "params": []
-        },
-        {
-          "type": "html",
-          "name": "toggleElement",
-          "label": "Toggle Visible",
-          "description": "Toggle show/hide",
-          "params": []
+          "name": "setSrc",
+          "label": "Set Src",
+          "description": "Image or Media URL",
+          "params": ["value"]
         },
         {
           "type": "html",
@@ -317,189 +164,25 @@
         },
         {
           "type": "html",
-          "name": "createElement",
-          "label": "Create Element",
-          "description": "Create and append new element",
-          "params": ["tag", "content"]
+          "name": "setId",
+          "label": "Set ID",
+          "description": "Set HTML ID",
+          "params": ["value"]
         },
         {
           "type": "html",
-          "name": "removeElement",
-          "label": "Remove Element",
-          "description": "Remove from DOM",
-          "params": ["selector"]
-        },
-        {
-          "type": "html",
-          "name": "appendHTML",
-          "label": "Append",
-          "description": "Append HTML to end",
-          "params": ["html"]
-        },
-        {
-          "type": "html",
-          "name": "prependHTML",
-          "label": "Prepend",
-          "description": "Prepend HTML to start",
-          "params": ["html"]
-        },
-        {
-          "type": "html",
-          "name": "focusInput",
-          "label": "Focus Input",
-          "description": "Focus an input field",
-          "params": []
-        },
-        {
-          "type": "html",
-          "name": "alert",
-          "label": "Show Alert",
-          "description": "Browser alert dialog",
-          "params": ["message"]
-        },
-        {
-          "type": "html",
-          "name": "navigate",
-          "label": "Navigate",
-          "description": "Go to URL",
-          "params": ["url"]
-        },
-        {
-          "type": "html",
-          "name": "goToPage",
-          "label": "Go To Page",
-          "description": "Navigate to project page",
-          "params": ["pageName"]
-        }
-      ]
-    },
-    {
-      "id": "logic",
-      "label": "Logic",
-      "color": "#E91E63",
-      "blocks": [
-        {
-          "type": "logic",
-          "name": "ifBlock",
-          "label": "If",
-          "description": "Conditional execution",
-          "params": ["left", "operator", "right", "action"]
-        },
-        {
-          "type": "logic",
-          "name": "ifElseBlock",
-          "label": "If / Else",
-          "description": "If-else conditional",
-          "params": ["left", "operator", "right", "thenAction", "elseAction"]
-        },
-        {
-          "type": "logic",
-          "name": "compareEqual",
-          "label": "Compare ==",
-          "description": "Check equality",
-          "params": ["left", "right"]
-        },
-        {
-          "type": "logic",
-          "name": "compareNotEqual",
-          "label": "Compare !=",
-          "description": "Check inequality",
-          "params": ["left", "right"]
-        },
-        {
-          "type": "logic",
-          "name": "compareGreater",
-          "label": "Compare >",
-          "description": "Greater than",
-          "params": ["left", "right"]
-        },
-        {
-          "type": "logic",
-          "name": "compareLess",
-          "label": "Compare <",
-          "description": "Less than",
-          "params": ["left", "right"]
-        },
-        {
-          "type": "logic",
-          "name": "delay",
-          "label": "Delay",
-          "description": "Wait then execute",
-          "params": ["ms", "action"]
-        },
-        {
-          "type": "logic",
-          "name": "loop",
-          "label": "Loop",
-          "description": "Repeat N times",
-          "params": ["count", "action"]
-        }
-      ]
-    },
-    {
-      "id": "variable",
-      "label": "Variables",
-      "color": "#00BCD4",
-      "blocks": [
-        {
-          "type": "variable",
-          "name": "createVar",
-          "label": "Create Variable",
-          "description": "Declare a variable",
-          "params": ["name", "type", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "createVarString",
-          "label": "String Var",
-          "description": "String variable",
-          "params": ["name", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "createVarNumber",
-          "label": "Number Var",
-          "description": "Number variable",
-          "params": ["name", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "createVarBoolean",
-          "label": "Boolean Var",
-          "description": "Boolean variable",
-          "params": ["name", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "createVarColor",
-          "label": "Color Var",
-          "description": "Color variable",
-          "params": ["name", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "setVar",
-          "label": "Set Variable",
-          "description": "Assign a value",
-          "params": ["name", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "getVar",
-          "label": "Get Variable",
-          "description": "Read variable value",
-          "params": ["name"]
+          "name": "setClass",
+          "label": "Set Class",
+          "description": "Set HTML classes",
+          "params": ["value"]
         }
       ]
     }
   ],
   "pageEvents": [
-    {"id": "onPageLoad", "label": "On Page Load", "description": "Runs when the page finishes loading", "icon": "load"},
-    {"id": "onVisible", "label": "On Visible", "description": "Runs when page becomes visible", "icon": "visible"},
-    {"id": "onHidden", "label": "On Hidden", "description": "Runs when page is hidden/background", "icon": "hidden"},
-    {"id": "onDestroy", "label": "On Destroy", "description": "Runs when page is about to close", "icon": "destroy"},
-    {"id": "onScroll", "label": "On Scroll", "description": "Runs when user scrolls the page", "icon": "scroll"},
-    {"id": "onInput", "label": "On Input", "description": "Runs when any input changes", "icon": "input"}
+    {"id": "hover", "label": "On Hover", "description": "CSS :hover pseudoclass", "icon": "hover"},
+    {"id": "focus", "label": "On Focus", "description": "CSS :focus pseudoclass", "icon": "focus"},
+    {"id": "active", "label": "On Active", "description": "CSS :active pseudoclass", "icon": "active"}
   ],
   "targetSystem": {
     "modes": [
