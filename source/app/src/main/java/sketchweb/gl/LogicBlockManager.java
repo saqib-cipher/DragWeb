@@ -426,6 +426,37 @@ public class LogicBlockManager {
      * Generate JavaScript with HTML-first approach.
      * Prefers modifying HTML/CSS directly over heavy JS.
      */
+
+    public String generateCSS() {
+        if (blocks.isEmpty()) return "";
+        StringBuilder css = new StringBuilder();
+        css.append("/* Logic block pseudo-classes */\n");
+
+        for (LogicBlock block : blocks) {
+            String eventName = block.event;
+            // Only process pseudo-classes
+            if ("hover".equals(eventName) || "focus".equals(eventName) || "active".equals(eventName)) {
+                String selector = buildSelector(block);
+                String pseudoClass = ":" + eventName; // e.g. :hover
+
+                // Only style changes can be translated to pure CSS
+                if (ACTION_CHANGE_STYLE.equals(block.action)) {
+                    String[] parts = block.params.split(":", 2);
+                    if (parts.length == 2) {
+                        String prop = parts[0].trim().replaceAll("([A-Z])", "-$1").toLowerCase();
+                        String val = parts[1].trim();
+                        css.append(selector).append(pseudoClass).append(" { ")
+                           .append(prop).append(": ").append(val).append(" !important; }\n");
+                    }
+                } else if (ACTION_SET_TRANSFORM.equals(block.action)) {
+                    css.append(selector).append(pseudoClass).append(" { ")
+                       .append("transform: ").append(block.params).append(" !important; }\n");
+                }
+            }
+        }
+        return css.toString();
+    }
+
     public String generateJavaScript() {
         if (blocks.isEmpty()) return "";
 
@@ -489,9 +520,13 @@ public class LogicBlockManager {
             }
             // Element-scoped events
             else {
+                // Skip pseudo-classes in JS as they are handled by CSS
+                if ("hover".equals(eventName) || "focus".equals(eventName) || "active".equals(eventName)) {
+                    continue;
+                }
+
                 String selector = buildSelector(block);
                 String jsEvent = eventName;
-                if ("hover".equals(eventName)) jsEvent = "mouseenter";
 
                 js.append("  document.querySelectorAll('").append(selector).append("').forEach(function(el) {\n");
                 js.append("    el.addEventListener('").append(jsEvent).append("', function(event) {\n");

@@ -1628,49 +1628,60 @@ public class MainActivity extends AppCompatActivity {
 		PageCodeGenerator codeGen = new PageCodeGenerator();
 		codeGen.setProjectInfo(projectName, getProjectLogoPathForExport());
 		ArrayList<String> pageNames = new ArrayList<>();
-		ArrayList<String> pageCodes = new ArrayList<>();
-
 		List<String> allPages = pageManager != null ? pageManager.getPages() : new ArrayList<>();
 		if (allPages.isEmpty()) allPages.add("index");
+		pageNames.addAll(allPages);
 
 		String currentPage = pageManager != null ? pageManager.getCurrentPage() : "index";
 
-		for (String pageName : allPages) {
-			pageNames.add(pageName);
-
-			if (pageName.equals(currentPage)) {
-				// Current page: generate from live screen
-				String html = codeGen.generateFullCode(screen, themeManager, logicBlockManager);
-				pageCodes.add(html);
-			} else {
-				// Other pages: generate from saved JSON data
-				String pageJson = pageManager.loadPageLayout(pageName);
-				LogicBlockManager pageLogic = new LogicBlockManager(this);
-				File dir = new File(getFilesDir(), "projects");
-				File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
-				if (logicFile.exists()) {
-					String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-					pageLogic.fromJson(logicJson);
-				}
-
-				try {
-					List<Map<String, Object>> widgetTree = new Gson().fromJson(pageJson,
-						new TypeToken<List<Map<String, Object>>>(){}.getType());
-					String html = codeGen.generateFullCodeFromTree(widgetTree, themeManager, pageLogic);
-					pageCodes.add(html);
-				} catch (Exception e) {
-					pageCodes.add("<html><body><p>Error loading page: " + pageName + "</p></body></html>");
-				}
-			}
-		}
-
-		// Find the index of the current page to start on that tab
 		int startIndex = pageNames.indexOf(currentPage);
 		if (startIndex < 0) startIndex = 0;
 
+		// For multi-page preview, we export all pages directly using codeGen
+		File exportDir = new File(getFilesDir(), "exports/preview_" + projectId);
+		if (!exportDir.exists()) exportDir.mkdirs();
+
+		// Export CSS and JS
+		ExportManager.ExportResult result = exportManager.generateExportFiles(screen, projectName, logicBlockManager);
+
+		if (result.success && result.exportDir != null) {
+		    // generateExportFiles puts files in a project named folder, we will use that as the base
+		    exportDir = result.exportDir;
+		}
+
+		for (String pageName : allPages) {
+		    String html = "";
+		    if (pageName.equals(currentPage)) {
+		        html = codeGen.generateFullCode(screen, themeManager, logicBlockManager);
+		    } else {
+		        String pageJson = pageManager.loadPageLayout(pageName);
+		        LogicBlockManager pageLogic = new LogicBlockManager(this);
+		        File dir = new File(getFilesDir(), "projects");
+		        File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+		        if (logicFile.exists()) {
+		            String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
+		            pageLogic.fromJson(logicJson);
+		        }
+		        try {
+		            List<Map<String, Object>> widgetTree = new Gson().fromJson(pageJson,
+		                new TypeToken<List<Map<String, Object>>>(){}.getType());
+		            html = codeGen.generateFullCodeFromTree(widgetTree, themeManager, pageLogic);
+		        } catch (Exception e) {
+		            html = "<html><body><p>Error loading page: " + pageName + "</p></body></html>";
+		        }
+		    }
+
+		    String fileName = pageName.equals("index") ? "index.html" : pageName + ".html";
+		    try {
+		        FileUtil.writeFile(new File(exportDir, fileName).getAbsolutePath(), html);
+		    } catch (Exception e) {
+		        e.printStackTrace();
+		    }
+		}
+
 		Intent previewIntent = new Intent(this, PreviewActivity.class);
 		previewIntent.putStringArrayListExtra("page_names", pageNames);
-		previewIntent.putStringArrayListExtra("page_codes", pageCodes);
+		previewIntent.putExtra("project_dir", exportDir.getAbsolutePath());
 		previewIntent.putExtra("start_page_index", startIndex);
 		startActivity(previewIntent);
 	}

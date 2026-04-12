@@ -33,6 +33,7 @@ public class PreviewActivity extends AppCompatActivity {
     private List<String> pageCodes = new ArrayList<>();
     private int currentPageIndex = 0;
     private int currentWidth = 375;
+    private String projectDir;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,22 +74,8 @@ public class PreviewActivity extends AppCompatActivity {
             pageNames.addAll(names);
         }
 
-        // Load page codes
-        ArrayList<String> codes = getIntent().getStringArrayListExtra("page_codes");
-        if (codes != null && !codes.isEmpty()) {
-            pageCodes.addAll(codes);
-        }
-
-        // Fallback: single page code
-        if (pageCodes.isEmpty()) {
-            String singleCode = getIntent().getStringExtra("finalCode");
-            if (singleCode != null && !singleCode.isEmpty()) {
-                pageCodes.add(singleCode);
-                if (pageNames.isEmpty()) {
-                    pageNames.add("index");
-                }
-            }
-        }
+        // Load project dir
+        projectDir = getIntent().getStringExtra("project_dir");
 
         // Start page index
         int startIndex = getIntent().getIntExtra("start_page_index", 0);
@@ -112,6 +99,10 @@ public class PreviewActivity extends AppCompatActivity {
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
         settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowUniversalAccessFromFileURLs(true);
 
         webviewPreview.setWebViewClient(new WebViewClient() {
             @Override
@@ -122,6 +113,16 @@ public class PreviewActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+
+                // Inject responsive meta tag manually if we need to force width
+                if (currentWidth > 0) {
+                    String js = "var meta = document.querySelector('meta[name=\"viewport\"]');" +
+                                "if(meta) { meta.setAttribute('content', 'width=" + currentWidth + ", initial-scale=1.0'); }" +
+                                "else { meta = document.createElement('meta'); meta.name = 'viewport'; " +
+                                "meta.content = 'width=" + currentWidth + ", initial-scale=1.0'; " +
+                                "document.getElementsByTagName('head')[0].appendChild(meta); }";
+                    view.evaluateJavascript(js, null);
+                }
             }
         });
     }
@@ -194,29 +195,21 @@ public class PreviewActivity extends AppCompatActivity {
     }
 
     private void loadCurrentPage() {
-        String code = getCurrentCode();
-        if (code == null || code.isEmpty()) {
-            webviewPreview.loadData("<html><body><p style='padding:20px;color:#666;'>No content to preview</p></body></html>",
+        if (projectDir == null || projectDir.isEmpty() || pageNames.isEmpty()) {
+            webviewPreview.loadData("<html><body><p style='padding:20px;color:#666;'>No project directory or pages available to preview</p></body></html>",
                 "text/html", "utf-8");
             return;
         }
 
-        String modifiedHtml = code;
+        String pageName = currentPageIndex < pageNames.size() ? pageNames.get(currentPageIndex) : "index";
 
-        if (currentWidth > 0) {
-            // Inject viewport meta tag with specific width
-            String viewportMeta = "<meta name=\"viewport\" content=\"width=" + currentWidth + ", initial-scale=1.0\">";
-            if (modifiedHtml.contains("<meta name=\"viewport\"")) {
-                modifiedHtml = modifiedHtml.replaceAll(
-                    "<meta\\s+name=\"viewport\"[^>]*>",
-                    viewportMeta
-                );
-            } else if (modifiedHtml.contains("<head>")) {
-                modifiedHtml = modifiedHtml.replace("<head>", "<head>" + viewportMeta);
-            }
-        }
+        // ExportManager creates index.html by default. For multi-page, we would need to ensure it generates page_name.html
+        // Assuming ExportManager exported it, let's load it.
+        // As a fallback, if index.html is the only one
+        String fileName = pageName.equals("index") ? "index.html" : pageName + ".html";
+        String fileUrl = "file://" + projectDir + "/" + fileName;
 
-        webviewPreview.loadDataWithBaseURL(null, modifiedHtml, "text/html", "utf-8", null);
+        webviewPreview.loadUrl(fileUrl);
     }
 
     private String getCurrentCode() {

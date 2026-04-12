@@ -15,6 +15,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.DiffUtil;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -23,6 +24,47 @@ import java.util.Map;
 import java.util.Set;
 
 public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdapter.ViewHolder> {
+
+    private static class NodeDiffCallback extends DiffUtil.Callback {
+        private final List<TreeNode> oldList;
+        private final List<TreeNode> newList;
+
+        public NodeDiffCallback(List<TreeNode> oldList, List<TreeNode> newList) {
+            this.oldList = oldList;
+            this.newList = newList;
+        }
+
+        @Override
+        public int getOldListSize() {
+            return oldList.size();
+        }
+
+        @Override
+        public int getNewListSize() {
+            return newList.size();
+        }
+
+        @Override
+        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+            // Using View instance as unique identifier
+            return oldList.get(oldItemPosition).view == newList.get(newItemPosition).view;
+        }
+
+        @Override
+        public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+            TreeNode oldNode = oldList.get(oldItemPosition);
+            TreeNode newNode = newList.get(newItemPosition);
+            // Compare depth, label, and expanded state
+            if (oldNode.depth != newNode.depth) return false;
+            if (oldNode.isContainer != newNode.isContainer) return false;
+            if (oldNode.isLocked != newNode.isLocked) return false;
+            if (!String.valueOf(oldNode.name).equals(String.valueOf(newNode.name))) return false;
+            if (!String.valueOf(oldNode.id).equals(String.valueOf(newNode.id))) return false;
+            if (!String.valueOf(oldNode.cssClass).equals(String.valueOf(newNode.cssClass))) return false;
+            return true;
+        }
+    }
+
 
     public interface OnItemClickListener {
         void onItemClick(View widgetView);
@@ -69,7 +111,11 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     public void setSelectedView(View view) {
         this.selectedWidgetView = view;
-        notifyDataSetChanged();
+        if (rootScreen != null) {
+            buildTree(rootScreen);
+        } else {
+            notifyDataSetChanged();
+        }
     }
 
     public void setFilter(String query) {
@@ -81,9 +127,12 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     public void buildTree(ViewGroup screen) {
         this.rootScreen = screen;
+        List<TreeNode> oldList = new ArrayList<>(flatList);
         flatList.clear();
         addNode(screen, 0, "body");
-        notifyDataSetChanged();
+
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new NodeDiffCallback(oldList, flatList));
+        diffResult.dispatchUpdatesTo(this);
     }
 
     public void attachToRecyclerView(RecyclerView rv) {
@@ -145,11 +194,20 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                     }
                 }
 
-                // Update flat list using notifyDataSetChanged for stability
+                // Update flat list using notifyItemMoved for stability
                 if (fromPos >= 0 && toPos >= 0 && fromPos < flatList.size() && toPos < flatList.size()) {
                     Collections.swap(flatList, fromPos, toPos);
                     notifyItemMoved(fromPos, toPos);
-                    notifyDataSetChanged();
+                    // Rebuild the tree properly from the data source to ensure depth and state are accurate
+                    // We trigger a delayed buildTree to not interrupt the drag animation immediately
+                    if (rootScreen != null) {
+                        toNode.view.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                buildTree(rootScreen);
+                            }
+                        });
+                    }
                 }
                 return true;
             }

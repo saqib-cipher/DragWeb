@@ -1,97 +1,33 @@
 {
   "blockCategories": [
     {
-      "id": "event",
-      "label": "Events",
+      "id": "pseudo",
+      "label": "Pseudo-classes",
       "color": "#FF9800",
       "blocks": [
         {
-          "type": "event",
-          "name": "onPageLoad",
-          "label": "On Page Load",
-          "description": "When page finishes loading",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onVisible",
-          "label": "On Visible",
-          "description": "When page becomes visible",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onHidden",
-          "label": "On Hidden",
-          "description": "When page is hidden",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onDestroy",
-          "label": "On Destroy",
-          "description": "When page is about to unload",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onScroll",
-          "label": "On Scroll",
-          "description": "When user scrolls the page",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
-          "name": "onInput",
-          "label": "On Input",
-          "description": "When input value changes",
+          "type": "pseudo",
+          "name": "hover",
+          "label": ":hover",
+          "description": "Applies when hovering",
           "target": "id",
-          "params": ["elementId"]
+          "params": []
         },
         {
-          "type": "event",
-          "name": "onClick",
-          "label": "On Click",
-          "description": "When element is clicked",
+          "type": "pseudo",
+          "name": "focus",
+          "label": ":focus",
+          "description": "Applies when focused",
           "target": "id",
-          "params": ["elementId"]
+          "params": []
         },
         {
-          "type": "event",
-          "name": "onHover",
-          "label": "On Hover",
-          "description": "When mouse hovers over element",
+          "type": "pseudo",
+          "name": "active",
+          "label": ":active",
+          "description": "Applies when active/clicked",
           "target": "id",
-          "params": ["elementId"]
-        },
-        {
-          "type": "event",
-          "name": "onSubmit",
-          "label": "On Submit",
-          "description": "When form is submitted",
-          "target": "id",
-          "params": ["formId"]
-        },
-        {
-          "type": "event",
-          "name": "onKeyDown",
-          "label": "On Key Down",
-          "description": "When key is pressed",
-          "target": "id",
-          "params": ["elementId"]
-        },
-        {
-          "type": "event",
-          "name": "onChange",
-          "label": "On Change",
-          "description": "When value changes",
-          "target": "id",
-          "params": ["elementId"]
+          "params": []
         }
       ]
     },
@@ -105,151 +41,216 @@
           "name": "setDisplay",
           "label": "Set Display",
           "description": "block, none, flex, grid",
-          "params": ["value"],
-          "presets": ["block", "none", "flex", "grid", "inline-block", "inline"]
+          "params": [
+            "value"
+          ],
+          "presets": [
+            "block",
+            "none",
+            "flex",
+            "grid",
+            "inline-block",
+            "inline"
+          ]
         },
         {
           "type": "css",
           "name": "setPosition",
           "label": "Set Position",
           "description": "static, relative, absolute, fixed",
-          "params": ["value"],
-          "presets": ["static", "relative", "absolute", "fixed", "sticky"]
+          "params": [
+            "value"
+          ],
+          "presets": [
+            "static",
+            "relative",
+            "absolute",
+            "fixed",
+            "sticky"
+          ]
         },
         {
           "type": "css",
           "name": "setOverflow",
           "label": "Set Overflow",
           "description": "hidden, scroll, auto, visible",
-          "params": ["value"],
-          "presets": ["hidden", "scroll", "auto", "visible"]
+          "params": [
+            "value"
+          ],
+          "presets": [
+            "hidden",
+            "scroll",
+            "auto",
+            "visible"
+          ]
         },
         {
           "type": "css",
           "name": "setColor",
           "label": "Set Color",
           "description": "Set text color",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setBackground",
           "label": "Set Background",
           "description": "Color or gradient",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setWidth",
           "label": "Set Width",
           "description": "px, %, vw, auto",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setHeight",
           "label": "Set Height",
           "description": "px, %, vh, auto",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setMargin",
           "label": "Set Margin",
           "description": "Outer spacing",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setPadding",
           "label": "Set Padding",
           "description": "Inner spacing",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setBorder",
           "label": "Set Border",
           "description": "Border style",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setRadius",
           "label": "Set Radius",
           "description": "Border radius",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setOpacity",
           "label": "Set Opacity",
           "description": "0 to 1",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setFontSize",
           "label": "Set Font Size",
           "description": "Text size",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setTextAlign",
           "label": "Set Text Align",
           "description": "left, center, right",
-          "params": ["value"],
-          "presets": ["left", "center", "right", "justify"]
+          "params": [
+            "value"
+          ],
+          "presets": [
+            "left",
+            "center",
+            "right",
+            "justify"
+          ]
         },
         {
           "type": "css",
           "name": "setZIndex",
           "label": "Set Z-Index",
           "description": "Stack order",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setFlex",
           "label": "Set Flex",
           "description": "Flex layout properties",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setTransform",
           "label": "Set Transform",
           "description": "rotate, scale, translate",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "setTransition",
           "label": "Set Transition",
           "description": "CSS transition animation",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "css",
           "name": "addClass",
           "label": "Add Class",
           "description": "Add CSS class to element",
-          "params": ["className"]
+          "params": [
+            "className"
+          ]
         },
         {
           "type": "css",
           "name": "removeClass",
           "label": "Remove Class",
           "description": "Remove CSS class",
-          "params": ["className"]
+          "params": [
+            "className"
+          ]
         },
         {
           "type": "css",
           "name": "toggleClass",
           "label": "Toggle Class",
           "description": "Toggle CSS class",
-          "params": ["className"]
+          "params": [
+            "className"
+          ]
         }
       ]
     },
@@ -263,29 +264,40 @@
           "name": "setHref",
           "label": "Set Href",
           "description": "URL or #section",
-          "params": ["value"]
+          "params": [
+            "value"
+          ]
         },
         {
           "type": "html",
           "name": "scrollTo",
           "label": "Scroll To",
           "description": "id, class, or position",
-          "params": ["target"],
-          "presets": ["top", "bottom"]
+          "params": [
+            "target"
+          ],
+          "presets": [
+            "top",
+            "bottom"
+          ]
         },
         {
           "type": "html",
           "name": "setText",
           "label": "Set Text",
           "description": "Change text content",
-          "params": ["text"]
+          "params": [
+            "text"
+          ]
         },
         {
           "type": "html",
           "name": "setHTML",
           "label": "Set HTML",
           "description": "Set inner HTML",
-          "params": ["html"]
+          "params": [
+            "html"
+          ]
         },
         {
           "type": "html",
@@ -313,35 +325,47 @@
           "name": "setAttribute",
           "label": "Set Attribute",
           "description": "Set HTML attribute",
-          "params": ["attribute", "value"]
+          "params": [
+            "attribute",
+            "value"
+          ]
         },
         {
           "type": "html",
           "name": "createElement",
           "label": "Create Element",
           "description": "Create and append new element",
-          "params": ["tag", "content"]
+          "params": [
+            "tag",
+            "content"
+          ]
         },
         {
           "type": "html",
           "name": "removeElement",
           "label": "Remove Element",
           "description": "Remove from DOM",
-          "params": ["selector"]
+          "params": [
+            "selector"
+          ]
         },
         {
           "type": "html",
           "name": "appendHTML",
           "label": "Append",
           "description": "Append HTML to end",
-          "params": ["html"]
+          "params": [
+            "html"
+          ]
         },
         {
           "type": "html",
           "name": "prependHTML",
           "label": "Prepend",
           "description": "Prepend HTML to start",
-          "params": ["html"]
+          "params": [
+            "html"
+          ]
         },
         {
           "type": "html",
@@ -355,157 +379,52 @@
           "name": "alert",
           "label": "Show Alert",
           "description": "Browser alert dialog",
-          "params": ["message"]
+          "params": [
+            "message"
+          ]
         },
         {
           "type": "html",
           "name": "navigate",
           "label": "Navigate",
           "description": "Go to URL",
-          "params": ["url"]
+          "params": [
+            "url"
+          ]
         },
         {
           "type": "html",
           "name": "goToPage",
           "label": "Go To Page",
           "description": "Navigate to project page",
-          "params": ["pageName"]
-        }
-      ]
-    },
-    {
-      "id": "logic",
-      "label": "Logic",
-      "color": "#E91E63",
-      "blocks": [
-        {
-          "type": "logic",
-          "name": "ifBlock",
-          "label": "If",
-          "description": "Conditional execution",
-          "params": ["left", "operator", "right", "action"]
-        },
-        {
-          "type": "logic",
-          "name": "ifElseBlock",
-          "label": "If / Else",
-          "description": "If-else conditional",
-          "params": ["left", "operator", "right", "thenAction", "elseAction"]
-        },
-        {
-          "type": "logic",
-          "name": "compareEqual",
-          "label": "Compare ==",
-          "description": "Check equality",
-          "params": ["left", "right"]
-        },
-        {
-          "type": "logic",
-          "name": "compareNotEqual",
-          "label": "Compare !=",
-          "description": "Check inequality",
-          "params": ["left", "right"]
-        },
-        {
-          "type": "logic",
-          "name": "compareGreater",
-          "label": "Compare >",
-          "description": "Greater than",
-          "params": ["left", "right"]
-        },
-        {
-          "type": "logic",
-          "name": "compareLess",
-          "label": "Compare <",
-          "description": "Less than",
-          "params": ["left", "right"]
-        },
-        {
-          "type": "logic",
-          "name": "delay",
-          "label": "Delay",
-          "description": "Wait then execute",
-          "params": ["ms", "action"]
-        },
-        {
-          "type": "logic",
-          "name": "loop",
-          "label": "Loop",
-          "description": "Repeat N times",
-          "params": ["count", "action"]
-        }
-      ]
-    },
-    {
-      "id": "variable",
-      "label": "Variables",
-      "color": "#00BCD4",
-      "blocks": [
-        {
-          "type": "variable",
-          "name": "createVar",
-          "label": "Create Variable",
-          "description": "Declare a variable",
-          "params": ["name", "type", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "createVarString",
-          "label": "String Var",
-          "description": "String variable",
-          "params": ["name", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "createVarNumber",
-          "label": "Number Var",
-          "description": "Number variable",
-          "params": ["name", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "createVarBoolean",
-          "label": "Boolean Var",
-          "description": "Boolean variable",
-          "params": ["name", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "createVarColor",
-          "label": "Color Var",
-          "description": "Color variable",
-          "params": ["name", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "setVar",
-          "label": "Set Variable",
-          "description": "Assign a value",
-          "params": ["name", "value"]
-        },
-        {
-          "type": "variable",
-          "name": "getVar",
-          "label": "Get Variable",
-          "description": "Read variable value",
-          "params": ["name"]
+          "params": [
+            "pageName"
+          ]
         }
       ]
     }
   ],
-  "pageEvents": [
-    {"id": "onPageLoad", "label": "On Page Load", "description": "Runs when the page finishes loading", "icon": "load"},
-    {"id": "onVisible", "label": "On Visible", "description": "Runs when page becomes visible", "icon": "visible"},
-    {"id": "onHidden", "label": "On Hidden", "description": "Runs when page is hidden/background", "icon": "hidden"},
-    {"id": "onDestroy", "label": "On Destroy", "description": "Runs when page is about to close", "icon": "destroy"},
-    {"id": "onScroll", "label": "On Scroll", "description": "Runs when user scrolls the page", "icon": "scroll"},
-    {"id": "onInput", "label": "On Input", "description": "Runs when any input changes", "icon": "input"}
-  ],
+  "pageEvents": [],
   "targetSystem": {
     "modes": [
-      {"id": "id", "label": "By ID", "prefix": "#", "example": "btn1"},
-      {"id": "class", "label": "By Class", "prefix": ".", "example": "btn-primary"},
-      {"id": "tag", "label": "By Tag", "prefix": "", "example": "button"}
+      {
+        "id": "id",
+        "label": "By ID",
+        "prefix": "#",
+        "example": "btn1"
+      },
+      {
+        "id": "class",
+        "label": "By Class",
+        "prefix": ".",
+        "example": "btn-primary"
+      },
+      {
+        "id": "tag",
+        "label": "By Tag",
+        "prefix": "",
+        "example": "button"
+      }
     ]
   }
 }

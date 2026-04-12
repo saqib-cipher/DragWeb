@@ -143,7 +143,35 @@ public class ProjectDataManager {
                 File outFile;
                 String safeBase;
 
-                if (entryName.startsWith("external/projects/")) {
+                // Cleanly map entries. Drop layout.json and index.json.
+                if (entryName.endsWith("layout.json") || entryName.endsWith("index.json")) {
+                    zis.closeEntry();
+                    continue;
+                }
+
+                if (entryName.startsWith("pages/") || entryName.startsWith("styles/") || entryName.startsWith("widgets/") || entryName.startsWith("data/")) {
+                    // Flatten data back into internal projects dir
+                    String[] parts = entryName.split("/");
+                    String fileName = parts[parts.length - 1];
+                    outFile = new File(internalProjectsDir, fileName);
+                    safeBase = internalBase;
+                    captureProjectIdFromInternalFile(fileName, result.importedProjectIds);
+                } else if (entryName.startsWith("assets/")) {
+                    String relative = entryName.substring("assets/".length());
+                    // For standard single project ZIP, files are mapped to the first imported project ID or dynamically
+                    // The easiest fix is to map it to the external directory under the extracted project ID
+                    // Assuming we find the ID from page files. Since zip iterations are unpredictable,
+                    // a more robust way is to just assume the zip filename or wait.
+                    // But we can extract it to a temporary directory, and then move it when we know the ID?
+                    // Or we extract directly if we can guess the ID from the zip or we will use externalProjectsDir directly
+                    // Wait, standard single-project exports name the ZIP `ProjectName_ProjectId.zip`.
+                    // Let's just create a generic asset folder and we can map it later, OR
+                    // since DragWeb stores assets in `.dragweb/projects/{projectId}/assets/`, and the zip
+                    // only has one `assets/` folder, we can guess the projectId from the other files.
+                    // Actually, let's place it temporarily and then handle it after loop.
+                    outFile = new File(externalProjectsDir, "temp_assets/" + relative);
+                    safeBase = externalBase;
+                } else if (entryName.startsWith("external/projects/")) {
                     String relative = entryName.substring("external/projects/".length());
                     outFile = new File(externalProjectsDir, relative);
                     safeBase = externalBase;
@@ -190,6 +218,24 @@ public class ProjectDataManager {
                     }
                 }
                 zis.closeEntry();
+            }
+
+            // Move temporary assets to proper project folder
+            if (!result.importedProjectIds.isEmpty()) {
+                String id = result.importedProjectIds.iterator().next();
+                File tempAssets = new File(externalProjectsDir, "temp_assets");
+                if (tempAssets.exists() && tempAssets.isDirectory()) {
+                    File targetAssets = new File(externalProjectsDir, id + "/assets");
+                    if (!targetAssets.exists()) targetAssets.mkdirs();
+
+                    File[] assets = tempAssets.listFiles();
+                    if (assets != null) {
+                        for (File asset : assets) {
+                            asset.renameTo(new File(targetAssets, asset.getName()));
+                        }
+                    }
+                    tempAssets.delete();
+                }
             }
 
             result.success = true;
