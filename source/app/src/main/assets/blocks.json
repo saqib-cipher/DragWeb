@@ -7,14 +7,6 @@
       "blocks": [
         {
           "type": "event",
-          "name": "onPageLoad",
-          "label": "On Page Load",
-          "description": "When page finishes loading",
-          "target": "tag",
-          "params": ["body"]
-        },
-        {
-          "type": "event",
           "name": "onVisible",
           "label": "On Visible",
           "description": "When page becomes visible",
@@ -55,22 +47,6 @@
         },
         {
           "type": "event",
-          "name": "onClick",
-          "label": "On Click",
-          "description": "When element is clicked",
-          "target": "id",
-          "params": ["elementId"]
-        },
-        {
-          "type": "event",
-          "name": "onHover",
-          "label": "On Hover",
-          "description": "When mouse hovers over element",
-          "target": "id",
-          "params": ["elementId"]
-        },
-        {
-          "type": "event",
           "name": "onSubmit",
           "label": "On Submit",
           "description": "When form is submitted",
@@ -97,7 +73,7 @@
     },
     {
       "id": "css",
-      "label": "CSS Actions",
+      "label": "CSS Styles",
       "color": "#2196F3",
       "blocks": [
         {
@@ -196,11 +172,26 @@
         },
         {
           "type": "css",
+          "name": "setFontWeight",
+          "label": "Font Weight",
+          "description": "bold, normal, lighter",
+          "params": ["value"],
+          "presets": ["normal", "bold", "lighter", "bolder", "100", "400", "700", "900"]
+        },
+        {
+          "type": "css",
           "name": "setTextAlign",
           "label": "Set Text Align",
           "description": "left, center, right",
           "params": ["value"],
           "presets": ["left", "center", "right", "justify"]
+        },
+        {
+          "type": "css",
+          "name": "setLineHeight",
+          "label": "Line Height",
+          "description": "Text line height",
+          "params": ["value"]
         },
         {
           "type": "css",
@@ -213,7 +204,52 @@
           "type": "css",
           "name": "setFlex",
           "label": "Set Flex",
-          "description": "Flex layout properties",
+          "description": "Flex shorthand value",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setFlexDirection",
+          "label": "Flex Direction",
+          "description": "row, column, row-reverse",
+          "params": ["value"],
+          "presets": ["row", "column", "row-reverse", "column-reverse"]
+        },
+        {
+          "type": "css",
+          "name": "setJustifyContent",
+          "label": "Justify Content",
+          "description": "Main axis alignment",
+          "params": ["value"],
+          "presets": ["flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly"]
+        },
+        {
+          "type": "css",
+          "name": "setAlignItems",
+          "label": "Align Items",
+          "description": "Cross axis alignment",
+          "params": ["value"],
+          "presets": ["flex-start", "flex-end", "center", "stretch", "baseline"]
+        },
+        {
+          "type": "css",
+          "name": "setGap",
+          "label": "Set Gap",
+          "description": "Space between flex/grid items",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setGrid",
+          "label": "Set Grid",
+          "description": "Grid template columns",
+          "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setBoxShadow",
+          "label": "Box Shadow",
+          "description": "Element shadow",
           "params": ["value"]
         },
         {
@@ -229,6 +265,14 @@
           "label": "Set Transition",
           "description": "CSS transition animation",
           "params": ["value"]
+        },
+        {
+          "type": "css",
+          "name": "setCursor",
+          "label": "Set Cursor",
+          "description": "Mouse cursor style",
+          "params": ["value"],
+          "presets": ["pointer", "default", "text", "not-allowed", "grab", "grabbing", "crosshair"]
         },
         {
           "type": "css",
@@ -254,16 +298,153 @@
       ]
     },
     {
+      "id": "css_pseudo",
+      "label": "CSS Interactions",
+      "color": "#9C27B0",
+      "description": "CSS pseudo-class styles applied directly in the stylesheet (no JavaScript needed)",
+      "blocks": [
+        {
+          "type": "css_pseudo",
+          "name": "setHoverStyle",
+          "label": "Hover Style",
+          "description": "Style applied on :hover (CSS only)",
+          "params": ["property", "value"],
+          "pseudoClass": "hover"
+        },
+        {
+          "type": "css_pseudo",
+          "name": "setFocusStyle",
+          "label": "Focus Style",
+          "description": "Style applied on :focus (CSS only)",
+          "params": ["property", "value"],
+          "pseudoClass": "focus"
+        },
+        {
+          "type": "css_pseudo",
+          "name": "setActiveStyle",
+          "label": "Active Style",
+          "description": "Style applied on :active press (CSS only)",
+          "params": ["property", "value"],
+          "pseudoClass": "active"
+        },
+        {
+          "type": "css_pseudo",
+          "name": "setVisitedStyle",
+          "label": "Visited Style",
+          "description": "Style for visited links (:visited)",
+          "params": ["property", "value"],
+          "pseudoClass": "visited"
+        },
+        {
+          "type": "css_pseudo",
+          "name": "setCheckedStyle",
+          "label": "Checked Style",
+          "description": "Style for checked inputs (:checked)",
+          "params": ["property", "value"],
+          "pseudoClass": "checked"
+        },
+        {
+          "type": "css_pseudo",
+          "name": "setDisabledStyle",
+          "label": "Disabled Style",
+          "description": "Style for disabled elements (:disabled)",
+          "params": ["property", "value"],
+          "pseudoClass": "disabled"
+        },
+        {
+          "type": "css_pseudo",
+          "name": "setPlaceholderStyle",
+          "label": "Placeholder Style",
+          "description": "Style for input placeholder (::placeholder)",
+          "params": ["property", "value"],
+          "pseudoClass": "placeholder"
+        }
+      ]
+    },
+    {
       "id": "html",
-      "label": "HTML Actions",
+      "label": "HTML Attributes",
       "color": "#4CAF50",
       "blocks": [
         {
           "type": "html",
+          "name": "setId",
+          "label": "Set ID",
+          "description": "Set element id attribute",
+          "params": ["value"]
+        },
+        {
+          "type": "html",
+          "name": "setClass",
+          "label": "Set Class",
+          "description": "Set element class attribute",
+          "params": ["value"]
+        },
+        {
+          "type": "html",
           "name": "setHref",
           "label": "Set Href",
-          "description": "URL or #section",
+          "description": "URL or #section for links",
           "params": ["value"]
+        },
+        {
+          "type": "html",
+          "name": "setTarget",
+          "label": "Set Target",
+          "description": "Link target attribute",
+          "params": ["value"],
+          "presets": ["_blank", "_self", "_parent", "_top"]
+        },
+        {
+          "type": "html",
+          "name": "setSrc",
+          "label": "Set Src",
+          "description": "Image or media source path",
+          "params": ["value"]
+        },
+        {
+          "type": "html",
+          "name": "setAlt",
+          "label": "Set Alt",
+          "description": "Image alt text",
+          "params": ["value"]
+        },
+        {
+          "type": "html",
+          "name": "setPlaceholder",
+          "label": "Set Placeholder",
+          "description": "Input placeholder text",
+          "params": ["value"]
+        },
+        {
+          "type": "html",
+          "name": "setValue",
+          "label": "Set Value",
+          "description": "Input or select value",
+          "params": ["value"]
+        },
+        {
+          "type": "html",
+          "name": "setDisabled",
+          "label": "Set Disabled",
+          "description": "Disable or enable element",
+          "params": ["value"],
+          "presets": ["true", "false"]
+        },
+        {
+          "type": "html",
+          "name": "setChecked",
+          "label": "Set Checked",
+          "description": "Checkbox checked state",
+          "params": ["value"],
+          "presets": ["true", "false"]
+        },
+        {
+          "type": "html",
+          "name": "setAttribute",
+          "label": "Set Attribute",
+          "description": "Set any HTML attribute",
+          "params": ["attribute", "value"]
         },
         {
           "type": "html",
@@ -310,13 +491,6 @@
         },
         {
           "type": "html",
-          "name": "setAttribute",
-          "label": "Set Attribute",
-          "description": "Set HTML attribute",
-          "params": ["attribute", "value"]
-        },
-        {
-          "type": "html",
           "name": "createElement",
           "label": "Create Element",
           "description": "Create and append new element",
@@ -349,13 +523,6 @@
           "label": "Focus Input",
           "description": "Focus an input field",
           "params": []
-        },
-        {
-          "type": "html",
-          "name": "alert",
-          "label": "Show Alert",
-          "description": "Browser alert dialog",
-          "params": ["message"]
         },
         {
           "type": "html",
@@ -507,5 +674,6 @@
       {"id": "class", "label": "By Class", "prefix": ".", "example": "btn-primary"},
       {"id": "tag", "label": "By Tag", "prefix": "", "example": "button"}
     ]
-  }
+  },
+  "cssInteractionNote": "Use the CSS Interactions category to add hover, focus, and active styles directly in the stylesheet — no JavaScript required. These are compiled to CSS pseudo-class rules during export."
 }

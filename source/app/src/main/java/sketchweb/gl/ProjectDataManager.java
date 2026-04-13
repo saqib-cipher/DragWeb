@@ -34,6 +34,15 @@ import java.util.zip.ZipOutputStream;
 public class ProjectDataManager {
 
     private static final String TAG = "ProjectDataManager";
+
+    // ZIP folder names used by the new clean backup format
+    private static final String ZIP_PAGES   = "pages/";
+    private static final String ZIP_STYLES  = "styles/";
+    private static final String ZIP_LOGIC   = "logic/";
+    private static final String ZIP_ASSETS  = "assets/";
+    private static final String ZIP_META    = "meta/";
+    private static final String ZIP_WIDGETS = "widgets/";
+
     private Context context;
     private Gson gson = new GsonBuilder().create();
 
@@ -47,15 +56,16 @@ public class ProjectDataManager {
         public String message;
     }
 
+    // -------------------------------------------------------------------------
+    // Save / Load
+    // -------------------------------------------------------------------------
+
     public void saveProject(View screen, String projectId) {
         List<Map<String, Object>> widgetTree = serializeViewTree(screen);
         String json = gson.toJson(widgetTree);
 
-        // Save to internal storage only; external save is handled by MainActivity
         File dir = new File(context.getFilesDir(), "projects");
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
+        if (!dir.exists()) dir.mkdirs();
 
         File file = new File(dir, projectId + ".json");
         try (FileWriter writer = new FileWriter(file)) {
@@ -65,22 +75,153 @@ public class ProjectDataManager {
         }
     }
 
+    public void loadProject(View screen, String projectId, WidgetBuilderEngine engine,
+                            WidgetSelector selector, DropZoneManager dropZoneManager) {
+        File dir = new File(context.getFilesDir(), "projects");
+        File file = new File(dir, projectId + ".json");
+
+        if (!file.exists()) {
+            file = tryLoadFromExternal(projectId, dir);
+        }
+        if (file == null || !file.exists()) return;
+
+        try (FileReader reader = new FileReader(file)) {
+            List<Map<String, Object>> widgetTree = new Gson().fromJson(
+                    reader, new TypeToken<List<Map<String, Object>>>() {}.getType());
+
+            if (screen instanceof ViewGroup) {
+                ViewGroup vg = (ViewGroup) screen;
+                vg.removeAllViews();
+                for (Map<String, Object> nodeMap : widgetTree) {
+                    buildViewTree(nodeMap, vg, engine, selector, dropZoneManager);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Export (new clean ZIP structure)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Export a single project as a ZIP with the canonical folder structure:
+     *
+     *   pages/    – widget-tree JSON files (replaces the old layout.json duplication)
+     *   styles/   – theme file
+     *   logic/    – per-page logic-block files
+     *   assets/   – project assets (images, etc.)
+     *   meta/     – project metadata
+     *   widgets/  – custom widget definitions (if any)
+     */
+    public boolean exportSingleProjectAsZip(String projectId, Uri outputUri) {
+        File internalDir = new File(context.getFilesDir(), "projects");
+        String extAssetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectId + "/assets";
+        String extCustomWidgetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/custom/widgets.json";
+
+        try (OutputStream fos = context.getContentResolver().openOutputStream(outputUri);
+             ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
+
+            if (internalDir.exists()) {
+                File[] files = internalDir.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        if (!file.isFile()) continue;
+                        String name = file.getName();
+
+                        if (name.equals(projectId + ".json")) {
+                            // Main widget tree → pages/
+                            addFileToZip(zos, ZIP_PAGES + name, file);
+
+                        } else if (name.startsWith(projectId + "_") && name.endsWith(".json")) {
+                            // Per-page layout → pages/
+                            addFileToZip(zos, ZIP_PAGES + name, file);
+
+                        } else if (name.equals(projectId + ".theme")) {
+                            // Theme → styles/
+                            addFileToZip(zos, ZIP_STYLES + name, file);
+
+                        } else if (name.startsWith(projectId + "_") && name.endsWith(".logic")) {
+                            // Logic blocks → logic/
+                            addFileToZip(zos, ZIP_LOGIC + name, file);
+
+                        } else if (name.equals(projectId + ".meta")) {
+                            // Metadata → meta/
+                            addFileToZip(zos, ZIP_META + name, file);
+                        }
+                        // Other files (e.g. belonging to other projects) are skipped
+                    }
+                }
+            }
+
+            // Assets → assets/{projectId}/
+            File assetsDir = new File(extAssetsPath);
+            if (assetsDir.exists() && assetsDir.isDirectory()) {
+                addDirectoryToZip(zos, assetsDir, ZIP_ASSETS + projectId + "/");
+            }
+
+            // Custom widgets (shared) → widgets/
+            File customWidgets = new File(extCustomWidgetsPath);
+            if (customWidgets.exists()) {
+                addFileToZip(zos, ZIP_WIDGETS + "custom.json", customWidgets);
+            }
+
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to export single project zip: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Export ALL projects as a ZIP using the same canonical folder structure.
+     * Each project's files are sorted into pages/, styles/, logic/, etc.
+     */
     public boolean exportAllProjectsAsZip(Uri outputUri) {
-        File internalProjectsDir = new File(context.getFilesDir(), "projects");
-        String extProjectsPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/projects";
-        File externalProjectsDir = new File(extProjectsPath);
-        if (!internalProjectsDir.exists() && !externalProjectsDir.exists()) {
+        File internalDir = new File(context.getFilesDir(), "projects");
+        String extProjectsBase = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects";
+
+        if (!internalDir.exists() && !new File(extProjectsBase).exists()) {
             return false;
         }
 
         try (OutputStream fos = context.getContentResolver().openOutputStream(outputUri);
              ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
-            if (internalProjectsDir.exists()) {
-                addDirectoryToZip(zos, internalProjectsDir, "internal/projects/");
+
+            // Internal project files – sort by extension into canonical folders
+            if (internalDir.exists()) {
+                File[] files = internalDir.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        if (!file.isFile()) continue;
+                        String name = file.getName();
+                        String zipPath = classifyInternalFile(name);
+                        if (zipPath != null) {
+                            addFileToZip(zos, zipPath, file);
+                        }
+                    }
+                }
             }
-            if (externalProjectsDir.exists()) {
-                addDirectoryToZip(zos, externalProjectsDir, "external/projects/");
+
+            // External assets for each project
+            File extProjects = new File(extProjectsBase);
+            if (extProjects.exists() && extProjects.isDirectory()) {
+                File[] projectDirs = extProjects.listFiles();
+                if (projectDirs != null) {
+                    for (File dir : projectDirs) {
+                        if (!dir.isDirectory()) continue;
+                        File assets = new File(dir, "assets");
+                        if (assets.exists()) {
+                            addDirectoryToZip(zos, assets, ZIP_ASSETS + dir.getName() + "/");
+                        }
+                    }
+                }
             }
+
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Failed to export all projects zip: " + e.getMessage());
@@ -88,54 +229,38 @@ public class ProjectDataManager {
         }
     }
 
-    public boolean exportSingleProjectAsZip(String projectId, Uri outputUri) {
-        File internalProjectsDir = new File(context.getFilesDir(), "projects");
-        String extProjectPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/projects/" + projectId;
-        File externalProjectDir = new File(extProjectPath);
-
-        try (OutputStream fos = context.getContentResolver().openOutputStream(outputUri);
-             ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
-
-            if (internalProjectsDir.exists()) {
-                File[] files = internalProjectsDir.listFiles();
-                if (files != null) {
-                    for (File file : files) {
-                        if (!file.isFile()) continue;
-                        String name = file.getName();
-                        if (name.startsWith(projectId + ".") || name.startsWith(projectId + "_")) {
-                            addFileToZip(zos, file, "internal/projects/" + name);
-                        }
-                    }
-                }
-            }
-
-            if (externalProjectDir.exists()) {
-                addDirectoryToZip(zos, externalProjectDir, "external/projects/" + projectId + "/");
-            }
-            return true;
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to export project zip: " + e.getMessage());
-            return false;
-        }
+    /**
+     * Classify an internal project file into the correct ZIP folder path.
+     * Returns null if the file should not be included.
+     */
+    private String classifyInternalFile(String name) {
+        if (name.endsWith(".json")) return ZIP_PAGES + name;
+        if (name.endsWith(".theme")) return ZIP_STYLES + name;
+        if (name.endsWith(".logic")) return ZIP_LOGIC + name;
+        if (name.endsWith(".meta")) return ZIP_META + name;
+        return null;
     }
+
+    // -------------------------------------------------------------------------
+    // Import (handles new canonical structure + backward-compatible old structure)
+    // -------------------------------------------------------------------------
 
     public ImportResult importProjectsFromZip(Uri zipUri) {
         ImportResult result = new ImportResult();
         File internalProjectsDir = new File(context.getFilesDir(), "projects");
-        if (!internalProjectsDir.exists()) {
-            internalProjectsDir.mkdirs();
-        }
+        if (!internalProjectsDir.exists()) internalProjectsDir.mkdirs();
 
-        File externalProjectsDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/projects");
-        if (!externalProjectsDir.exists()) {
-            externalProjectsDir.mkdirs();
-        }
+        String extBase = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb";
+        File externalProjectsDir = new File(extBase + "/projects");
+        if (!externalProjectsDir.exists()) externalProjectsDir.mkdirs();
 
         try (InputStream fis = context.getContentResolver().openInputStream(zipUri);
              ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis))) {
 
             String internalBase = internalProjectsDir.getCanonicalPath();
             String externalBase = externalProjectsDir.getCanonicalPath();
+            String extDragwebBase = new File(extBase).getCanonicalPath();
 
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
@@ -143,30 +268,82 @@ public class ProjectDataManager {
                 File outFile;
                 String safeBase;
 
-                if (entryName.startsWith("external/projects/")) {
+                // ---- New canonical structure ----
+                if (entryName.startsWith(ZIP_PAGES)) {
+                    // pages/{projectId}.json → internal projects dir
+                    String relative = entryName.substring(ZIP_PAGES.length());
+                    outFile = new File(internalProjectsDir, relative);
+                    safeBase = internalBase;
+                    captureProjectIdFromInternalFile(relative, result.importedProjectIds);
+
+                } else if (entryName.startsWith(ZIP_STYLES)) {
+                    // styles/{projectId}.theme → internal projects dir
+                    String relative = entryName.substring(ZIP_STYLES.length());
+                    outFile = new File(internalProjectsDir, relative);
+                    safeBase = internalBase;
+                    captureProjectIdFromInternalFile(relative, result.importedProjectIds);
+
+                } else if (entryName.startsWith(ZIP_LOGIC)) {
+                    // logic/{projectId}_{page}.logic → internal projects dir
+                    String relative = entryName.substring(ZIP_LOGIC.length());
+                    outFile = new File(internalProjectsDir, relative);
+                    safeBase = internalBase;
+                    captureProjectIdFromInternalFile(relative, result.importedProjectIds);
+
+                } else if (entryName.startsWith(ZIP_META)) {
+                    // meta/{projectId}.meta → internal projects dir
+                    String relative = entryName.substring(ZIP_META.length());
+                    outFile = new File(internalProjectsDir, relative);
+                    safeBase = internalBase;
+                    captureProjectIdFromInternalFile(relative, result.importedProjectIds);
+
+                } else if (entryName.startsWith(ZIP_ASSETS)) {
+                    // assets/{projectId}/... → external /.dragweb/projects/{projectId}/assets/
+                    String relative = entryName.substring(ZIP_ASSETS.length());
+                    // relative = "{projectId}/file" or just "file" (legacy flat)
+                    outFile = new File(externalProjectsDir, relative.isEmpty() ? "." : relative);
+                    safeBase = externalBase;
+                    // Capture projectId from first path segment
+                    captureProjectIdFromExternalEntry(relative, result.importedProjectIds);
+
+                } else if (entryName.startsWith(ZIP_WIDGETS)) {
+                    // widgets/custom.json → external /.dragweb/custom/
+                    String relative = entryName.substring(ZIP_WIDGETS.length());
+                    File customDir = new File(extBase + "/custom");
+                    if (!customDir.exists()) customDir.mkdirs();
+                    outFile = new File(customDir, relative);
+                    safeBase = extDragwebBase;
+
+                // ---- Backward-compatible old structure ----
+                } else if (entryName.startsWith("external/projects/")) {
                     String relative = entryName.substring("external/projects/".length());
                     outFile = new File(externalProjectsDir, relative);
                     safeBase = externalBase;
                     captureProjectIdFromExternalEntry(relative, result.importedProjectIds);
+
                 } else if (entryName.startsWith("external/")) {
                     String relative = entryName.substring("external/".length());
                     outFile = new File(externalProjectsDir, relative);
                     safeBase = externalBase;
                     captureProjectIdFromExternalEntry(relative, result.importedProjectIds);
+
                 } else if (entryName.startsWith("internal/projects/")) {
                     String relative = entryName.substring("internal/projects/".length());
                     outFile = new File(internalProjectsDir, relative);
                     safeBase = internalBase;
                     captureProjectIdFromInternalFile(relative, result.importedProjectIds);
+
                 } else {
-                    // Legacy backup compatibility: treat root files as internal.
+                    // Legacy root-level files → internal
                     outFile = new File(internalProjectsDir, entryName);
                     safeBase = internalBase;
                     captureProjectIdFromInternalFile(entryName, result.importedProjectIds);
                 }
 
+                // Path-traversal safety check
                 String outCanonical = outFile.getCanonicalPath();
-                if (!outCanonical.startsWith(safeBase + File.separator) && !outCanonical.equals(safeBase)) {
+                if (!outCanonical.startsWith(safeBase + File.separator)
+                        && !outCanonical.equals(safeBase)) {
                     zis.closeEntry();
                     continue;
                 }
@@ -178,9 +355,7 @@ public class ProjectDataManager {
                 }
 
                 File parent = outFile.getParentFile();
-                if (parent != null && !parent.exists()) {
-                    parent.mkdirs();
-                }
+                if (parent != null && !parent.exists()) parent.mkdirs();
 
                 try (FileOutputStream fos = new FileOutputStream(outFile)) {
                     byte[] buffer = new byte[4096];
@@ -202,27 +377,98 @@ public class ProjectDataManager {
         return result;
     }
 
+    // -------------------------------------------------------------------------
+    // External storage discovery
+    // -------------------------------------------------------------------------
+
+    public List<Map<String, String>> loadAllProjectsFromExternal() {
+        List<Map<String, String>> projects = new ArrayList<>();
+        try {
+            String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                    + "/.dragweb/projects";
+            File projectsDir = new File(basePath);
+            if (projectsDir.exists() && projectsDir.isDirectory()) {
+                File[] dirs = projectsDir.listFiles();
+                if (dirs != null) {
+                    for (File dir : dirs) {
+                        if (!dir.isDirectory()) continue;
+                        // Support both old layout.json and new structure
+                        File layoutFile = new File(dir, "layout.json");
+                        if (!layoutFile.exists()) {
+                            // Check if internal .json exists for this project
+                            File internalJson = new File(
+                                    context.getFilesDir() + "/projects/" + dir.getName() + ".json");
+                            if (!internalJson.exists()) continue;
+                            layoutFile = internalJson;
+                        }
+                        Map<String, String> project = new HashMap<>();
+                        project.put("name", dir.getName());
+                        project.put("path", layoutFile.getAbsolutePath());
+                        projects.add(project);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not scan external projects: " + e.getMessage());
+        }
+        return projects;
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    private File tryLoadFromExternal(String projectId, File internalDir) {
+        try {
+            // Try new internal-mirrored path first
+            String extNewPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                    + "/.dragweb/projects/" + projectId + "/" + projectId + ".json";
+            File extNew = new File(extNewPath);
+            if (extNew.exists()) {
+                return copyToInternal(extNew, internalDir, projectId + ".json");
+            }
+
+            // Fall back to legacy layout.json
+            String extLegacyPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                    + "/.dragweb/projects/" + projectId + "/layout.json";
+            File extLegacy = new File(extLegacyPath);
+            if (extLegacy.exists()) {
+                return copyToInternal(extLegacy, internalDir, projectId + ".json");
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not load from external: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private File copyToInternal(File src, File internalDir, String destName) throws IOException {
+        String json = FileUtil.readFile(src.getAbsolutePath());
+        if (json == null || json.isEmpty()) return null;
+        if (!internalDir.exists()) internalDir.mkdirs();
+        File dest = new File(internalDir, destName);
+        FileUtil.writeFile(dest.getAbsolutePath(), json);
+        return dest;
+    }
+
     private void captureProjectIdFromExternalEntry(String relativePath, Set<String> projectIds) {
         int slash = relativePath.indexOf('/');
         if (slash > 0) {
             String candidate = relativePath.substring(0, slash);
-            if (!candidate.isEmpty()) {
-                projectIds.add(candidate);
-            }
+            if (!candidate.isEmpty()) projectIds.add(candidate);
         }
     }
 
     private void captureProjectIdFromInternalFile(String fileName, Set<String> projectIds) {
         if (fileName == null || fileName.isEmpty()) return;
-        String id = null;
+        String id;
         if (fileName.contains("_")) {
             id = fileName.substring(0, fileName.indexOf('_'));
         } else if (fileName.contains(".")) {
             id = fileName.substring(0, fileName.indexOf('.'));
+        } else {
+            return;
         }
-        if (id != null && !id.isEmpty()) {
-            projectIds.add(id);
-        }
+        if (!id.isEmpty()) projectIds.add(id);
     }
 
     private void addDirectoryToZip(ZipOutputStream zos, File dir, String prefix) throws IOException {
@@ -232,12 +478,12 @@ public class ProjectDataManager {
             if (file.isDirectory()) {
                 addDirectoryToZip(zos, file, prefix + file.getName() + "/");
             } else {
-                addFileToZip(zos, file, prefix + file.getName());
+                addFileToZip(zos, prefix + file.getName(), file);
             }
         }
     }
 
-    private void addFileToZip(ZipOutputStream zos, File file, String entryName) throws IOException {
+    private void addFileToZip(ZipOutputStream zos, String entryName, File file) throws IOException {
         byte[] buffer = new byte[4096];
         try (FileInputStream fis = new FileInputStream(file)) {
             zos.putNextEntry(new ZipEntry(entryName));
@@ -249,82 +495,9 @@ public class ProjectDataManager {
         }
     }
 
-    public void loadProject(View screen, String projectId, WidgetBuilderEngine engine, WidgetSelector selector, DropZoneManager dropZoneManager) {
-        File dir = new File(context.getFilesDir(), "projects");
-        File file = new File(dir, projectId + ".json");
-
-        // Try internal storage first
-        if (!file.exists()) {
-            // Try loading from external persistent storage
-            file = tryLoadFromExternal(projectId, dir);
-        }
-
-        if (file == null || !file.exists()) return;
-
-        try (FileReader reader = new FileReader(file)) {
-            List<Map<String, Object>> widgetTree = new Gson().fromJson(reader, new TypeToken<List<Map<String, Object>>>() {}.getType());
-
-            if (screen instanceof ViewGroup) {
-                ViewGroup vg = (ViewGroup) screen;
-                vg.removeAllViews();
-
-                for (Map<String, Object> nodeMap : widgetTree) {
-                    buildViewTree(nodeMap, vg, engine, selector, dropZoneManager);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private File tryLoadFromExternal(String projectId, File internalDir) {
-        try {
-            String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-                + "/.dragweb/projects/" + projectId + "/layout.json";
-            File extFile = new File(extPath);
-            if (extFile.exists()) {
-                // Copy to internal storage for consistency
-                String json = FileUtil.readFile(extPath);
-                if (json != null && !json.isEmpty()) {
-                    if (!internalDir.exists()) internalDir.mkdirs();
-                    File internalFile = new File(internalDir, projectId + ".json");
-                    FileUtil.writeFile(internalFile.getAbsolutePath(), json);
-                    return internalFile;
-                }
-            }
-        } catch (Exception e) {
-            Log.w("ProjectDataManager", "Could not load from external: " + e.getMessage());
-        }
-        return null;
-    }
-
-    public List<Map<String, String>> loadAllProjectsFromExternal() {
-        List<Map<String, String>> projects = new ArrayList<>();
-        try {
-            String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-                + "/.dragweb/projects";
-            File projectsDir = new File(basePath);
-            if (projectsDir.exists() && projectsDir.isDirectory()) {
-                File[] dirs = projectsDir.listFiles();
-                if (dirs != null) {
-                    for (File dir : dirs) {
-                        if (dir.isDirectory()) {
-                            File layoutFile = new File(dir, "layout.json");
-                            if (layoutFile.exists()) {
-                                Map<String, String> project = new HashMap<>();
-                                project.put("name", dir.getName());
-                                project.put("path", layoutFile.getAbsolutePath());
-                                projects.add(project);
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            Log.w("ProjectDataManager", "Could not scan external projects: " + e.getMessage());
-        }
-        return projects;
-    }
+    // -------------------------------------------------------------------------
+    // View tree serialization / deserialization
+    // -------------------------------------------------------------------------
 
     private List<Map<String, Object>> serializeViewTree(View view) {
         List<Map<String, Object>> nodes = new ArrayList<>();
@@ -336,6 +509,7 @@ public class ProjectDataManager {
             Object tagObj = child.getTag();
 
             if (tagObj instanceof Map) {
+                @SuppressWarnings("unchecked")
                 Map<String, Object> widgetMap = new HashMap<>((Map<String, Object>) tagObj);
 
                 if (child instanceof ViewGroup) {
@@ -350,7 +524,9 @@ public class ProjectDataManager {
         return nodes;
     }
 
-    private void buildViewTree(Map<String, Object> nodeMap, ViewGroup parent, WidgetBuilderEngine engine, WidgetSelector selector, DropZoneManager dropZoneManager) {
+    private void buildViewTree(Map<String, Object> nodeMap, ViewGroup parent,
+                               WidgetBuilderEngine engine, WidgetSelector selector,
+                               DropZoneManager dropZoneManager) {
         if (!nodeMap.containsKey("tag")) return;
 
         String tag = nodeMap.get("tag").toString();
@@ -364,11 +540,11 @@ public class ProjectDataManager {
             newView.setTag(newWidgetMap);
 
             parent.addView(newView);
-
             selector.registerView(newView);
             dropZoneManager.registerWidgetAsDropZoneIfContainer(newView);
 
             if (nodeMap.containsKey("children") && newView instanceof ViewGroup) {
+                @SuppressWarnings("unchecked")
                 List<Map<String, Object>> children = (List<Map<String, Object>>) nodeMap.get("children");
                 for (Map<String, Object> childMap : children) {
                     buildViewTree(childMap, (ViewGroup) newView, engine, selector, dropZoneManager);

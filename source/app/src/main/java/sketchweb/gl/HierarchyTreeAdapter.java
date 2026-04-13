@@ -1,18 +1,17 @@
 package sketchweb.gl;
 
-import android.content.ClipData;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
-import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
@@ -47,10 +46,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     private ViewGroup rootScreen;
     private ItemTouchHelper touchHelper;
 
-    // Drag reparenting state
-    private int dragFromPos = -1;
-    private int dragToPos = -1;
-
     public HierarchyTreeAdapter(Context context) {
         this.context = context;
     }
@@ -68,8 +63,16 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     }
 
     public void setSelectedView(View view) {
+        View oldSelected = this.selectedWidgetView;
         this.selectedWidgetView = view;
-        notifyDataSetChanged();
+
+        // Only rebind items whose selection state actually changed (avoids full refresh)
+        for (int i = 0; i < flatList.size(); i++) {
+            View nodeView = flatList.get(i).view;
+            if (nodeView == oldSelected || nodeView == view) {
+                notifyItemChanged(i);
+            }
+        }
     }
 
     public void setFilter(String query) {
@@ -81,9 +84,17 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     public void buildTree(ViewGroup screen) {
         this.rootScreen = screen;
+
+        // Capture current list before rebuild for DiffUtil comparison
+        List<TreeNode> oldList = new ArrayList<>(flatList);
+
         flatList.clear();
         addNode(screen, 0, "body");
-        notifyDataSetChanged();
+
+        // Diff old vs new and animate changes
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(
+                new TreeDiffCallback(oldList, flatList, selectedWidgetView), true);
+        diffResult.dispatchUpdatesTo(this);
     }
 
     public void attachToRecyclerView(RecyclerView rv) {
@@ -137,7 +148,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
                     // Recalculate index after removal
                     targetIndex = Math.min(targetIndex, targetParent.getChildCount());
-
                     targetParent.addView(fromNode.view, Math.max(0, targetIndex));
 
                     if (reorderListener != null) {
@@ -145,11 +155,11 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                     }
                 }
 
-                // Update flat list using notifyDataSetChanged for stability
+                // Animate the swap in the flat list without a full rebind
                 if (fromPos >= 0 && toPos >= 0 && fromPos < flatList.size() && toPos < flatList.size()) {
                     Collections.swap(flatList, fromPos, toPos);
                     notifyItemMoved(fromPos, toPos);
-                    notifyDataSetChanged();
+                    // Full rebuild (with DiffUtil) happens in clearView after drag ends
                 }
                 return true;
             }
@@ -161,7 +171,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
             @Override
             public boolean isLongPressDragEnabled() {
-                // Enable direct drag without requiring long press
                 return true;
             }
 
@@ -169,7 +178,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             public void clearView(@NonNull RecyclerView recyclerView,
                                   @NonNull RecyclerView.ViewHolder viewHolder) {
                 super.clearView(recyclerView, viewHolder);
-                // Rebuild tree after drag to refresh depths and structure
+                // Rebuild tree with DiffUtil after drag ends to sync depths/structure
                 if (rootScreen != null) {
                     buildTree(rootScreen);
                 }
@@ -208,6 +217,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         boolean isHidden = false;
 
         if (view.getTag() instanceof Map) {
+            @SuppressWarnings("unchecked")
             Map<String, Object> widgetMap = (Map<String, Object>) view.getTag();
             if (widgetMap.containsKey("tag")) {
                 tag = widgetMap.get("tag").toString();
@@ -221,6 +231,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             if (widgetMap.containsKey("hidden")) {
                 isHidden = Boolean.TRUE.equals(widgetMap.get("hidden"));
             }
+            @SuppressWarnings("unchecked")
             Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
             if (function != null) {
                 if (function.containsKey("id") && id.isEmpty()) {
@@ -297,10 +308,8 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         boolean isSelected = node.view == selectedWidgetView;
         boolean isRoot = node.depth == 0;
 
-        // Build the tree connector and indentation
         int indentPx = node.depth * 24;
 
-        // Main row container with Material 3 card-like styling
         LinearLayout cardRow = new LinearLayout(context);
         cardRow.setOrientation(LinearLayout.HORIZONTAL);
         cardRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -310,7 +319,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         cardParams.setMargins(indentPx, 2, 4, 2);
         cardRow.setLayoutParams(cardParams);
 
-        // Apply Material 3 style background
         GradientDrawable cardBg = new GradientDrawable();
         cardBg.setCornerRadius(16);
 
@@ -328,9 +336,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             cardBg.setStroke(1, Color.parseColor("#36343B"));
         }
         cardRow.setBackground(cardBg);
-
-        // Items can now be dragged directly (no hamburger handle needed)
-        // The ItemTouchHelper has isLongPressDragEnabled=true for direct drag
 
         // Collapse/expand arrow for containers
         if (node.isContainer && node.childCount > 0) {
@@ -356,7 +361,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             });
             cardRow.addView(arrow);
         } else {
-            // Spacer for alignment
             View spacer = new View(context);
             LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(28, 1);
             spacerParams.setMargins(0, 0, 6, 0);
@@ -393,15 +397,12 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         nameCol.setLayoutParams(nameColParams);
 
-        // Primary label (bold, larger text)
         TextView nameView = new TextView(context);
         StringBuilder displayName = new StringBuilder();
 
-        // Status icons
         if (node.isLocked) displayName.append("\uD83D\uDD12 ");
         if (node.isHidden) displayName.append("\uD83D\uDC41 ");
 
-        // Build display name like HTML: <tag> #id .class
         if (!isRoot) {
             displayName.append("<").append(node.tag).append(">");
             if (!node.id.isEmpty()) {
@@ -436,7 +437,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         }
         nameCol.addView(nameView);
 
-        // Secondary line: text preview
         if (!node.textPreview.isEmpty()) {
             TextView previewView = new TextView(context);
             previewView.setText("\"" + node.textPreview + "\"");
@@ -472,14 +472,12 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         layout.setPadding(0, 0, 0, 0);
         layout.addView(cardRow);
 
-        // Click to select widget
         cardRow.setOnClickListener(v -> {
             if (clickListener != null && !isRoot) {
                 clickListener.onItemClick(node.view);
             }
         });
 
-        // Long click for context actions
         cardRow.setOnLongClickListener(v -> {
             if (longClickListener != null && !isRoot) {
                 longClickListener.onItemLongClick(node.view);
@@ -518,6 +516,70 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             default: return Color.parseColor("#90A4AE");
         }
     }
+
+    // -------------------------------------------------------------------------
+    // DiffUtil Callback
+    // -------------------------------------------------------------------------
+
+    /**
+     * Compares two snapshots of the flat hierarchy list so RecyclerView can
+     * animate inserts, removes, and moves without a full rebind.
+     */
+    static class TreeDiffCallback extends DiffUtil.Callback {
+
+        private final List<TreeNode> oldList;
+        private final List<TreeNode> newList;
+        @Nullable private final View selectedView;
+
+        TreeDiffCallback(List<TreeNode> oldList, List<TreeNode> newList, @Nullable View selectedView) {
+            this.oldList = oldList;
+            this.newList = newList;
+            this.selectedView = selectedView;
+        }
+
+        @Override
+        public int getOldListSize() {
+            return oldList.size();
+        }
+
+        @Override
+        public int getNewListSize() {
+            return newList.size();
+        }
+
+        /** Two nodes represent the same widget if they wrap the same View instance. */
+        @Override
+        public boolean areItemsTheSame(int oldPos, int newPos) {
+            return oldList.get(oldPos).nodeId == newList.get(newPos).nodeId;
+        }
+
+        /**
+         * Content equality: checks all visible properties including selection state,
+         * depth, tag, id, class, text preview, and structural flags.
+         */
+        @Override
+        public boolean areContentsTheSame(int oldPos, int newPos) {
+            TreeNode o = oldList.get(oldPos);
+            TreeNode n = newList.get(newPos);
+            boolean oSel = (o.view == selectedView);
+            boolean nSel = (n.view == selectedView);
+            return oSel == nSel
+                    && o.depth == n.depth
+                    && o.tag.equals(n.tag)
+                    && o.name.equals(n.name)
+                    && o.id.equals(n.id)
+                    && o.cssClass.equals(n.cssClass)
+                    && o.textPreview.equals(n.textPreview)
+                    && o.isContainer == n.isContainer
+                    && o.childCount == n.childCount
+                    && o.isLocked == n.isLocked
+                    && o.isHidden == n.isHidden;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Data classes
+    // -------------------------------------------------------------------------
 
     static class TreeNode {
         View view;
