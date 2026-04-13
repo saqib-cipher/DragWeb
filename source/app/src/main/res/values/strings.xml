@@ -8,7 +8,7 @@
 	<string name="delete" translatable="false">Delete</string>
 	<string name="export_project" translatable="false">Export</string>
 	<string name="save" translatable="false">Save</string>
-	<string name="no_projects" translatable="false">No projects yet. Tap + to create one.</string>
+	<string name="no_projects" translatable="false">No projects yet.\nTap + to create one or import a website.</string>
 	<string name="undo" translatable="false">Undo</string>
 	<string name="redo" translatable="false">Redo</string>
 	<string name="preview" translatable="false">Preview</string>
@@ -18,4 +18,20 @@
 	<string name="theme_settings" translatable="false">Theme Settings</string>
 	<string name="export_html" translatable="false">Export HTML</string>
 	<string name="export_zip" translatable="false">Export as ZIP</string>
+	<string name="import_website" translatable="false">Import Website</string>
+	<string name="import_html_css" translatable="false">Import HTML/CSS</string>
+	<string name="select_html_file" translatable="false">Select HTML File</string>
+	<string name="select_css_file" translatable="false">Select CSS File (Optional)</string>
+	<string name="rename" translatable="false">Rename</string>
+	<string name="rename_project" translatable="false">Rename Project</string>
+	<string name="my_projects" translatable="false">My Projects</string>
+	<string name="about_dragweb" translatable="false">About DragWeb</string>
+	<string name="backup_all" translatable="false">Backup All Projects</string>
+	<string name="import_zip" translatable="false">Import Project (ZIP)</string>
+	<string name="import_website_desc" translatable="false">Import HTML/CSS Website</string>
+	<string name="no_logo" translatable="false">No logo selected</string>
+	<string name="logo_selected" translatable="false">Logo selected</string>
+	<string name="open" translatable="false">Open</string>
+	<string name="backup_project" translatable="false">Backup Project</string>
+	<string name="app_subtitle" translatable="false">No-Code Web Builder</string>
 </resources>

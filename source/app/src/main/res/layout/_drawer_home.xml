@@ -4,123 +4,203 @@
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:orientation="vertical">
+
+	<!-- Header -->
 	<LinearLayout
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
 		android:orientation="vertical"
-		android:padding="24dp"
+		android:paddingStart="24dp"
+		android:paddingEnd="24dp"
+		android:paddingTop="32dp"
+		android:paddingBottom="24dp"
 		android:background="?attr/colorPrimaryContainer">
-		<ImageView
-			android:layout_width="48dp"
-			android:layout_height="48dp"
-			android:src="@drawable/icon_web_round"
-			app:tint="?attr/colorOnPrimaryContainer" />
+		<FrameLayout
+			android:layout_width="56dp"
+			android:layout_height="56dp">
+			<View
+				android:layout_width="56dp"
+				android:layout_height="56dp"
+				android:background="@drawable/bg_empty_state_icon" />
+			<ImageView
+				android:layout_width="32dp"
+				android:layout_height="32dp"
+				android:layout_gravity="center"
+				android:src="@drawable/icon_code_round"
+				app:tint="?attr/colorOnPrimaryContainer" />
+		</FrameLayout>
 		<TextView
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:text="DragWeb"
+			android:text="@string/app_name"
 			android:textSize="24sp"
 			android:textStyle="bold"
 			android:textColor="?attr/colorOnPrimaryContainer"
-			android:layout_marginTop="8dp" />
+			android:layout_marginTop="12dp" />
 		<TextView
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:text="No-Code Website Builder"
+			android:text="@string/app_subtitle"
 			android:textSize="14sp"
 			android:textColor="?attr/colorOnPrimaryContainer"
-			android:alpha="0.7" />
+			android:alpha="0.8"
+			android:layout_marginTop="2dp" />
 	</LinearLayout>
+
+	<!-- Menu Items -->
 	<LinearLayout
-		android:id="@+id/menuMyProjects"
 		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:orientation="horizontal"
-		android:padding="16dp"
-		android:gravity="center_vertical"
-		android:background="?attr/selectableItemBackground">
-		<ImageView
-			android:layout_width="24dp"
-			android:layout_height="24dp"
-			android:src="@drawable/icon_build_round"
-			app:tint="?attr/colorOnSurface" />
-		<TextView
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="My Projects"
-			android:textSize="14sp"
-			android:textColor="?attr/colorOnSurface"
-			android:layout_marginLeft="16dp" />
-	</LinearLayout>
-	<View
-		android:layout_width="match_parent"
-		android:layout_height="1dp"
-		android:background="?attr/colorOutlineVariant" />
-	<LinearLayout
-		android:id="@+id/menuAbout"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:orientation="horizontal"
-		android:padding="16dp"
-		android:gravity="center_vertical"
-		android:background="?attr/selectableItemBackground">
-		<ImageView
-			android:layout_width="24dp"
-			android:layout_height="24dp"
-			android:src="@drawable/icon_web_round"
-			app:tint="?attr/colorOnSurface" />
-		<TextView
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="About DragWeb"
-			android:textSize="14sp"
-			android:textColor="?attr/colorOnSurface"
-			android:layout_marginLeft="16dp" />
-	</LinearLayout>
-	<View
-		android:layout_width="match_parent"
-		android:layout_height="1dp"
-		android:background="?attr/colorOutlineVariant" />
-	<LinearLayout
-		android:id="@+id/menuBackup"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:orientation="horizontal"
-		android:padding="16dp"
-		android:gravity="center_vertical"
-		android:background="?attr/selectableItemBackground">
-		<ImageView
-			android:layout_width="24dp"
-			android:layout_height="24dp"
-			android:src="@drawable/icon_save_round"
-			app:tint="?attr/colorOnSurface" />
-		<TextView
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="Backup All Projects"
-			android:textSize="14sp"
-			android:textColor="?attr/colorOnSurface"
-			android:layout_marginLeft="16dp" />
-	</LinearLayout>
-	<LinearLayout
-		android:id="@+id/menuImport"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:orientation="horizontal"
-		android:padding="16dp"
-		android:gravity="center_vertical"
-		android:background="?attr/selectableItemBackground">
-		<ImageView
-			android:layout_width="24dp"
-			android:layout_height="24dp"
-			android:src="@drawable/icon_build_round"
-			app:tint="?attr/colorOnSurface" />
-		<TextView
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="Import Project (ZIP)"
-			android:textSize="14sp"
-			android:textColor="?attr/colorOnSurface"
-			android:layout_marginLeft="16dp" />
+		android:layout_height="0dp"
+		android:layout_weight="1"
+		android:orientation="vertical"
+		android:paddingTop="8dp">
+
+		<!-- My Projects -->
+		<LinearLayout
+			android:id="@+id/menuMyProjects"
+			android:layout_width="match_parent"
+			android:layout_height="56dp"
+			android:orientation="horizontal"
+			android:paddingStart="16dp"
+			android:paddingEnd="24dp"
+			android:gravity="center_vertical"
+			android:layout_marginStart="12dp"
+			android:layout_marginEnd="12dp"
+			android:background="?attr/selectableItemBackground">
+			<ImageView
+				android:layout_width="24dp"
+				android:layout_height="24dp"
+				android:src="@drawable/icon_folder_round"
+				app:tint="?attr/colorOnSurfaceVariant" />
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="@string/my_projects"
+				android:textSize="14sp"
+				android:textColor="?attr/colorOnSurface"
+				android:layout_marginStart="16dp" />
+		</LinearLayout>
+
+		<!-- Import Website (HTML/CSS) -->
+		<LinearLayout
+			android:id="@+id/menuImportWebsite"
+			android:layout_width="match_parent"
+			android:layout_height="56dp"
+			android:orientation="horizontal"
+			android:paddingStart="16dp"
+			android:paddingEnd="24dp"
+			android:gravity="center_vertical"
+			android:layout_marginStart="12dp"
+			android:layout_marginEnd="12dp"
+			android:background="?attr/selectableItemBackground">
+			<ImageView
+				android:layout_width="24dp"
+				android:layout_height="24dp"
+				android:src="@drawable/icon_code_round"
+				app:tint="?attr/colorOnSurfaceVariant" />
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="@string/import_website_desc"
+				android:textSize="14sp"
+				android:textColor="?attr/colorOnSurface"
+				android:layout_marginStart="16dp" />
+		</LinearLayout>
+
+		<View
+			android:layout_width="match_parent"
+			android:layout_height="1dp"
+			android:layout_marginTop="8dp"
+			android:layout_marginBottom="8dp"
+			android:layout_marginStart="16dp"
+			android:layout_marginEnd="16dp"
+			android:background="?attr/colorOutlineVariant" />
+
+		<!-- Backup All -->
+		<LinearLayout
+			android:id="@+id/menuBackup"
+			android:layout_width="match_parent"
+			android:layout_height="56dp"
+			android:orientation="horizontal"
+			android:paddingStart="16dp"
+			android:paddingEnd="24dp"
+			android:gravity="center_vertical"
+			android:layout_marginStart="12dp"
+			android:layout_marginEnd="12dp"
+			android:background="?attr/selectableItemBackground">
+			<ImageView
+				android:layout_width="24dp"
+				android:layout_height="24dp"
+				android:src="@drawable/icon_save_round"
+				app:tint="?attr/colorOnSurfaceVariant" />
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="@string/backup_all"
+				android:textSize="14sp"
+				android:textColor="?attr/colorOnSurface"
+				android:layout_marginStart="16dp" />
+		</LinearLayout>
+
+		<!-- Import ZIP -->
+		<LinearLayout
+			android:id="@+id/menuImport"
+			android:layout_width="match_parent"
+			android:layout_height="56dp"
+			android:orientation="horizontal"
+			android:paddingStart="16dp"
+			android:paddingEnd="24dp"
+			android:gravity="center_vertical"
+			android:layout_marginStart="12dp"
+			android:layout_marginEnd="12dp"
+			android:background="?attr/selectableItemBackground">
+			<ImageView
+				android:layout_width="24dp"
+				android:layout_height="24dp"
+				android:src="@drawable/icon_import_round"
+				app:tint="?attr/colorOnSurfaceVariant" />
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="@string/import_zip"
+				android:textSize="14sp"
+				android:textColor="?attr/colorOnSurface"
+				android:layout_marginStart="16dp" />
+		</LinearLayout>
+
+		<View
+			android:layout_width="match_parent"
+			android:layout_height="1dp"
+			android:layout_marginTop="8dp"
+			android:layout_marginBottom="8dp"
+			android:layout_marginStart="16dp"
+			android:layout_marginEnd="16dp"
+			android:background="?attr/colorOutlineVariant" />
+
+		<!-- About -->
+		<LinearLayout
+			android:id="@+id/menuAbout"
+			android:layout_width="match_parent"
+			android:layout_height="56dp"
+			android:orientation="horizontal"
+			android:paddingStart="16dp"
+			android:paddingEnd="24dp"
+			android:gravity="center_vertical"
+			android:layout_marginStart="12dp"
+			android:layout_marginEnd="12dp"
+			android:background="?attr/selectableItemBackground">
+			<ImageView
+				android:layout_width="24dp"
+				android:layout_height="24dp"
+				android:src="@drawable/icon_web_round"
+				app:tint="?attr/colorOnSurfaceVariant" />
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="@string/about_dragweb"
+				android:textSize="14sp"
+				android:textColor="?attr/colorOnSurface"
+				android:layout_marginStart="16dp" />
+		</LinearLayout>
 	</LinearLayout>
 </LinearLayout>
