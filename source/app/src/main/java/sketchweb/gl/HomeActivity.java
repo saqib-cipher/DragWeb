@@ -1,6 +1,7 @@
 package sketchweb.gl;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -18,22 +19,25 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.io.InputStream;
-import java.io.OutputStream;
-import android.net.Uri;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -43,8 +47,9 @@ public class HomeActivity extends AppCompatActivity {
 	private MaterialToolbar toolbar;
 	private DrawerLayout drawer;
 	private RecyclerView rvProjects;
+	private LinearLayout layoutEmptyState;
 	private TextView tvEmptyState;
-	private FloatingActionButton fabNewProject;
+	private ExtendedFloatingActionButton fabNewProject;
 	private ArrayList<Map<String, String>> projectList = new ArrayList<>();
 	private ProjectListAdapter adapter;
 
@@ -52,9 +57,17 @@ public class HomeActivity extends AppCompatActivity {
 	private ActivityResultLauncher<String[]> importZipLauncher;
 	private ActivityResultLauncher<String> backupSingleLauncher;
 	private ActivityResultLauncher<String[]> projectLogoLauncher;
+	private ActivityResultLauncher<String[]> htmlFileLauncher;
+	private ActivityResultLauncher<String[]> cssFileLauncher;
 	private String pendingBackupProject = null;
 	private Uri pendingProjectLogoUri = null;
 	private TextView pendingProjectLogoLabel = null;
+
+	// HTML/CSS import state
+	private Uri pendingHtmlUri = null;
+	private Uri pendingCssUri = null;
+	private TextView tvHtmlFileName = null;
+	private TextView tvCssFileName = null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -86,6 +99,7 @@ public class HomeActivity extends AppCompatActivity {
 		toolbar = findViewById(R.id._toolbar);
 		drawer = findViewById(R.id._drawer);
 		rvProjects = findViewById(R.id.rvProjects);
+		layoutEmptyState = findViewById(R.id.layoutEmptyState);
 		tvEmptyState = findViewById(R.id.tvEmptyState);
 		fabNewProject = findViewById(R.id.fabNewProject);
 
@@ -95,6 +109,25 @@ public class HomeActivity extends AppCompatActivity {
 
 		fabNewProject.setOnClickListener(v -> showNewProjectDialog());
 
+		// Shrink/extend FAB on scroll
+		rvProjects.addOnScrollListener(new RecyclerView.OnScrollListener() {
+			@Override
+			public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+				if (dy > 0 && fabNewProject.isExtended()) {
+					fabNewProject.shrink();
+				} else if (dy < 0 && !fabNewProject.isExtended()) {
+					fabNewProject.extend();
+				}
+			}
+		});
+
+		// Empty state import button
+		MaterialButton btnEmptyImport = findViewById(R.id.btnEmptyImport);
+		if (btnEmptyImport != null) {
+			btnEmptyImport.setOnClickListener(v -> showImportWebsiteDialog());
+		}
+
+		// Register activity result launchers
 		backupLauncher = registerForActivityResult(
 			new ActivityResultContracts.CreateDocument("application/zip"),
 			uri -> {
@@ -135,10 +168,38 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		);
 
+		htmlFileLauncher = registerForActivityResult(
+			new ActivityResultContracts.OpenDocument(),
+			uri -> {
+				if (uri != null) {
+					pendingHtmlUri = uri;
+					if (tvHtmlFileName != null) {
+						String name = resolveFileName(uri);
+						tvHtmlFileName.setText(name != null ? name : "HTML file selected");
+					}
+				}
+			}
+		);
+
+		cssFileLauncher = registerForActivityResult(
+			new ActivityResultContracts.OpenDocument(),
+			uri -> {
+				if (uri != null) {
+					pendingCssUri = uri;
+					if (tvCssFileName != null) {
+						String name = resolveFileName(uri);
+						tvCssFileName.setText(name != null ? name : "CSS file selected");
+					}
+				}
+			}
+		);
+
+		// Drawer menu items
 		LinearLayout menuMyProjects = findViewById(R.id.menuMyProjects);
 		LinearLayout menuAbout = findViewById(R.id.menuAbout);
 		LinearLayout menuBackup = findViewById(R.id.menuBackup);
 		LinearLayout menuImport = findViewById(R.id.menuImport);
+		LinearLayout menuImportWebsite = findViewById(R.id.menuImportWebsite);
 
 		if (menuMyProjects != null) {
 			menuMyProjects.setOnClickListener(v -> {
@@ -163,6 +224,12 @@ public class HomeActivity extends AppCompatActivity {
 				importProject();
 			});
 		}
+		if (menuImportWebsite != null) {
+			menuImportWebsite.setOnClickListener(v -> {
+				drawer.closeDrawer(GravityCompat.START);
+				showImportWebsiteDialog();
+			});
+		}
 	}
 
 	/** Generate a short unique project ID */
@@ -178,7 +245,6 @@ public class HomeActivity extends AppCompatActivity {
 
 	private void backupSingleProject(String projectId) {
 		pendingBackupProject = projectId;
-		// Find project name for filename
 		String projectName = projectId;
 		for (Map<String, String> p : projectList) {
 			if (projectId.equals(p.get("id"))) {
@@ -223,7 +289,6 @@ public class HomeActivity extends AppCompatActivity {
 		loadProjects();
 		Toast.makeText(this, "Projects imported successfully", Toast.LENGTH_SHORT).show();
 
-		// Auto-load after import when there is a clear target project.
 		if (result.importedProjectIds.size() == 1) {
 			String projectId = result.importedProjectIds.iterator().next();
 			String projectName = projectId;
@@ -258,16 +323,13 @@ public class HomeActivity extends AppCompatActivity {
 				for (File file : files) {
 					if (file.getName().endsWith(".json")) {
 						String fileId = file.getName().replace(".json", "");
-						// Skip page layout files (e.g. projectId_pageName.json)
-						// They always contain an underscore separating the project ID and page name
 						if (fileId.contains("_")) {
-							continue; // This is a page file, skip it
+							continue;
 						}
 						Map<String, String> project = new HashMap<>();
 						project.put("id", fileId);
 						project.put("path", file.getAbsolutePath());
 
-						// Read project metadata
 						File metaFile = new File(dir, fileId + ".meta");
 						if (metaFile.exists()) {
 							try {
@@ -275,34 +337,28 @@ public class HomeActivity extends AppCompatActivity {
 								Map<String, String> meta = new Gson().fromJson(metaJson,
 									new TypeToken<Map<String, String>>(){}.getType());
 								if (meta != null) {
-									if (meta.containsKey("name")) {
-										project.put("name", meta.get("name"));
-									}
-									if (meta.containsKey("description")) {
-										project.put("description", meta.get("description"));
-									}
-									if (meta.containsKey("created")) {
-										project.put("created", meta.get("created"));
-									}
-									if (meta.containsKey("id")) {
-										project.put("id", meta.get("id"));
-									}
+									if (meta.containsKey("name")) project.put("name", meta.get("name"));
+									if (meta.containsKey("description")) project.put("description", meta.get("description"));
+									if (meta.containsKey("created")) project.put("created", meta.get("created"));
+									if (meta.containsKey("id")) project.put("id", meta.get("id"));
+									if (meta.containsKey("logoPath")) project.put("logoPath", meta.get("logoPath"));
 								}
 							} catch (Exception e) {
 								// ignore
 							}
 						}
 
-						if (!project.containsKey("name")) {
-							project.put("name", fileId);
-						}
-						if (!project.containsKey("description")) {
-							project.put("description", "Website project");
-						}
+						if (!project.containsKey("name")) project.put("name", fileId);
+						if (!project.containsKey("description")) project.put("description", "Website project");
 						if (!project.containsKey("created")) {
 							SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 							project.put("created", sdf.format(new Date(file.lastModified())));
 						}
+
+						// Last modified time
+						SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+						project.put("lastModified", sdf.format(new Date(file.lastModified())));
+
 						projectList.add(project);
 					}
 				}
@@ -317,7 +373,7 @@ public class HomeActivity extends AppCompatActivity {
 	private void loadExternalProjects() {
 		try {
 			ProjectDataManager pdm = new ProjectDataManager(this);
-			java.util.List<Map<String, String>> extProjects = pdm.loadAllProjectsFromExternal();
+			List<Map<String, String>> extProjects = pdm.loadAllProjectsFromExternal();
 			for (Map<String, String> extProject : extProjects) {
 				String name = extProject.get("name");
 				boolean alreadyLoaded = false;
@@ -332,6 +388,7 @@ public class HomeActivity extends AppCompatActivity {
 					extProject.put("description", "External project");
 					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 					extProject.put("created", sdf.format(new Date()));
+					extProject.put("lastModified", new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(new Date()));
 					projectList.add(extProject);
 				}
 			}
@@ -342,10 +399,10 @@ public class HomeActivity extends AppCompatActivity {
 
 	private void updateEmptyState() {
 		if (projectList.isEmpty()) {
-			tvEmptyState.setVisibility(View.VISIBLE);
+			layoutEmptyState.setVisibility(View.VISIBLE);
 			rvProjects.setVisibility(View.GONE);
 		} else {
-			tvEmptyState.setVisibility(View.GONE);
+			layoutEmptyState.setVisibility(View.GONE);
 			rvProjects.setVisibility(View.VISIBLE);
 		}
 	}
@@ -396,11 +453,9 @@ public class HomeActivity extends AppCompatActivity {
 		File dir = new File(getFilesDir(), "projects");
 		if (!dir.exists()) dir.mkdirs();
 
-		// Save empty project file using project ID
 		File projectFile = new File(dir, projectId + ".json");
 		FileUtil.writeFile(projectFile.getAbsolutePath(), "[]");
 
-		// Save metadata with ID and name
 		File metaFile = new File(dir, projectId + ".meta");
 		Map<String, String> meta = new HashMap<>();
 		meta.put("id", projectId);
@@ -410,7 +465,6 @@ public class HomeActivity extends AppCompatActivity {
 		meta.put("created", sdf.format(new Date()));
 		String logoRelPath = "";
 
-		// Create external directory structure
 		try {
 			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
 				+ "/.dragweb/projects/" + projectId;
@@ -441,6 +495,51 @@ public class HomeActivity extends AppCompatActivity {
 		openProject(projectId, name);
 	}
 
+	/**
+	 * Create a project from an imported HTML/CSS widget tree.
+	 */
+	private void createProjectFromImport(String name, List<Map<String, Object>> widgetTree) {
+		String projectId = generateProjectId();
+		File dir = new File(getFilesDir(), "projects");
+		if (!dir.exists()) dir.mkdirs();
+
+		// Save widget tree as project JSON
+		File projectFile = new File(dir, projectId + ".json");
+		FileUtil.writeFile(projectFile.getAbsolutePath(), new Gson().toJson(widgetTree));
+
+		// Save metadata
+		File metaFile = new File(dir, projectId + ".meta");
+		Map<String, String> meta = new HashMap<>();
+		meta.put("id", projectId);
+		meta.put("name", name.isEmpty() ? "Imported Website" : name);
+		meta.put("description", "Imported from HTML/CSS");
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+		meta.put("created", sdf.format(new Date()));
+		meta.put("logoPath", "");
+		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
+
+		// Create external directory
+		try {
+			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+				+ "/.dragweb/projects/" + projectId;
+			new File(extPath).mkdirs();
+			new File(extPath + "/assets").mkdirs();
+
+			File configFile = new File(extPath, "project.config.json");
+			Map<String, String> config = new HashMap<>();
+			config.put("id", projectId);
+			config.put("name", name.isEmpty() ? "Imported Website" : name);
+			config.put("description", "Imported from HTML/CSS");
+			config.put("logoPath", "");
+			FileUtil.writeFile(configFile.getAbsolutePath(), new Gson().toJson(config));
+		} catch (Exception e) {
+			Log.w("HomeActivity", "Could not create external project dir for import");
+		}
+
+		loadProjects();
+		openProject(projectId, name.isEmpty() ? "Imported Website" : name);
+	}
+
 	private String resolveLogoFileName(Uri logoUri) {
 		try {
 			String name = null;
@@ -468,6 +567,45 @@ public class HomeActivity extends AppCompatActivity {
 		return "logo.png";
 	}
 
+	private String resolveFileName(Uri uri) {
+		try {
+			android.database.Cursor c = getContentResolver().query(
+				uri,
+				new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
+				null, null, null
+			);
+			if (c != null) {
+				if (c.moveToFirst()) {
+					int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+					if (idx >= 0) {
+						String name = c.getString(idx);
+						c.close();
+						return name;
+					}
+				}
+				c.close();
+			}
+		} catch (Exception e) {
+			// ignore
+		}
+		return null;
+	}
+
+	private String readUriContent(Uri uri) {
+		try (InputStream is = getContentResolver().openInputStream(uri);
+			 BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+			StringBuilder sb = new StringBuilder();
+			String line;
+			while ((line = reader.readLine()) != null) {
+				sb.append(line).append("\n");
+			}
+			return sb.toString();
+		} catch (Exception e) {
+			Log.e("HomeActivity", "Failed to read URI: " + e.getMessage());
+			return null;
+		}
+	}
+
 	private boolean copyUriToFile(Uri uri, File dest) {
 		try (InputStream in = getContentResolver().openInputStream(uri);
 		     OutputStream out = new java.io.FileOutputStream(dest)) {
@@ -491,7 +629,6 @@ public class HomeActivity extends AppCompatActivity {
 	}
 
 	private void deleteProject(String projectId) {
-		// Find project name
 		String displayName = projectId;
 		for (Map<String, String> p : projectList) {
 			if (projectId.equals(p.get("id"))) {
@@ -510,6 +647,16 @@ public class HomeActivity extends AppCompatActivity {
 				for (String ext : extensions) {
 					File f = new File(dir, projectId + ext);
 					if (f.exists()) f.delete();
+				}
+
+				// Delete page files (projectId_pageName.json)
+				File[] files = dir.listFiles();
+				if (files != null) {
+					for (File f : files) {
+						if (f.getName().startsWith(projectId + "_")) {
+							f.delete();
+						}
+					}
 				}
 
 				File exportDir = new File(getFilesDir(), "exports/" + projectId);
@@ -535,8 +682,93 @@ public class HomeActivity extends AppCompatActivity {
 			.show();
 	}
 
+	private void renameProject(String projectId, String currentName) {
+		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_new_project, null);
+		TextInputEditText etName = dialogView.findViewById(R.id.etProjectName);
+		TextInputEditText etDesc = dialogView.findViewById(R.id.etProjectDescription);
+		TextView tvId = dialogView.findViewById(R.id.tvProjectId);
+		View btnSelectLogo = dialogView.findViewById(R.id.btnSelectLogo);
+		TextView tvLogoPath = dialogView.findViewById(R.id.tvLogoPath);
+
+		// Pre-fill with current values
+		etName.setText(currentName);
+		tvId.setText("ID: " + projectId);
+
+		// Find current description
+		String currentDesc = "";
+		for (Map<String, String> p : projectList) {
+			if (projectId.equals(p.get("id"))) {
+				currentDesc = p.getOrDefault("description", "");
+				break;
+			}
+		}
+		etDesc.setText(currentDesc);
+
+		// Hide logo selection for rename
+		if (btnSelectLogo != null) btnSelectLogo.setVisibility(View.GONE);
+		if (tvLogoPath != null) tvLogoPath.setVisibility(View.GONE);
+
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Rename Project")
+			.setView(dialogView)
+			.setPositiveButton("Save", (dialog, which) -> {
+				String newName = etName.getText().toString().trim();
+				String newDesc = etDesc.getText().toString().trim();
+
+				if (newName.isEmpty()) {
+					Toast.makeText(this, "Please enter a project name", Toast.LENGTH_SHORT).show();
+					return;
+				}
+
+				// Update metadata file
+				File dir = new File(getFilesDir(), "projects");
+				File metaFile = new File(dir, projectId + ".meta");
+				Map<String, String> meta = new HashMap<>();
+				if (metaFile.exists()) {
+					try {
+						String metaJson = FileUtil.readFile(metaFile.getAbsolutePath());
+						Map<String, String> existing = new Gson().fromJson(metaJson,
+							new TypeToken<Map<String, String>>(){}.getType());
+						if (existing != null) meta.putAll(existing);
+					} catch (Exception e) {
+						// ignore
+					}
+				}
+				meta.put("id", projectId);
+				meta.put("name", newName);
+				if (!newDesc.isEmpty()) {
+					meta.put("description", newDesc);
+				}
+				FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
+
+				// Update external config
+				try {
+					String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+						+ "/.dragweb/projects/" + projectId + "/project.config.json";
+					File configFile = new File(extPath);
+					if (configFile.exists()) {
+						String configJson = FileUtil.readFile(extPath);
+						Map<String, String> config = new Gson().fromJson(configJson,
+							new TypeToken<Map<String, String>>(){}.getType());
+						if (config != null) {
+							config.put("name", newName);
+							if (!newDesc.isEmpty()) config.put("description", newDesc);
+							FileUtil.writeFile(extPath, new Gson().toJson(config));
+						}
+					}
+				} catch (Exception e) {
+					// ignore
+				}
+
+				loadProjects();
+				Toast.makeText(this, "Project renamed", Toast.LENGTH_SHORT).show();
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
 	private void showProjectOptions(String projectId, String projectName) {
-		String[] options = {"Open", "Backup Project", "Delete"};
+		String[] options = {"Open", "Rename", "Backup Project", "Delete"};
 		new MaterialAlertDialogBuilder(this)
 			.setTitle(projectName)
 			.setItems(options, (dialog, which) -> {
@@ -545,14 +777,99 @@ public class HomeActivity extends AppCompatActivity {
 						openProject(projectId, projectName);
 						break;
 					case 1:
-						backupSingleProject(projectId);
+						renameProject(projectId, projectName);
 						break;
 					case 2:
+						backupSingleProject(projectId);
+						break;
+					case 3:
 						deleteProject(projectId);
 						break;
 				}
 			})
 			.show();
+	}
+
+	// ---- Import Website (HTML/CSS) ----
+
+	private void showImportWebsiteDialog() {
+		pendingHtmlUri = null;
+		pendingCssUri = null;
+
+		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_import_website, null);
+		tvHtmlFileName = dialogView.findViewById(R.id.tvHtmlFileName);
+		tvCssFileName = dialogView.findViewById(R.id.tvCssFileName);
+		TextInputEditText etProjectName = dialogView.findViewById(R.id.etImportProjectName);
+
+		View cardSelectHtml = dialogView.findViewById(R.id.cardSelectHtml);
+		View cardSelectCss = dialogView.findViewById(R.id.cardSelectCss);
+
+		cardSelectHtml.setOnClickListener(v -> {
+			htmlFileLauncher.launch(new String[]{"text/html", "text/*", "*/*"});
+		});
+
+		cardSelectCss.setOnClickListener(v -> {
+			cssFileLauncher.launch(new String[]{"text/css", "text/*", "*/*"});
+		});
+
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Import Website")
+			.setIcon(R.drawable.icon_code_round)
+			.setView(dialogView)
+			.setPositiveButton("Import", (dialog, which) -> {
+				if (pendingHtmlUri == null) {
+					Toast.makeText(this, "Please select an HTML file", Toast.LENGTH_SHORT).show();
+					return;
+				}
+
+				String projectName = etProjectName.getText().toString().trim();
+				if (projectName.isEmpty()) {
+					String htmlName = resolveFileName(pendingHtmlUri);
+					if (htmlName != null && htmlName.contains(".")) {
+						projectName = htmlName.substring(0, htmlName.lastIndexOf('.'));
+					} else {
+						projectName = "Imported Website";
+					}
+				}
+
+				performHtmlCssImport(projectName);
+			})
+			.setNegativeButton("Cancel", (dialog, which) -> {
+				pendingHtmlUri = null;
+				pendingCssUri = null;
+				tvHtmlFileName = null;
+				tvCssFileName = null;
+			})
+			.show();
+	}
+
+	private void performHtmlCssImport(String projectName) {
+		String htmlContent = readUriContent(pendingHtmlUri);
+		if (htmlContent == null || htmlContent.trim().isEmpty()) {
+			Toast.makeText(this, "Could not read HTML file", Toast.LENGTH_SHORT).show();
+			return;
+		}
+
+		String cssContent = null;
+		if (pendingCssUri != null) {
+			cssContent = readUriContent(pendingCssUri);
+		}
+
+		HtmlCssImporter importer = new HtmlCssImporter();
+		HtmlCssImporter.ImportResult result = importer.importHtmlCss(htmlContent, cssContent);
+
+		pendingHtmlUri = null;
+		pendingCssUri = null;
+		tvHtmlFileName = null;
+		tvCssFileName = null;
+
+		if (!result.success) {
+			Toast.makeText(this, "Import failed: " + result.message, Toast.LENGTH_LONG).show();
+			return;
+		}
+
+		Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show();
+		createProjectFromImport(projectName, result.widgetTree);
 	}
 
 	private void showAboutDialog() {
@@ -590,13 +907,27 @@ public class HomeActivity extends AppCompatActivity {
 			String projectName = project.getOrDefault("name", projectId);
 
 			holder.tvName.setText(projectName);
-			holder.tvId.setText("ID: " + projectId);
+			holder.tvId.setText(projectId);
 			holder.tvDesc.setText(project.getOrDefault("description", ""));
-			holder.tvDate.setText("Created: " + project.getOrDefault("created", ""));
 
+			String lastModified = project.getOrDefault("lastModified", "");
+			if (!lastModified.isEmpty()) {
+				holder.tvDate.setText(lastModified);
+			} else {
+				holder.tvDate.setText(project.getOrDefault("created", ""));
+			}
+
+			// Click to open
 			holder.itemView.setOnClickListener(v -> openProject(projectId, projectName));
+
+			// Long press for options
+			holder.itemView.setOnLongClickListener(v -> {
+				showProjectOptions(projectId, projectName);
+				return true;
+			});
+
+			// Menu button
 			holder.btnMenu.setOnClickListener(v -> showProjectOptions(projectId, projectName));
-			holder.btnBackup.setOnClickListener(v -> backupSingleProject(projectId));
 		}
 
 		@Override
@@ -606,7 +937,7 @@ public class HomeActivity extends AppCompatActivity {
 
 		class VH extends RecyclerView.ViewHolder {
 			TextView tvName, tvId, tvDesc, tvDate;
-			ImageView btnMenu, btnBackup;
+			ImageView btnMenu;
 
 			VH(View v) {
 				super(v);
@@ -615,7 +946,6 @@ public class HomeActivity extends AppCompatActivity {
 				tvDesc = v.findViewById(R.id.tvProjectDescription);
 				tvDate = v.findViewById(R.id.tvProjectDate);
 				btnMenu = v.findViewById(R.id.btnProjectMenu);
-				btnBackup = v.findViewById(R.id.btnProjectBackup);
 			}
 		}
 	}
