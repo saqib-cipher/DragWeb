@@ -5,6 +5,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -28,6 +29,7 @@ public class PreviewActivity extends AppCompatActivity {
     private ChipGroup chipGroupResponsive, chipGroupPages;
     private Chip chipMobile, chipTablet, chipDesktop, chipFullWidth;
     private Button btnClose, btnCopy, btnSave, btnViewSource;
+    private String projectId = "";
 
     private List<String> pageNames = new ArrayList<>();
     private List<String> pageCodes = new ArrayList<>();
@@ -101,6 +103,10 @@ public class PreviewActivity extends AppCompatActivity {
         if (pageNames.size() <= 1 && pageTabScroll != null) {
             pageTabScroll.setVisibility(View.GONE);
         }
+
+        // project id for asset base path
+        String pid = getIntent().getStringExtra("project_id");
+        if (pid != null) projectId = pid;
     }
 
     private void setupWebView() {
@@ -112,6 +118,10 @@ public class PreviewActivity extends AppCompatActivity {
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
         settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowUniversalAccessFromFileURLs(true);
 
         webviewPreview.setWebViewClient(new WebViewClient() {
             @Override
@@ -216,7 +226,12 @@ public class PreviewActivity extends AppCompatActivity {
             }
         }
 
-        webviewPreview.loadDataWithBaseURL(null, modifiedHtml, "text/html", "utf-8", null);
+        String baseUrl = null;
+        if (projectId != null && !projectId.isEmpty()) {
+            baseUrl = "file://" + Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectId + "/";
+        }
+        webviewPreview.loadDataWithBaseURL(baseUrl, modifiedHtml, "text/html", "utf-8", null);
     }
 
     private String getCurrentCode() {

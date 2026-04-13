@@ -20,65 +20,20 @@ import java.util.Map;
 
 public class LogicBlockManager {
 
-    // Page-based events (Sketchware pattern)
-    public static final String EVENT_PAGE_LOAD = "pageLoad";
-    public static final String EVENT_VISIBLE = "visible";
-    public static final String EVENT_HIDDEN = "hidden";
-    public static final String EVENT_DESTROY = "destroy";
-    public static final String EVENT_PAGE_SCROLL = "pageScroll";
-    public static final String EVENT_PAGE_INPUT = "pageInput";
+    // CSS states (replaces JS events)
+    public static final String STATE_DEFAULT = "default";
+    public static final String STATE_HOVER = "hover";
+    public static final String STATE_FOCUS = "focus";
+    public static final String STATE_ACTIVE = "active";
 
-    // Element events
-    public static final String EVENT_CLICK = "click";
-    public static final String EVENT_HOVER = "hover";
-    public static final String EVENT_INPUT = "input";
-    public static final String EVENT_LOAD = "load";
-    public static final String EVENT_SUBMIT = "submit";
-    public static final String EVENT_SCROLL = "scroll";
-    public static final String EVENT_KEYDOWN = "keydown";
-    public static final String EVENT_CHANGE = "change";
-
+    // Actions focused on CSS/HTML attributes
     public static final String ACTION_CHANGE_STYLE = "changeStyle";
-    public static final String ACTION_ANIMATE = "animate";
-    public static final String ACTION_NAVIGATE = "navigate";
-    public static final String ACTION_SHOW_HIDE = "showHide";
-    public static final String ACTION_SET_TEXT = "setText";
     public static final String ACTION_ADD_CLASS = "addClass";
     public static final String ACTION_REMOVE_CLASS = "removeClass";
     public static final String ACTION_TOGGLE_CLASS = "toggleClass";
-    public static final String ACTION_ALERT = "alert";
-    public static final String ACTION_CONSOLE_LOG = "consoleLog";
     public static final String ACTION_SET_ATTRIBUTE = "setAttribute";
-    public static final String ACTION_REMOVE_ATTRIBUTE = "removeAttribute";
-    public static final String ACTION_SET_VALUE = "setValue";
-    public static final String ACTION_APPEND_CHILD = "appendChild";
-    public static final String ACTION_PREPEND_CHILD = "prependChild";
-    public static final String ACTION_CREATE_ELEMENT = "createElement";
-    public static final String ACTION_REMOVE_ELEMENT = "removeElement";
-    public static final String ACTION_CUSTOM_JS = "customJs";
-    public static final String ACTION_FETCH_API = "fetchApi";
-    public static final String ACTION_LOCAL_STORAGE = "localStorage";
-    public static final String ACTION_SCROLL_TO = "scrollTo";
-    public static final String ACTION_COPY_CLIPBOARD = "copyClipboard";
-    public static final String ACTION_DELAY = "delay";
-    public static final String ACTION_GO_TO_PAGE = "goToPage";
-    public static final String ACTION_OPEN_PAGE = "openPage";
-    public static final String ACTION_SET_HTML = "setHTML";
-    public static final String ACTION_FOCUS_INPUT = "focusInput";
-    public static final String ACTION_BLUR_INPUT = "blurInput";
-    public static final String ACTION_SET_HREF = "setHref";
-    public static final String ACTION_SET_TRANSFORM = "setTransform";
-    public static final String ACTION_SET_TRANSITION = "setTransition";
-
-    // Logic block actions
-    public static final String ACTION_IF_BLOCK = "ifBlock";
-    public static final String ACTION_IF_ELSE_BLOCK = "ifElseBlock";
-    public static final String ACTION_LOOP = "loop";
-
-    // Variable block actions
-    public static final String ACTION_CREATE_VAR = "createVar";
-    public static final String ACTION_SET_VAR = "setVar";
-    public static final String ACTION_GET_VAR = "getVar";
+    public static final String ACTION_SET_TEXT = "setText";
+    public static final String ACTION_CUSTOM_JS = "customJs"; // optional escape hatch
 
     public static final String TARGET_MODE_ID = "id";
     public static final String TARGET_MODE_CLASS = "class";
@@ -115,26 +70,11 @@ public class LogicBlockManager {
         return result;
     }
 
-    /**
-     * Get blocks filtered by a specific page event type.
-     */
-    public List<LogicBlock> getBlocksForEvent(String eventType) {
-        List<LogicBlock> result = new ArrayList<>();
-        for (LogicBlock block : blocks) {
-            if (eventType.equals(block.event)) {
-                result.add(block);
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Count blocks for a specific event type.
-     */
-    public int getBlockCountForEvent(String eventType) {
+    /** Count blocks for a specific state. */
+    public int getBlockCountForState(String state) {
         int count = 0;
         for (LogicBlock block : blocks) {
-            if (eventType.equals(block.event)) {
+            if (state.equals(block.event)) {
                 count++;
             }
         }
@@ -146,65 +86,43 @@ public class LogicBlockManager {
     }
 
     public void showAddBlockDialog(String targetWidgetTag, String targetMode, OnBlockAddedListener listener) {
-        String[] events = {
-            "On Click", "On Hover", "On Input", "On Page Load",
-            "On Submit", "On Scroll", "On Key Down", "On Change"
-        };
-        String[] eventKeys = {
-            EVENT_CLICK, EVENT_HOVER, EVENT_INPUT, EVENT_LOAD,
-            EVENT_SUBMIT, EVENT_SCROLL, EVENT_KEYDOWN, EVENT_CHANGE
-        };
+        String[] states = { "Default", "Hover", "Focus", "Active" };
+        String[] stateKeys = { STATE_DEFAULT, STATE_HOVER, STATE_FOCUS, STATE_ACTIVE };
 
         String modeLabel = TARGET_MODE_CLASS.equals(targetMode) ? "." :
                            TARGET_MODE_TAG.equals(targetMode) ? "" : "#";
 
         new MaterialAlertDialogBuilder(context)
-            .setTitle("Select Event for " + modeLabel + targetWidgetTag)
-            .setItems(events, (dialog, which) -> {
-                String selectedEvent = eventKeys[which];
-                showActionDialog(targetWidgetTag, targetMode, selectedEvent, listener);
+            .setTitle("Select state for " + modeLabel + targetWidgetTag)
+            .setItems(states, (dialog, which) -> {
+                String selectedState = stateKeys[which];
+                showActionDialog(targetWidgetTag, targetMode, selectedState, listener);
             })
             .setNegativeButton("Cancel", null)
             .show();
     }
 
-    private void showActionDialog(String targetWidgetTag, String targetMode, String event, OnBlockAddedListener listener) {
+    private void showActionDialog(String targetWidgetTag, String targetMode, String state, OnBlockAddedListener listener) {
         String[] actions = {
-            "Change Style", "Animate", "Navigate To URL",
-            "Go To Page", "Open Page (New Tab)",
-            "Show/Hide Element", "Set Text", "Set HTML", "Add CSS Class",
-            "Remove CSS Class", "Toggle CSS Class", "Show Alert",
-            "Console Log", "Set Attribute", "Remove Attribute",
-            "Set Input Value", "Append Child HTML", "Prepend Child HTML",
-            "Create Element", "Remove Element",
-            "Custom JavaScript", "Fetch API", "LocalStorage Set/Get",
-            "Scroll To", "Copy to Clipboard", "Delay Then Run",
-            "Set Href"
+            "Change Style", "Add Class", "Remove Class", "Toggle Class",
+            "Set Attribute", "Set Text", "Custom JavaScript"
         };
         String[] actionKeys = {
-            ACTION_CHANGE_STYLE, ACTION_ANIMATE, ACTION_NAVIGATE,
-            ACTION_GO_TO_PAGE, ACTION_OPEN_PAGE,
-            ACTION_SHOW_HIDE, ACTION_SET_TEXT, ACTION_SET_HTML, ACTION_ADD_CLASS,
-            ACTION_REMOVE_CLASS, ACTION_TOGGLE_CLASS, ACTION_ALERT,
-            ACTION_CONSOLE_LOG, ACTION_SET_ATTRIBUTE, ACTION_REMOVE_ATTRIBUTE,
-            ACTION_SET_VALUE, ACTION_APPEND_CHILD, ACTION_PREPEND_CHILD,
-            ACTION_CREATE_ELEMENT, ACTION_REMOVE_ELEMENT,
-            ACTION_CUSTOM_JS, ACTION_FETCH_API, ACTION_LOCAL_STORAGE,
-            ACTION_SCROLL_TO, ACTION_COPY_CLIPBOARD, ACTION_DELAY,
-            ACTION_SET_HREF
+            ACTION_CHANGE_STYLE, ACTION_ADD_CLASS, ACTION_REMOVE_CLASS, ACTION_TOGGLE_CLASS,
+            ACTION_SET_ATTRIBUTE, ACTION_SET_TEXT, ACTION_CUSTOM_JS
         };
 
         new MaterialAlertDialogBuilder(context)
             .setTitle("Select Action")
             .setItems(actions, (dialog, which) -> {
                 String selectedAction = actionKeys[which];
-                showActionParamsDialog(targetWidgetTag, targetMode, event, selectedAction, listener);
+                showActionParamsDialog(targetWidgetTag, targetMode, state, selectedAction, listener);
             })
             .setNegativeButton("Cancel", null)
             .show();
     }
 
-    private void showActionParamsDialog(String targetWidgetTag, String targetMode, String event, String action, OnBlockAddedListener listener) {
+    private void showActionParamsDialog(String targetWidgetTag, String targetMode, String state, String action, OnBlockAddedListener listener) {
         android.widget.EditText input = new android.widget.EditText(context);
         input.setPadding(48, 32, 48, 32);
 
@@ -219,7 +137,7 @@ public class LogicBlockManager {
                 LogicBlock block = new LogicBlock();
                 block.targetWidget = targetWidgetTag;
                 block.targetMode = targetMode;
-                block.event = event;
+                block.event = state;
                 block.action = action;
                 block.params = value;
                 blocks.add(block);
@@ -234,35 +152,13 @@ public class LogicBlockManager {
     private String getHintForAction(String action) {
         switch (action) {
             case ACTION_CHANGE_STYLE: return "property:value (e.g. color:red)";
-            case ACTION_ANIMATE: return "animation name (e.g. fadeIn, slideUp, pulse)";
-            case ACTION_NAVIGATE: return "URL (e.g. https://example.com)";
-            case ACTION_GO_TO_PAGE: return "Page name (e.g. about, contact)";
-            case ACTION_OPEN_PAGE: return "Page name to open in new tab";
-            case ACTION_SHOW_HIDE: return "toggle, show, or hide";
+            case ACTION_ADD_CLASS: return "Class name";
+            case ACTION_REMOVE_CLASS: return "Class name";
+            case ACTION_TOGGLE_CLASS: return "Class name";
+            case ACTION_SET_ATTRIBUTE: return "attr:value (e.g. aria-label:Close)";
             case ACTION_SET_TEXT: return "New text content";
-            case ACTION_ADD_CLASS: return "CSS class name to add";
-            case ACTION_REMOVE_CLASS: return "CSS class name to remove";
-            case ACTION_TOGGLE_CLASS: return "CSS class name to toggle";
-            case ACTION_ALERT: return "Alert message";
-            case ACTION_CONSOLE_LOG: return "Message to log";
-            case ACTION_SET_ATTRIBUTE: return "attr:value (e.g. disabled:true)";
-            case ACTION_REMOVE_ATTRIBUTE: return "Attribute name (e.g. disabled)";
-            case ACTION_SET_VALUE: return "New input value";
-            case ACTION_SET_HTML: return "HTML content (e.g. <p>Hello</p>)";
-            case ACTION_APPEND_CHILD: return "HTML to append (e.g. <p>Hello</p>)";
-            case ACTION_PREPEND_CHILD: return "HTML to prepend (e.g. <p>First</p>)";
-            case ACTION_CREATE_ELEMENT: return "tag|content (e.g. p|Hello World)";
-            case ACTION_REMOVE_ELEMENT: return "Selector to remove (or 'self')";
-            case ACTION_CUSTOM_JS: return "JavaScript code";
-            case ACTION_FETCH_API: return "URL|method|body (e.g. /api/data|GET|)";
-            case ACTION_LOCAL_STORAGE: return "set:key:value or get:key";
-            case ACTION_SCROLL_TO: return "top, bottom, or selector";
-            case ACTION_COPY_CLIPBOARD: return "Text to copy (or 'self' for element text)";
-            case ACTION_DELAY: return "ms|action (e.g. 1000|alert:Done!)";
-            case ACTION_SET_HREF: return "URL or #section-id";
-            case ACTION_SET_TRANSFORM: return "CSS transform (e.g. rotate(45deg))";
-            case ACTION_SET_TRANSITION: return "CSS transition (e.g. all 0.3s ease)";
-            default: return "Parameters";
+            case ACTION_CUSTOM_JS: return "Custom JS (optional)";
+            default: return "Value";
         }
     }
 
@@ -270,7 +166,7 @@ public class LogicBlockManager {
         if (blocks.isEmpty()) {
             new MaterialAlertDialogBuilder(context)
                 .setTitle("Logic Blocks")
-                .setMessage("No logic blocks added yet.\nSelect an event from the Event tab to add blocks.")
+                .setMessage("No style blocks added yet.\nSelect a state to add CSS/HTML blocks.")
                 .setPositiveButton("OK", null)
                 .show();
             return;
@@ -282,11 +178,11 @@ public class LogicBlockManager {
         container.setPadding(24, 16, 24, 16);
         scrollView.addView(container);
 
-        // Group blocks by event
+        // Group blocks by state
         Map<String, List<Integer>> groupedBlocks = new HashMap<>();
         for (int i = 0; i < blocks.size(); i++) {
             LogicBlock block = blocks.get(i);
-            String key = block.event != null ? block.event : "immediate";
+            String key = block.event != null ? block.event : STATE_DEFAULT;
             if (!groupedBlocks.containsKey(key)) {
                 groupedBlocks.put(key, new ArrayList<>());
             }
@@ -385,27 +281,14 @@ public class LogicBlockManager {
             .show();
     }
 
-    /**
-     * Get display name for an event type.
-     */
+    /** Get display name for a state. */
     public static String getEventDisplayName(String eventType) {
         switch (eventType) {
-            case EVENT_PAGE_LOAD: return "On Page Load";
-            case EVENT_VISIBLE: return "On Visible";
-            case EVENT_HIDDEN: return "On Hidden";
-            case EVENT_DESTROY: return "On Destroy";
-            case EVENT_PAGE_SCROLL: return "On Scroll";
-            case EVENT_PAGE_INPUT: return "On Input";
-            case EVENT_CLICK: return "On Click";
-            case EVENT_HOVER: return "On Hover";
-            case EVENT_INPUT: return "On Input";
-            case EVENT_LOAD: return "On Load";
-            case EVENT_SUBMIT: return "On Submit";
-            case EVENT_SCROLL: return "On Scroll";
-            case EVENT_KEYDOWN: return "On Key Down";
-            case EVENT_CHANGE: return "On Change";
-            case "immediate": return "Immediate";
-            default: return eventType;
+            case STATE_HOVER: return "Hover";
+            case STATE_FOCUS: return "Focus";
+            case STATE_ACTIVE: return "Active";
+            case STATE_DEFAULT:
+            default: return "Default";
         }
     }
 
@@ -423,332 +306,62 @@ public class LogicBlockManager {
     }
 
     /**
-     * Generate JavaScript with HTML-first approach.
-     * Prefers modifying HTML/CSS directly over heavy JS.
+     * Generate CSS-first rules. Only Custom JS is emitted as JavaScript.
      */
-    public String generateJavaScript() {
+    public String generateCssRules() {
         if (blocks.isEmpty()) return "";
 
-        StringBuilder js = new StringBuilder();
-        js.append("// Logic blocks generated by DragWeb\n");
-        js.append("document.addEventListener('DOMContentLoaded', function() {\n");
+        StringBuilder css = new StringBuilder();
+        css.append("/* Generated by DragWeb blocks (CSS-first) */\n");
 
         for (LogicBlock block : blocks) {
-            String eventName = block.event;
+            String selector = buildSelector(block);
+            String state = block.event != null ? block.event : STATE_DEFAULT;
+            String pseudo = "";
+            switch (state) {
+                case STATE_HOVER: pseudo = ":hover"; break;
+                case STATE_FOCUS: pseudo = ":focus"; break;
+                case STATE_ACTIVE: pseudo = ":active"; break;
+                default: pseudo = "";
+            }
 
-            js.append("  // ").append(eventName != null ? eventName : "immediate")
-              .append(" -> ").append(block.action).append("\n");
-
-            // Immediate blocks (logic/variable) - execute inline
-            if ("immediate".equals(eventName)) {
-                js.append("  ").append(generateActionJs(block, "document.body"));
-                js.append("\n");
-            }
-            // Page-based events
-            else if (EVENT_PAGE_LOAD.equals(eventName) || EVENT_LOAD.equals(eventName)) {
-                js.append("  // Page Load - execute immediately in DOMContentLoaded\n");
-                js.append("  (function() {\n");
-                String el = resolveElement(block);
-                js.append("    ").append(generateActionJs(block, el));
-                js.append("  })();\n\n");
-            }
-            else if (EVENT_VISIBLE.equals(eventName)) {
-                js.append("  document.addEventListener('visibilitychange', function() {\n");
-                js.append("    if (!document.hidden) {\n");
-                String el = resolveElement(block);
-                js.append("      ").append(generateActionJs(block, el));
-                js.append("    }\n");
-                js.append("  });\n\n");
-            }
-            else if (EVENT_HIDDEN.equals(eventName)) {
-                js.append("  document.addEventListener('visibilitychange', function() {\n");
-                js.append("    if (document.hidden) {\n");
-                String el = resolveElement(block);
-                js.append("      ").append(generateActionJs(block, el));
-                js.append("    }\n");
-                js.append("  });\n\n");
-            }
-            else if (EVENT_DESTROY.equals(eventName)) {
-                js.append("  window.addEventListener('beforeunload', function() {\n");
-                String el = resolveElement(block);
-                js.append("    ").append(generateActionJs(block, el));
-                js.append("  });\n\n");
-            }
-            else if (EVENT_PAGE_SCROLL.equals(eventName)) {
-                js.append("  window.addEventListener('scroll', function() {\n");
-                String el = resolveElement(block);
-                js.append("    ").append(generateActionJs(block, el));
-                js.append("  });\n\n");
-            }
-            else if (EVENT_PAGE_INPUT.equals(eventName)) {
-                js.append("  document.querySelectorAll('input, textarea, select').forEach(function(el) {\n");
-                js.append("    el.addEventListener('input', function(event) {\n");
-                js.append("      ").append(generateActionJs(block, "el"));
-                js.append("    });\n");
-                js.append("  });\n\n");
-            }
-            // Element-scoped events
-            else {
-                String selector = buildSelector(block);
-                String jsEvent = eventName;
-                if ("hover".equals(eventName)) jsEvent = "mouseenter";
-
-                js.append("  document.querySelectorAll('").append(selector).append("').forEach(function(el) {\n");
-                js.append("    el.addEventListener('").append(jsEvent).append("', function(event) {\n");
-                js.append("      ").append(generateActionJs(block, "el"));
-                js.append("    });\n");
-                js.append("  });\n\n");
+            if (ACTION_CHANGE_STYLE.equals(block.action)) {
+                css.append(selector).append(pseudo).append(" {\n");
+                css.append(cssFromParams(block.params));
+                css.append("}\n");
+            } else if (ACTION_ADD_CLASS.equals(block.action)) {
+                // Approximate utility application with a comment; actual class application would need JS
+                css.append("/* addClass ").append(block.params).append(" to ").append(selector).append(pseudo).append(" */\n");
+            } else if (ACTION_REMOVE_CLASS.equals(block.action) || ACTION_TOGGLE_CLASS.equals(block.action)) {
+                css.append("/* class change (").append(block.action).append(") requires JS; skipped for CSS-only */\n");
+            } else if (ACTION_SET_ATTRIBUTE.equals(block.action)) {
+                css.append("/* setAttribute ").append(block.params).append(" on ").append(selector).append(pseudo).append(" */\n");
+            } else if (ACTION_SET_TEXT.equals(block.action)) {
+                css.append("/* setText requires JS to modify DOM text; skipped */\n");
             }
         }
 
-        js.append("});\n");
+        return css.toString();
+    }
+
+    /** Minimal JS generation: only custom JS is preserved. */
+    public String generateJavaScript() {
+        if (blocks.isEmpty()) return "";
+        StringBuilder js = new StringBuilder();
+        for (LogicBlock block : blocks) {
+            if (ACTION_CUSTOM_JS.equals(block.action)) {
+                js.append("// custom js\n").append(block.params).append("\n");
+            }
+        }
         return js.toString();
     }
 
-    /**
-     * Resolve element variable for page-level events that may target specific elements.
-     */
-    private String resolveElement(LogicBlock block) {
-        if (block.targetWidget != null && !block.targetWidget.isEmpty()) {
-            String selector = buildSelector(block);
-            return "document.querySelector('" + selector + "')";
+    private String cssFromParams(String params) {
+        if (params == null || params.isEmpty()) return "";
+        if (params.contains(":")) {
+            return "  " + params.replace(";", ";\n  ") + ";\n";
         }
-        return "document.body";
-    }
-
-    private String generateActionJs(LogicBlock block, String elVar) {
-        switch (block.action) {
-            case ACTION_CHANGE_STYLE: {
-                String[] parts = block.params.split(":", 2);
-                if (parts.length == 2) {
-                    return elVar + ".style." + parts[0].trim() + " = '" + parts[1].trim() + "';\n";
-                }
-                return "// Invalid style params\n";
-            }
-            case ACTION_ANIMATE:
-                return elVar + ".style.animation = '" + block.params + " 0.5s ease';\n";
-
-            case ACTION_NAVIGATE:
-                return "window.location.href = '" + escapeJs(block.params) + "';\n";
-
-            case ACTION_GO_TO_PAGE:
-                return "window.location.href = '" + escapeJs(block.params) + ".html';\n";
-
-            case ACTION_OPEN_PAGE:
-                return "window.open('" + escapeJs(block.params) + ".html', '_blank');\n";
-
-            case ACTION_SHOW_HIDE:
-                if ("toggle".equals(block.params)) {
-                    return elVar + ".style.display = " + elVar + ".style.display === 'none' ? '' : 'none';\n";
-                } else if ("hide".equals(block.params)) {
-                    return elVar + ".style.display = 'none';\n";
-                } else {
-                    return elVar + ".style.display = '';\n";
-                }
-
-            case ACTION_SET_TEXT:
-                return elVar + ".textContent = '" + escapeJs(block.params) + "';\n";
-
-            case ACTION_ADD_CLASS:
-                return elVar + ".classList.add('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_REMOVE_CLASS:
-                return elVar + ".classList.remove('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_TOGGLE_CLASS:
-                return elVar + ".classList.toggle('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_ALERT:
-                return "alert('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_CONSOLE_LOG:
-                return "console.log('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_SET_ATTRIBUTE: {
-                String[] parts = block.params.split(":", 2);
-                if (parts.length == 2) {
-                    return elVar + ".setAttribute('" + escapeJs(parts[0].trim()) + "', '" + escapeJs(parts[1].trim()) + "');\n";
-                }
-                return "// Invalid attribute params\n";
-            }
-            case ACTION_REMOVE_ATTRIBUTE:
-                return elVar + ".removeAttribute('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_SET_VALUE:
-                return elVar + ".value = '" + escapeJs(block.params) + "';\n";
-
-            case ACTION_SET_HTML:
-                return elVar + ".innerHTML = '" + escapeJs(block.params) + "';\n";
-
-            case ACTION_APPEND_CHILD:
-                return elVar + ".insertAdjacentHTML('beforeend', '" + escapeJs(block.params) + "');\n";
-
-            case ACTION_PREPEND_CHILD:
-                return elVar + ".insertAdjacentHTML('afterbegin', '" + escapeJs(block.params) + "');\n";
-
-            case ACTION_CREATE_ELEMENT: {
-                String[] parts = block.params.split("\\|", 2);
-                String tag = parts.length > 0 ? parts[0].trim() : "div";
-                String content = parts.length > 1 ? parts[1].trim() : "";
-                return "var newEl = document.createElement('" + escapeJs(tag) + "'); "
-                    + "newEl.textContent = '" + escapeJs(content) + "'; "
-                    + elVar + ".appendChild(newEl);\n";
-            }
-
-            case ACTION_REMOVE_ELEMENT:
-                if ("self".equals(block.params)) {
-                    return elVar + ".remove();\n";
-                }
-                return "document.querySelector('" + escapeJs(block.params) + "')?.remove();\n";
-
-            case ACTION_CUSTOM_JS:
-                return block.params + "\n";
-
-            case ACTION_FETCH_API: {
-                String[] parts = block.params.split("\\|", 3);
-                String url = parts.length > 0 ? parts[0].trim() : "";
-                String method = parts.length > 1 ? parts[1].trim() : "GET";
-                String body = parts.length > 2 ? parts[2].trim() : "";
-                StringBuilder fetchJs = new StringBuilder();
-                fetchJs.append("fetch('").append(escapeJs(url)).append("', {method:'").append(method).append("'");
-                if (!body.isEmpty()) {
-                    fetchJs.append(",headers:{'Content-Type':'application/json'},body:'").append(escapeJs(body)).append("'");
-                }
-                fetchJs.append("}).then(r=>r.json()).then(data=>{console.log(data)}).catch(e=>console.error(e));\n");
-                return fetchJs.toString();
-            }
-
-            case ACTION_LOCAL_STORAGE: {
-                String[] parts = block.params.split(":", 3);
-                if (parts.length >= 2 && "set".equals(parts[0])) {
-                    String key = parts[1];
-                    String val = parts.length > 2 ? parts[2] : "";
-                    return "localStorage.setItem('" + escapeJs(key) + "','" + escapeJs(val) + "');\n";
-                } else if (parts.length >= 2 && "get".equals(parts[0])) {
-                    return "var _val = localStorage.getItem('" + escapeJs(parts[1]) + "'); console.log(_val);\n";
-                }
-                return "// Invalid localStorage params\n";
-            }
-
-            case ACTION_SCROLL_TO:
-                if ("top".equals(block.params)) {
-                    return "window.scrollTo({top:0,behavior:'smooth'});\n";
-                } else if ("bottom".equals(block.params)) {
-                    return "window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});\n";
-                }
-                return "document.querySelector('" + escapeJs(block.params) + "')?.scrollIntoView({behavior:'smooth'});\n";
-
-            case ACTION_COPY_CLIPBOARD:
-                if ("self".equals(block.params)) {
-                    return "navigator.clipboard.writeText(" + elVar + ".textContent);\n";
-                }
-                return "navigator.clipboard.writeText('" + escapeJs(block.params) + "');\n";
-
-            case ACTION_DELAY: {
-                String[] parts = block.params.split("\\|", 2);
-                String ms = parts.length > 0 ? parts[0].trim() : "1000";
-                String delayedCode = parts.length > 1 ? parts[1].trim() : "// delayed action";
-                return "setTimeout(function(){" + delayedCode + "}," + ms + ");\n";
-            }
-
-            case ACTION_FOCUS_INPUT:
-                return elVar + ".focus();\n";
-
-            case ACTION_BLUR_INPUT:
-                return elVar + ".blur();\n";
-
-            case ACTION_SET_HREF: {
-                // HTML-first: directly modify href attribute
-                return elVar + ".setAttribute('href', '" + escapeJs(block.params) + "');\n";
-            }
-
-            case ACTION_SET_TRANSFORM:
-                return elVar + ".style.transform = '" + escapeJs(block.params) + "';\n";
-
-            case ACTION_SET_TRANSITION:
-                return elVar + ".style.transition = '" + escapeJs(block.params) + "';\n";
-
-            case ACTION_IF_BLOCK: {
-                String[] parts = block.params.split("\\|", 5);
-                if (parts.length >= 4) {
-                    String left = parts[0].trim();
-                    String op = parts[1].trim();
-                    String right = parts[2].trim();
-                    String thenCode = parts[3].trim();
-                    return "if (" + left + " " + op + " " + right + ") { " + thenCode + " }\n";
-                }
-                return "// Invalid if block params\n";
-            }
-
-            case ACTION_IF_ELSE_BLOCK: {
-                String[] parts = block.params.split("\\|", 5);
-                if (parts.length >= 5) {
-                    String left = parts[0].trim();
-                    String op = parts[1].trim();
-                    String right = parts[2].trim();
-                    String thenCode = parts[3].trim();
-                    String elseCode = parts[4].trim();
-                    return "if (" + left + " " + op + " " + right + ") { " + thenCode + " } else { " + elseCode + " }\n";
-                } else if (parts.length >= 4) {
-                    String left = parts[0].trim();
-                    String op = parts[1].trim();
-                    String right = parts[2].trim();
-                    String thenCode = parts[3].trim();
-                    return "if (" + left + " " + op + " " + right + ") { " + thenCode + " }\n";
-                }
-                return "// Invalid if-else block params\n";
-            }
-
-            case ACTION_LOOP: {
-                String[] parts = block.params.split("\\|", 2);
-                String count = parts.length > 0 ? parts[0].trim() : "5";
-                String loopCode = parts.length > 1 ? parts[1].trim() : "// loop body";
-                return "for (var i = 0; i < " + count + "; i++) { " + loopCode + " }\n";
-            }
-
-            case ACTION_CREATE_VAR: {
-                String[] parts = block.params.split("\\|", 3);
-                String name = parts.length > 0 ? parts[0].trim() : "myVar";
-                String type = parts.length > 1 ? parts[1].trim() : "any";
-                String initVal = parts.length > 2 ? parts[2].trim() : "";
-                if (initVal.isEmpty()) {
-                    if ("number".equals(type)) initVal = "0";
-                    else if ("boolean".equals(type)) initVal = "false";
-                    else if ("string".equals(type)) initVal = "''";
-                    else if ("color".equals(type)) initVal = "'#000000'";
-                    else initVal = "null";
-                } else {
-                    if (("string".equals(type) || "color".equals(type)) && !initVal.startsWith("'") && !initVal.startsWith("\"")) {
-                        initVal = "'" + escapeJs(initVal) + "'";
-                    }
-                }
-                return "var " + name + " = " + initVal + ";\n";
-            }
-
-            case ACTION_SET_VAR: {
-                String[] parts = block.params.split("\\|", 2);
-                String name = parts.length > 0 ? parts[0].trim() : "myVar";
-                String val = parts.length > 1 ? parts[1].trim() : "null";
-                return name + " = " + val + ";\n";
-            }
-
-            case ACTION_GET_VAR: {
-                String[] parts = block.params.split("\\|", 2);
-                String name = parts.length > 0 ? parts[0].trim() : "myVar";
-                String target = parts.length > 1 ? parts[1].trim() : "";
-                if (!target.isEmpty()) {
-                    return "document.querySelector('" + escapeJs(target) + "').textContent = " + name + ";\n";
-                }
-                return "console.log(" + name + ");\n";
-            }
-
-            default:
-                return "// Unknown action\n";
-        }
-    }
-
-    private String escapeJs(String str) {
-        return str.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+        return "  /* invalid style params: " + params + " */\n";
     }
 
     public String toJson() {

@@ -440,11 +440,11 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private void showEventPickerForAction(BlockDef actionDef) {
-        String[] events = {"On Click", "On Hover", "On Load", "On Input", "On Submit", "On Scroll"};
-        String[] eventKeys = {"click", "hover", "load", "input", "submit", "scroll"};
+        String[] events = {"Default", "Hover", "Focus", "Active"};
+        String[] eventKeys = {"default", "hover", "focus", "active"};
 
         new MaterialAlertDialogBuilder(this)
-            .setTitle("Select Event for " + actionDef.label)
+            .setTitle("Select State for " + actionDef.label)
             .setItems(events, (dialog, which) -> {
                 BlockDef eventDef = new BlockDef(eventKeys[which], events[which], "", CAT_EVENT);
                 showValueInputForBlock(eventDef, actionDef);
@@ -1099,18 +1099,15 @@ public class LogicBlockActivity extends AppCompatActivity {
     switch (category) {
 
         case CAT_EVENT: return new BlockDef[]{
-            new BlockDef("onClick", "On Click", "When element is clicked", CAT_EVENT),
-            new BlockDef("onHover", "On Hover", "When mouse hovers", CAT_EVENT),
-            new BlockDef("onLoad", "On Load", "When page loads", CAT_EVENT),
-            new BlockDef("onInput", "On Input", "When input changes", CAT_EVENT),
-            new BlockDef("onSubmit", "On Submit", "When form submits", CAT_EVENT),
-            new BlockDef("onScroll", "On Scroll", "When user scrolls", CAT_EVENT),
-            new BlockDef("onKeyDown", "On Key Down", "When key pressed", CAT_EVENT),
-            new BlockDef("onChange", "On Change", "When value changes", CAT_EVENT),
+            new BlockDef("default", "Default", "Base styles", CAT_EVENT),
+            new BlockDef("hover", "Hover", "When hovered", CAT_EVENT),
+            new BlockDef("focus", "Focus", "When focused", CAT_EVENT),
+            new BlockDef("active", "Active", "While pressed/active", CAT_EVENT),
         };
 
         case CAT_CSS: return new BlockDef[]{
             new BlockDef("setDisplay", "Set Display", "block/none/flex", CAT_CSS),
+            new BlockDef("setPosition", "Set Position", "static/relative/absolute", CAT_CSS),
             new BlockDef("setColor", "Set Color", "Text color", CAT_CSS),
             new BlockDef("setBackground", "Set Background", "Background color", CAT_CSS),
             new BlockDef("setWidth", "Set Width", "Width value", CAT_CSS),
@@ -1121,46 +1118,31 @@ public class LogicBlockActivity extends AppCompatActivity {
             new BlockDef("setPadding", "Set Padding", "Inner spacing", CAT_CSS),
             new BlockDef("setBorder", "Set Border", "Border style", CAT_CSS),
             new BlockDef("setRadius", "Set Radius", "Border radius", CAT_CSS),
+            new BlockDef("setTextAlign", "Set Text Align", "left/center/right", CAT_CSS),
+            new BlockDef("setFlex", "Flex Layout", "display:flex + props", CAT_CSS),
+            new BlockDef("setGrid", "Grid Layout", "display:grid + props", CAT_CSS),
+            new BlockDef("setGap", "Gap", "row/column gap", CAT_CSS),
+            new BlockDef("setOverflow", "Overflow", "hidden/scroll/auto", CAT_CSS),
+            new BlockDef("setTransform", "Transform", "rotate/scale/translate", CAT_CSS),
+            new BlockDef("setTransition", "Transition", "property duration ease", CAT_CSS),
             new BlockDef("addClass", "Add Class", "Add CSS class", CAT_CSS),
             new BlockDef("removeClass", "Remove Class", "Remove CSS class", CAT_CSS),
             new BlockDef("toggleClass", "Toggle Class", "Toggle CSS class", CAT_CSS),
         };
 
         case CAT_HTML: return new BlockDef[]{
-            new BlockDef("setText", "Set Text", "Change text content", CAT_HTML),
-            new BlockDef("setHTML", "Set HTML", "Set inner HTML", CAT_HTML),
-            new BlockDef("showElement", "Show", "Show element", CAT_HTML),
-            new BlockDef("hideElement", "Hide", "Hide element", CAT_HTML),
-            new BlockDef("toggleElement", "Toggle", "Toggle visibility", CAT_HTML),
-            new BlockDef("navigate", "Navigate", "Go to URL", CAT_HTML),
-            new BlockDef("goToPage", "Go To Page", "Navigate to page", CAT_HTML),
-            new BlockDef("alert", "Alert", "Show alert dialog", CAT_HTML),
-            new BlockDef("scrollTo", "Scroll To", "Scroll to position", CAT_HTML),
-            new BlockDef("focusInput", "Focus Input", "Focus input field", CAT_HTML),
-            new BlockDef("setAttribute", "Set Attribute", "Set HTML attribute", CAT_HTML),
-            new BlockDef("setHref", "Set Href", "Set href (#section/page/link)", CAT_HTML),
-            new BlockDef("removeElement", "Remove", "Remove element", CAT_HTML),
+            new BlockDef("setHref", "Set Href", "href attribute", CAT_HTML),
+            new BlockDef("setSrc", "Set Src", "img/video/audio/src", CAT_HTML),
+            new BlockDef("setId", "Set ID", "id attribute", CAT_HTML),
+            new BlockDef("setClassAttr", "Set Class", "class attribute", CAT_HTML),
+            new BlockDef("setAlt", "Set Alt", "alt text", CAT_HTML),
+            new BlockDef("setTitle", "Set Title", "title attribute", CAT_HTML),
+            new BlockDef("setAriaLabel", "Set aria-label", "accessibility label", CAT_HTML),
+            new BlockDef("setAttribute", "Custom Attribute", "attr:value", CAT_HTML),
         };
 
-        case CAT_LOGIC: return new BlockDef[]{
-            new BlockDef("ifBlock", "If", "Conditional execution", CAT_LOGIC),
-            new BlockDef("ifElseBlock", "If / Else", "If-else conditional", CAT_LOGIC),
-            new BlockDef("compareEqual", "Compare ==", "Check equality", CAT_LOGIC),
-            new BlockDef("compareNotEqual", "Compare !=", "Check inequality", CAT_LOGIC),
-            new BlockDef("compareGreater", "Compare >", "Greater than", CAT_LOGIC),
-            new BlockDef("compareLess", "Compare <", "Less than", CAT_LOGIC),
-            new BlockDef("delay", "Delay", "Wait then execute", CAT_LOGIC),
-            new BlockDef("loop", "Loop", "Repeat N times", CAT_LOGIC),
-        };
-
-        case CAT_VARIABLE: return new BlockDef[]{
-            new BlockDef("createVar", "Create Variable", "Declare a variable", CAT_VARIABLE),
-            new BlockDef("setVar", "Set Variable", "Assign a value", CAT_VARIABLE),
-            new BlockDef("getVar", "Get Variable", "Read variable value", CAT_VARIABLE),
-            new BlockDef("createVarString", "String Var", "String variable", CAT_VARIABLE),
-            new BlockDef("createVarNumber", "Number Var", "Number variable", CAT_VARIABLE),
-            new BlockDef("createVarBoolean", "Boolean Var", "Boolean variable", CAT_VARIABLE),
-        };
+        case CAT_LOGIC: return new BlockDef[]{}; // JS-heavy logic removed for CSS/HTML-first redesign
+        case CAT_VARIABLE: return new BlockDef[]{}; // Variables rely on JS; removed
 
         default: return new BlockDef[]{};
     }
@@ -1180,39 +1162,30 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     private String mapEventKey(String id) {
         switch (id) {
-            case "onClick": return "click";
-            case "onHover": return "hover";
-            case "onLoad": return "load";
-            case "onInput": return "input";
-            case "onSubmit": return "submit";
-            case "onScroll": return "scroll";
-            case "onKeyDown": return "keydown";
-            case "onChange": return "change";
-            default: return id;
+            case "hover": return LogicBlockManager.STATE_HOVER;
+            case "focus": return LogicBlockManager.STATE_FOCUS;
+            case "active": return LogicBlockManager.STATE_ACTIVE;
+            case "default":
+            default: return LogicBlockManager.STATE_DEFAULT;
         }
     }
 
     private String mapActionKey(String id) {
         switch (id) {
-            case "setDisplay": case "setColor": case "setBackground":
+            case "setDisplay": case "setPosition": case "setColor": case "setBackground":
             case "setWidth": case "setHeight": case "setMargin":
             case "setPadding": case "setBorder": case "setRadius":
-            case "setOpacity": case "setFontSize":
+            case "setOpacity": case "setFontSize": case "setTextAlign":
+            case "setFlex": case "setGrid": case "setGap":
+            case "setOverflow": case "setTransform": case "setTransition":
                 return "changeStyle";
             case "addClass": return "addClass";
             case "removeClass": return "removeClass";
             case "toggleClass": return "toggleClass";
-            case "setText": return "setText";
-            case "setHTML": return "setHTML";
-            case "showElement": case "hideElement": case "toggleElement": return "showHide";
-            case "navigate": return "navigate";
-            case "goToPage": return "goToPage";
-            case "alert": return "alert";
-            case "scrollTo": return "scrollTo";
-            case "focusInput": return "focusInput";
             case "setAttribute": return "setAttribute";
-            case "setHref": return "setHref";
-            case "removeElement": return "removeElement";
+            case "setHref": case "setSrc": case "setId": case "setClassAttr":
+            case "setAlt": case "setTitle": case "setAriaLabel":
+                return "setAttribute";
             default: return id;
         }
     }
@@ -1220,6 +1193,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     private String mapParams(String actionId, String value) {
         switch (actionId) {
             case "setDisplay": return "display:" + value;
+            case "setPosition": return "position:" + value;
             case "setColor": return "color:" + value;
             case "setBackground": return "background:" + value;
             case "setWidth": return "width:" + value;
@@ -1227,13 +1201,23 @@ public class LogicBlockActivity extends AppCompatActivity {
             case "setMargin": return "margin:" + value;
             case "setPadding": return "padding:" + value;
             case "setBorder": return "border:" + value;
-            case "setRadius": return "borderRadius:" + value;
+            case "setRadius": return "border-radius:" + value;
             case "setOpacity": return "opacity:" + value;
-            case "setFontSize": return "fontSize:" + value;
-            case "showElement": return "show";
-            case "hideElement": return "hide";
-            case "toggleElement": return "toggle";
-            case "focusInput": return "focus";
+            case "setFontSize": return "font-size:" + value;
+            case "setTextAlign": return "text-align:" + value;
+            case "setFlex": return "display:flex; " + value;
+            case "setGrid": return "display:grid; " + value;
+            case "setGap": return "gap:" + value;
+            case "setOverflow": return "overflow:" + value;
+            case "setTransform": return "transform:" + value;
+            case "setTransition": return "transition:" + value;
+            case "setHref": return "href:" + value;
+            case "setSrc": return "src:" + value;
+            case "setId": return "id:" + value;
+            case "setClassAttr": return "class:" + value;
+            case "setAlt": return "alt:" + value;
+            case "setTitle": return "title:" + value;
+            case "setAriaLabel": return "aria-label:" + value;
             default: return value;
         }
     }
@@ -1241,16 +1225,23 @@ public class LogicBlockActivity extends AppCompatActivity {
     private String getValueHint(BlockDef def) {
         switch (def.id) {
             case "setDisplay": return "block, none, flex, grid";
+            case "setPosition": return "static, relative, absolute, fixed";
             case "setColor": return "Color (e.g. #ff0000)";
             case "setBackground": return "Background color or gradient";
             case "setWidth": return "Width (e.g. 100px, 50%)";
             case "setHeight": return "Height (e.g. 200px)";
-            case "setText": return "New text content";
-            case "setHTML": return "HTML content";
-            case "navigate": return "URL (e.g. https://example.com)";
+            case "setTextAlign": return "left, center, right";
+            case "setFlex": return "e.g. flex-direction:row; align-items:center;";
+            case "setGrid": return "e.g. grid-template-columns:1fr 1fr;";
+            case "setGap": return "gap value (e.g. 16px)";
+            case "setOverflow": return "hidden, scroll, auto";
             case "setHref": return "Href (e.g. #section, about.html, https://...)";
-            case "goToPage": return "Page name (e.g. about)";
-            case "alert": return "Alert message";
+            case "setSrc": return "Image/video/audio URL";
+            case "setId": return "Unique id";
+            case "setClassAttr": return "class names (space separated)";
+            case "setAlt": return "Alt text";
+            case "setTitle": return "Title attribute";
+            case "setAriaLabel": return "Accessible label";
             case "addClass": case "removeClass": case "toggleClass": return "CSS class name";
             default: return "Value";
         }
@@ -1298,9 +1289,8 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     private boolean isHtmlAction(String action) {
         switch (action) {
-            case "setText": case "showHide": case "navigate":
-            case "goToPage": case "scrollTo": case "alert":
-            case "removeElement": case "setAttribute": case "setHref": case "focusInput":
+            case "setAttribute": case "setHref": case "setSrc": case "setId":
+            case "setClassAttr": case "setAlt": case "setTitle": case "setAriaLabel":
                 return true;
             default: return false;
         }

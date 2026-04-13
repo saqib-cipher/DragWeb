@@ -13,6 +13,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
@@ -53,6 +54,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     public HierarchyTreeAdapter(Context context) {
         this.context = context;
+        setHasStableIds(true);
     }
 
     public void setOnItemClickListener(OnItemClickListener listener) {
@@ -68,22 +70,33 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     }
 
     public void setSelectedView(View view) {
+        View previous = this.selectedWidgetView;
         this.selectedWidgetView = view;
-        notifyDataSetChanged();
+
+        // Update only the two rows whose selection changed (if present)
+        int prevPos = findPositionForView(previous);
+        int newPos = findPositionForView(view);
+        if (prevPos >= 0) notifyItemChanged(prevPos);
+        if (newPos >= 0 && newPos != prevPos) notifyItemChanged(newPos);
     }
 
     public void setFilter(String query) {
         this.filterQuery = query != null ? query.toLowerCase() : "";
         if (rootScreen != null) {
-            buildTree(rootScreen);
+            rebuildTree(rootScreen);
         }
     }
 
     public void buildTree(ViewGroup screen) {
+        // Backwards compat: external callers may still call buildTree
+        rebuildTree(screen);
+    }
+
+    public void rebuildTree(ViewGroup screen) {
         this.rootScreen = screen;
-        flatList.clear();
-        addNode(screen, 0, "body");
-        notifyDataSetChanged();
+        List<TreeNode> newList = new ArrayList<>();
+        addNode(screen, 0, "body", newList);
+        applyDiff(newList);
     }
 
     public void attachToRecyclerView(RecyclerView rv) {
@@ -145,11 +158,9 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                     }
                 }
 
-                // Update flat list using notifyDataSetChanged for stability
-                if (fromPos >= 0 && toPos >= 0 && fromPos < flatList.size() && toPos < flatList.size()) {
-                    Collections.swap(flatList, fromPos, toPos);
-                    notifyItemMoved(fromPos, toPos);
-                    notifyDataSetChanged();
+                // Rebuild using DiffUtil to animate move/reparent changes
+                if (rootScreen != null) {
+                    rebuildTree(rootScreen);
                 }
                 return true;
             }
@@ -171,7 +182,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 super.clearView(recyclerView, viewHolder);
                 // Rebuild tree after drag to refresh depths and structure
                 if (rootScreen != null) {
-                    buildTree(rootScreen);
+                    rebuildTree(rootScreen);
                 }
             }
         });
@@ -197,7 +208,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         }
     }
 
-    private void addNode(View view, int depth, String forceName) {
+    private void addNode(View view, int depth, String forceName, List<TreeNode> target) {
         String tag = "unknown";
         String name = forceName;
         String id = "";
@@ -246,7 +257,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 if (isContainer) {
                     ViewGroup vg = (ViewGroup) view;
                     for (int i = 0; i < vg.getChildCount(); i++) {
-                        addNode(vg.getChildAt(i), depth, null);
+                        addNode(vg.getChildAt(i), depth, null, target);
                     }
                 }
                 return;
@@ -267,12 +278,12 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         node.isLocked = isLocked;
         node.isHidden = isHidden;
 
-        flatList.add(node);
+        target.add(node);
 
         if (isContainer && !collapsedNodes.contains(node.nodeId)) {
             ViewGroup vg = (ViewGroup) view;
             for (int i = 0; i < vg.getChildCount(); i++) {
-                addNode(vg.getChildAt(i), depth + 1, null);
+                addNode(vg.getChildAt(i), depth + 1, null, target);
             }
         }
     }
@@ -494,6 +505,52 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         return flatList.size();
     }
 
+    @Override
+    public long getItemId(int position) {
+        if (position < 0 || position >= flatList.size()) return RecyclerView.NO_ID;
+        return flatList.get(position).nodeId;
+    }
+
+    private void applyDiff(List<TreeNode> newList) {
+        DiffUtil.DiffResult diff = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return flatList.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newList.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                return flatList.get(oldItemPosition).nodeId == newList.get(newItemPosition).nodeId;
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                return flatList.get(oldItemPosition).contentEquals(newList.get(newItemPosition));
+            }
+
+            @Override
+            public Object getChangePayload(int oldItemPosition, int newItemPosition) {
+                return null; // default animations
+            }
+        });
+
+        flatList = newList;
+        diff.dispatchUpdatesTo(this);
+    }
+
+    private int findPositionForView(View view) {
+        if (view == null) return -1;
+        for (int i = 0; i < flatList.size(); i++) {
+            if (flatList.get(i).view == view) return i;
+        }
+        return -1;
+    }
+
     private int getTagColor(String tag) {
         switch (tag) {
             case "div": case "section": return Color.parseColor("#42A5F5");
@@ -532,6 +589,26 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         int nodeId;
         boolean isLocked;
         boolean isHidden;
+
+        boolean contentEquals(TreeNode other) {
+            if (other == null) return false;
+            return depth == other.depth
+                && childCount == other.childCount
+                && isContainer == other.isContainer
+                && isLocked == other.isLocked
+                && isHidden == other.isHidden
+                && safeEquals(tag, other.tag)
+                && safeEquals(name, other.name)
+                && safeEquals(id, other.id)
+                && safeEquals(cssClass, other.cssClass)
+                && safeEquals(textPreview, other.textPreview)
+                && view == other.view; // same backing view reference
+        }
+
+        private boolean safeEquals(String a, String b) {
+            if (a == null) return b == null;
+            return a.equals(b);
+        }
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

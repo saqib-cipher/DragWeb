@@ -40,7 +40,8 @@ public class PageCodeGenerator {
         }
 
         StringBuilder htmlBuilder = new StringBuilder();
-        appendHtmlHeader(htmlBuilder, themeManager);
+        String logicCss = logicBlockManager != null ? logicBlockManager.generateCssRules() : "";
+        appendHtmlHeader(htmlBuilder, themeManager, logicCss);
         htmlBuilder.append(bodyBuilder);
         appendHtmlFooter(htmlBuilder, logicBlockManager);
         return htmlBuilder.toString();
@@ -61,13 +62,14 @@ public class PageCodeGenerator {
         }
 
         StringBuilder htmlBuilder = new StringBuilder();
-        appendHtmlHeader(htmlBuilder, themeManager);
+        String logicCss = logicBlockManager != null ? logicBlockManager.generateCssRules() : "";
+        appendHtmlHeader(htmlBuilder, themeManager, logicCss);
         htmlBuilder.append(bodyBuilder);
         appendHtmlFooter(htmlBuilder, logicBlockManager);
         return htmlBuilder.toString();
     }
 
-    private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager) {
+    private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager, String logicCss) {
         String pageTitle = projectName.isEmpty() ? "DragWeb Page" : escapeHtml(projectName);
         htmlBuilder.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
         htmlBuilder.append("  <meta charset=\"UTF-8\">\n");
@@ -94,6 +96,9 @@ public class PageCodeGenerator {
         htmlBuilder.append("    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }\n");
         for (String styleRule : styleRules) {
             htmlBuilder.append(styleRule);
+        }
+        if (logicCss != null && !logicCss.isEmpty()) {
+            htmlBuilder.append("\n").append(logicCss).append("\n");
         }
 
         htmlBuilder.append("  </style>\n");
