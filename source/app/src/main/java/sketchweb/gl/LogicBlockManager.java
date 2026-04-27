@@ -28,7 +28,7 @@ public class LogicBlockManager {
     public static final String EVENT_PAGE_SCROLL = "pageScroll";
     public static final String EVENT_PAGE_INPUT = "pageInput";
 
-    // Element events
+    // Element events (retained for backward compatibility when loading saved projects)
     public static final String EVENT_CLICK = "click";
     public static final String EVENT_HOVER = "hover";
     public static final String EVENT_INPUT = "input";
@@ -37,6 +37,12 @@ public class LogicBlockManager {
     public static final String EVENT_SCROLL = "scroll";
     public static final String EVENT_KEYDOWN = "keydown";
     public static final String EVENT_CHANGE = "change";
+
+    // CSS pseudo-class events (generate pure CSS rules, no JavaScript)
+    public static final String EVENT_CSS_HOVER   = "css:hover";
+    public static final String EVENT_CSS_FOCUS   = "css:focus";
+    public static final String EVENT_CSS_ACTIVE  = "css:active";
+    public static final String EVENT_CSS_VISITED = "css:visited";
 
     public static final String ACTION_CHANGE_STYLE = "changeStyle";
     public static final String ACTION_ANIMATE = "animate";
@@ -146,13 +152,14 @@ public class LogicBlockManager {
     }
 
     public void showAddBlockDialog(String targetWidgetTag, String targetMode, OnBlockAddedListener listener) {
+        // Note: onClick/onHover removed – interactions are handled via CSS pseudo-class blocks
         String[] events = {
-            "On Click", "On Hover", "On Input", "On Page Load",
-            "On Submit", "On Scroll", "On Key Down", "On Change"
+            "On Input", "On Submit", "On Scroll", "On Key Down", "On Change",
+            "CSS :hover (style)", "CSS :focus (style)", "CSS :active (style)", "CSS :visited (style)"
         };
         String[] eventKeys = {
-            EVENT_CLICK, EVENT_HOVER, EVENT_INPUT, EVENT_LOAD,
-            EVENT_SUBMIT, EVENT_SCROLL, EVENT_KEYDOWN, EVENT_CHANGE
+            EVENT_INPUT, EVENT_SUBMIT, EVENT_SCROLL, EVENT_KEYDOWN, EVENT_CHANGE,
+            EVENT_CSS_HOVER, EVENT_CSS_FOCUS, EVENT_CSS_ACTIVE, EVENT_CSS_VISITED
         };
 
         String modeLabel = TARGET_MODE_CLASS.equals(targetMode) ? "." :
@@ -396,8 +403,12 @@ public class LogicBlockManager {
             case EVENT_DESTROY: return "On Destroy";
             case EVENT_PAGE_SCROLL: return "On Scroll";
             case EVENT_PAGE_INPUT: return "On Input";
-            case EVENT_CLICK: return "On Click";
-            case EVENT_HOVER: return "On Hover";
+            case EVENT_CLICK: return "On Click (legacy)";
+            case EVENT_HOVER: return "On Hover (legacy)";
+            case EVENT_CSS_HOVER:   return "CSS :hover";
+            case EVENT_CSS_FOCUS:   return "CSS :focus";
+            case EVENT_CSS_ACTIVE:  return "CSS :active";
+            case EVENT_CSS_VISITED: return "CSS :visited";
             case EVENT_INPUT: return "On Input";
             case EVENT_LOAD: return "On Load";
             case EVENT_SUBMIT: return "On Submit";
@@ -423,8 +434,41 @@ public class LogicBlockManager {
     }
 
     /**
+     * Returns true if the block's event is a CSS pseudo-class rule (not JS).
+     */
+    private boolean isCssPseudoEvent(String event) {
+        return event != null && event.startsWith("css:");
+    }
+
+    /**
+     * Generate CSS pseudo-class rules for blocks that use CSS-only interactions.
+     * Output is suitable for embedding in a {@code <style>} block.
+     *
+     * Example output:  #btn1:hover { color: red; }
+     */
+    public String generateCssPseudoRules() {
+        StringBuilder css = new StringBuilder();
+        for (LogicBlock block : blocks) {
+            if (!isCssPseudoEvent(block.event)) continue;
+            String pseudoClass = block.event.substring("css:".length()); // "hover", "focus", etc.
+            String selector = buildSelector(block);
+            // params format: "property:value" (matches ACTION_CHANGE_STYLE convention)
+            if (block.params != null) {
+                String[] parts = block.params.split(":", 2);
+                if (parts.length == 2) {
+                    css.append("  ").append(selector).append(":").append(pseudoClass)
+                       .append(" { ").append(parts[0].trim()).append(": ")
+                       .append(parts[1].trim()).append("; }\n");
+                }
+            }
+        }
+        return css.toString();
+    }
+
+    /**
      * Generate JavaScript with HTML-first approach.
      * Prefers modifying HTML/CSS directly over heavy JS.
+     * CSS pseudo-class blocks are excluded here — use generateCssPseudoRules() for those.
      */
     public String generateJavaScript() {
         if (blocks.isEmpty()) return "";
@@ -435,6 +479,9 @@ public class LogicBlockManager {
 
         for (LogicBlock block : blocks) {
             String eventName = block.event;
+
+            // Skip CSS pseudo-class blocks – they are written as CSS, not JS
+            if (isCssPseudoEvent(eventName)) continue;
 
             js.append("  // ").append(eventName != null ? eventName : "immediate")
               .append(" -> ").append(block.action).append("\n");
