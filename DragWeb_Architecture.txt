@@ -1,0 +1,94 @@
+DragWeb App Structure, Logics, and Functions
+==================================================
+
+1. Overview
+--------------------
+The DragWeb project uses a JSON-based element registry to dynamically parse UI elements and their properties into an internal JSON/Map-based widget tree. It employs a pure HTML/CSS logic block system, mapping interactions to CSS pseudo-classes and standard HTML attributes. It actively avoids JavaScript for structural and visual logic where possible. The app uses a unified ZIP-only system for project backup and import. The visual preview is driven by a WebView in `PreviewActivity`, configured with full file and content access to natively render local HTML, CSS, and multi-page assets.
+
+2. Core Activities and Editors
+--------------------
+MainActivity.java
+Role: The core editor activity. It contains the primary DragWeb editor, which utilizes a UI structure with a `DrawerLayout` root. This includes a left drawer for the widget palette, a central hierarchy tree list (replacing a traditional native design canvas), and a bottom panel for style attributes and controls. It manages the internal widget tree, where elements are modeled using an `ArrayList<HashMap<String,Object>>` containing 'type', 'props', and 'children' data.
+
+HomeActivity.java
+Role: The entry point and project listing activity. It distinguishes base projects from page-specific layout files by ignoring any JSON file names containing an underscore (_). It handles core project operations such as creation, import, export, and deletion.
+
+LogicBlockActivity.java
+Role: The isolated Logic Blocks editor activity. It provides a visual programming interface using Material 3 styling, puzzle-piece block shapes, and spinners for configuration. Logic blocks are saved and loaded on a per-page basis using the naming convention `<projectId>_<pageName>.logic`.
+
+PreviewActivity.java
+Role: Implements the visual preview system. `PreviewActivity` uses a WebView to load exported HTML/CSS natively, providing a true representation of the final web output.
+
+PreviewBottomdialogFragmentActivity.java
+Role: A BottomSheetDialogFragment version of the preview, providing a quick modal view of the current page output.
+
+SplashActivity.java
+Role: The initial splash screen shown when the app launches.
+
+DebugActivity.java
+Role: An activity designed to display crash logs or debug information if the application encounters a fatal error.
+
+3. Data Management and Storage
+--------------------
+ProjectDataManager.java
+Role: Manages project data storage, backup, and loading. Projects and associated data (.json, .meta, .theme) are stored locally in the application's internal files directory under a 'projects' folder. Filenames use randomly generated UUIDs to prevent naming conflicts, while human-readable names are stored in metadata.
+
+PageManager.java
+Role: Manages multi-page logic for projects. Handles secondary pages independently and restricts overwrites of the main project file (`projectId.json`) to the 'index' page only.
+
+ExportManager.java
+Role: Handles exporting projects to HTML/CSS. It processes the internal widget tree and generates the final web assets. It uses custom sanitization methods (`escapeHtml`, `escapeAttr`) to prevent XSS during export and preview generation.
+
+ThemeManager.java
+Role: Manages project themes, global styles, and custom CSS variables. It allows setting themes globally across a project. Theme configuration handles how project styles map to HTML outputs.
+
+FileUtil.java
+Role: A utility class for performing basic file operations like reading, writing, creating, and deleting files across the app's internal storage.
+
+4. UI Components, Adapters, and Managers
+--------------------
+HierarchyTreeAdapter.java
+Role: The RecyclerView adapter that backs the central canvas. It visually represents the structural hierarchy of the widget tree. It supports drag-and-drop structural modifications and uses `DiffUtil` to smoothly animate and sync changes without full list rebuilds.
+
+BlockDragDropManager.java
+Role: Implements the block-based drag and drop system for the Logic Block editor. It manages visual block palettes for Events, CSS Actions, HTML Actions, Logic blocks, and Variable blocks, converting UI drags into logical operations.
+
+DropZoneManager.java
+Role: Handles logic for determining valid drop targets when dragging and dropping elements within the hierarchy tree or editor workspace. Resolves drop zones visually and structurally.
+
+FileExplorerAdapter.java
+Role: A RecyclerView adapter used for displaying and navigating file systems, primarily used during project import, export, or asset selection dialogs.
+
+LogicBlockManager.java
+Role: Manages the underlying data structure and execution flow of logic blocks created in the `LogicBlockActivity`. Validates and converts blocks into functional logic representations.
+
+UndoRedoManager.java
+Role: Manages the history of changes in the editor, allowing users to undo and redo structural or property actions to prevent data loss or accidental edits.
+
+WidgetBuilderEngine.java
+Role: Responsible for dynamically instantiating Android View objects from the internal widget tree data. It parses properties and applies them to the constructed views for runtime rendering.
+
+WidgetRegistry.java
+Role: Parses the JSON-based element registry to dynamically load UI elements and their properties, making them available in the editor's widget palette. Acts as a central database for valid UI elements.
+
+WidgetSelector.java
+Role: Manages the selection state of widgets within the editor, handling click events and highlighting the currently active element. Bridges the visual view and underlying data model.
+
+WidgetUpdater.java
+Role: Handles updating the properties or styling of an existing widget in the tree based on user input from the bottom panel, effectively applying edits live.
+
+5. Import and Generation Tools
+--------------------
+HtmlCssImporter.java
+Role: Handles importing external HTML and CSS code, parsing it, and converting it into DragWeb's internal JSON-based widget tree format. Useful for bringing in existing projects.
+
+PageCodeGenerator.java
+Role: Works closely with `ExportManager` to generate the specific HTML and CSS string representations for individual nodes and pages based on the widget tree.
+
+6. Application Initialization and Utilities
+--------------------
+SketchApplication.java
+Role: The global `Application` class. It initializes global crash handlers (like the one that routes to `DebugActivity`) and application-wide singletons.
+
+SketchwareUtil.java
+Role: Provides simple utility functions used throughout the application, such as displaying Toast messages and handling quick user feedback.
