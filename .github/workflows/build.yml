@@ -68,7 +68,6 @@ jobs:
 
           CAPTION=$(cat <<EOF
 🚀 *New Build Released*
-
 📦 *Version:* ${VERSION}
 📝 *Changes:*
 ${CHANGELOG}
