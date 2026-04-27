@@ -66,11 +66,10 @@ jobs:
     VERSION="${{ github.ref_name }}"
     CHANGELOG=$(cat CHANGELOG.txt | head -c 900)
 
-    CAPTION=$(printf "🚀 *New Build Released*\n\n📦 *Version:* %s\n📝 *Changes:*\n%s" "$VERSION" "$CHANGELOG")
+    CAPTION="🚀 New Build Released\n\nVersion: ${VERSION}\n\nChanges:\n${CHANGELOG}"
 
     curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
     -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
     -F message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
     -F document=@app-release.apk \
-    -F caption="$CAPTION" \
-    -F parse_mode=Markdown
+    -F caption="$CAPTION"
