@@ -32,7 +32,7 @@ jobs:
 
       - name: 🏗️ Build APK
         run: |
-          cd "source code"
+          cd "source"
           ./gradlew assembleRelease \
           -Pandroid.injected.signing.store.file=../release.jks \
           -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
@@ -60,9 +60,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 📲 Send APK to Telegram
-      - name: 📲 Upload to Telegram
-        if: startsWith(github.ref, 'refs/tags/release')
-        run: |
-          curl -F document=@app-release.apk \
-          -F caption="🚀 New Release: ${{ github.ref_name }}" \
-          https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument?chat_id=${{ secrets.TELEGRAM_CHAT_ID }}
+     - name: 📲 Upload APK to Telegram Topic
+  if: startsWith(github.ref, 'refs/tags/release')
+  run: |
+    VERSION="${{ github.ref_name }}"
+    CHANGELOG=$(cat CHANGELOG.txt)
+
+    curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+    -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+    -F message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
+    -F document=@app-release.apk \
+    -F caption="🚀 *New Build Released*
+
+ *Version:* ${VERSION}
+ *Changes:*
+${CHANGELOG}" \
+    -F parse_mode=Markdown
