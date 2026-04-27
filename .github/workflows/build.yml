@@ -60,19 +60,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 📲 Send APK to Telegram
-     - name: 📲 Upload APK to Telegram Topic
-  if: startsWith(github.ref, 'refs/tags/release')
-  run: |
-    VERSION="${{ github.ref_name }}"
-    CHANGELOG=$(cat CHANGELOG.txt)
+      - name: 📲 Upload APK to Telegram Topic
+        if: startsWith(github.ref, 'refs/tags/release')
+        run: |
+          VERSION="${{ github.ref_name }}"
+          CHANGELOG=$(cat CHANGELOG.txt)
 
-    curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
-    -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-    -F message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
-    -F document=@app-release.apk \
-    -F caption="🚀 *New Build Released*
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+          -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          -F message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
+          -F document=@app-release.apk \
+          -F caption="🚀 *New Build Released*
 
- *Version:* ${VERSION}
- *Changes:*
+📦 *Version:* ${VERSION}
+📝 *Changes:*
 ${CHANGELOG}" \
-    -F parse_mode=Markdown
+          -F parse_mode=Markdown
