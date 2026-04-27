@@ -25,7 +25,9 @@ jobs:
 
       - name: 🔐 Decode Keystore
         run: |
-          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 --decode > release.jks
+          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 --decode > $GITHUB_WORKSPACE/release.jks
+          echo "Keystore path: $GITHUB_WORKSPACE/release.jks"
+          ls -la $GITHUB_WORKSPACE/release.jks
 
       - name: ⚙️ Grant permission
         run: chmod +x source/gradlew
@@ -34,10 +36,10 @@ jobs:
         run: |
           cd source
           ./gradlew assembleRelease \
-          -Pandroid.injected.signing.store.file=../release.jks \
-          -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
-          -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
-          -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/release.jks \
+            -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
 
       - name: 📦 Rename APK
         run: |
@@ -59,13 +61,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 📲 Upload APK to Telegram Topic
-      - name: 📲 Upload APK to Telegram Topic
+      # 📲 Upload APK to Telegram
+      - name: 📲 Upload APK to Telegram
         if: startsWith(github.ref, 'refs/tags/release')
         run: |
           VERSION="${{ github.ref_name }}"
           CHANGELOG=$(cat CHANGELOG.txt | head -c 900)
-
           CAPTION=$(printf "🚀 *New Build Released*\n\n🔢 *Version:* %s\n\n📋 *Changes:*\n%s" "$VERSION" "$CHANGELOG")
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
