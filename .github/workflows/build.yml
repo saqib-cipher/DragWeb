@@ -41,7 +41,7 @@ jobs:
 
       - name: 📦 Rename APK
         run: |
-          mv "source code/app/build/outputs/apk/release/"*.apk app-release.apk
+          mv "source/app/build/outputs/apk/release/"*.apk app-release.apk
 
       - name: 📝 Generate Changelog
         run: |
