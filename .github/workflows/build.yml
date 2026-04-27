@@ -26,10 +26,10 @@ jobs:
       - name: 🔐 Decode & Convert Keystore
         run: |
           # Decode the base64 keystore
-          echo "Secret length: ${#RELEASE_KEYSTORE}"
-          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 --decode > $GITHUB_WORKSPACE/release_raw.jks
+          echo "Secret length: ${#KEYSTORE_BASE64}"
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/release_raw.jks
           env:
-          RELEASE_KEYSTORE; ${{ secrets.RELEASE_KEYSTORE }}
+          KEYSTORE_BASE64; ${{ secrets.KEYSTORE_BASE64 }}
 
           # Convert to legacy JKS format (fixes "Tag number over 30" error)
           keytool -importkeystore \
