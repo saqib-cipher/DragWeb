@@ -25,7 +25,7 @@ jobs:
 
       - name: 🔐 Decode Keystore
         run: |
-          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 --decode > release.jks
+          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 --decode > source/release.jks
 
       - name: ⚙️ Grant permission
         run: chmod +x source/gradlew
@@ -34,7 +34,7 @@ jobs:
         run: |
           cd source
           ./gradlew assembleRelease \
-          -Pandroid.injected.signing.store.file=../release.jks \
+          -Pandroid.injected.signing.store.file=../source/release.jks \
           -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
           -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
           -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
