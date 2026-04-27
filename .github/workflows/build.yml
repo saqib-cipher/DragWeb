@@ -28,11 +28,11 @@ jobs:
           echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 --decode > release.jks
 
       - name: ⚙️ Grant permission
-        run: chmod +x "source/gradlew"
+        run: chmod +x source/gradlew
 
       - name: 🏗️ Build APK
         run: |
-          cd "source"
+          cd source
           ./gradlew assembleRelease \
           -Pandroid.injected.signing.store.file=../release.jks \
           -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
@@ -41,13 +41,13 @@ jobs:
 
       - name: 📦 Rename APK
         run: |
-          mv "source/app/build/outputs/apk/release/"*.apk app-release.apk
+          mv source/app/build/outputs/apk/release/*.apk app-release.apk
 
       - name: 📝 Generate Changelog
         run: |
           git log --pretty=format:"- %s" > CHANGELOG.txt
 
-      # 🔥 Only run below steps on release tag
+      # 🚀 Create GitHub Release (only on release tag)
       - name: 🚀 Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/release')
         uses: softprops/action-gh-release@v2
@@ -59,14 +59,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 📲 Send APK to Telegram
+      # 📲 Upload APK to Telegram Topic
       - name: 📲 Upload APK to Telegram Topic
-  if: startsWith(github.ref, 'refs/tags/release')
-  run: |
-    VERSION="${{ github.ref_name }}"
-    CHANGELOG=$(cat CHANGELOG.txt)
+        if: startsWith(github.ref, 'refs/tags/release')
+        run: |
+          VERSION="${{ github.ref_name }}"
+          CHANGELOG=$(cat CHANGELOG.txt | head -c 900)
 
-    CAPTION=$(cat <<EOF
+          CAPTION=$(cat <<EOF
 🚀 *New Build Released*
 
 📦 *Version:* ${VERSION}
@@ -75,9 +75,9 @@ ${CHANGELOG}
 EOF
 )
 
-    curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
-    -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-    -F message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
-    -F document=@app-release.apk \
-    -F caption="$CAPTION" \
-    -F parse_mode=Markdown
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+          -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          -F message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
+          -F document=@app-release.apk \
+          -F caption="$CAPTION" \
+          -F parse_mode=Markdown
