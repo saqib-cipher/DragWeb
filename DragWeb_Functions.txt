@@ -1,0 +1,569 @@
+DragWeb Java Functions and Locations
+==================================================
+
+--- BlockDragDropManager.java ---
+Location: source/app/src/main/java/sketchweb/gl/BlockDragDropManager.java
+
+  • buildBlockEditorView() -> View
+    Description: Block-based drag and drop system for DragWeb. Provides visual block palettes for Events, CSS Actions, HTML Actions, Logic blocks, and Variable bloc...
+  • buildCategoryChips() -> View
+  • buildSearchBar() -> View
+  • beforeTextChanged() -> void
+  • onTextChanged() -> void
+  • afterTextChanged() -> void
+  • refreshPalette() -> void
+  • createFilterChip() -> Chip
+  • buildBlockPalette() -> View
+  • buildBlockToolbar() -> View
+  • createToolBtn() -> TextView
+  • showCategory() -> void
+  • createPaletteBlock() -> View
+  • buildWorkspace() -> View
+  • saveBlockUndoState() -> void
+  • undoBlocks() -> void
+  • redoBlocks() -> void
+  • copySelectedBlock() -> void
+  • pasteBlock() -> void
+  • showJsPreview() -> void
+  • showAddBlockFromPalette() -> void
+    Description: Show dialog to configure a block dropped from the palette.
+  • showLogicBlockDialog() -> void
+  • showVariableBlockDialog() -> void
+  • showTargetDialog() -> void
+  • showTargetInputForEvent() -> void
+  • showActionSelectorForEvent() -> void
+  • showActionTargetDialog() -> void
+  • showValueInputDialog() -> void
+  • showCustomValueInput() -> void
+  • createBlock() -> void
+  • mapEventKey() -> String
+  • mapActionKey() -> String
+  • mapParams() -> String
+  • getValueHint() -> String
+  • getPresets() -> String[]
+  • refreshWorkspace() -> void
+    Description: Refresh the workspace to show current blocks.
+  • createWorkspaceBlock() -> View
+  • getLogicBlockLabel() -> String
+  • formatLogicParams() -> String
+  • getVarBlockLabel() -> String
+  • isHtmlAction() -> boolean
+
+--- DebugActivity.java ---
+Location: source/app/src/main/java/sketchweb/gl/DebugActivity.java
+
+  • onCreate() -> void
+
+--- DropZoneManager.java ---
+Location: source/app/src/main/java/sketchweb/gl/DropZoneManager.java
+
+  • setOnTreeChangedListener() -> void
+  • isLayoutWidget() -> boolean
+  • registerWidgetAsDropZoneIfContainer() -> void
+  • onDrag() -> boolean
+  • findDropIndex() -> int
+  • isDescendantOf() -> boolean
+  • findViewByHash() -> View
+  • highlightDropZone() -> void
+
+--- ExportManager.java ---
+Location: source/app/src/main/java/sketchweb/gl/ExportManager.java
+
+  • generateExportFiles() -> ExportResult
+  • exportAsZip() -> File
+  • includeProjectData() -> void
+    Description: Include all project data files in the ZIP export: layout JSON, theme, logic blocks, page layouts, metadata.
+  • includeAssets() -> void
+    Description: Include project assets (images, etc.) in the ZIP export.
+  • addFileToZip() -> void
+  • addDirectoryToZip() -> void
+  • generateHtml() -> String
+  • generateElementHtml() -> String
+  • generateCss() -> String
+  • generateJs() -> String
+  • writeFile() -> void
+  • addToZip() -> void
+  • escapeHtml() -> String
+  • camelToKebab() -> String
+  • sanitizeFileName() -> String
+  • repeat() -> String
+
+--- FileExplorerAdapter.java ---
+Location: source/app/src/main/java/sketchweb/gl/FileExplorerAdapter.java
+
+  • setOnFileClickListener() -> void
+  • setOnFileLongClickListener() -> void
+  • navigateTo() -> void
+  • getCurrentDir() -> File
+  • canGoUp() -> boolean
+  • goUp() -> void
+  • getRelativePath() -> String
+  • loadFiles() -> void
+  • onCreateViewHolder() -> ViewHolder
+  • onBindViewHolder() -> void
+  • getItemCount() -> int
+  • getFileIcon() -> String
+  • formatFileSize() -> String
+
+--- FileUtil.java ---
+Location: source/app/src/main/java/sketchweb/gl/FileUtil.java
+
+  • createNewFile() -> void
+  • readFile() -> String
+  • writeFile() -> void
+  • deleteFile() -> void
+  • makeDir() -> void
+
+--- HierarchyTreeAdapter.java ---
+Location: source/app/src/main/java/sketchweb/gl/HierarchyTreeAdapter.java
+
+  • setOnItemClickListener() -> void
+  • setOnItemLongClickListener() -> void
+  • setOnReorderListener() -> void
+  • setSelectedView() -> void
+  • setFilter() -> void
+  • buildTree() -> void
+  • attachToRecyclerView() -> void
+  • onMove() -> boolean
+  • onSwiped() -> void
+  • isLongPressDragEnabled() -> boolean
+  • clearView() -> void
+  • isDescendantOf() -> boolean
+  • startDrag() -> void
+  • addNode() -> void
+  • onCreateViewHolder() -> ViewHolder
+  • onBindViewHolder() -> void
+  • getItemCount() -> int
+  • getTagColor() -> int
+
+--- HomeActivity.java ---
+Location: source/app/src/main/java/sketchweb/gl/HomeActivity.java
+
+  • onCreate() -> void
+  • onResume() -> void
+  • ensureExternalDirectories() -> void
+  • initViews() -> void
+  • onScrolled() -> void
+  • generateProjectId() -> String
+    Description: /** Generate a short unique project ID */
+  • backupAllProjects() -> void
+  • backupSingleProject() -> void
+  • importProject() -> void
+  • performBackup() -> void
+  • performSingleProjectBackup() -> void
+  • performImport() -> void
+  • setupToolbar() -> void
+  • loadProjects() -> void
+  • loadExternalProjects() -> void
+  • updateEmptyState() -> void
+  • showNewProjectDialog() -> void
+  • createProject() -> void
+  • createProjectFromImport() -> void
+    Description: Create a project from an imported HTML/CSS widget tree.
+  • resolveLogoFileName() -> String
+  • resolveFileName() -> String
+  • readUriContent() -> String
+  • copyUriToFile() -> boolean
+  • openProject() -> void
+  • deleteProject() -> void
+  • renameProject() -> void
+  • showProjectOptions() -> void
+  • showImportWebsiteDialog() -> void
+  • performHtmlCssImport() -> void
+  • showAboutDialog() -> void
+  • onBackPressed() -> void
+  • onCreateViewHolder() -> VH
+  • onBindViewHolder() -> void
+  • getItemCount() -> int
+
+--- HtmlCssImporter.java ---
+Location: source/app/src/main/java/sketchweb/gl/HtmlCssImporter.java
+
+  • importHtmlCss() -> ImportResult
+    Description: Parses HTML and CSS files and converts them into the DragWeb widget tree format. Widget tree nodes follow the structure: { "tag": "div", "function"...
+  • extractBodyContent() -> String
+    Description: Extract content between <body> and </body> tags.
+  • extractInlineStyleBlocks() -> void
+    Description: Extract and parse <style> blocks from HTML.
+  • parseCss() -> void
+    Description: Parse CSS content and store rules.
+  • kebabToCamel() -> String
+    Description: Parse a CSS property block into a map of camelCase property -> value. value = value.replaceAll("\\s*!important\\s*$", ""); Convert kebab-case to ca...
+  • addTextNode() -> void
+    Description: Parse HTML string into a list of widget tree nodes. String textContent = innerHtml.replaceAll("<[^>]*>", "").trim(); String textContent = innerHtml...
+  • parseOpeningTag() -> ParsedTag
+    Description: Parsed tag data holder. Parse an opening HTML tag starting at the given position.
+  • findClosingTag() -> int
+    Description: Find the position of the matching closing tag, handling nesting.
+  • indexOfIgnoreCase() -> int
+  • applyCssRules() -> void
+    Description: Create a widget node map from a parsed tag. Apply CSS rules to the style map based on element tag, classes, and id.
+  • applyDefaultTagStyles() -> void
+    Description: Apply default styles for heading and semantic tags when no explicit style exists.
+  • mapTag() -> String
+    Description: Map HTML5 tags to the closest supported DragWeb tag.
+  • isSupportedTag() -> boolean
+  • isVoidElement() -> boolean
+  • isContainerTag() -> boolean
+  • decodeHtmlEntities() -> String
+  • countNodes() -> int
+
+--- LogicBlockActivity.java ---
+Location: source/app/src/main/java/sketchweb/gl/LogicBlockActivity.java
+
+  • onCreate() -> void
+  • initViews() -> void
+  • setupToolbar() -> void
+  • setupTargetSelector() -> void
+  • setupSelectorAutocomplete() -> void
+  • collectSelectorSuggestions() -> void
+  • getTargetMode() -> String
+  • getTargetValue() -> String
+  • setupCategoryTabs() -> void
+  • onTabSelected() -> void
+  • onTabUnselected() -> void
+  • onTabReselected() -> void
+  • setupToolbarButtons() -> void
+  • setupWorkspaceDragDrop() -> void
+  • setWorkspaceHighlight() -> void
+  • showCategory() -> void
+  • createPuzzleBlock() -> View
+  • showAddBlockDialog() -> void
+  • showBlockPickerSpinner() -> void
+  • showActionPickerForEvent() -> void
+  • showEventPickerForAction() -> void
+  • showValueInputForBlock() -> void
+  • addBlockFromDef() -> void
+  • createBlock() -> void
+  • showLogicBlockInput() -> void
+  • showVariableBlockInput() -> void
+  • refreshWorkspace() -> void
+  • createWorkspacePuzzleBlock() -> View
+  • showBlockActions() -> void
+  • createBlockRow() -> LinearLayout
+  • createBadge() -> TextView
+  • createTil() -> TextInputLayout
+  • dp() -> int
+  • getText() -> String
+  • adjustAlpha() -> int
+  • saveUndoState() -> void
+  • undo() -> void
+  • redo() -> void
+  • showJsPreview() -> void
+  • saveAndFinish() -> void
+  • onBackPressed() -> void
+  • getBlocksForCategory() -> BlockDef[]
+  • getCategoryColor() -> int
+  • mapEventKey() -> String
+  • mapActionKey() -> String
+  • mapParams() -> String
+  • getValueHint() -> String
+  • getLogicLabel() -> String
+  • getVarLabel() -> String
+  • formatLogicParams() -> String
+  • isHtmlAction() -> boolean
+
+--- LogicBlockManager.java ---
+Location: source/app/src/main/java/sketchweb/gl/LogicBlockManager.java
+
+  • addBlock() -> void
+  • removeBlock() -> void
+  • getBlocks() -> List<LogicBlock>
+  • getBlocksForWidget() -> List<LogicBlock>
+  • getBlocksForEvent() -> List<LogicBlock>
+    Description: Get blocks filtered by a specific page event type.
+  • getBlockCountForEvent() -> int
+    Description: Count blocks for a specific event type.
+  • showAddBlockDialog() -> void
+  • showActionDialog() -> void
+  • showActionParamsDialog() -> void
+  • getHintForAction() -> String
+  • showBlocksDialog() -> void
+  • getEventDisplayName() -> String
+    Description: Get display name for an event type.
+  • buildSelector() -> String
+  • generateJavaScript() -> String
+    Description: Generate JavaScript with HTML-first approach. Prefers modifying HTML/CSS directly over heavy JS.
+  • resolveElement() -> String
+    Description: Resolve element variable for page-level events that may target specific elements.
+  • generateActionJs() -> String
+  • escapeJs() -> String
+  • toJson() -> String
+  • fromJson() -> void
+
+--- MainActivity.java ---
+Location: source/app/src/main/java/sketchweb/gl/MainActivity.java
+
+  • onCreate() -> void
+  • initialize() -> void
+  • initializeLogic() -> void
+  • showAddLogicBlockDialog() -> void
+  • showTargetInputDialog() -> void
+  • showWidgetContextMenu() -> void
+  • copyWidget() -> void
+  • pasteWidget() -> void
+  • duplicateWidget() -> void
+  • toggleLockWidget() -> void
+  • toggleHideWidget() -> void
+  • deleteWidget() -> void
+  • showCopyPasteMenu() -> void
+  • setupFileExplorer() -> void
+  • updateAssetsPath() -> void
+  • showFileContextMenu() -> void
+  • useFileAsImageSource() -> void
+  • deleteFileWithConfirm() -> void
+  • setupPageSelector() -> void
+  • updatePageSpinner() -> void
+  • onItemSelected() -> void
+  • onNothingSelected() -> void
+  • showAddPageDialog() -> void
+  • saveCurrentPageLayout() -> void
+  • loadCurrentPageLayout() -> void
+  • setupWidgetSearch() -> void
+  • beforeTextChanged() -> void
+  • onTextChanged() -> void
+  • afterTextChanged() -> void
+  • filterWidgetsBySearch() -> void
+  • setupHierarchySearch() -> void
+  • setupTabLayout() -> void
+  • onTabSelected() -> void
+  • onTabUnselected() -> void
+  • onTabReselected() -> void
+  • showViewMode() -> void
+  • showEventMode() -> void
+  • showAssetsMode() -> void
+  • setupWidgetCategoryChips() -> void
+  • setupDrawerCategoryChips() -> void
+  • filterWidgetsByCategory() -> void
+  • notifyWidgetAdapters() -> void
+  • setupBottomChips() -> void
+  • refreshWidgetList() -> void
+  • refreshHierarchy() -> void
+  • updateWidgetSpinnerFromTree() -> void
+  • collectWidgetNames() -> void
+  • findViewIndexInTree() -> int
+  • findViewAtTreeIndex() -> View
+  • setupCanvasDragListener() -> void
+  • applyWidgetDefaults() -> void
+  • findDropIndex() -> int
+  • setupWidgetReorderDrag() -> void
+  • handleReorderDrop() -> void
+  • getProjectLogoPath() -> String
+    Description: /** Get the project logo path from assets storage. */
+  • getProjectLogoPathForExport() -> String
+  • getLogoPathFromProjectConfig() -> String
+  • configuredPathToAbsolute() -> String
+  • hasDefaultHeaderWidget() -> boolean
+  • ensureDefaultHeaderOnCanvas() -> void
+  • findViewByHash() -> View
+  • showPreview() -> void
+  • showViewStylesDialog() -> void
+  • generateCssFromStyle() -> String
+  • formatJson() -> String
+  • showNewFolderDialog() -> void
+  • autoLoadCustomConfigs() -> void
+  • loadCustomWidgetsFromDevice() -> void
+  • loadCustomBlocksFromDevice() -> void
+  • saveAssetToProject() -> void
+  • refreshLogicBlocksUI() -> void
+  • populateEventList() -> void
+  • addEventCard() -> void
+  • addEventButton() -> void
+  • showBlockPicker() -> void
+  • saveProject() -> void
+  • saveProjectToExternal() -> void
+  • loadProject() -> void
+  • registerAllWidgetsForDrag() -> void
+  • saveUndoState() -> void
+  • restoreState() -> void
+  • rebuildView() -> void
+  • rebuildViewAt() -> void
+  • showThemeDialog() -> void
+  • addCssVarRow() -> void
+  • showExportDialog() -> void
+  • buildDesignList() -> void
+  • buildAdvancedDesignList() -> void
+  • buildLayoutDesignList() -> void
+  • buildEventDesignList() -> void
+  • getSelectedTag() -> String
+  • handleDesignItemClick() -> void
+  • showStyleDialogWithUnits() -> void
+  • showColorPickerDialog() -> void
+  • addColorSwatch() -> void
+  • showCssVariableDialog() -> void
+  • showChoiceDialog() -> void
+  • showStyleDialog() -> void
+  • onBackPressed() -> void
+  • onCreateViewHolder() -> ViewHolder
+  • onBindViewHolder() -> void
+  • getItemCount() -> int
+  • getDesignIcon() -> int
+
+--- PageCodeGenerator.java ---
+Location: source/app/src/main/java/sketchweb/gl/PageCodeGenerator.java
+
+  • setProjectInfo() -> void
+  • generateAllCode() -> String
+  • generateFullCode() -> String
+  • generateFullCodeFromTree() -> String
+    Description: Generate full HTML code from a serialized widget tree (JSON data). This allows generating code for pages that aren't currently loaded on screen.
+  • appendHtmlHeader() -> void
+  • appendHtmlFooter() -> void
+  • generateHtmlForNode() -> String
+  • generateHtmlForView() -> String
+  • camelToKebab() -> String
+  • escapeHtml() -> String
+  • escapeAttr() -> String
+  • repeat() -> String
+  • resetStyleCache() -> void
+  • classForStyle() -> String
+  • resolveAssetPath() -> String
+
+--- PageManager.java ---
+Location: source/app/src/main/java/sketchweb/gl/PageManager.java
+
+  • getPages() -> List<String>
+  • getCurrentPage() -> String
+  • setCurrentPage() -> void
+  • addPage() -> void
+  • removePage() -> void
+  • renamePage() -> void
+  • loadPageLayout() -> String
+  • savePageLayout() -> void
+  • saveAllPages() -> void
+    Description: Save all cached page layouts to disk. Call this when saving the project to ensure nothing is lost.
+  • getPageLayoutFile() -> File
+  • getInternalPageFile() -> File
+  • loadPageList() -> void
+  • savePageList() -> void
+
+--- PreviewActivity.java ---
+Location: source/app/src/main/java/sketchweb/gl/PreviewActivity.java
+
+  • onCreate() -> void
+  • initViews() -> void
+  • loadIntentData() -> void
+  • setupWebView() -> void
+  • onPageStarted() -> void
+  • onPageFinished() -> void
+  • setupResponsiveToggle() -> void
+  • setupPageTabs() -> void
+  • setupButtons() -> void
+  • loadCurrentPage() -> void
+  • getCurrentCode() -> String
+  • updatePageInfo() -> void
+  • showSourceDialog() -> void
+  • onBackPressed() -> void
+
+--- PreviewBottomdialogFragmentActivity.java ---
+Location: source/app/src/main/java/sketchweb/gl/PreviewBottomdialogFragmentActivity.java
+
+  • onCreateView() -> View
+  • initialize() -> void
+  • onPageStarted() -> void
+  • onPageFinished() -> void
+  • setupResponsiveToggle() -> void
+  • loadResponsivePreview() -> void
+  • initializeLogic() -> void
+  • onStart() -> void
+
+--- ProjectDataManager.java ---
+Location: source/app/src/main/java/sketchweb/gl/ProjectDataManager.java
+
+  • saveProject() -> void
+  • exportAllProjectsAsZip() -> boolean
+  • exportSingleProjectAsZip() -> boolean
+  • importProjectsFromZip() -> ImportResult
+  • captureProjectIdFromExternalEntry() -> void
+  • captureProjectIdFromInternalFile() -> void
+  • addDirectoryToZip() -> void
+  • addFileToZip() -> void
+  • loadProject() -> void
+  • tryLoadFromExternal() -> File
+  • buildViewTree() -> void
+
+--- SketchApplication.java ---
+Location: source/app/src/main/java/sketchweb/gl/SketchApplication.java
+
+  • getContext() -> Context
+  • onCreate() -> void
+  • uncaughtException() -> void
+
+--- SketchwareUtil.java ---
+Location: source/app/src/main/java/sketchweb/gl/SketchwareUtil.java
+
+  • showMessage() -> void
+
+--- SplashActivity.java ---
+Location: source/app/src/main/java/sketchweb/gl/SplashActivity.java
+
+  • onCreate() -> void
+  • initializeLogic() -> void
+  • go() -> void
+  • run() -> void
+
+--- ThemeManager.java ---
+Location: source/app/src/main/java/sketchweb/gl/ThemeManager.java
+
+  • initLightDefaults() -> void
+  • initDarkDefaults() -> void
+  • setTheme() -> void
+  • getCurrentTheme() -> String
+  • setStyleForTheme() -> void
+    Description: /** Get the active styles map (for the current theme) */ /** Get the light theme styles */ /** Get the dark theme styles */ /** Set a style value f...
+  • getGlobalStyle() -> String
+  • getStyleForTheme() -> String
+    Description: /** Get a style from a specific theme */
+  • addCustomVar() -> void
+  • removeCustomVar() -> void
+  • setCustomCssVars() -> void
+  • generateVarsBlock() -> String
+  • generateCssVariables() -> String
+  • generateGlobalCss() -> String
+  • toJson() -> String
+  • fromJson() -> void
+  • camelToKebab() -> String
+
+--- UndoRedoManager.java ---
+Location: source/app/src/main/java/sketchweb/gl/UndoRedoManager.java
+
+  • setOnStateChangeListener() -> void
+  • saveState() -> void
+  • canUndo() -> boolean
+  • canRedo() -> boolean
+  • clear() -> void
+  • notifyListener() -> void
+
+--- WidgetBuilderEngine.java ---
+Location: source/app/src/main/java/sketchweb/gl/WidgetBuilderEngine.java
+
+  • createWidget() -> View
+  • applyPropertiesToView() -> void
+  • applyStyles() -> void
+  • isLayoutTag() -> boolean
+  • parseDimension() -> int
+
+--- WidgetRegistry.java ---
+Location: source/app/src/main/java/sketchweb/gl/WidgetRegistry.java
+
+  • loadWidgets() -> void
+  • loadCustomWidgetsFromDevice() -> void
+  • sanitizeWidgets() -> void
+  • loadDefaultWidgets() -> void
+  • importCustomWidgets() -> void
+
+--- WidgetSelector.java ---
+Location: source/app/src/main/java/sketchweb/gl/WidgetSelector.java
+
+  • setOnWidgetSelectedListener() -> void
+  • attachTo() -> void
+  • getSelectedView() -> View
+  • clearSelection() -> void
+  • registerView() -> void
+  • onClick() -> void
+  • selectView() -> void
+
+--- WidgetUpdater.java ---
+Location: source/app/src/main/java/sketchweb/gl/WidgetUpdater.java
+
+  • updateWidget() -> void
