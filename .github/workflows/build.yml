@@ -1,5 +1,8 @@
 name: Android CI/CD
 
+permissions:
+contents: write
+
 on:
   push:
     branches: [ "main", "new" ]
@@ -60,6 +63,12 @@ jobs:
       - name: 📦 Rename APK
         run: |
           mv source/app/build/outputs/apk/release/*.apk app-release.apk
+
+      - name: 📤 Upload APK (artifact)
+  uses: actions/upload-artifact@v4
+  with:
+    name: app-release
+    path: app-release.apk
 
       - name: 📝 Generate Changelog
         run: |
