@@ -88,10 +88,9 @@ jobs:
           ls -lh DragWeb-release.apk
 
       - name: 📝 Generate Changelog
-        run: |
-          git log --pretty=format:"- %s" > CHANGELOG.txt
+        run: git log --pretty=format:"- %s" > CHANGELOG.txt
 
-      # ✅ Upload APK as artifact on EVERY commit/push (always runs)
+      # ✅ FIXED: No env path, no empty artifact
       - name: 📤 Upload APK as Artifact
         uses: actions/upload-artifact@v4
         with:
