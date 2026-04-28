@@ -26,25 +26,16 @@ jobs:
       - name: 🤖 Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: 📦 Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('source/**/*.gradle*', 'source/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
       - name: 🔐 Decode & Convert Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > release_raw.jks
+          echo "Secret length: ${#KEYSTORE_BASE64}"
+          echo "$KEYSTORE_BASE64" | base64 --decode > $GITHUB_WORKSPACE/release_raw.jks
 
           keytool -importkeystore \
-            -srckeystore release_raw.jks \
-            -destkeystore release.jks \
+            -srckeystore $GITHUB_WORKSPACE/release_raw.jks \
+            -destkeystore $GITHUB_WORKSPACE/release.jks \
             -deststoretype JKS \
             -srcstorepass "${{ secrets.KEYSTORE_PASSWORD }}" \
             -deststorepass "${{ secrets.KEYSTORE_PASSWORD }}" \
@@ -53,6 +44,9 @@ jobs:
             -srckeypass "${{ secrets.KEY_PASSWORD }}" \
             -destkeypass "${{ secrets.KEY_PASSWORD }}" \
             -noprompt
+
+          echo "✅ Keystore ready at $GITHUB_WORKSPACE/release.jks"
+          ls -la $GITHUB_WORKSPACE/release.jks
 
       - name: ⚙️ Grant permission
         run: chmod +x source/gradlew
@@ -66,38 +60,13 @@ jobs:
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
 
-      # ✅ FIXED: Reliable APK detection + hard fail if missing
-      - name: 🔍 Find & Copy APK
+      - name: 📦 Rename APK
         run: |
-          echo "=== Searching APK ==="
-          APK_PATH=$(find source/app/build/outputs/apk/release -name "*.apk" ! -name "*unsigned*" | head -1)
-
-          if [ ! -f "$APK_PATH" ]; then
-            echo "❌ ERROR: APK not found"
-            exit 1
-          fi
-
-          echo "✅ Found APK: $APK_PATH"
-          cp "$APK_PATH" DragWeb-release.apk
-
-          if [ ! -f "DragWeb-release.apk" ]; then
-            echo "❌ ERROR: Copy failed"
-            exit 1
-          fi
-
-          ls -lh DragWeb-release.apk
+          mv source/app/build/outputs/apk/release/*.apk app-release.apk
 
       - name: 📝 Generate Changelog
-        run: git log --pretty=format:"- %s" > CHANGELOG.txt
-
-      # ✅ FIXED: No env path, no empty artifact
-      - name: 📤 Upload APK as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: DragWeb-release
-          path: DragWeb-release.apk
-          retention-days: 30
-          if-no-files-found: error
+        run: |
+          git log --pretty=format:"- %s" > CHANGELOG.txt
 
       # 📲 Send APK to Telegram on EVERY commit (branch pushes only)
       - name: 📲 Send APK to Telegram (Dev Build)
@@ -112,7 +81,7 @@ jobs:
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
             -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -F message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
-            -F document=@DragWeb-release.apk \
+            -F document=@app-release.apk \
             -F caption="$CAPTION" \
             -F parse_mode="Markdown"
 
@@ -124,7 +93,7 @@ jobs:
           name: APK-${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           body_path: CHANGELOG.txt
-          files: DragWeb-release.apk
+          files: app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -138,6 +107,7 @@ jobs:
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
             -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -F document=@DragWeb-release.apk \
+            -F message_thread_id="${{ secrets.TELEGRAM_THREAD_R_ID }}" \
+            -F document=@app-release.apk \
             -F caption="$CAPTION" \
             -F parse_mode="Markdown"
