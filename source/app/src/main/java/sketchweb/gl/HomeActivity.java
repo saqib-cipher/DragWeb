@@ -11,6 +11,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Button;
 import android.widget.Toast;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
@@ -872,14 +873,22 @@ public class HomeActivity extends AppCompatActivity {
 		createProjectFromImport(projectName, result.widgetTree);
 	}
 
-	private void showAboutDialog() {
-		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
 
-		new MaterialAlertDialogBuilder(this)
-			.setView(dialogView)
-			.setPositiveButton("Close", null)
-			.show();
-	}
+private void showAboutDialog() {
+    View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
+    final Button btnGit = dialogView.findViewById(R.id.btnGithub);
+
+    new MaterialAlertDialogBuilder(this)
+        .setView(dialogView)
+        .setPositiveButton("Close", null)
+        .show();
+
+    btnGit.setOnClickListener(v -> {
+        Intent in = new Intent(Intent.ACTION_VIEW);
+        in.setData(Uri.parse("https://github.com/saqib-cipher/DragWeb"));
+        startActivity(in);
+    });
+}
 
 	@Override
 	public void onBackPressed() {
