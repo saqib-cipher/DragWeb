@@ -26,6 +26,16 @@ jobs:
       - name: 🤖 Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: 📦 Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('source/**/*.gradle*', 'source/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: 🔐 Decode & Convert Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -60,9 +70,15 @@ jobs:
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
 
-      - name: 📦 Rename APK
+      - name: 🔍 Find & Copy APK
         run: |
-          mv source/app/build/outputs/apk/release/*.apk app-release.apk
+          echo "=== All APKs found ==="
+          find source -name "*.apk" | sort
+          echo "====================="
+          APK_PATH=$(find source -name "*.apk" | grep -v "unsigned" | head -1)
+          echo "Using APK: $APK_PATH"
+          cp "$APK_PATH" $GITHUB_WORKSPACE/DragWeb-release.apk
+          echo "APK_PATH=$GITHUB_WORKSPACE/DragWeb-release.apk" >> $GITHUB_ENV
 
       - name: 📝 Generate Changelog
         run: |
@@ -73,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DragWeb-release
-          path: source/app/build/outputs/apk/release/*.apk
+          path: ${{ env.APK_PATH }}
           retention-days: 30
           overwrite: true
 
@@ -90,7 +106,7 @@ jobs:
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
             -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -F message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
-            -F document=@app-release.apk \
+            -F document=@${{ env.APK_PATH }} \
             -F caption="$CAPTION" \
             -F parse_mode="Markdown"
 
@@ -102,7 +118,7 @@ jobs:
           name: APK-${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           body_path: CHANGELOG.txt
-          files: app-release.apk
+          files: ${{ env.APK_PATH }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -117,6 +133,6 @@ jobs:
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
             -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -F message_thread_id="${{ secrets.TELEGRAM_THREAD_R_ID }}" \
-            -F document=@app-release.apk \
+            -F document=@${{ env.APK_PATH }} \
             -F caption="$CAPTION" \
             -F parse_mode="Markdown"
