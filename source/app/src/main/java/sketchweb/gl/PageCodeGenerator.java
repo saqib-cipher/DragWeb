@@ -101,8 +101,16 @@ public class PageCodeGenerator {
     }
 
     private void appendHtmlFooter(StringBuilder htmlBuilder, LogicBlockManager logicBlockManager) {
-        // Emit CSS pseudo-class rules (hover/focus/active) as an inline stylesheet
+        // Emit static CSS rules (CSS blocks scheduled at page-load) and
+        // pseudo-class rules (hover/focus/active) as inline stylesheets.
         if (logicBlockManager != null) {
+            String baseCss = logicBlockManager.generateBaseCssRules();
+            if (baseCss != null && !baseCss.trim().isEmpty()) {
+                htmlBuilder.append("\n  <style>\n  /* Logic block styles */\n");
+                htmlBuilder.append(baseCss);
+                htmlBuilder.append("  </style>\n");
+            }
+
             String cssRules = logicBlockManager.generateCssPseudoRules();
             if (cssRules != null && !cssRules.trim().isEmpty()) {
                 htmlBuilder.append("\n  <style>\n  /* CSS interaction rules */\n");
