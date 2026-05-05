@@ -440,8 +440,19 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private void showEventPickerForAction(BlockDef actionDef) {
-        String[] events = {"On Click", "On Hover", "On Load", "On Input", "On Submit", "On Scroll"};
-        String[] eventKeys = {"click", "hover", "load", "input", "submit", "scroll"};
+        // CSS-category styling actions default to page-load so the generator
+        // emits proper CSS rules (e.g. ".myClass { width: 48px; ... }") rather
+        // than runtime JavaScript that mutates element.style.
+        if (CAT_CSS.equals(actionDef.category)) {
+            BlockDef eventDef = new BlockDef("load", "On Load", "Apply as CSS rule on page load", CAT_EVENT);
+            showValueInputForBlock(eventDef, actionDef);
+            return;
+        }
+
+        // For HTML / other actions, "On Load" is offered first so static
+        // edits are also emitted without runtime JS when possible.
+        String[] events = {"On Load", "On Click", "On Hover", "On Input", "On Submit", "On Scroll"};
+        String[] eventKeys = {"load", "click", "hover", "input", "submit", "scroll"};
 
         new MaterialAlertDialogBuilder(this)
             .setTitle("Select Event for " + actionDef.label)
@@ -1035,13 +1046,32 @@ public class LogicBlockActivity extends AppCompatActivity {
     // ---- JS Preview ----
 
     private void showJsPreview() {
+        String baseCss = logicBlockManager.generateBaseCssRules();
+        String pseudoCss = logicBlockManager.generateCssPseudoRules();
         String js = logicBlockManager.generateJavaScript();
-        if (js.isEmpty()) js = "// No logic blocks yet";
+
+        StringBuilder combined = new StringBuilder();
+        if (baseCss != null && !baseCss.trim().isEmpty()) {
+            combined.append("/* CSS — applied at page load */\n<style>\n");
+            combined.append(baseCss);
+            combined.append("</style>\n\n");
+        }
+        if (pseudoCss != null && !pseudoCss.trim().isEmpty()) {
+            combined.append("/* CSS pseudo-class rules */\n<style>\n");
+            combined.append(pseudoCss);
+            combined.append("</style>\n\n");
+        }
+        if (js != null && !js.trim().isEmpty()) {
+            combined.append("/* JavaScript — for runtime events */\n<script>\n");
+            combined.append(js);
+            combined.append("</script>\n");
+        }
+        if (combined.length() == 0) combined.append("// No logic blocks yet");
 
         ScrollView sv = new ScrollView(this);
         sv.setPadding(24, 16, 24, 16);
         TextView tv = new TextView(this);
-        tv.setText(js);
+        tv.setText(combined.toString());
         tv.setTextSize(12);
         tv.setTextColor(Color.parseColor("#A5D6A7"));
         tv.setTypeface(Typeface.MONOSPACE);
@@ -1056,7 +1086,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         sv.addView(tv);
 
         new MaterialAlertDialogBuilder(this)
-            .setTitle("Generated JavaScript")
+            .setTitle("Generated CSS / JS")
             .setView(sv)
             .setPositiveButton("Close", null)
             .show();

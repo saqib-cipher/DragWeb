@@ -441,6 +441,87 @@ public class LogicBlockManager {
     }
 
     /**
+     * Returns true when this block should be expressed as a static CSS rule
+     * rather than runtime JS. CSS-style mutations applied at page-load time
+     * (or with no event) are emitted as `selector { property: value; }` rules
+     * so the browser styles the element directly.
+     */
+    private boolean isStaticCssBlock(LogicBlock block) {
+        if (block == null || block.action == null || block.params == null) return false;
+        if (!ACTION_CHANGE_STYLE.equals(block.action)) return false;
+        String ev = block.event;
+        // Treat empty / "immediate" / page-load events as static styling.
+        if (ev == null || ev.isEmpty()) return true;
+        return "immediate".equals(ev) || EVENT_LOAD.equals(ev) || EVENT_PAGE_LOAD.equals(ev);
+    }
+
+    /**
+     * Generate a single CSS stylesheet for blocks that should be applied as
+     * static styles. Rules are grouped by selector and emitted in the form:
+     *
+     * <pre>
+     * .myClass {
+     *   width: 48px;
+     *   height: 48px;
+     *   border-radius: var(--radius-sm);
+     * }
+     * </pre>
+     *
+     * Output is suitable for embedding in a {@code <style>} block.
+     */
+    public String generateBaseCssRules() {
+        // Group "property: value" lines by selector while preserving insertion order.
+        java.util.LinkedHashMap<String, java.util.LinkedHashMap<String, String>> bySelector =
+            new java.util.LinkedHashMap<>();
+
+        for (LogicBlock block : blocks) {
+            if (!isStaticCssBlock(block)) continue;
+            String[] parts = block.params.split(":", 2);
+            if (parts.length != 2) continue;
+            String property = camelToKebab(parts[0].trim());
+            String value = parts[1].trim();
+            if (property.isEmpty() || value.isEmpty()) continue;
+
+            String selector = buildSelector(block);
+            java.util.LinkedHashMap<String, String> rules = bySelector.get(selector);
+            if (rules == null) {
+                rules = new java.util.LinkedHashMap<>();
+                bySelector.put(selector, rules);
+            }
+            rules.put(property, value);
+        }
+
+        if (bySelector.isEmpty()) return "";
+
+        StringBuilder css = new StringBuilder();
+        for (Map.Entry<String, java.util.LinkedHashMap<String, String>> entry : bySelector.entrySet()) {
+            css.append("  ").append(entry.getKey()).append(" {\n");
+            for (Map.Entry<String, String> rule : entry.getValue().entrySet()) {
+                css.append("    ").append(rule.getKey()).append(": ").append(rule.getValue()).append(";\n");
+            }
+            css.append("  }\n");
+        }
+        return css.toString();
+    }
+
+    private String camelToKebab(String name) {
+        if (name == null || name.isEmpty()) return name;
+        // Already kebab-case (e.g. "border-radius") – leave untouched.
+        if (name.indexOf('-') >= 0) return name.toLowerCase();
+        StringBuilder sb = new StringBuilder(name.length() + 4);
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (Character.isUpperCase(c)) {
+                if (i > 0) sb.append('-');
+                sb.append(Character.toLowerCase(c));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
      * Generate CSS pseudo-class rules for blocks that use CSS-only interactions.
      * Output is suitable for embedding in a {@code <style>} block.
      *
@@ -482,6 +563,10 @@ public class LogicBlockManager {
 
             // Skip CSS pseudo-class blocks – they are written as CSS, not JS
             if (isCssPseudoEvent(eventName)) continue;
+
+            // Skip blocks that are emitted as static CSS rules (changeStyle on
+            // page-load / immediate). Those are output by generateBaseCssRules().
+            if (isStaticCssBlock(block)) continue;
 
             js.append("  // ").append(eventName != null ? eventName : "immediate")
               .append(" -> ").append(block.action).append("\n");

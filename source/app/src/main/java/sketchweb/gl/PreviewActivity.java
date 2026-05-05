@@ -46,8 +46,11 @@ public class PreviewActivity extends AppCompatActivity {
     private String projectId = null;
     private String assetBasePath = null;
 
-    /** Temp directory holding per-page HTML files for file:// loading. */
+    /** Temp directory holding per-page HTML files served via local HTTP. */
     private File tempPreviewDir = null;
+
+    /** Tiny localhost HTTP server that serves files from {@link #tempPreviewDir}. */
+    private LocalHttpServer localServer = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,7 +60,8 @@ public class PreviewActivity extends AppCompatActivity {
         initViews();
         loadIntentData();
         setupWebView();
-        preparePageFiles();       // Write pages to temp dir for proper file:// loading
+        preparePageFiles();       // Write pages to temp dir for the local HTTP server
+        startLocalServer();       // Serve them over http://127.0.0.1:PORT/
         setupResponsiveToggle();
         setupPageTabs();
         setupButtons();
@@ -122,13 +126,14 @@ public class PreviewActivity extends AppCompatActivity {
     }
 
     // -------------------------------------------------------------------------
-    // Temp file preparation (enables file:// loading with relative asset paths)
+    // Temp file preparation (served via the local HTTP server)
     // -------------------------------------------------------------------------
 
     /**
-     * Write every page as an HTML file into a temp directory.
-     * Using file:// URLs allows WebView to resolve relative asset references
-     * (e.g. src="assets/photo.jpg") against the project's asset directory.
+     * Write every page as an HTML file into a temp directory. The directory
+     * is then exposed via {@link LocalHttpServer} so the WebView loads from
+     * a real {@code http://127.0.0.1:PORT/} origin, matching how a page would
+     * behave on a local-host development server.
      */
     private void preparePageFiles() {
         if (pageCodes.isEmpty()) return;
@@ -239,6 +244,23 @@ public class PreviewActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Start a localhost-only HTTP server rooted at {@link #tempPreviewDir} so
+     * pages can be loaded over {@code http://127.0.0.1:PORT/} instead of
+     * {@code file://}. This matches a normal local-host preview environment
+     * and unlocks browser features that require an http origin.
+     */
+    private void startLocalServer() {
+        if (tempPreviewDir == null) return;
+        try {
+            localServer = new LocalHttpServer(tempPreviewDir);
+            localServer.start();
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to start local preview server: " + e.getMessage());
+            localServer = null;
+        }
+    }
+
     // -------------------------------------------------------------------------
     // WebView setup
     // -------------------------------------------------------------------------
@@ -254,19 +276,19 @@ public class PreviewActivity extends AppCompatActivity {
         settings.setLoadWithOverviewMode(true);
         settings.setDomStorageEnabled(true);
 
-        // Allow file:// URLs and cross-origin file access so local assets load
+        // Local server uses http://127.0.0.1:PORT/, so file:// access is no
+        // longer required — but harmless to allow for any leftover assets.
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
-        // These are needed so pages in tempDir can load relative assets
-        settings.setAllowFileAccessFromFileURLs(true);
-        settings.setAllowUniversalAccessFromFileURLs(true);
 
         webviewPreview.setWebViewClient(new WebViewClient() {
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
-                // Let local file:// links (page-to-page navigation) load naturally
+                // Let in-app links (page-to-page navigation served by the
+                // local HTTP server) load naturally.
+                if (isLocalPreviewUrl(url)) return false;
                 if (url.startsWith("file://")) return false;
                 // Block external URLs from loading inside the preview
                 return true;
@@ -276,7 +298,8 @@ public class PreviewActivity extends AppCompatActivity {
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
                 // Sync the UI when the user navigates via the in-page nav bar
-                if (url != null && url.startsWith("file://") && tempPreviewDir != null) {
+                if (url != null && (isLocalPreviewUrl(url) || url.startsWith("file://"))
+                        && tempPreviewDir != null) {
                     for (int i = 0; i < pageNames.size(); i++) {
                         if (url.endsWith(sanitizeName(pageNames.get(i)) + ".html")) {
                             final int idx = i;
@@ -331,7 +354,18 @@ public class PreviewActivity extends AppCompatActivity {
             return;
         }
 
-        // Preferred path: load from temp file so assets resolve correctly
+        // Preferred path: load over the local HTTP server so the page runs
+        // on a real http://127.0.0.1 origin (matches a localhost workflow).
+        if (localServer != null && tempPreviewDir != null && currentPageIndex < pageNames.size()) {
+            String name = pageNames.get(currentPageIndex);
+            File pageFile = new File(tempPreviewDir, sanitizeName(name) + ".html");
+            if (pageFile.exists()) {
+                webviewPreview.loadUrl(localServer.urlFor(sanitizeName(name) + ".html"));
+                return;
+            }
+        }
+
+        // Fallback if the server failed to start: file:// from temp dir.
         if (tempPreviewDir != null && currentPageIndex < pageNames.size()) {
             String name = pageNames.get(currentPageIndex);
             File pageFile = new File(tempPreviewDir, sanitizeName(name) + ".html");
@@ -341,12 +375,19 @@ public class PreviewActivity extends AppCompatActivity {
             }
         }
 
-        // Fallback: load raw HTML string (assets may not resolve)
+        // Final fallback: load raw HTML string (assets may not resolve).
         String code = getCurrentCode();
         if (code == null || code.isEmpty()) return;
 
         String baseUrl = (assetBasePath != null) ? "file://" + assetBasePath : null;
         webviewPreview.loadDataWithBaseURL(baseUrl, injectViewportMeta(code), "text/html", "utf-8", null);
+    }
+
+    /** True when the URL points at our local preview server. */
+    private boolean isLocalPreviewUrl(String url) {
+        if (url == null || localServer == null) return false;
+        return url.startsWith("http://127.0.0.1:" + localServer.getPort() + "/")
+            || url.startsWith("http://localhost:" + localServer.getPort() + "/");
     }
 
     /**
@@ -522,6 +563,10 @@ public class PreviewActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (localServer != null) {
+            localServer.stop();
+            localServer = null;
+        }
         // Clean up temp preview files
         if (tempPreviewDir != null) {
             deleteDir(tempPreviewDir);
