@@ -49,10 +49,11 @@ jobs:
           ls -la $GITHUB_WORKSPACE/release.jks
 
       - name: ⚙️ Grant permission
-        run: chmod +x gradlew
+        run: chmod +x ./DragWeb/gradlew
 
       - name: 🏗️ Build APK
         run: |
+        cd DragWeb
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/release.jks \
             -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
