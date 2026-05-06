@@ -1,0 +1,41 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:orientation="vertical"
+	android:padding="16dp">
+
+	<com.google.android.material.tabs.TabLayout
+		android:id="@+id/tabStyleFormat"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginBottom="12dp">
+		<com.google.android.material.tabs.TabItem
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="JSON" />
+		<com.google.android.material.tabs.TabItem
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="CSS" />
+	</com.google.android.material.tabs.TabLayout>
+
+	<ScrollView
+		android:layout_width="match_parent"
+		android:layout_height="300dp">
+		<HorizontalScrollView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content">
+			<TextView
+				android:id="@+id/tvStyleContent"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:fontFamily="monospace"
+				android:textSize="12sp"
+				android:textColor="?attr/colorOnSurface"
+				android:padding="12dp"
+				android:background="?attr/colorSurfaceContainer"
+				android:textIsSelectable="true" />
+		</HorizontalScrollView>
+	</ScrollView>
+</LinearLayout>

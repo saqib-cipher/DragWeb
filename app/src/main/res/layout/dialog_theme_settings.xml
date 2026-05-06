@@ -1,0 +1,202 @@
+<ScrollView
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content">
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical"
+		android:padding="24dp">
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Website Theme"
+			android:textSize="14sp"
+			android:textStyle="bold"
+			android:textColor="?attr/colorOnSurface"
+			android:layout_marginBottom="12dp" />
+
+		<com.google.android.material.button.MaterialButtonToggleGroup
+			android:id="@+id/toggleTheme"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			app:singleSelection="true"
+			app:selectionRequired="true">
+			<Button
+				android:id="@+id/btnLightTheme"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Light"
+				style="?attr/materialButtonOutlinedStyle" />
+			<Button
+				android:id="@+id/btnDarkTheme"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Dark"
+				style="?attr/materialButtonOutlinedStyle" />
+		</com.google.android.material.button.MaterialButtonToggleGroup>
+
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/tilPrimaryColor"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="16dp"
+			android:hint="Primary Color"
+			style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/etPrimaryColor"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="text"
+				android:text="#2196F3" />
+		</com.google.android.material.textfield.TextInputLayout>
+
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/tilSecondaryColor"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="12dp"
+			android:hint="Secondary Color"
+			style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/etSecondaryColor"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="text"
+				android:text="#FF9800" />
+		</com.google.android.material.textfield.TextInputLayout>
+
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/tilAccentColor"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="12dp"
+			android:hint="Accent Color"
+			style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/etAccentColor"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="text"
+				android:text="#4CAF50" />
+		</com.google.android.material.textfield.TextInputLayout>
+
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/tilFontFamily"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="12dp"
+			android:hint="Font Family"
+			style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/etFontFamily"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="text"
+				android:text="sans-serif" />
+		</com.google.android.material.textfield.TextInputLayout>
+
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/tilBodyBackground"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="12dp"
+			android:hint="Body Background"
+			style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/etBodyBackground"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="text"
+				android:text="#FFFFFF" />
+		</com.google.android.material.textfield.TextInputLayout>
+
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/tilBodyColor"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="12dp"
+			android:hint="Body Text Color"
+			style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/etBodyColor"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="text"
+				android:text="#333333" />
+		</com.google.android.material.textfield.TextInputLayout>
+
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/tilLinkColor"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="12dp"
+			android:hint="Link Color"
+			style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/etLinkColor"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="text"
+				android:text="#1976D2" />
+		</com.google.android.material.textfield.TextInputLayout>
+
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/tilBorderColor"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="12dp"
+			android:hint="Border Color"
+			style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/etBorderColor"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="text"
+				android:text="#E0E0E0" />
+		</com.google.android.material.textfield.TextInputLayout>
+
+		<!-- Custom CSS Variables Section -->
+		<View
+			android:layout_width="match_parent"
+			android:layout_height="1dp"
+			android:background="?attr/colorOutlineVariant"
+			android:layout_marginTop="16dp"
+			android:layout_marginBottom="12dp" />
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Custom CSS Variables"
+			android:textSize="14sp"
+			android:textStyle="bold"
+			android:textColor="?attr/colorOnSurface"
+			android:layout_marginBottom="8dp" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Add custom --var-name: value pairs for use in your project."
+			android:textSize="12sp"
+			android:textColor="?attr/colorOnSurfaceVariant"
+			android:paddingBottom="8dp" />
+
+		<LinearLayout
+			android:id="@+id/customVarsContainer"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="vertical" />
+
+		<Button
+			android:id="@+id/btnAddCssVar"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="+ Add Custom Variable"
+			android:layout_marginTop="8dp"
+			style="?attr/materialButtonOutlinedStyle" />
+	</LinearLayout>
+</ScrollView>

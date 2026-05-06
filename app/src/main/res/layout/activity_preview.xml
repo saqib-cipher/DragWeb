@@ -1,0 +1,177 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:id="@+id/main"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical"
+	android:background="?attr/colorSurface">
+
+	<!-- Top Bar -->
+	<LinearLayout
+		android:id="@+id/topBar"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:gravity="center_vertical"
+		android:padding="8dp"
+		android:background="?attr/colorSurfaceContainerHigh"
+		android:elevation="4dp">
+
+		<Button
+			android:id="@+id/btnClose"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			style="?attr/materialIconButtonStyle"
+			app:icon="@drawable/icon_clear_round" />
+
+		<TextView
+			android:id="@+id/tvPreviewTitle"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="Preview"
+			android:textSize="18sp"
+			android:textStyle="bold"
+			android:textColor="?attr/colorPrimary"
+			android:paddingStart="4dp" />
+
+		<Button
+			android:id="@+id/btnCopy"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			style="?attr/materialIconButtonFilledStyle"
+			app:icon="@drawable/icon_copy_all_round" />
+
+		<Button
+			android:id="@+id/btnSave"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			style="?attr/materialIconButtonFilledStyle"
+			app:icon="@drawable/icon_save_round" />
+	</LinearLayout>
+
+	<!-- Page selector tabs -->
+	<HorizontalScrollView
+		android:id="@+id/pageTabScroll"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:scrollbars="none"
+		android:background="?attr/colorSurfaceContainerHigh">
+
+		<com.google.android.material.chip.ChipGroup
+			android:id="@+id/chipGroupPages"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:paddingStart="12dp"
+			android:paddingEnd="12dp"
+			android:paddingTop="4dp"
+			android:paddingBottom="4dp"
+			app:singleSelection="true"
+			app:singleLine="true" />
+	</HorizontalScrollView>
+
+	<!-- Responsive device toggle -->
+	<com.google.android.material.chip.ChipGroup
+		android:id="@+id/chipGroupResponsive"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:paddingStart="12dp"
+		android:paddingEnd="12dp"
+		android:paddingTop="4dp"
+		android:paddingBottom="6dp"
+		android:background="?attr/colorSurfaceContainer"
+		app:singleSelection="true"
+		app:singleLine="true">
+
+		<com.google.android.material.chip.Chip
+			android:id="@+id/chipMobile"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Mobile"
+			android:textSize="11sp"
+			android:checked="true"
+			style="@style/Widget.Material3.Chip.Filter" />
+
+		<com.google.android.material.chip.Chip
+			android:id="@+id/chipTablet"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Tablet"
+			android:textSize="11sp"
+			style="@style/Widget.Material3.Chip.Filter" />
+
+		<com.google.android.material.chip.Chip
+			android:id="@+id/chipDesktop"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Desktop"
+			android:textSize="11sp"
+			style="@style/Widget.Material3.Chip.Filter" />
+
+		<com.google.android.material.chip.Chip
+			android:id="@+id/chipFullWidth"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Full"
+			android:textSize="11sp"
+			style="@style/Widget.Material3.Chip.Filter" />
+	</com.google.android.material.chip.ChipGroup>
+
+	<!-- WebView preview area -->
+	<FrameLayout
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1">
+
+		<WebView
+			android:id="@+id/webviewPreview"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent" />
+
+		<!-- Device frame indicator -->
+		<TextView
+			android:id="@+id/tvDeviceInfo"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="bottom|end"
+			android:text="375px"
+			android:textSize="10sp"
+			android:textColor="?attr/colorOnSurfaceVariant"
+			android:background="?attr/colorSurfaceContainerHigh"
+			android:paddingStart="8dp"
+			android:paddingEnd="8dp"
+			android:paddingTop="2dp"
+			android:paddingBottom="2dp"
+			android:layout_margin="8dp"
+			android:alpha="0.8" />
+	</FrameLayout>
+
+	<!-- Bottom info bar -->
+	<LinearLayout
+		android:id="@+id/bottomBar"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:gravity="center_vertical"
+		android:padding="8dp"
+		android:background="?attr/colorSurfaceContainerHigh">
+
+		<TextView
+			android:id="@+id/tvPageCount"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="Page 1 of 1"
+			android:textSize="12sp"
+			android:textColor="?attr/colorOnSurfaceVariant" />
+
+		<Button
+			android:id="@+id/btnViewSource"
+			android:layout_width="wrap_content"
+			android:layout_height="32dp"
+			android:text="View Source"
+			android:textSize="11sp"
+			style="?attr/materialButtonOutlinedStyle" />
+	</LinearLayout>
+</LinearLayout>
