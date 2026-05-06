@@ -57,6 +57,12 @@
 			android:name=".DebugActivity"
 			android:screenOrientation="portrait"
 			android:theme="@style/AppTheme.DebugActivity" />
+		<activity
+			android:name=".dragweb.DragWebActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:exported="false" />
 		<provider
 			android:name="androidx.startup.InitializationProvider"
 			android:authorities="sketchweb.gl.androidx-startup"

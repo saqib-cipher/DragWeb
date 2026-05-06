@@ -1,0 +1,351 @@
+[
+  {
+    "id": "doctype",
+    "display": "HTML5 doctype",
+    "template": "<!DOCTYPE html>",
+    "category": "HTML"
+  },
+  {
+    "id": "html_open",
+    "display": "Open html lang %s",
+    "template": "<html lang='%1$s'>",
+    "category": "HTML"
+  },
+  {
+    "id": "html_close",
+    "display": "Close html",
+    "template": "</html>",
+    "category": "HTML"
+  },
+  {
+    "id": "head_block",
+    "display": "Head with title %s",
+    "template": "<head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>%1$s</title><link rel='stylesheet' href='style.css'></head>",
+    "category": "HTML"
+  },
+  {
+    "id": "body_open",
+    "display": "Open body with class %s",
+    "template": "<body class='%1$s'>",
+    "category": "HTML"
+  },
+  {
+    "id": "body_close",
+    "display": "Close body",
+    "template": "</body>",
+    "category": "HTML"
+  },
+  {
+    "id": "section_open",
+    "display": "Open section id %s",
+    "template": "<section id='%1$s'>",
+    "category": "Layout"
+  },
+  {
+    "id": "section_close",
+    "display": "Close section",
+    "template": "</section>",
+    "category": "Layout"
+  },
+  {
+    "id": "div_block",
+    "display": "Add div with class %s",
+    "template": "<div class='%1$s'></div>",
+    "category": "HTML"
+  },
+  {
+    "id": "div_open",
+    "display": "Open div with class %s",
+    "template": "<div class='%1$s'>",
+    "category": "Layout"
+  },
+  {
+    "id": "div_close",
+    "display": "Close div",
+    "template": "</div>",
+    "category": "Layout"
+  },
+  {
+    "id": "header_block",
+    "display": "Open header class %s",
+    "template": "<header class='%1$s'>",
+    "category": "Layout"
+  },
+  {
+    "id": "header_close",
+    "display": "Close header",
+    "template": "</header>",
+    "category": "Layout"
+  },
+  {
+    "id": "footer_block",
+    "display": "Open footer class %s",
+    "template": "<footer class='%1$s'>",
+    "category": "Layout"
+  },
+  {
+    "id": "footer_close",
+    "display": "Close footer",
+    "template": "</footer>",
+    "category": "Layout"
+  },
+  {
+    "id": "navbar_open",
+    "display": "Open nav class %s",
+    "template": "<nav class='%1$s'><ul>",
+    "category": "Navigation"
+  },
+  {
+    "id": "navbar_close",
+    "display": "Close nav",
+    "template": "</ul></nav>",
+    "category": "Navigation"
+  },
+  {
+    "id": "menu_link",
+    "display": "Add menu link %s to %s",
+    "template": "<li><a href='%1$s'>%2$s</a></li>",
+    "category": "Navigation"
+  },
+  {
+    "id": "section_link",
+    "display": "Add section link %s to %s",
+    "template": "<li><a href='#%1$s'>%2$s</a></li>",
+    "category": "Navigation"
+  },
+  {
+    "id": "page_link",
+    "display": "Add page link %m.file with text %s",
+    "template": "<a href='%1$s'>%2$s</a>",
+    "category": "Navigation"
+  },
+  {
+    "id": "heading1",
+    "display": "Heading 1 %s",
+    "template": "<h1>%1$s</h1>",
+    "category": "Typography"
+  },
+  {
+    "id": "heading2",
+    "display": "Heading 2 %s",
+    "template": "<h2>%1$s</h2>",
+    "category": "Typography"
+  },
+  {
+    "id": "heading3",
+    "display": "Heading 3 %s",
+    "template": "<h3>%1$s</h3>",
+    "category": "Typography"
+  },
+  {
+    "id": "paragraph",
+    "display": "Paragraph %s",
+    "template": "<p>%1$s</p>",
+    "category": "Typography"
+  },
+  {
+    "id": "span_block",
+    "display": "Span class %s with text %s",
+    "template": "<span class='%1$s'>%2$s</span>",
+    "category": "Typography"
+  },
+  {
+    "id": "image_block",
+    "display": "Add image %s",
+    "template": "<img src='%1$s'>",
+    "category": "Media"
+  },
+  {
+    "id": "image_alt_block",
+    "display": "Add image %s with alt %s",
+    "template": "<img src='%1$s' alt='%2$s'>",
+    "category": "Media"
+  },
+  {
+    "id": "video_block",
+    "display": "Video src %s",
+    "template": "<video src='%1$s' controls></video>",
+    "category": "Media"
+  },
+  {
+    "id": "audio_block",
+    "display": "Audio src %s",
+    "template": "<audio src='%1$s' controls></audio>",
+    "category": "Media"
+  },
+  {
+    "id": "button_block",
+    "display": "Add button %s",
+    "template": "<button>%1$s</button>",
+    "category": "Components"
+  },
+  {
+    "id": "button_class_block",
+    "display": "Add button class %s text %s",
+    "template": "<button class='%1$s'>%2$s</button>",
+    "category": "Components"
+  },
+  {
+    "id": "card_block",
+    "display": "Card title %s text %s",
+    "template": "<div class='card'><h3>%1$s</h3><p>%2$s</p></div>",
+    "category": "Components"
+  },
+  {
+    "id": "form_open",
+    "display": "Open form action %s",
+    "template": "<form action='%1$s' method='post'>",
+    "category": "Forms"
+  },
+  {
+    "id": "form_close",
+    "display": "Close form",
+    "template": "</form>",
+    "category": "Forms"
+  },
+  {
+    "id": "input_text",
+    "display": "Input name %s placeholder %s",
+    "template": "<input type='text' name='%1$s' placeholder='%2$s'>",
+    "category": "Forms"
+  },
+  {
+    "id": "textarea_block",
+    "display": "Textarea name %s placeholder %s",
+    "template": "<textarea name='%1$s' placeholder='%2$s'></textarea>",
+    "category": "Forms"
+  },
+  {
+    "id": "submit_button",
+    "display": "Submit button %s",
+    "template": "<button type='submit'>%1$s</button>",
+    "category": "Forms"
+  },
+  {
+    "id": "raw_html",
+    "display": "Raw HTML %s",
+    "template": "%1$s",
+    "category": "HTML"
+  },
+
+  {
+    "id": "css_color",
+    "display": "Set class %s color to %s",
+    "template": ".%1$s{color:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "css_background",
+    "display": "Set class %s background to %s",
+    "template": ".%1$s{background:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "css_font_size",
+    "display": "Set class %s font-size to %s",
+    "template": ".%1$s{font-size:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "css_margin",
+    "display": "Set class %s margin to %s",
+    "template": ".%1$s{margin:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "css_padding",
+    "display": "Set class %s padding to %s",
+    "template": ".%1$s{padding:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "css_radius",
+    "display": "Set class %s border-radius to %s",
+    "template": ".%1$s{border-radius:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "css_border",
+    "display": "Set class %s border to %s",
+    "template": ".%1$s{border:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "css_text_align",
+    "display": "Set class %s text-align to %s",
+    "template": ".%1$s{text-align:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "css_width",
+    "display": "Set class %s width to %s",
+    "template": ".%1$s{width:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "css_height",
+    "display": "Set class %s height to %s",
+    "template": ".%1$s{height:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "id_width",
+    "display": "Set id %s width to %s",
+    "template": "#%1$s{width:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "id_height",
+    "display": "Set id %s height to %s",
+    "template": "#%1$s{height:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "id_color",
+    "display": "Set id %s color to %s",
+    "template": "#%1$s{color:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "id_background",
+    "display": "Set id %s background to %s",
+    "template": "#%1$s{background:%2$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "tag_style",
+    "display": "Set tag %m.tag style %s to %s",
+    "template": "%1$s{%2$s:%3$s;}",
+    "category": "CSS"
+  },
+  {
+    "id": "flexbox",
+    "display": "Set class %s display flex",
+    "template": ".%1$s{display:flex;}",
+    "category": "Layout"
+  },
+  {
+    "id": "flex_row",
+    "display": "Set class %s flex-direction row",
+    "template": ".%1$s{display:flex;flex-direction:row;}",
+    "category": "Layout"
+  },
+  {
+    "id": "flex_column",
+    "display": "Set class %s flex-direction column",
+    "template": ".%1$s{display:flex;flex-direction:column;}",
+    "category": "Layout"
+  },
+  {
+    "id": "grid_layout",
+    "display": "Set class %s display grid",
+    "template": ".%1$s{display:grid;}",
+    "category": "Layout"
+  },
+  {
+    "id": "grid_columns",
+    "display": "Set class %s grid columns %d",
+    "template": ".%1$s{display:grid;grid-template-columns:repeat(%2$s,1fr);}",
+    "category": "Layout"
+  }
+]
