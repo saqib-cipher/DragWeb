@@ -53,7 +53,6 @@ jobs:
 
       - name: 🏗️ Build APK
         run: |
-          cd app
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/release.jks \
             -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
