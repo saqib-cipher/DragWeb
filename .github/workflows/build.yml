@@ -49,7 +49,7 @@ jobs:
           ls -la $GITHUB_WORKSPACE/release.jks
 
       - name: ⚙️ Grant permission
-        run: chmod +x /gradlew
+        run: chmod +x gradlew
 
       - name: 🏗️ Build APK
         run: |
