@@ -91,14 +91,21 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         logicBlockManager = new LogicBlockManager(this);
 
-        // Load existing blocks
-        File dir = new File(getFilesDir(), "projects");
-        File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
-        if (logicFile.exists()) {
-            String json = FileUtil.readFile(logicFile.getAbsolutePath());
-            if (json != null && !json.isEmpty()) {
-                logicBlockManager.fromJson(json);
+        // Load existing blocks – swallow any error so a corrupt file can't
+        // crash the activity at startup. fromJson itself rejects mismatched
+        // payloads (e.g. custom-block library JSON) and supplies non-null
+        // defaults for the fields the renderer relies on.
+        try {
+            File dir = new File(getFilesDir(), "projects");
+            File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+            if (logicFile.exists()) {
+                String json = FileUtil.readFile(logicFile.getAbsolutePath());
+                if (json != null && !json.isEmpty()) {
+                    logicBlockManager.fromJson(json);
+                }
             }
+        } catch (Exception e) {
+            Log.w("LogicBlockActivity", "Could not load logic blocks: " + e.getMessage());
         }
 
         initViews();
@@ -814,6 +821,15 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private View createWorkspacePuzzleBlock(LogicBlockManager.LogicBlock block, int index) {
+        // Defensive: render even when a block was loaded from a malformed
+        // .logic file. We backfill safe non-null defaults so no field access
+        // below can NPE.
+        if (block.targetMode == null) block.targetMode = LogicBlockManager.TARGET_MODE_ID;
+        if (block.targetWidget == null) block.targetWidget = "";
+        if (block.event == null) block.event = "immediate";
+        if (block.action == null) block.action = "";
+        if (block.params == null) block.params = "";
+
         boolean isLogic = "logic".equals(block.targetMode);
         boolean isVar = "variable".equals(block.targetMode);
 
@@ -1313,6 +1329,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private String getLogicLabel(String action) {
+        if (action == null) return "LOGIC";
         switch (action) {
             case "ifBlock": return "IF";
             case "ifElseBlock": return "IF / ELSE";
@@ -1323,6 +1340,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private String getVarLabel(String action) {
+        if (action == null) return "VAR";
         switch (action) {
             case "createVar": return "VAR CREATE";
             case "setVar": return "VAR SET";
@@ -1332,8 +1350,11 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private String formatLogicParams(LogicBlockManager.LogicBlock block) {
-        String[] parts = block.params.split("\\|");
-        switch (block.action) {
+        if (block == null) return "";
+        String params = block.params != null ? block.params : "";
+        String action = block.action != null ? block.action : "";
+        String[] parts = params.split("\\|");
+        switch (action) {
             case "ifBlock":
             case "ifElseBlock":
                 if (parts.length >= 4) {
@@ -1341,18 +1362,19 @@ public class LogicBlockActivity extends AppCompatActivity {
                     if (parts.length >= 5) result += "\nELSE -> " + parts[4];
                     return result;
                 }
-                return block.params;
+                return params;
             case "delay":
                 if (parts.length >= 2) return parts[0] + "ms -> " + parts[1];
-                return block.params;
+                return params;
             case "loop":
                 if (parts.length >= 2) return "x" + parts[0] + " -> " + parts[1];
-                return block.params;
-            default: return block.params;
+                return params;
+            default: return params;
         }
     }
 
     private boolean isHtmlAction(String action) {
+        if (action == null) return false;
         switch (action) {
             case "setText": case "showHide": case "navigate":
             case "goToPage": case "scrollTo": case "alert":

@@ -6,7 +6,13 @@ import android.util.Log;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+
+import java.io.InputStream;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -115,30 +121,91 @@ public class CustomBlockManager {
     }
 
     /**
-     * Load the block-definition library from {@code /.dragweb/custom/blocks.json}.
-     * If the file is missing, the built-in defaults are seeded and persisted so
-     * the user has a starter palette.
+     * Load the block-definition library. Tries, in order:
+     * <ol>
+     *   <li>{@code /.dragweb/custom/blocks.json} on external storage (user-customised)</li>
+     *   <li>{@code assets/blocks.json} bundled with the APK</li>
+     *   <li>built-in {@link #defaultDefinitions()}</li>
+     * </ol>
+     * The first source that yields at least one block wins; if none do the
+     * defaults are persisted to external storage so the user has a starter
+     * palette next launch.
      */
     public void loadLibrary() {
         definitions.clear();
 
         String json = readLibraryFile();
-        if (json == null || json.trim().isEmpty()) {
-            definitions.addAll(defaultDefinitions());
+        List<CustomBlockDef> parsed = parseLibraryJson(json);
+        if (!parsed.isEmpty()) {
+            definitions.addAll(parsed);
+            return;
+        }
+
+        // Fallback to the bundled default library shipped in assets/blocks.json.
+        String bundled = readBundledLibrary();
+        parsed = parseLibraryJson(bundled);
+        if (!parsed.isEmpty()) {
+            definitions.addAll(parsed);
             saveLibrary();
             return;
         }
 
+        // Final fallback: built-in defaults.
+        definitions.addAll(defaultDefinitions());
+        saveLibrary();
+    }
+
+    /**
+     * Parse a library JSON string. Accepts either a bare JSON array of
+     * definitions or an envelope object of the form {@code {"blocks":[...]}}.
+     * Returns an empty list (never null) on any error.
+     */
+    private List<CustomBlockDef> parseLibraryJson(String json) {
+        List<CustomBlockDef> out = new ArrayList<>();
+        if (json == null || json.trim().isEmpty()) return out;
         try {
-            List<CustomBlockDef> loaded = new Gson().fromJson(
-                json,
-                new TypeToken<List<CustomBlockDef>>(){}.getType()
-            );
-            if (loaded != null) definitions.addAll(loaded);
+            JsonElement root = JsonParser.parseString(json);
+            JsonArray array = null;
+            if (root.isJsonArray()) {
+                array = root.getAsJsonArray();
+            } else if (root.isJsonObject()) {
+                JsonObject obj = root.getAsJsonObject();
+                if (obj.has("blocks") && obj.get("blocks").isJsonArray()) {
+                    array = obj.getAsJsonArray("blocks");
+                }
+            }
+            if (array == null) return out;
+            Gson gson = new Gson();
+            for (JsonElement el : array) {
+                try {
+                    CustomBlockDef def = gson.fromJson(el, CustomBlockDef.class);
+                    if (def != null && def.id != null && !def.id.isEmpty()
+                            && def.template != null) {
+                        if (def.category == null || def.category.isEmpty()) {
+                            def.category = CATEGORY_HTML;
+                        }
+                        out.add(def);
+                    }
+                } catch (Exception ignored) {
+                    // Skip malformed individual entries instead of failing the
+                    // whole load – keeps the editor usable when a user-edited
+                    // blocks.json contains a typo.
+                }
+            }
         } catch (Exception e) {
-            Log.w(TAG, "Failed to parse blocks.json: " + e.getMessage());
-            definitions.addAll(defaultDefinitions());
-            saveLibrary();
+            Log.w(TAG, "Failed to parse library JSON: " + e.getMessage());
+        }
+        return out;
+    }
+
+    private String readBundledLibrary() {
+        try (InputStream is = context.getAssets().open("blocks.json")) {
+            byte[] buf = new byte[is.available()];
+            int read = is.read(buf);
+            if (read <= 0) return null;
+            return new String(buf, 0, read, "UTF-8");
+        } catch (Exception e) {
+            return null;
         }
     }
 

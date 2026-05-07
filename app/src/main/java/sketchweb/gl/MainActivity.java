@@ -67,6 +67,7 @@ public class MainActivity extends AppCompatActivity {
 	private ExportManager exportManager;
 	private WidgetRegistry widgetRegistry;
 	private LogicBlockManager logicBlockManager;
+	private CustomBlockManager customBlockManager;
 	private BlockDragDropManager blockDragDropManager;
 	private HierarchyTreeAdapter hierarchyAdapter;
 	private PageManager pageManager;
@@ -455,6 +456,7 @@ public class MainActivity extends AppCompatActivity {
 		themeManager = new ThemeManager();
 		exportManager = new ExportManager(this, themeManager);
 		logicBlockManager = new LogicBlockManager(this);
+		customBlockManager = new CustomBlockManager(this);
 		blockDragDropManager = new BlockDragDropManager(this, logicBlockManager);
 		blockDragDropManager.setOnBlocksChangedListener(() -> {
 			// Blocks changed via drag-drop, workspace is already refreshed internally
@@ -1804,29 +1806,15 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}
 
-		// Load blocks from assets/blocks.json
-		try {
-			InputStream is = getAssets().open("blocks.json");
-			byte[] buffer = new byte[is.available()];
-			is.read(buffer);
-			is.close();
-			// blocks.json is loaded as reference data; custom blocks override
-		} catch (Exception e) {
-			Log.w("MainActivity", "Could not load blocks.json from assets: " + e.getMessage());
-		}
-
-		// Load custom blocks
-		String blocksPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-			+ "/.dragweb/custom/blocks.json";
-		File customBlocksFile = new File(blocksPath);
-		if (customBlocksFile.exists()) {
+		// Custom-block library (templates that emit static HTML/CSS) is loaded
+		// by CustomBlockManager itself: it tries /.dragweb/custom/blocks.json,
+		// falls back to assets/blocks.json, then to built-in defaults. We just
+		// re-trigger that load so any external edits are picked up.
+		if (customBlockManager != null) {
 			try {
-				String json = FileUtil.readFile(blocksPath);
-				if (json != null && !json.isEmpty()) {
-					logicBlockManager.fromJson(json);
-				}
+				customBlockManager.loadLibrary();
 			} catch (Exception e) {
-				Log.w("MainActivity", "Failed to load custom blocks: " + e.getMessage());
+				Log.w("MainActivity", "Failed to load custom block library: " + e.getMessage());
 			}
 		}
 	}
@@ -1857,9 +1845,10 @@ public class MainActivity extends AppCompatActivity {
 		File file = new File(blocksPath);
 		if (file.exists()) {
 			try {
-				String json = FileUtil.readFile(blocksPath);
-				logicBlockManager.fromJson(json);
-				Toast.makeText(this, "Custom blocks loaded", Toast.LENGTH_SHORT).show();
+				if (customBlockManager == null) customBlockManager = new CustomBlockManager(this);
+				customBlockManager.loadLibrary();
+				int count = customBlockManager.getDefinitions().size();
+				Toast.makeText(this, "Loaded " + count + " custom block templates", Toast.LENGTH_SHORT).show();
 			} catch (Exception e) {
 				Toast.makeText(this, "Failed to load: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 			}

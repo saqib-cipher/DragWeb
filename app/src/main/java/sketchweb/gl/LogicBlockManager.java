@@ -912,14 +912,37 @@ public class LogicBlockManager {
     }
 
     public void fromJson(String json) {
+        if (json == null || json.trim().isEmpty()) return;
+
+        // Reject obviously-incompatible payloads early. The custom-block
+        // library uses keys like "template" / "display" / "category" – if we
+        // see those it means somebody routed the wrong JSON into here, and
+        // parsing it as LogicBlock[] would silently produce all-null entries
+        // that then crash the activity when rendered.
+        String head = json.trim();
+        if (head.startsWith("{")) return;
+        if (head.contains("\"template\"") && head.contains("\"display\"")) return;
+
         try {
             List<LogicBlock> loaded = new Gson().fromJson(json, new TypeToken<List<LogicBlock>>(){}.getType());
-            if (loaded != null) {
-                blocks.clear();
-                blocks.addAll(loaded);
+            if (loaded == null) return;
+            blocks.clear();
+            for (LogicBlock b : loaded) {
+                if (b == null) continue;
+                // Require at minimum an action: blocks without one have no
+                // meaning and only serve as crash bait for the renderer.
+                if (b.action == null || b.action.isEmpty()) continue;
+                // Backfill non-null defaults for everything else so render
+                // and codegen paths can rely on them.
+                if (b.event == null) b.event = "immediate";
+                if (b.params == null) b.params = "";
+                if (b.targetMode == null) b.targetMode = TARGET_MODE_ID;
+                if (b.targetWidget == null) b.targetWidget = "";
+                blocks.add(b);
             }
         } catch (Exception e) {
-            // ignore
+            // Leave existing blocks intact rather than wiping them on a parse
+            // error – avoids losing the user's work to a single bad file.
         }
     }
 
