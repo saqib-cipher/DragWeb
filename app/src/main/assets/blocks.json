@@ -1,178 +1,264 @@
-{
-  "version": 4,
-  "format": "custom-block-template",
-  "description": "Sketchware-style custom block templates for DragWeb. HTML blocks are NOT here - those are handled by the visual widget designer in MainActivity. This file holds CSS rules and runtime-effect blocks only. Each block declares: id, display, template, category (CSS or LOGIC or EVENT), and shape ('C' for events, 'rect' for CSS rules, 'E' for logic with two slots).",
-  "blocks": [
-    {
-      "id": "evt_click",
-      "display": "On click of %m.id",
-      "template": "document.querySelector('#%1$s').addEventListener('click', function(){ %SLOT% });",
-      "category": "EVENT",
-      "shape": "C"
-    },
-    {
-      "id": "evt_hover",
-      "display": "On hover of %m.id",
-      "template": "document.querySelector('#%1$s').addEventListener('mouseenter', function(){ %SLOT% });",
-      "category": "EVENT",
-      "shape": "C"
-    },
-    {
-      "id": "evt_load",
-      "display": "On page load",
-      "template": "document.addEventListener('DOMContentLoaded', function(){ %SLOT% });",
-      "category": "EVENT",
-      "shape": "C"
-    },
-    {
-      "id": "evt_input",
-      "display": "On input of %m.id",
-      "template": "document.querySelector('#%1$s').addEventListener('input', function(event){ %SLOT% });",
-      "category": "EVENT",
-      "shape": "C"
-    },
-    {
-      "id": "evt_submit",
-      "display": "On submit of %m.id",
-      "template": "document.querySelector('#%1$s').addEventListener('submit', function(event){ event.preventDefault(); %SLOT% });",
-      "category": "EVENT",
-      "shape": "C"
-    },
-    {
-      "id": "evt_scroll",
-      "display": "On page scroll",
-      "template": "window.addEventListener('scroll', function(){ %SLOT% });",
-      "category": "EVENT",
-      "shape": "C"
-    },
-
-    {
-      "id": "class_color",
-      "display": "Set class %m.class color to %s",
-      "template": ".%1$s{color:%2$s;}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-    {
-      "id": "class_background",
-      "display": "Set class %m.class background to %s",
-      "template": ".%1$s{background:%2$s;}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-    {
-      "id": "class_padding",
-      "display": "Set class %m.class padding to %s",
-      "template": ".%1$s{padding:%2$s;}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-    {
-      "id": "class_margin",
-      "display": "Set class %m.class margin to %s",
-      "template": ".%1$s{margin:%2$s;}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-    {
-      "id": "class_radius",
-      "display": "Set class %m.class border-radius to %s",
-      "template": ".%1$s{border-radius:%2$s;}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-    {
-      "id": "class_font_size",
-      "display": "Set class %m.class font-size to %s",
-      "template": ".%1$s{font-size:%2$s;}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-    {
-      "id": "class_display",
-      "display": "Set class %m.class display to %s",
-      "template": ".%1$s{display:%2$s;}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-    {
-      "id": "class_width",
-      "display": "Set class %m.class width to %s",
-      "template": ".%1$s{width:%2$s;}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-    {
-      "id": "class_height",
-      "display": "Set class %m.class height to %s",
-      "template": ".%1$s{height:%2$s;}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-    {
-      "id": "hover_color",
-      "display": "On hover of %m.class set color %s",
-      "template": ".%1$s:hover{color:%2$s;}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-    {
-      "id": "media_max_width",
-      "display": "Below %dpx, class %m.class display %s",
-      "template": "@media (max-width:%1$dpx){.%2$s{display:%3$s;}}",
-      "category": "CSS",
-      "shape": "rect"
-    },
-
-    {
-      "id": "logic_if",
-      "display": "If %s %s %s",
-      "template": "if (%1$s %2$s %3$s) { %SLOT% }",
-      "category": "LOGIC",
-      "shape": "C"
-    },
-    {
-      "id": "logic_if_else",
-      "display": "If %s %s %s",
-      "template": "if (%1$s %2$s %3$s) { %SLOT_THEN% } else { %SLOT_ELSE% }",
-      "category": "LOGIC",
-      "shape": "E"
-    },
-    {
-      "id": "logic_loop",
-      "display": "Repeat %d times",
-      "template": "for (var i = 0; i < %1$d; i++) { %SLOT% }",
-      "category": "LOGIC",
-      "shape": "C"
-    },
-    {
-      "id": "logic_delay",
-      "display": "After %d ms",
-      "template": "setTimeout(function(){ %SLOT% }, %1$d);",
-      "category": "LOGIC",
-      "shape": "C"
-    },
-
-    {
-      "id": "var_create",
-      "display": "Create var %s = %s",
-      "template": "var %1$s = %2$s;",
-      "category": "VARIABLE",
-      "shape": "rect"
-    },
-    {
-      "id": "var_set",
-      "display": "Set %s to %s",
-      "template": "%1$s = %2$s;",
-      "category": "VARIABLE",
-      "shape": "rect"
-    },
-    {
-      "id": "var_log",
-      "display": "Log %s",
-      "template": "console.log(%1$s);",
-      "category": "VARIABLE",
-      "shape": "rect"
-    }
-  ]
-}
+[
+  {
+    "id": "onClick",
+    "label": "On Click",
+    "description": "When element is clicked",
+    "category": "event",
+    "shape": "C"
+  },
+  {
+    "id": "onHover",
+    "label": "On Hover",
+    "description": "When mouse hovers",
+    "category": "event",
+    "shape": "C"
+  },
+  {
+    "id": "onLoad",
+    "label": "On Load",
+    "description": "When page loads",
+    "category": "event",
+    "shape": "C"
+  },
+  {
+    "id": "onInput",
+    "label": "On Input",
+    "description": "When input changes",
+    "category": "event",
+    "shape": "C"
+  },
+  {
+    "id": "onSubmit",
+    "label": "On Submit",
+    "description": "When form submits",
+    "category": "event",
+    "shape": "C"
+  },
+  {
+    "id": "onScroll",
+    "label": "On Scroll",
+    "description": "When user scrolls",
+    "category": "event",
+    "shape": "C"
+  },
+  {
+    "id": "onKeyDown",
+    "label": "On Key Down",
+    "description": "When key pressed",
+    "category": "event",
+    "shape": "C"
+  },
+  {
+    "id": "onChange",
+    "label": "On Change",
+    "description": "When value changes",
+    "category": "event",
+    "shape": "C"
+  },
+  {
+    "id": "setDisplay",
+    "label": "Set Display",
+    "description": "block/none/flex",
+    "category": "css",
+    "shape": "rect",
+    "spec": "sizing"
+  },
+  {
+    "id": "setColor",
+    "label": "Set Color",
+    "description": "Text color",
+    "category": "css",
+    "shape": "rect",
+    "spec": "color"
+  },
+  {
+    "id": "setBackground",
+    "label": "Set Background",
+    "description": "Background color",
+    "category": "css",
+    "shape": "rect",
+    "spec": "color"
+  },
+  {
+    "id": "setWidth",
+    "label": "Set Width",
+    "description": "Width value",
+    "category": "css",
+    "shape": "rect",
+    "spec": "sizing"
+  },
+  {
+    "id": "setHeight",
+    "label": "Set Height",
+    "description": "Height value",
+    "category": "css",
+    "shape": "rect",
+    "spec": "sizing"
+  },
+  {
+    "id": "setOpacity",
+    "label": "Set Opacity",
+    "description": "0 to 1",
+    "category": "css",
+    "shape": "rect"
+  },
+  {
+    "id": "setFontSize",
+    "label": "Set Font Size",
+    "description": "Text size",
+    "category": "css",
+    "shape": "rect",
+    "spec": "sizing"
+  },
+  {
+    "id": "setMargin",
+    "label": "Set Margin",
+    "description": "Outer spacing",
+    "category": "css",
+    "shape": "rect",
+    "spec": "sizing"
+  },
+  {
+    "id": "setPadding",
+    "label": "Set Padding",
+    "description": "Inner spacing",
+    "category": "css",
+    "shape": "rect",
+    "spec": "sizing"
+  },
+  {
+    "id": "setBorder",
+    "label": "Set Border",
+    "description": "Border style",
+    "category": "css",
+    "shape": "rect",
+    "spec": "color"
+  },
+  {
+    "id": "setRadius",
+    "label": "Set Radius",
+    "description": "Border radius",
+    "category": "css",
+    "shape": "rect",
+    "spec": "sizing"
+  },
+  {
+    "id": "addClass",
+    "label": "Add Class",
+    "description": "Add CSS class",
+    "category": "css",
+    "shape": "rect"
+  },
+  {
+    "id": "removeClass",
+    "label": "Remove Class",
+    "description": "Remove CSS class",
+    "category": "css",
+    "shape": "rect"
+  },
+  {
+    "id": "toggleClass",
+    "label": "Toggle Class",
+    "description": "Toggle CSS class",
+    "category": "css",
+    "shape": "rect"
+  },
+  {
+    "id": "ifBlock",
+    "label": "If",
+    "description": "Conditional execution",
+    "category": "logic",
+    "shape": "E"
+  },
+  {
+    "id": "ifElseBlock",
+    "label": "If / Else",
+    "description": "If-else conditional",
+    "category": "logic",
+    "shape": "E"
+  },
+  {
+    "id": "compareEqual",
+    "label": "Compare ==",
+    "description": "Check equality",
+    "category": "logic",
+    "shape": "rect"
+  },
+  {
+    "id": "compareNotEqual",
+    "label": "Compare !=",
+    "description": "Check inequality",
+    "category": "logic",
+    "shape": "rect"
+  },
+  {
+    "id": "compareGreater",
+    "label": "Compare >",
+    "description": "Greater than",
+    "category": "logic",
+    "shape": "rect"
+  },
+  {
+    "id": "compareLess",
+    "label": "Compare <",
+    "description": "Less than",
+    "category": "logic",
+    "shape": "rect"
+  },
+  {
+    "id": "delay",
+    "label": "Delay",
+    "description": "Wait then execute",
+    "category": "logic",
+    "shape": "rect"
+  },
+  {
+    "id": "loop",
+    "label": "Loop",
+    "description": "Repeat N times",
+    "category": "logic",
+    "shape": "rect"
+  },
+  {
+    "id": "createVar",
+    "label": "Create Variable",
+    "description": "Declare a variable",
+    "category": "variable",
+    "shape": "rect"
+  },
+  {
+    "id": "setVar",
+    "label": "Set Variable",
+    "description": "Assign a value",
+    "category": "variable",
+    "shape": "rect"
+  },
+  {
+    "id": "getVar",
+    "label": "Get Variable",
+    "description": "Read variable value",
+    "category": "variable",
+    "shape": "rect"
+  },
+  {
+    "id": "createVarString",
+    "label": "String Var",
+    "description": "String variable",
+    "category": "variable",
+    "shape": "rect"
+  },
+  {
+    "id": "createVarNumber",
+    "label": "Number Var",
+    "description": "Number variable",
+    "category": "variable",
+    "shape": "rect"
+  },
+  {
+    "id": "createVarBoolean",
+    "label": "Boolean Var",
+    "description": "Boolean variable",
+    "category": "variable",
+    "shape": "rect"
+  }
+]

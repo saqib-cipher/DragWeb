@@ -184,6 +184,31 @@
                 style="?attr/materialButtonOutlinedStyle"
                 app:icon="@drawable/icon_code_round" />
 
+            <View
+                android:layout_width="1dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <Button
+                android:id="@+id/btnBlockDuplicate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="Duplicate Dragged"
+                style="?attr/materialIconButtonStyle"
+                app:icon="@drawable/icon_copy_all_round"
+                app:iconTint="?attr/colorPrimary" />
+
+            <Button
+                android:id="@+id/btnBlockDelete"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="Delete Dragged"
+                style="?attr/materialIconButtonStyle"
+                app:icon="@drawable/icon_delete_round"
+                app:iconTint="?attr/colorError" />
+
             <Button
                 android:id="@+id/btnBlockAdd"
                 android:layout_width="wrap_content"

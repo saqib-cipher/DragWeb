@@ -69,10 +69,11 @@ public class LogicBlockActivity extends AppCompatActivity {
     private LinearLayout blockPaletteContainer;
     private LinearLayout blockWorkspace;
     private Button btnBlockUndo, btnBlockRedo, btnBlockViewJs, btnBlockAdd;
-    private Button btnBlockImport, btnBlockExport;
+    private Button btnBlockImport, btnBlockExport, btnBlockDelete, btnBlockDuplicate;
     private TextView tvBlockCount;
 
     private String currentCategory = CAT_EVENT;
+    private List<BlockDef> allBlockDefs = new ArrayList<>();
 
     // Undo/redo
     private List<String> undoStack = new ArrayList<>();
@@ -118,6 +119,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         setupToolbarButtons();
         setupWorkspaceDragDrop();
 
+        loadBlockDefinitions();
         showCategory(CAT_EVENT);
         refreshWorkspace();
         saveUndoState();
@@ -158,6 +160,8 @@ public class LogicBlockActivity extends AppCompatActivity {
         btnBlockAdd = findViewById(R.id.btnBlockAdd);
         btnBlockImport = findViewById(R.id.btnBlockImport);
         btnBlockExport = findViewById(R.id.btnBlockExport);
+        btnBlockDelete = findViewById(R.id.btnBlockDelete);
+        btnBlockDuplicate = findViewById(R.id.btnBlockDuplicate);
         tvBlockCount = findViewById(R.id.tvBlockCount);
     }
 
@@ -269,6 +273,44 @@ public class LogicBlockActivity extends AppCompatActivity {
         btnBlockAdd.setOnClickListener(v -> showAddBlockDialog());
         if (btnBlockImport != null) btnBlockImport.setOnClickListener(v -> showImportDialog());
         if (btnBlockExport != null) btnBlockExport.setOnClickListener(v -> showExportDialog());
+
+        if (btnBlockDelete != null) {
+            btnBlockDelete.setOnDragListener((v, event) -> {
+                if (event.getAction() == DragEvent.ACTION_DROP) {
+                    Object state = event.getLocalState();
+                    if (state instanceof Integer) {
+                        saveUndoState();
+                        logicBlockManager.removeBlock((Integer) state);
+                        refreshWorkspace();
+                    }
+                    return true;
+                }
+                return true;
+            });
+        }
+
+        if (btnBlockDuplicate != null) {
+            btnBlockDuplicate.setOnDragListener((v, event) -> {
+                if (event.getAction() == DragEvent.ACTION_DROP) {
+                    Object state = event.getLocalState();
+                    if (state instanceof Integer) {
+                        saveUndoState();
+                        int idx = (Integer) state;
+                        LogicBlockManager.LogicBlock orig = logicBlockManager.getBlocks().get(idx);
+                        LogicBlockManager.LogicBlock copy = new LogicBlockManager.LogicBlock();
+                        copy.targetWidget = orig.targetWidget;
+                        copy.targetMode = orig.targetMode;
+                        copy.event = orig.event;
+                        copy.action = orig.action;
+                        copy.params = orig.params;
+                        logicBlockManager.addBlock(copy);
+                        refreshWorkspace();
+                    }
+                    return true;
+                }
+                return true;
+            });
+        }
     }
 
     private void setupWorkspaceDragDrop() {
@@ -288,6 +330,11 @@ public class LogicBlockActivity extends AppCompatActivity {
                     if (localState instanceof BlockDef) {
                         BlockDef def = (BlockDef) localState;
                         addBlockFromDef(def);
+                    } else if (localState instanceof Integer) {
+                        // Reorder within workspace (if dropped outside a slot)
+                        int fromIndex = (Integer) localState;
+                        float dropY = event.getY();
+                        reorderBlock(fromIndex, dropY);
                     }
                     return true;
                 case DragEvent.ACTION_DRAG_ENDED:
@@ -296,6 +343,53 @@ public class LogicBlockActivity extends AppCompatActivity {
             }
             return false;
         });
+    }
+
+    private void reorderBlock(int fromIndex, float y) {
+        saveUndoState();
+        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+        if (fromIndex < 0 || fromIndex >= blocks.size()) return;
+
+        LogicBlockManager.LogicBlock moving = blocks.remove(fromIndex);
+
+        // Find new index based on Y coordinate
+        int newIdx = 0;
+        for (int i = 0; i < blockWorkspace.getChildCount(); i++) {
+            View child = blockWorkspace.getChildAt(i);
+            if (y > child.getTop() + child.getHeight() / 2) {
+                Object tag = child.getTag();
+                if (tag instanceof Integer) {
+                    newIdx = (Integer) tag + 1;
+                } else {
+                    // It's a header or a cap, we can still use it for positioning
+                    // but it doesn't give us a direct block index.
+                }
+            }
+        }
+
+        // The simple algorithm above handles basic repositioning.
+        // If it was dropped above the first block's header, newIdx remains 0.
+
+        if (newIdx > blocks.size()) newIdx = blocks.size();
+        blocks.add(newIdx, moving);
+
+        refreshWorkspace();
+    }
+
+    private void loadBlockDefinitions() {
+        try {
+            StringBuilder sb = new StringBuilder();
+            java.io.InputStream is = getAssets().open("blocks.json");
+            java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(is));
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+            br.close();
+
+            java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType();
+            allBlockDefs = new com.google.gson.Gson().fromJson(sb.toString(), type);
+        } catch (Exception e) {
+            Log.e("LogicBlockActivity", "Error loading blocks.json", e);
+        }
     }
 
     private void setWorkspaceHighlight(boolean highlight) {
@@ -336,14 +430,17 @@ public class LogicBlockActivity extends AppCompatActivity {
         params.setMargins(dp(4), dp(2), dp(4), dp(4));
         block.setLayoutParams(params);
 
-        // Puzzle pill background with subtle notch on the left
+        // Puzzle pill background based on shape
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadii(new float[]{
-            dp(4), dp(4),
-            dp(8), dp(8),
-            dp(8), dp(8),
-            dp(4), dp(4)
-        });
+        if ("C".equals(def.shape)) {
+            bg.setCornerRadii(new float[]{dp(8), dp(8), dp(8), dp(8), dp(8), dp(8), 0, 0});
+        } else if ("E".equals(def.shape)) {
+            bg.setCornerRadii(new float[]{dp(2), dp(2), dp(8), dp(8), dp(8), dp(8), dp(2), dp(2)});
+        } else {
+            // "rect" or default
+            bg.setCornerRadius(dp(4));
+        }
+
         bg.setColor(baseColor);
         bg.setStroke(dp(1), darken(baseColor));
         block.setBackground(bg);
@@ -530,15 +627,16 @@ public class LogicBlockActivity extends AppCompatActivity {
             layout.addView(hsv);
         }
 
-        // Color preview (only for color actions)
+        // Color preview and grid (only for color actions)
         if (wantsColor && input != null) {
             input.setHint("#FF6B35 or red");
+
             TextView preview = new TextView(this);
             preview.setHeight(dp(28));
             preview.setBackgroundColor(parseColorSafe(initialValue, Color.LTGRAY));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(28));
-            lp.setMargins(0, dp(8), 0, 0);
+            lp.setMargins(0, dp(8), 0, dp(8));
             preview.setLayoutParams(lp);
             layout.addView(preview);
 
@@ -549,6 +647,41 @@ public class LogicBlockActivity extends AppCompatActivity {
                     preview.setBackgroundColor(parseColorSafe(s.toString(), Color.LTGRAY));
                 }
             });
+
+            // Grid of preset colors
+            String[] colors = {
+                "#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#2196F3",
+                "#03A9F4", "#00BCD4", "#009688", "#4CAF50", "#8BC34A", "#CDDC39",
+                "#FFEB3B", "#FFC107", "#FF9800", "#FF5722", "#795548", "#9E9E9E",
+                "#607D8B", "#000000", "#FFFFFF"
+            };
+
+            android.widget.GridLayout grid = new android.widget.GridLayout(this);
+            grid.setColumnCount(7);
+            grid.setPadding(0, dp(4), 0, dp(8));
+
+            for (String colorHex : colors) {
+                View colorView = new View(this);
+                int size = dp(32);
+                android.widget.GridLayout.LayoutParams glp = new android.widget.GridLayout.LayoutParams();
+                glp.width = size;
+                glp.height = size;
+                glp.setMargins(dp(2), dp(2), dp(2), dp(2));
+                colorView.setLayoutParams(glp);
+
+                GradientDrawable cbg = new GradientDrawable();
+                cbg.setCornerRadius(dp(4));
+                cbg.setColor(Color.parseColor(colorHex));
+                cbg.setStroke(dp(1), Color.parseColor("#22000000"));
+                colorView.setBackground(cbg);
+
+                colorView.setOnClickListener(v -> {
+                    input.setText(colorHex);
+                    preview.setBackgroundColor(Color.parseColor(colorHex));
+                });
+                grid.addView(colorView);
+            }
+            layout.addView(grid);
         }
 
         new MaterialAlertDialogBuilder(this)
@@ -626,6 +759,8 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private boolean isSizingAction(String id) {
+        BlockDef def = findBlockDef(id);
+        if (def != null && "sizing".equals(def.spec)) return true;
         if (id == null) return false;
         switch (id) {
             case "setWidth": case "setHeight": case "setMargin": case "setPadding":
@@ -636,6 +771,8 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private boolean isColorAction(String id) {
+        BlockDef def = findBlockDef(id);
+        if (def != null && "color".equals(def.spec)) return true;
         if (id == null) return false;
         switch (id) {
             case "setColor": case "setBackground": case "setBorder":
@@ -955,38 +1092,42 @@ public class LogicBlockActivity extends AppCompatActivity {
             return;
         }
 
-        // Group consecutive blocks by event into a C-shaped wrapper.
-        // Event = orange C-shape (header cap + left rail + bottom cap) wrapping
-        //         the rectangular CSS / Logic blocks that belong to it.
+        // Flat rendering with visual "C" shape markers.
+        // This makes reordering trivial as each View corresponds to exactly one index.
         String currentEvent = null;
-        LinearLayout currentSlot = null;
         for (int i = 0; i < blocks.size(); i++) {
             LogicBlockManager.LogicBlock block = blocks.get(i);
             String ev = block.event != null ? block.event : "immediate";
-            boolean isLogicGroup = "logic".equals(block.targetMode) || "variable".equals(block.targetMode);
 
             if (!ev.equals(currentEvent)) {
-                // Close previous C-shape with a bottom cap
-                if (currentSlot != null) {
-                    blockWorkspace.addView(createEventBottomCap(currentEvent));
-                }
-                // Open a new C-shape: orange header, then a vertical slot
-                // that holds rectangular action blocks.
-                blockWorkspace.addView(createEventHeaderBlock(ev));
-                // createEventSlot adds its wrapper to blockWorkspace itself
-                // and returns the inner stack we should populate.
-                currentSlot = createEventSlot(ev);
+                // Event Header
+                View header = createEventHeaderBlock(ev);
+                blockWorkspace.addView(header);
                 currentEvent = ev;
             }
 
-            if (isLogicGroup) {
-                currentSlot.addView(createWorkspacePuzzleBlock(block, i));
-            } else {
-                currentSlot.addView(createWorkspacePuzzleBlock(block, i));
+            // Indented block with left rail
+            LinearLayout wrapper = new LinearLayout(this);
+            wrapper.setOrientation(LinearLayout.HORIZONTAL);
+            wrapper.setPadding(dp(12), 0, 0, 0);
+
+            View rail = new View(this);
+            rail.setBackgroundColor(COLOR_EVENT);
+            wrapper.addView(rail, new LinearLayout.LayoutParams(dp(6), ViewGroup.LayoutParams.MATCH_PARENT));
+
+            View blockView = createWorkspacePuzzleBlock(block, i);
+            blockView.setTag(i);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+            lp.setMargins(dp(8), 0, 0, 0);
+            wrapper.addView(blockView, lp);
+
+            blockWorkspace.addView(wrapper);
+
+            // Close C-shape if next block has a different event or it's the end
+            boolean isLastOfEvent = (i == blocks.size() - 1) || !blocks.get(i + 1).event.equals(ev);
+            if (isLastOfEvent) {
+                blockWorkspace.addView(createEventBottomCap(ev));
             }
-        }
-        if (currentSlot != null) {
-            blockWorkspace.addView(createEventBottomCap(currentEvent));
         }
     }
 
@@ -996,22 +1137,11 @@ public class LogicBlockActivity extends AppCompatActivity {
      * rectangular CSS / Logic action blocks.
      */
     private LinearLayout createEventSlot(String eventKey) {
-        LinearLayout slot = new LinearLayout(this);
-        slot.setOrientation(LinearLayout.VERTICAL);
-        slot.setPadding(dp(14), dp(4), dp(8), dp(4));
-
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(adjustAlpha(COLOR_EVENT, 28));
-        bg.setStroke(0, Color.TRANSPARENT);
-        slot.setBackground(bg);
-
-        // Left rail (the vertical bar of the C)
-        // Implemented via a layered drawable using setBackground on the slot
-        // wouldn't give us a thick left rail, so instead we add a vertical
-        // colored View as the first child of a horizontal wrapper.
+        // Wrapper for the "C" shape vertical bar and the inner content
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.HORIZONTAL);
 
+        // Left rail (the vertical bar of the C)
         View rail = new View(this);
         GradientDrawable railBg = new GradientDrawable();
         railBg.setColor(COLOR_EVENT);
@@ -1022,7 +1152,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         rail.setLayoutParams(railLp);
         wrapper.addView(rail);
 
-        // Inner stack
+        // Inner stack where action blocks are placed
         LinearLayout inner = new LinearLayout(this);
         inner.setOrientation(LinearLayout.VERTICAL);
         inner.setPadding(dp(8), dp(2), dp(4), dp(2));
@@ -1036,10 +1166,79 @@ public class LogicBlockActivity extends AppCompatActivity {
         wrapLp.setMargins(dp(4), 0, dp(4), 0);
         wrapper.setLayoutParams(wrapLp);
 
-        // The slot variable returned to caller is the inner stack so further
-        // addView calls populate the children of the C.
+        // Drag listener for dropping blocks into this event
+        inner.setOnDragListener((v, event) -> {
+            switch (event.getAction()) {
+                case DragEvent.ACTION_DRAG_STARTED:
+                    return event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
+                case DragEvent.ACTION_DRAG_ENTERED:
+                    inner.setBackgroundColor(adjustAlpha(COLOR_EVENT, 40));
+                    return true;
+                case DragEvent.ACTION_DRAG_EXITED:
+                    inner.setBackgroundColor(Color.TRANSPARENT);
+                    return true;
+                case DragEvent.ACTION_DROP:
+                    inner.setBackgroundColor(Color.TRANSPARENT);
+                    Object localState = event.getLocalState();
+                    if (localState instanceof BlockDef) {
+                        addBlockToEvent((BlockDef) localState, eventKey);
+                    } else if (localState instanceof Integer) {
+                        moveBlockToEvent((Integer) localState, eventKey);
+                    }
+                    return true;
+                case DragEvent.ACTION_DRAG_ENDED:
+                    inner.setBackgroundColor(Color.TRANSPARENT);
+                    return true;
+            }
+            return false;
+        });
+
         blockWorkspace.addView(wrapper);
         return inner;
+    }
+
+    private void addBlockToEvent(BlockDef actionDef, String eventKey) {
+        // Map the internal key if it's a display name
+        String mappedEvent = mapEventKey(eventKey);
+
+        // Find if we have an event definition for this key
+        BlockDef eventDef = null;
+        for (BlockDef d : allBlockDefs) {
+            if (mappedEvent.equals(mapEventKey(d.id))) {
+                eventDef = d;
+                break;
+            }
+        }
+        if (eventDef == null) {
+            eventDef = new BlockDef(mappedEvent, eventKey, "", CAT_EVENT);
+        }
+
+        final BlockDef finalEventDef = eventDef;
+        showValueInputForBlock(finalEventDef, actionDef);
+    }
+
+    private void moveBlockToEvent(int fromIndex, String eventKey) {
+        saveUndoState();
+        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+        if (fromIndex >= 0 && fromIndex < blocks.size()) {
+            LogicBlockManager.LogicBlock block = blocks.get(fromIndex);
+            block.event = mapEventKey(eventKey);
+
+            // Move it to be adjacent to other blocks of this event if possible
+            int targetPos = -1;
+            for (int i = 0; i < blocks.size(); i++) {
+                if (block.event.equals(blocks.get(i).event)) {
+                    targetPos = i;
+                }
+            }
+
+            if (targetPos != -1 && targetPos != fromIndex) {
+                blocks.remove(fromIndex);
+                blocks.add(targetPos, block);
+            }
+
+            refreshWorkspace();
+        }
     }
 
     /**
@@ -1102,13 +1301,11 @@ public class LogicBlockActivity extends AppCompatActivity {
         if (block.action == null) block.action = "";
         if (block.params == null) block.params = "";
 
-        boolean isLogic = "logic".equals(block.targetMode);
-        boolean isVar = "variable".equals(block.targetMode);
+        BlockDef def = findBlockDef(block.action);
+        String shape = def != null ? def.shape : "rect";
+        String category = def != null ? def.category : CAT_CSS;
 
-        int baseColor;
-        if (isLogic) baseColor = COLOR_LOGIC;
-        else if (isVar) baseColor = COLOR_VARIABLE;
-        else baseColor = COLOR_CSS; // The blue Sketchware-style action body
+        int baseColor = getCategoryColor(category);
         int strokeColor = darken(baseColor);
 
         // Outer puzzle row (horizontal flow with wrap-around fallback if needed)
@@ -1119,7 +1316,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         row.setBaselineAligned(false);
 
         GradientDrawable bg = new GradientDrawable();
-        if (isLogic) {
+        if ("E".equals(shape)) {
             // Logic = E-shape: rounded but flatter on the left so it visually
             // pairs with the C-shape event around it.
             bg.setCornerRadii(new float[]{
@@ -1129,7 +1326,7 @@ public class LogicBlockActivity extends AppCompatActivity {
                 dp(2), dp(2)      // bottom-left
             });
         } else {
-            // CSS / Var = plain rectangle that snaps into a slot.
+            // "rect" or default
             bg.setCornerRadius(dp(4));
         }
         bg.setColor(baseColor);
@@ -1142,10 +1339,10 @@ public class LogicBlockActivity extends AppCompatActivity {
         rowParams.setMargins(0, dp(2), 0, dp(2));
         row.setLayoutParams(rowParams);
 
-        if (isLogic || isVar) {
+        if (CAT_LOGIC.equals(category) || CAT_VARIABLE.equals(category)) {
             // Logic / Variable rows - leading category chip (NOT editable verb)
             // followed by editable param chips.
-            String catLabel = isLogic ? getLogicLabel(block.action) : getVarLabel(block.action);
+            String catLabel = CAT_LOGIC.equals(category) ? getLogicLabel(block.action) : getVarLabel(block.action);
             row.addView(createVerbChip(catLabel, darken(baseColor)));
             String[] parts = (block.params != null ? block.params : "").split("\\|");
             for (int p = 0; p < parts.length; p++) {
@@ -1220,9 +1417,13 @@ public class LogicBlockActivity extends AppCompatActivity {
             }
         }
 
-        // Long press = block actions (delete/move/duplicate)
+        // Long press = Start Drag for reordering
         row.setOnLongClickListener(v -> {
-            showBlockActions(index);
+            ClipData.Item item = new ClipData.Item("reorder|" + index);
+            ClipData dragData = new ClipData("reorder", new String[]{ClipDescription.MIMETYPE_TEXT_PLAIN}, item);
+            View.DragShadowBuilder shadow = new View.DragShadowBuilder(v);
+            // Pass the index as local state
+            v.startDragAndDrop(dragData, shadow, index, 0);
             return true;
         });
         // Short tap = edit value
@@ -1613,19 +1814,21 @@ public class LogicBlockActivity extends AppCompatActivity {
         }
         layout.addView(chipRow);
 
-        TextInputLayout til = createTil("Selector value");
-        TextInputEditText input = (TextInputEditText) til.getEditText();
-        // Replace the inner view with an autocompleting one
-        til.removeView(til.getEditText());
-        AutoCompleteTextView ac = new AutoCompleteTextView(this);
+        TextInputLayout til = new TextInputLayout(this);
+        til.setHint("Selector value");
+        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        til.setBoxCornerRadii(dp(10), dp(10), dp(10), dp(10));
+
+        android.widget.AutoCompleteTextView ac = new android.widget.AutoCompleteTextView(this);
         ac.setHint("Selector value");
         ac.setText(currentValue != null ? currentValue : "");
-        ac.setCompletionThreshold(1);
+        ac.setThreshold(1);
         ac.setSingleLine(true);
         ac.setPadding(dp(12), dp(10), dp(12), dp(10));
         ac.setMinHeight(dp(44));
         ac.setAdapter(new ArrayAdapter<>(this,
             android.R.layout.simple_dropdown_item_1line, collectAutocompleteSuggestions()));
+
         til.addView(ac);
         layout.addView(til);
 
@@ -1903,63 +2106,21 @@ public class LogicBlockActivity extends AppCompatActivity {
     // ---- Block Definitions ----
 
  private BlockDef[] getBlocksForCategory(String category) {
-    switch (category) {
-
-        case CAT_EVENT: return new BlockDef[]{
-            new BlockDef("onClick", "On Click", "When element is clicked", CAT_EVENT),
-            new BlockDef("onHover", "On Hover", "When mouse hovers", CAT_EVENT),
-            new BlockDef("onLoad", "On Load", "When page loads", CAT_EVENT),
-            new BlockDef("onInput", "On Input", "When input changes", CAT_EVENT),
-            new BlockDef("onSubmit", "On Submit", "When form submits", CAT_EVENT),
-            new BlockDef("onScroll", "On Scroll", "When user scrolls", CAT_EVENT),
-            new BlockDef("onKeyDown", "On Key Down", "When key pressed", CAT_EVENT),
-            new BlockDef("onChange", "On Change", "When value changes", CAT_EVENT),
-        };
-
-        case CAT_CSS: return new BlockDef[]{
-            new BlockDef("setDisplay", "Set Display", "block/none/flex", CAT_CSS),
-            new BlockDef("setColor", "Set Color", "Text color", CAT_CSS),
-            new BlockDef("setBackground", "Set Background", "Background color", CAT_CSS),
-            new BlockDef("setWidth", "Set Width", "Width value", CAT_CSS),
-            new BlockDef("setHeight", "Set Height", "Height value", CAT_CSS),
-            new BlockDef("setOpacity", "Set Opacity", "0 to 1", CAT_CSS),
-            new BlockDef("setFontSize", "Set Font Size", "Text size", CAT_CSS),
-            new BlockDef("setMargin", "Set Margin", "Outer spacing", CAT_CSS),
-            new BlockDef("setPadding", "Set Padding", "Inner spacing", CAT_CSS),
-            new BlockDef("setBorder", "Set Border", "Border style", CAT_CSS),
-            new BlockDef("setRadius", "Set Radius", "Border radius", CAT_CSS),
-            new BlockDef("addClass", "Add Class", "Add CSS class", CAT_CSS),
-            new BlockDef("removeClass", "Remove Class", "Remove CSS class", CAT_CSS),
-            new BlockDef("toggleClass", "Toggle Class", "Toggle CSS class", CAT_CSS),
-        };
-
-        // HTML category removed - those are handled by the visual widget
-        // designer in MainActivity now. Only CSS rules + Logic + Vars remain
-        // here, plus a few runtime effects exposed via CSS-like blocks.
-
-        case CAT_LOGIC: return new BlockDef[]{
-            new BlockDef("ifBlock", "If", "Conditional execution", CAT_LOGIC),
-            new BlockDef("ifElseBlock", "If / Else", "If-else conditional", CAT_LOGIC),
-            new BlockDef("compareEqual", "Compare ==", "Check equality", CAT_LOGIC),
-            new BlockDef("compareNotEqual", "Compare !=", "Check inequality", CAT_LOGIC),
-            new BlockDef("compareGreater", "Compare >", "Greater than", CAT_LOGIC),
-            new BlockDef("compareLess", "Compare <", "Less than", CAT_LOGIC),
-            new BlockDef("delay", "Delay", "Wait then execute", CAT_LOGIC),
-            new BlockDef("loop", "Loop", "Repeat N times", CAT_LOGIC),
-        };
-
-        case CAT_VARIABLE: return new BlockDef[]{
-            new BlockDef("createVar", "Create Variable", "Declare a variable", CAT_VARIABLE),
-            new BlockDef("setVar", "Set Variable", "Assign a value", CAT_VARIABLE),
-            new BlockDef("getVar", "Get Variable", "Read variable value", CAT_VARIABLE),
-            new BlockDef("createVarString", "String Var", "String variable", CAT_VARIABLE),
-            new BlockDef("createVarNumber", "Number Var", "Number variable", CAT_VARIABLE),
-            new BlockDef("createVarBoolean", "Boolean Var", "Boolean variable", CAT_VARIABLE),
-        };
-
-        default: return new BlockDef[]{};
+        List<BlockDef> filtered = new ArrayList<>();
+        for (BlockDef def : allBlockDefs) {
+            if (category.equals(def.category)) {
+                filtered.add(def);
+            }
     }
+        return filtered.toArray(new BlockDef[0]);
 }
+    private BlockDef findBlockDef(String id) {
+        for (BlockDef def : allBlockDefs) {
+            if (id.equals(def.id)) return def;
+        }
+        return null;
+    }
+
     private int getCategoryColor(String category) {
         switch (category) {
             case CAT_EVENT: return COLOR_EVENT;
@@ -2114,12 +2275,14 @@ public class LogicBlockActivity extends AppCompatActivity {
         String label;
         String description;
         String category;
+        String shape;
+        String spec;
 
         BlockDef(String id, String label, String description, String category) {
             this.id = id;
             this.label = label;
             this.description = description;
-this.category = category;
+            this.category = category;
         }
     }
 }
