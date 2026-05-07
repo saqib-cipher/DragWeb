@@ -122,79 +122,111 @@
             android:paddingEnd="10dp" />
     </HorizontalScrollView>
 
-    <!-- Toolbar: Undo, Redo, Copy, View JS -->
-    <LinearLayout
+    <!-- Toolbar: Undo, Redo, Import, Export, View Code, Add -->
+    <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="4dp"
+        android:scrollbars="none"
         android:background="?attr/colorSurfaceContainerHigh">
 
-        <Button
-            android:id="@+id/btnBlockUndo"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Undo"
-            android:textSize="11sp"
-            style="?attr/materialIconButtonStyle"
-            app:icon="@drawable/icon_undo_round" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="4dp">
 
-        <Button
-            android:id="@+id/btnBlockRedo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Redo"
-            android:textSize="11sp"
-            style="?attr/materialIconButtonStyle"
-            app:icon="@drawable/icon_redo_round" />
+            <Button
+                android:id="@+id/btnBlockUndo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="Undo"
+                style="?attr/materialIconButtonStyle"
+                app:icon="@drawable/icon_undo_round" />
 
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
+            <Button
+                android:id="@+id/btnBlockRedo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="Redo"
+                style="?attr/materialIconButtonStyle"
+                app:icon="@drawable/icon_redo_round" />
 
-        <!-- Block count indicator -->
-        <TextView
-            android:id="@+id/tvBlockCount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="0 blocks"
-            android:textSize="11sp"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:paddingEnd="8dp" />
+            <View
+                android:layout_width="1dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:background="?attr/colorOutlineVariant" />
 
-        <Button
-            android:id="@+id/btnBlockViewJs"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="View JS"
-            android:textSize="11sp"
-            style="?attr/materialButtonOutlinedStyle" />
+            <Button
+                android:id="@+id/btnBlockImport"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Import"
+                android:textSize="11sp"
+                style="?attr/materialButtonOutlinedStyle"
+                app:icon="@drawable/icon_import_round" />
 
-        <Button
-            android:id="@+id/btnBlockAdd"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="+ Add"
-            android:textSize="11sp"
-            android:layout_marginStart="6dp"
-            style="?attr/materialButtonStyle" />
-    </LinearLayout>
+            <Button
+                android:id="@+id/btnBlockExport"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Export"
+                android:textSize="11sp"
+                android:layout_marginStart="4dp"
+                style="?attr/materialButtonOutlinedStyle"
+                app:icon="@drawable/icon_export_round" />
 
-    <!-- Block Workspace (drop area) -->
+            <Button
+                android:id="@+id/btnBlockViewJs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Code"
+                android:textSize="11sp"
+                android:layout_marginStart="4dp"
+                style="?attr/materialButtonOutlinedStyle"
+                app:icon="@drawable/icon_code_round" />
+
+            <Button
+                android:id="@+id/btnBlockAdd"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="+ Add"
+                android:textSize="11sp"
+                android:layout_marginStart="6dp"
+                style="?attr/materialButtonStyle" />
+
+            <!-- Block count indicator -->
+            <TextView
+                android:id="@+id/tvBlockCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 blocks"
+                android:textSize="11sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:layout_marginStart="8dp"
+                android:paddingEnd="8dp" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Block Workspace (drop area) - Sketchware-style canvas -->
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:fillViewport="true">
+        android:fillViewport="true"
+        android:background="@drawable/bg_block_canvas">
 
         <LinearLayout
             android:id="@+id/blockWorkspace"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="10dp"
+            android:paddingStart="6dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="80dp"
             android:minHeight="300dp" />
     </androidx.core.widget.NestedScrollView>
 

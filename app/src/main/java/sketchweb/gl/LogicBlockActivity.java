@@ -69,6 +69,8 @@ public class LogicBlockActivity extends AppCompatActivity {
     private LinearLayout blockPaletteContainer;
     private LinearLayout blockWorkspace;
     private Button btnBlockUndo, btnBlockRedo, btnBlockViewJs, btnBlockAdd;
+    private Button btnBlockImport, btnBlockExport;
+    private TextView tvBlockCount;
 
     private String currentCategory = CAT_EVENT;
 
@@ -154,6 +156,9 @@ public class LogicBlockActivity extends AppCompatActivity {
         btnBlockRedo = findViewById(R.id.btnBlockRedo);
         btnBlockViewJs = findViewById(R.id.btnBlockViewJs);
         btnBlockAdd = findViewById(R.id.btnBlockAdd);
+        btnBlockImport = findViewById(R.id.btnBlockImport);
+        btnBlockExport = findViewById(R.id.btnBlockExport);
+        tvBlockCount = findViewById(R.id.tvBlockCount);
     }
 
     private void setupToolbar() {
@@ -263,6 +268,8 @@ public class LogicBlockActivity extends AppCompatActivity {
         btnBlockRedo.setOnClickListener(v -> redo());
         btnBlockViewJs.setOnClickListener(v -> showJsPreview());
         btnBlockAdd.setOnClickListener(v -> showAddBlockDialog());
+        if (btnBlockImport != null) btnBlockImport.setOnClickListener(v -> showImportDialog());
+        if (btnBlockExport != null) btnBlockExport.setOnClickListener(v -> showExportDialog());
     }
 
     private void setupWorkspaceDragDrop() {
@@ -319,65 +326,44 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private View createPuzzleBlock(BlockDef def, int baseColor) {
-        // Puzzle-shaped block with notch and tab
+        // Sketchware-style compact palette pill: small colored chip with the
+        // block label, drag/tap to add to workspace.
         LinearLayout block = new LinearLayout(this);
         block.setOrientation(LinearLayout.VERTICAL);
-        block.setPadding(16, 12, 16, 12);
+        block.setPadding(dp(12), dp(8), dp(12), dp(10));
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            dp(240), ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.setMargins(6, 4, 6, 4);
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setMargins(dp(4), dp(2), dp(4), dp(4));
         block.setLayoutParams(params);
 
-        // Puzzle-like shape with rounded corners and colored border
+        // Puzzle pill background with subtle notch on the left
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadii(new float[]{16, 16, 16, 16, 16, 16, 4, 4}); // Puzzle notch effect
-        bg.setColor(adjustAlpha(baseColor, 30));
-        bg.setStroke(3, baseColor);
+        bg.setCornerRadii(new float[]{
+            dp(4), dp(4),
+            dp(8), dp(8),
+            dp(8), dp(8),
+            dp(4), dp(4)
+        });
+        bg.setColor(baseColor);
+        bg.setStroke(dp(1), darken(baseColor));
         block.setBackground(bg);
-        block.setElevation(4);
+        block.setElevation(2);
 
-        // Top notch indicator (puzzle connector)
-        View topNotch = new View(this);
-        GradientDrawable notchBg = new GradientDrawable();
-        notchBg.setCornerRadius(4);
-        notchBg.setColor(baseColor);
-        topNotch.setBackground(notchBg);
-        LinearLayout.LayoutParams notchParams = new LinearLayout.LayoutParams(24, 6);
-        notchParams.gravity = Gravity.CENTER_HORIZONTAL;
-        notchParams.setMargins(0, 0, 0, 6);
-        topNotch.setLayoutParams(notchParams);
-        block.addView(topNotch);
-
-        // Block name
         TextView nameText = new TextView(this);
         nameText.setText(def.label);
-        nameText.setTextColor(baseColor);
-        nameText.setTextSize(13);
+        nameText.setTextColor(Color.WHITE);
+        nameText.setTextSize(12);
         nameText.setTypeface(null, Typeface.BOLD);
         block.addView(nameText);
 
-        // Description
         TextView descText = new TextView(this);
         descText.setText(def.description);
-        descText.setTextColor(Color.parseColor("#999999"));
-        descText.setTextSize(11);
-        descText.setPadding(0, 4, 0, 0);
+        descText.setTextColor(Color.parseColor("#E1F5FE"));
+        descText.setTextSize(10);
+        descText.setPadding(0, dp(2), 0, 0);
         block.addView(descText);
 
-        // Bottom tab (puzzle connector out)
-        View bottomTab = new View(this);
-        GradientDrawable tabBg = new GradientDrawable();
-        tabBg.setCornerRadius(4);
-        tabBg.setColor(adjustAlpha(baseColor, 120));
-        bottomTab.setBackground(tabBg);
-        LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(24, 6);
-        tabParams.gravity = Gravity.CENTER_HORIZONTAL;
-        tabParams.setMargins(0, 6, 0, 0);
-        bottomTab.setLayoutParams(tabParams);
-        block.addView(bottomTab);
-
-        // Drag support
         block.setOnLongClickListener(v -> {
             ClipData.Item item = new ClipData.Item(def.id + "|" + def.category);
             ClipData dragData = new ClipData("block", new String[]{ClipDescription.MIMETYPE_TEXT_PLAIN}, item);
@@ -385,8 +371,6 @@ public class LogicBlockActivity extends AppCompatActivity {
             v.startDragAndDrop(dragData, shadow, def, 0);
             return true;
         });
-
-        // Tap to add
         block.setOnClickListener(v -> addBlockFromDef(def));
 
         return block;
@@ -804,10 +788,13 @@ public class LogicBlockActivity extends AppCompatActivity {
         blockWorkspace.removeAllViews();
 
         List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+        if (tvBlockCount != null) {
+            tvBlockCount.setText(blocks.size() + " block" + (blocks.size() == 1 ? "" : "s"));
+        }
         if (blocks.isEmpty()) {
             TextView empty = new TextView(this);
-            empty.setText("Drag blocks here or tap + Add\nto build your logic");
-            empty.setTextColor(Color.parseColor("#666666"));
+            empty.setText("Tap + Add or drag a block here\nto build your page logic");
+            empty.setTextColor(Color.parseColor("#7A8B9C"));
             empty.setTextSize(14);
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(32, 80, 32, 80);
@@ -815,15 +802,58 @@ public class LogicBlockActivity extends AppCompatActivity {
             return;
         }
 
+        // Group consecutive blocks by event header (Sketchware-style:
+        // orange "On Click" header followed by stacked action blocks)
+        String currentEvent = null;
         for (int i = 0; i < blocks.size(); i++) {
-            blockWorkspace.addView(createWorkspacePuzzleBlock(blocks.get(i), i));
+            LogicBlockManager.LogicBlock block = blocks.get(i);
+            String ev = block.event != null ? block.event : "immediate";
+            if (!ev.equals(currentEvent)) {
+                blockWorkspace.addView(createEventHeaderBlock(ev));
+                currentEvent = ev;
+            }
+            blockWorkspace.addView(createWorkspacePuzzleBlock(block, i));
         }
     }
 
+    /**
+     * Renders a Sketchware-style orange header block, eg.
+     * "On Click" / "On Page Load" / "Immediate".
+     */
+    private View createEventHeaderBlock(String eventKey) {
+        String label = LogicBlockManager.getEventDisplayName(eventKey);
+
+        TextView header = new TextView(this);
+        header.setText(label);
+        header.setTextColor(Color.WHITE);
+        header.setTypeface(null, Typeface.BOLD);
+        header.setTextSize(13);
+        header.setPadding(dp(14), dp(8), dp(14), dp(10));
+
+        GradientDrawable bg = new GradientDrawable();
+        // Tab on top-left, slight curve elsewhere — matches Sketchware "event" cap.
+        bg.setCornerRadii(new float[]{dp(10), dp(10), dp(10), dp(10), dp(10), dp(10), 0, 0});
+        bg.setColor(COLOR_EVENT);
+        header.setBackground(bg);
+        header.setElevation(2);
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setMargins(dp(4), dp(8), dp(4), 0);
+        header.setLayoutParams(params);
+        return header;
+    }
+
+    /**
+     * Render a single block as a horizontal Sketchware-style "puzzle" row:
+     *
+     *   [target chip]  verb  [param chip]  verb  [param chip] ...
+     *
+     * Each block stacks immediately below the previous one with no margin
+     * so the chain looks connected.
+     */
     private View createWorkspacePuzzleBlock(LogicBlockManager.LogicBlock block, int index) {
-        // Defensive: render even when a block was loaded from a malformed
-        // .logic file. We backfill safe non-null defaults so no field access
-        // below can NPE.
+        // Defensive: render even when a block was loaded from a malformed file.
         if (block.targetMode == null) block.targetMode = LogicBlockManager.TARGET_MODE_ID;
         if (block.targetWidget == null) block.targetWidget = "";
         if (block.event == null) block.event = "immediate";
@@ -836,120 +866,182 @@ public class LogicBlockActivity extends AppCompatActivity {
         int baseColor;
         if (isLogic) baseColor = COLOR_LOGIC;
         else if (isVar) baseColor = COLOR_VARIABLE;
-        else baseColor = COLOR_EVENT;
+        else baseColor = COLOR_CSS; // The blue Sketchware-style action body
+        int strokeColor = darken(baseColor);
 
-        // Outer card with puzzle shape
-        LinearLayout puzzleCard = new LinearLayout(this);
-        puzzleCard.setOrientation(LinearLayout.VERTICAL);
-        puzzleCard.setPadding(16, 12, 16, 12);
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardParams.setMargins(4, 2, 4, 2);
-        puzzleCard.setLayoutParams(cardParams);
+        // Outer puzzle row (horizontal flow with wrap-around fallback if needed)
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(7), dp(10), dp(9));
+        row.setBaselineAligned(false);
 
-        // Puzzle shape background
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadii(new float[]{16, 16, 16, 16, 16, 16, 4, 4});
-        bg.setColor(adjustAlpha(baseColor, 20));
-        bg.setStroke(2, adjustAlpha(baseColor, 180));
-        puzzleCard.setBackground(bg);
-        puzzleCard.setElevation(3);
+        // Sketchware "C" shape: notch top-left, tab bottom-left
+        bg.setCornerRadii(new float[]{
+            dp(4), dp(4),     // top-left
+            dp(8), dp(8),     // top-right
+            dp(8), dp(8),     // bottom-right
+            dp(4), dp(4)      // bottom-left
+        });
+        bg.setColor(baseColor);
+        bg.setStroke(dp(1), strokeColor);
+        row.setBackground(bg);
+        row.setElevation(2);
 
-        // Top puzzle connector
-        View topNotch = new View(this);
-        GradientDrawable notchBg = new GradientDrawable();
-        notchBg.setCornerRadius(4);
-        notchBg.setColor(baseColor);
-        topNotch.setBackground(notchBg);
-        LinearLayout.LayoutParams notchParams = new LinearLayout.LayoutParams(32, 6);
-        notchParams.gravity = Gravity.START;
-        notchParams.setMargins(16, 0, 0, 8);
-        topNotch.setLayoutParams(notchParams);
-        puzzleCard.addView(topNotch);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowParams.setMargins(dp(8), 0, dp(4), 0);
+        row.setLayoutParams(rowParams);
 
-        if (!isLogic && !isVar) {
-            // TARGET row
-            LinearLayout targetRow = createBlockRow();
-            TextView targetLabel = createBadge("TARGET", Color.parseColor("#9C27B0"));
-            targetRow.addView(targetLabel);
-            String modePrefix = "id".equals(block.targetMode) ? "#" :
-                "class".equals(block.targetMode) ? "." : "";
-            TextView targetValue = new TextView(this);
-            targetValue.setText("  " + modePrefix + block.targetWidget + " (" + block.targetMode + ")");
-            targetValue.setTextColor(Color.parseColor("#CE93D8"));
-            targetValue.setTextSize(13);
-            targetValue.setTypeface(null, Typeface.BOLD);
-            targetRow.addView(targetValue);
-            puzzleCard.addView(targetRow);
-
-            // EVENT row
-            LinearLayout eventRow = createBlockRow();
-            TextView whenBadge = createBadge("WHEN", COLOR_EVENT);
-            eventRow.addView(whenBadge);
-            TextView eventValue = new TextView(this);
-            eventValue.setText("  " + block.event.toUpperCase());
-            eventValue.setTextColor(Color.parseColor("#FFB74D"));
-            eventValue.setTextSize(13);
-            eventValue.setTypeface(null, Typeface.BOLD);
-            eventRow.addView(eventValue);
-            puzzleCard.addView(eventRow);
-
-            // ACTION row
-            LinearLayout actionRow = createBlockRow();
-            int actionColor = isHtmlAction(block.action) ? COLOR_HTML : COLOR_CSS;
-            TextView doBadge = createBadge("DO", actionColor);
-            actionRow.addView(doBadge);
-            TextView actionValue = new TextView(this);
-            actionValue.setText("  " + block.action + "(" + block.params + ")");
-            actionValue.setTextColor(adjustAlpha(actionColor, 200));
-            actionValue.setTextSize(12);
-            actionRow.addView(actionValue);
-            puzzleCard.addView(actionRow);
-        } else if (isLogic) {
-            LinearLayout row = createBlockRow();
-            TextView badge = createBadge(getLogicLabel(block.action), COLOR_LOGIC);
-            row.addView(badge);
-            puzzleCard.addView(row);
-
-            TextView paramsView = new TextView(this);
-            paramsView.setText(formatLogicParams(block));
-            paramsView.setTextColor(Color.parseColor("#F48FB1"));
-            paramsView.setTextSize(12);
-            paramsView.setPadding(4, 4, 4, 0);
-            puzzleCard.addView(paramsView);
+        if (isLogic || isVar) {
+            // Logic / Variable rows - leading category chip then params
+            String catLabel = isLogic ? getLogicLabel(block.action) : getVarLabel(block.action);
+            row.addView(createTargetChip(catLabel, darken(baseColor)));
+            String[] parts = (block.params != null ? block.params : "").split("\\|");
+            for (String p : parts) {
+                if (p == null) continue;
+                String trimmed = p.trim();
+                if (!trimmed.isEmpty()) row.addView(createValueChip(trimmed));
+            }
         } else {
-            LinearLayout row = createBlockRow();
-            TextView badge = createBadge(getVarLabel(block.action), COLOR_VARIABLE);
-            row.addView(badge);
-            puzzleCard.addView(row);
+            // Element-targeted action row:  [target] verb [value] [extra value]
+            String modePrefix = "id".equals(block.targetMode) ? "#"
+                : "class".equals(block.targetMode) ? "." : "";
+            String targetText = modePrefix + block.targetWidget;
+            row.addView(createTargetChip(targetText.isEmpty() ? "page" : targetText, Color.parseColor("#3D5AFE")));
 
-            TextView paramsView = new TextView(this);
-            paramsView.setText(block.params);
-            paramsView.setTextColor(Color.parseColor("#80DEEA"));
-            paramsView.setTextSize(12);
-            paramsView.setPadding(4, 4, 4, 0);
-            puzzleCard.addView(paramsView);
+            // Verb (action name in human form)
+            row.addView(createVerb(getActionVerb(block.action)));
+
+            // Value chips - split params if multi-part (eg "color:red")
+            for (String chip : extractValueChips(block)) {
+                if (chip != null && !chip.isEmpty()) row.addView(createValueChip(chip));
+            }
         }
 
-        // Bottom puzzle tab
-        View bottomTab = new View(this);
-        GradientDrawable tabBg = new GradientDrawable();
-        tabBg.setCornerRadius(4);
-        tabBg.setColor(adjustAlpha(baseColor, 100));
-        bottomTab.setBackground(tabBg);
-        LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(32, 6);
-        tabParams.gravity = Gravity.START;
-        tabParams.setMargins(16, 8, 0, 0);
-        bottomTab.setLayoutParams(tabParams);
-        puzzleCard.addView(bottomTab);
-
-        // Long press for actions
-        puzzleCard.setOnLongClickListener(v -> {
+        // Long press = block actions (delete/move/duplicate)
+        row.setOnLongClickListener(v -> {
             showBlockActions(index);
             return true;
         });
+        // Short tap = edit value
+        row.setOnClickListener(v -> showEditBlockDialog(index));
 
-        return puzzleCard;
+        return row;
+    }
+
+    /** Coloured rounded chip used for the leading "target" piece of a block. */
+    private TextView createTargetChip(String text, int color) {
+        TextView chip = new TextView(this);
+        chip.setText(text);
+        chip.setTextColor(Color.WHITE);
+        chip.setTypeface(null, Typeface.BOLD);
+        chip.setTextSize(12);
+        chip.setPadding(dp(10), dp(5), dp(10), dp(5));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(6));
+        bg.setColor(color);
+        chip.setBackground(bg);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        p.setMargins(0, 0, dp(6), 0);
+        chip.setLayoutParams(p);
+        return chip;
+    }
+
+    /** White-on-blue inline verb (e.g. "set title", "show"). */
+    private TextView createVerb(String text) {
+        TextView verb = new TextView(this);
+        verb.setText(text);
+        verb.setTextColor(Color.WHITE);
+        verb.setTextSize(13);
+        verb.setPadding(0, 0, dp(6), 0);
+        return verb;
+    }
+
+    /** White rectangular value pill (sketchware-style input look). */
+    private TextView createValueChip(String text) {
+        TextView chip = new TextView(this);
+        chip.setText(text);
+        chip.setTextColor(Color.parseColor("#0D47A1"));
+        chip.setTextSize(12);
+        chip.setPadding(dp(8), dp(4), dp(8), dp(4));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(4));
+        bg.setColor(Color.WHITE);
+        bg.setStroke(dp(1), Color.parseColor("#33000000"));
+        chip.setBackground(bg);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        p.setMargins(0, 0, dp(6), 0);
+        chip.setLayoutParams(p);
+        return chip;
+    }
+
+    /** Slightly darker version of the colour for puzzle outline / chips. */
+    private int darken(int color) {
+        float[] hsv = new float[3];
+        Color.colorToHSV(color, hsv);
+        hsv[2] = Math.max(0f, hsv[2] * 0.78f);
+        return Color.HSVToColor(hsv);
+    }
+
+    /**
+     * Convert an action key into a Sketchware-style verb shown between chips.
+     */
+    private String getActionVerb(String action) {
+        if (action == null) return "do";
+        switch (action) {
+            case "changeStyle": return "set style";
+            case "addClass": return "add class";
+            case "removeClass": return "remove class";
+            case "toggleClass": return "toggle class";
+            case "setText": return "set text";
+            case "setHTML": return "set html";
+            case "showHide": return "visibility";
+            case "navigate": return "go to url";
+            case "goToPage": return "go to page";
+            case "openPage": return "open page";
+            case "alert": return "alert";
+            case "consoleLog": return "console.log";
+            case "setAttribute": return "set attribute";
+            case "removeAttribute": return "remove attribute";
+            case "setValue": return "set value";
+            case "appendChild": return "append";
+            case "prependChild": return "prepend";
+            case "createElement": return "create element";
+            case "removeElement": return "remove";
+            case "scrollTo": return "scroll to";
+            case "copyClipboard": return "copy clipboard";
+            case "delay": return "delay";
+            case "focusInput": return "focus";
+            case "blurInput": return "blur";
+            case "setHref": return "set href";
+            case "fetchApi": return "fetch";
+            case "localStorage": return "local storage";
+            case "customJs": return "run js";
+            case "animate": return "animate";
+            default: return action;
+        }
+    }
+
+    /**
+     * Split a block's params into one-or-two visible value chips.
+     * For "property:value" style params we render them as ["property", "value"]
+     * for nicer Sketchware-like puzzle pieces.
+     */
+    private List<String> extractValueChips(LogicBlockManager.LogicBlock block) {
+        List<String> out = new ArrayList<>();
+        String params = block.params != null ? block.params : "";
+        if (params.isEmpty()) return out;
+        if ("changeStyle".equals(block.action) || "setAttribute".equals(block.action)) {
+            String[] split = params.split(":", 2);
+            for (String s : split) out.add(s.trim());
+        } else {
+            out.add(params);
+        }
+        return out;
     }
 
     private void showBlockActions(int index) {
@@ -1083,6 +1175,159 @@ public class LogicBlockActivity extends AppCompatActivity {
         String next = redoStack.remove(redoStack.size() - 1);
         logicBlockManager.fromJson(next);
         refreshWorkspace();
+    }
+
+    // ---- Edit existing block ----
+
+    private void showEditBlockDialog(int index) {
+        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+        if (index < 0 || index >= blocks.size()) return;
+        LogicBlockManager.LogicBlock block = blocks.get(index);
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(20), dp(8), dp(20), 0);
+
+        TextInputLayout tilParams = createTil("Params (use | to separate)");
+        TextInputEditText etParams = (TextInputEditText) tilParams.getEditText();
+        if (etParams != null) etParams.setText(block.params);
+        layout.addView(tilParams);
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Edit " + getActionVerb(block.action))
+            .setView(layout)
+            .setPositiveButton("Save", (d, w) -> {
+                saveUndoState();
+                block.params = getText(tilParams);
+                refreshWorkspace();
+            })
+            .setNeutralButton("Delete", (d, w) -> {
+                saveUndoState();
+                logicBlockManager.removeBlock(index);
+                refreshWorkspace();
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    // ---- Import / Export generated code ----
+
+    private void showExportDialog() {
+        String baseCss = logicBlockManager.generateBaseCssRules();
+        String pseudoCss = logicBlockManager.generateCssPseudoRules();
+        String js = logicBlockManager.generateJavaScript();
+        String json = logicBlockManager.toJson();
+
+        StringBuilder code = new StringBuilder();
+        if (baseCss != null && !baseCss.trim().isEmpty()) {
+            code.append("<style>\n").append(baseCss).append("</style>\n\n");
+        }
+        if (pseudoCss != null && !pseudoCss.trim().isEmpty()) {
+            code.append("<style>\n").append(pseudoCss).append("</style>\n\n");
+        }
+        if (js != null && !js.trim().isEmpty()) {
+            code.append("<script>\n").append(js).append("</script>\n");
+        }
+        if (code.length() == 0) code.append("<!-- No logic blocks yet -->\n");
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Export")
+            .setItems(new String[]{
+                "Copy generated CSS + JS",
+                "Copy blocks JSON",
+                "Save to project export folder"
+            }, (dialog, which) -> {
+                switch (which) {
+                    case 0: copyToClipboard("DragWeb code", code.toString()); break;
+                    case 1: copyToClipboard("DragWeb blocks JSON", json); break;
+                    case 2: saveToProjectExport(code.toString(), json); break;
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    private void showImportDialog() {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(20), dp(8), dp(20), 0);
+
+        TextView hint = new TextView(this);
+        hint.setText("Paste blocks JSON exported from DragWeb. Existing blocks will be replaced.");
+        hint.setTextSize(12);
+        hint.setTextColor(Color.parseColor("#7A8B9C"));
+        hint.setPadding(0, 0, 0, dp(8));
+        layout.addView(hint);
+
+        TextInputLayout til = createTil("Blocks JSON");
+        TextInputEditText input = (TextInputEditText) til.getEditText();
+        if (input != null) {
+            input.setMinLines(6);
+            input.setMaxLines(20);
+            input.setGravity(Gravity.TOP | Gravity.START);
+        }
+        layout.addView(til);
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Import")
+            .setView(layout)
+            .setPositiveButton("Import", (d, w) -> {
+                String json = getText(til);
+                if (json.isEmpty()) {
+                    Toast.makeText(this, "Nothing to import", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                int before = logicBlockManager.getBlocks().size();
+                saveUndoState();
+                logicBlockManager.fromJson(json);
+                int after = logicBlockManager.getBlocks().size();
+                refreshWorkspace();
+                Toast.makeText(this, "Imported " + after + " block(s)" + (before > 0 ? " (replaced " + before + ")" : ""), Toast.LENGTH_SHORT).show();
+            })
+            .setNeutralButton("From clipboard", (d, w) -> {
+                android.content.ClipboardManager cm =
+                    (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                if (cm != null && cm.hasPrimaryClip()
+                    && cm.getPrimaryClip() != null
+                    && cm.getPrimaryClip().getItemCount() > 0) {
+                    CharSequence text = cm.getPrimaryClip().getItemAt(0).getText();
+                    if (text != null) {
+                        saveUndoState();
+                        logicBlockManager.fromJson(text.toString());
+                        refreshWorkspace();
+                        Toast.makeText(this, "Imported from clipboard", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                }
+                Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    private void copyToClipboard(String label, String text) {
+        android.content.ClipboardManager cm =
+            (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+        if (cm != null) {
+            cm.setPrimaryClip(android.content.ClipData.newPlainText(label, text));
+            Toast.makeText(this, "Copied to clipboard", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void saveToProjectExport(String code, String json) {
+        try {
+            String basePath = android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectId + "/exports";
+            File extDir = new File(basePath);
+            if (!extDir.exists()) extDir.mkdirs();
+            File codeFile = new File(extDir, pageName + "_logic.html");
+            File jsonFile = new File(extDir, pageName + "_logic.json");
+            FileUtil.writeFile(codeFile.getAbsolutePath(), code);
+            FileUtil.writeFile(jsonFile.getAbsolutePath(), json);
+            Toast.makeText(this, "Saved to: " + extDir.getAbsolutePath(), Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Save failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     // ---- JS Preview ----
