@@ -1,29 +1,11 @@
 {
-  "version": 2,
+  "version": 3,
   "format": "custom-block-template",
-  "description": "Sketchware-style custom block templates for DragWeb. Each block has an id, a human-readable display string, a template that emits static HTML or CSS, and a category (HTML or CSS). Tokens: %s string, %d number, %1$s/%2$s positional, %m.id %m.class %m.tag %m.file %m.section selectors. Runtime DOM-mutation blocks (setText, setHTML, showElement, addClass, etc.) have been removed because they cannot be expressed as static code generation.",
+  "description": "Sketchware-style custom block templates for DragWeb. Each block has an id, a human-readable display string, a template that emits static HTML or CSS, and a category (HTML or CSS). Tokens: %s string, %d number, %1$s/%2$s positional, %m.id %m.class %m.tag selectors.",
   "blocks": [
     {
-      "id": "navbar_link",
-      "display": "Add navbar link %1$s to %2$s",
-      "template": "<li><a href='%1$s'>%2$s</a></li>",
-      "category": "HTML"
-    },
-    {
-      "id": "menu_link",
-      "display": "Add menu link %1$s to %2$s",
-      "template": "<li><a href='%1$s'>%2$s</a></li>",
-      "category": "HTML"
-    },
-    {
-      "id": "section_link",
-      "display": "Link to section #%1$s labelled %2$s",
-      "template": "<a href='#%1$s'>%2$s</a>",
-      "category": "HTML"
-    },
-    {
-      "id": "page_link",
-      "display": "Link to page %m.file labelled %s",
+      "id": "link",
+      "display": "Link to %s labelled %s",
       "template": "<a href='%1$s'>%2$s</a>",
       "category": "HTML"
     },
@@ -34,21 +16,9 @@
       "category": "HTML"
     },
     {
-      "id": "button_block",
-      "display": "Button labelled %s",
-      "template": "<button>%1$s</button>",
-      "category": "HTML"
-    },
-    {
       "id": "button_class",
       "display": "Button %s with class %s",
       "template": "<button class='%2$s'>%1$s</button>",
-      "category": "HTML"
-    },
-    {
-      "id": "image_block",
-      "display": "Image from %s",
-      "template": "<img src='%1$s' alt=''>",
       "category": "HTML"
     },
     {
@@ -70,27 +40,15 @@
       "category": "HTML"
     },
     {
-      "id": "section_block",
-      "display": "Section #%s containing %s",
-      "template": "<section id='%1$s'>%2$s</section>",
-      "category": "HTML"
-    },
-    {
       "id": "div_class_text",
       "display": "Div class %s with text %s",
       "template": "<div class='%1$s'>%2$s</div>",
       "category": "HTML"
     },
     {
-      "id": "video_block",
-      "display": "Video from %s",
-      "template": "<video src='%1$s' controls></video>",
-      "category": "HTML"
-    },
-    {
-      "id": "iframe_block",
-      "display": "Embed iframe from %s",
-      "template": "<iframe src='%1$s' frameborder='0'></iframe>",
+      "id": "section_block",
+      "display": "Section #%s containing %s",
+      "template": "<section id='%1$s'>%2$s</section>",
       "category": "HTML"
     },
 
@@ -131,69 +89,21 @@
       "category": "CSS"
     },
     {
-      "id": "class_text_align",
-      "display": "Set class %m.class text-align to %s",
-      "template": ".%1$s{text-align:%2$s;}",
-      "category": "CSS"
-    },
-    {
       "id": "class_display",
       "display": "Set class %m.class display to %s",
       "template": ".%1$s{display:%2$s;}",
       "category": "CSS"
     },
     {
-      "id": "id_width",
-      "display": "Set id #%m.id width to %s",
-      "template": "#%1$s{width:%2$s;}",
-      "category": "CSS"
-    },
-    {
-      "id": "id_height",
-      "display": "Set id #%m.id height to %s",
-      "template": "#%1$s{height:%2$s;}",
-      "category": "CSS"
-    },
-    {
-      "id": "id_color",
-      "display": "Set id #%m.id color to %s",
-      "template": "#%1$s{color:%2$s;}",
-      "category": "CSS"
-    },
-    {
-      "id": "id_background",
-      "display": "Set id #%m.id background to %s",
-      "template": "#%1$s{background:%2$s;}",
-      "category": "CSS"
-    },
-    {
-      "id": "tag_font_size",
-      "display": "Set tag %m.tag font-size to %s",
-      "template": "%1$s{font-size:%2$s;}",
-      "category": "CSS"
-    },
-    {
-      "id": "tag_color",
-      "display": "Set tag %m.tag color to %s",
-      "template": "%1$s{color:%2$s;}",
-      "category": "CSS"
-    },
-    {
-      "id": "tag_margin",
-      "display": "Set tag %m.tag margin to %s",
-      "template": "%1$s{margin:%2$s;}",
+      "id": "id_size",
+      "display": "Set id #%m.id width %s height %s",
+      "template": "#%1$s{width:%2$s;height:%3$s;}",
       "category": "CSS"
     },
     {
       "id": "hover_color",
       "display": "On hover for class %m.class, color %s",
       "template": ".%1$s:hover{color:%2$s;}",
-      "category": "CSS"
-    },
-    {
-      "id": "hover_background",
-      "display": "On hover for class %m.class, background %s",
-      "template": ".%1$s:hover{background:%2$s;}",
       "category": "CSS"
     },
     {
