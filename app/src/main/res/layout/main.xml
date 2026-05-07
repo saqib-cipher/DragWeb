@@ -462,6 +462,7 @@
 					android:layout_height="wrap_content"
 					android:text="Styles"
 					android:textSize="11sp"
+					android:visibility="gone"
 					style="@style/Widget.Material3.Chip.Filter" />
 				<com.google.android.material.chip.Chip
 					android:id="@+id/chipLayout"

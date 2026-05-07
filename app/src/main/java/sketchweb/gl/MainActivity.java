@@ -13,6 +13,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.DragEvent;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -2622,6 +2623,11 @@ public class MainActivity extends AppCompatActivity {
 			items.add("SetPlaceholder");
 			items.add("SetType");
 		}
+		// HTML-only widget editors moved here from the logic-block editor.
+		// List widgets get an "items" editor accessible from the bottom chips.
+		if ("ul".equals(tag) || "ol".equals(tag) || "select".equals(tag)) {
+			items.add(1, "ListItems");
+		}
 		items.add("BorderRadius");
 		items.add("BorderWidth");
 		items.add("BorderColor");
@@ -2770,6 +2776,9 @@ public class MainActivity extends AppCompatActivity {
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 				});
+				break;
+			case "ListItems":
+				showListItemsDialog(selected);
 				break;
 			case "TextSize":
 				showStyleDialogWithUnits("Change Text Size", "16", "fontSize", selected);
@@ -3307,6 +3316,95 @@ public class MainActivity extends AppCompatActivity {
 
 	interface OnStyleConfirmed {
 		void onConfirmed(String value);
+	}
+
+	/**
+	 * Dialog for editing the items array of a list-style widget (ul / ol /
+	 * select). Items are entered one per line. The widget tag's "function.items"
+	 * map gets replaced with the parsed array.
+	 */
+	/**
+	 * Replace the children of a list widget (ul / ol / select) on the canvas
+	 * with a TextView per item so the design surface visually reflects the
+	 * configured items.
+	 */
+	private void rebuildListWidget(View selected, List<String> items) {
+		if (!(selected instanceof ViewGroup)) return;
+		ViewGroup vg = (ViewGroup) selected;
+		vg.removeAllViews();
+		boolean ordered = false;
+		Object t = selected.getTag();
+		if (t instanceof Map) {
+			Object tag = ((Map<?, ?>) t).get("tag");
+			ordered = "ol".equals(String.valueOf(tag));
+		}
+		for (int i = 0; i < items.size(); i++) {
+			TextView tv = new TextView(this);
+			String prefix = ordered ? (i + 1) + ". " : "• ";
+			tv.setText(prefix + items.get(i));
+			tv.setTextColor(Color.parseColor("#222222"));
+			tv.setPadding(8, 4, 8, 4);
+			vg.addView(tv);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private void showListItemsDialog(View selected) {
+		Object tagObj = selected.getTag();
+		if (!(tagObj instanceof Map)) return;
+		Map<String, Object> wm = (Map<String, Object>) tagObj;
+		Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+		if (fn == null) {
+			fn = new HashMap<>();
+			wm.put("function", fn);
+		}
+
+		Object existing = fn.get("items");
+		StringBuilder seed = new StringBuilder();
+		if (existing instanceof List) {
+			for (Object o : (List<?>) existing) {
+				if (o != null) seed.append(o.toString()).append("\n");
+			}
+		}
+
+		LinearLayout container = new LinearLayout(this);
+		container.setOrientation(LinearLayout.VERTICAL);
+		container.setPadding(48, 16, 48, 0);
+
+		TextView help = new TextView(this);
+		help.setText("Enter one item per line:");
+		help.setTextSize(12);
+		container.addView(help);
+
+		TextInputLayout til = new TextInputLayout(this);
+		til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+		TextInputEditText input = new TextInputEditText(this);
+		input.setText(seed.toString());
+		input.setMinLines(5);
+		input.setMaxLines(15);
+		input.setGravity(Gravity.TOP | Gravity.START);
+		til.addView(input);
+		container.addView(til);
+
+		final Map<String, Object> fnRef = fn;
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Edit list items")
+			.setView(container)
+			.setPositiveButton("Save", (d, w) -> {
+				String raw = input.getText() != null ? input.getText().toString() : "";
+				List<String> parsed = new ArrayList<>();
+				for (String line : raw.split("\\r?\\n")) {
+					String t = line.trim();
+					if (!t.isEmpty()) parsed.add(t);
+				}
+				fnRef.put("items", parsed);
+				selected.setTag(wm);
+				rebuildListWidget(selected, parsed);
+				saveUndoState();
+				refreshHierarchy();
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
 	}
 
 	@Override
