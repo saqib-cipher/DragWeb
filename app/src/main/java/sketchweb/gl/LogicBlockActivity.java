@@ -283,6 +283,12 @@ public class LogicBlockActivity extends AppCompatActivity {
                         saveUndoState();
                         logicBlockManager.removeBlock((Integer) state);
                         refreshWorkspace();
+                    } else if (state instanceof String && ((String) state).startsWith("event:")) {
+                        String eventKey = ((String) state).substring(6);
+                        saveUndoState();
+                        logicBlockManager.getBlocks().removeIf(b -> eventKey.equals(b.event));
+                        placeholderEvents.remove(eventKey);
+                        refreshWorkspace();
                     }
                     return true;
                 }
@@ -1109,10 +1115,17 @@ public class LogicBlockActivity extends AppCompatActivity {
     private String activeEventKey = "load";
 
     /**
+     * Events the user dropped onto the workspace as parent C-blocks but which
+     * don't yet have any children. Insertion order is preserved so the
+     * workspace renders them in the same order they were dropped.
+     */
+    private final java.util.LinkedHashSet<String> placeholderEvents = new java.util.LinkedHashSet<>();
+
+    /**
      * Create a block from a palette definition with sensible defaults — no
      * dialogs. Users tweak the block in the workspace by tapping its chips.
-     * If an "onLoad" event header already exists, CSS/animation blocks
-     * attach to it as a child instead of asking.
+     * Event / CSS-pseudo C-shapes drop in as visible empty parent blocks
+     * that subsequent action blocks nest into.
      */
     private void addBlockFromDef(BlockDef def) {
         // CSS pseudo-class C-shapes (hover/before/after/focus/active)
@@ -1120,11 +1133,17 @@ public class LogicBlockActivity extends AppCompatActivity {
         // subsequent CSS rules attach under that pseudo-class group.
         if (CAT_CSS.equals(def.category) && "C".equals(def.shape)) {
             activeEventKey = pseudoEventKey(def.id);
+            placeholderEvents.add(activeEventKey);
+            saveUndoState();
+            refreshWorkspace();
             return;
         }
 
         if (CAT_EVENT.equals(def.category)) {
             activeEventKey = mapEventKey(def.id);
+            placeholderEvents.add(activeEventKey);
+            saveUndoState();
+            refreshWorkspace();
             return;
         }
 
@@ -1144,10 +1163,11 @@ public class LogicBlockActivity extends AppCompatActivity {
                 : (hasEvent("load") ? "load" : "load");
             block.action = def.id;
         } else if (CAT_ASD.equals(def.category)) {
+            // ASD blocks are dropped as direct code blocks – no page selection
+            // and no auto-dialog. The user taps the block later to edit.
             block.targetMode = "source";
             block.event = "asd";
             block.action = def.id;
-            // Params populated by source dialog
         } else {
             // CSS — attach to the active scope (load by default; a pseudo-
             // class block sets it to css:hover etc.).
@@ -1155,14 +1175,16 @@ public class LogicBlockActivity extends AppCompatActivity {
                 : (hasEvent("load") ? "load" : "load");
         }
 
+        // The action just landed in this event group, so the placeholder is
+        // no longer empty.
+        placeholderEvents.remove(block.event);
+
         logicBlockManager.addBlock(block);
         int idx = logicBlockManager.getBlocks().size() - 1;
         refreshWorkspace();
 
         if (CAT_ANIMATION.equals(def.category)) {
             showAnimationCustomizeDialog(idx);
-        } else if (CAT_ASD.equals(def.category)) {
-            showSourceCodeDialog(idx, def);
         }
     }
 
@@ -1600,9 +1622,33 @@ public class LogicBlockActivity extends AppCompatActivity {
         if (tvBlockCount != null) {
             tvBlockCount.setText(blocks.size() + " block" + (blocks.size() == 1 ? "" : "s"));
         }
-        if (blocks.isEmpty()) {
+
+        // Walk events in the order they appear: first events that already
+        // own at least one block (preserving block order), then placeholder
+        // events that the user dropped but hasn't filled yet.
+        java.util.LinkedHashMap<String, java.util.List<Integer>> grouped = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < blocks.size(); i++) {
+            LogicBlockManager.LogicBlock b = blocks.get(i);
+            String ev = b.event != null ? b.event : "immediate";
+            java.util.List<Integer> indices = grouped.get(ev);
+            if (indices == null) {
+                indices = new java.util.ArrayList<>();
+                grouped.put(ev, indices);
+            }
+            indices.add(i);
+        }
+        for (String ev : placeholderEvents) {
+            if (!grouped.containsKey(ev)) {
+                grouped.put(ev, new java.util.ArrayList<>());
+            }
+        }
+        // Remember every event that has blocks so the parent stays visible
+        // even after the user deletes all of its children.
+        placeholderEvents.addAll(grouped.keySet());
+
+        if (grouped.isEmpty()) {
             TextView empty = new TextView(this);
-            empty.setText("Drag a CSS or Logic block here.\nEvents wrap actions.");
+            empty.setText("Drag an event block here as a parent,\nthen drop CSS / Logic blocks inside it.");
             empty.setTextColor(Color.parseColor("#7A8B9C"));
             empty.setTextSize(14);
             empty.setGravity(Gravity.CENTER);
@@ -1611,69 +1657,111 @@ public class LogicBlockActivity extends AppCompatActivity {
             return;
         }
 
-        String currentEvent = null;
-        LinearLayout eventGroup = null;
-        LinearLayout slot = null;
-
-        for (int i = 0; i < blocks.size(); i++) {
-            LogicBlockManager.LogicBlock block = blocks.get(i);
-            String ev = block.event != null ? block.event : "immediate";
-
-            if (!ev.equals(currentEvent)) {
-                currentEvent = ev;
-                eventGroup = new LinearLayout(this);
-                eventGroup.setOrientation(LinearLayout.VERTICAL);
-                eventGroup.setBackground(getBlockBackground("C", false));
-                eventGroup.setPadding(dp(14), dp(10), dp(12), dp(12));
-                
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                lp.setMargins(dp(4), dp(8), dp(4), dp(8));
-                eventGroup.setLayoutParams(lp);
-
-                TextView header = new TextView(this);
-                header.setText(LogicBlockManager.getEventDisplayName(ev));
-                header.setTextColor(Color.WHITE);
-                header.setTypeface(null, Typeface.BOLD);
-                header.setTextSize(13);
-                header.setPadding(0, 0, 0, dp(4));
-                eventGroup.addView(header);
-
-                // Make the event group draggable via its header
-                final String finalEv = ev;
-                final LinearLayout finalGroup = eventGroup;
-                header.setOnLongClickListener(v -> {
-                    finalGroup.setBackground(getBlockBackground("C", true));
-                    // Hide inputs in the whole group
-                    setBlockChildrenVisible(finalGroup, false);
-                    
-                    ClipData.Item item = new ClipData.Item("reorder_event|" + finalEv);
-                    ClipData dragData = new ClipData("reorder_event", new String[]{ClipDescription.MIMETYPE_TEXT_PLAIN}, item);
-                    View.DragShadowBuilder shadow = new View.DragShadowBuilder(finalGroup);
-                    finalGroup.startDragAndDrop(dragData, shadow, "event:" + finalEv, 0);
-                    return true;
-                });
-
-                eventGroup.setOnDragListener((v, dragEvent) -> {
-                    if (dragEvent.getAction() == DragEvent.ACTION_DRAG_ENDED) {
-                        finalGroup.setBackground(getBlockBackground("C", false));
-                        setBlockChildrenVisible(finalGroup, true);
-                    }
-                    return false;
-                });
-
-                slot = new LinearLayout(this);
-                slot.setOrientation(LinearLayout.VERTICAL);
-                slot.setPadding(dp(12), dp(4), 0, 0);
-                eventGroup.addView(slot);
-
-                blockWorkspace.addView(eventGroup);
-            }
-
-            View blockView = createWorkspacePuzzleBlock(block, i);
-            blockView.setTag(i);
-            if (slot != null) slot.addView(blockView);
+        for (java.util.Map.Entry<String, java.util.List<Integer>> entry : grouped.entrySet()) {
+            String ev = entry.getKey();
+            java.util.List<Integer> indices = entry.getValue();
+            blockWorkspace.addView(buildEventGroupView(ev, indices));
         }
+    }
+
+    /**
+     * Build the C-shaped parent view for one event scope. Children stack
+     * vertically inside the inner slot, the parent stretches to fit them,
+     * and dropping a block onto the slot reparents it under this event.
+     */
+    private View buildEventGroupView(final String ev, java.util.List<Integer> indices) {
+        final LinearLayout eventGroup = new LinearLayout(this);
+        eventGroup.setOrientation(LinearLayout.VERTICAL);
+        eventGroup.setBackground(getBlockBackground("C", false));
+        eventGroup.setPadding(dp(18), dp(14), dp(14), dp(16));
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(dp(4), dp(8), dp(4), dp(8));
+        eventGroup.setLayoutParams(lp);
+
+        TextView header = new TextView(this);
+        header.setText(LogicBlockManager.getEventDisplayName(ev));
+        header.setTextColor(Color.WHITE);
+        header.setTypeface(null, Typeface.BOLD);
+        header.setTextSize(13);
+        header.setPadding(0, 0, 0, dp(6));
+        eventGroup.addView(header);
+
+        final LinearLayout slot = new LinearLayout(this);
+        slot.setOrientation(LinearLayout.VERTICAL);
+        slot.setPadding(dp(14), dp(4), dp(2), dp(4));
+        slot.setMinimumHeight(dp(36));
+        eventGroup.addView(slot);
+
+        // Drop-into: a block dropped onto the slot becomes a child of this
+        // event group (reparenting from any other event, or accepting a new
+        // palette block).
+        slot.setOnDragListener((v, event) -> {
+            switch (event.getAction()) {
+                case DragEvent.ACTION_DRAG_STARTED:
+                    return event.getClipDescription() != null
+                        && event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
+                case DragEvent.ACTION_DRAG_ENTERED:
+                    slot.setBackgroundColor(adjustAlpha(Color.WHITE, 50));
+                    return true;
+                case DragEvent.ACTION_DRAG_EXITED:
+                case DragEvent.ACTION_DRAG_ENDED:
+                    slot.setBackgroundColor(Color.TRANSPARENT);
+                    return true;
+                case DragEvent.ACTION_DROP: {
+                    slot.setBackgroundColor(Color.TRANSPARENT);
+                    Object localState = event.getLocalState();
+                    if (localState instanceof BlockDef) {
+                        addBlockToEvent((BlockDef) localState, ev);
+                    } else if (localState instanceof Integer) {
+                        moveBlockToEvent((Integer) localState, ev);
+                    }
+                    // Parent now has children — drop the placeholder marker.
+                    placeholderEvents.remove(ev);
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        // Drag the event group itself (long-press the header) to reorder it
+        // wholesale among other event groups.
+        header.setOnLongClickListener(v -> {
+            eventGroup.setBackground(getBlockBackground("C", true));
+            setBlockChildrenVisible(eventGroup, false);
+            ClipData.Item item = new ClipData.Item("reorder_event|" + ev);
+            ClipData dragData = new ClipData("reorder_event",
+                new String[]{ClipDescription.MIMETYPE_TEXT_PLAIN}, item);
+            View.DragShadowBuilder shadow = new View.DragShadowBuilder(eventGroup);
+            eventGroup.startDragAndDrop(dragData, shadow, "event:" + ev, 0);
+            return true;
+        });
+        eventGroup.setOnDragListener((v, dragEvent) -> {
+            if (dragEvent.getAction() == DragEvent.ACTION_DRAG_ENDED) {
+                eventGroup.setBackground(getBlockBackground("C", false));
+                setBlockChildrenVisible(eventGroup, true);
+            }
+            return false;
+        });
+
+        if (indices.isEmpty()) {
+            TextView ph = new TextView(this);
+            ph.setText("Drop blocks here");
+            ph.setTextColor(Color.parseColor("#CCFFFFFF"));
+            ph.setTextSize(11);
+            ph.setPadding(0, dp(4), 0, dp(4));
+            slot.addView(ph);
+        } else {
+            for (int idx : indices) {
+                LogicBlockManager.LogicBlock b = logicBlockManager.getBlocks().get(idx);
+                View blockView = createWorkspacePuzzleBlock(b, idx);
+                blockView.setTag(idx);
+                slot.addView(blockView);
+            }
+        }
+        eventGroup.setTag(indices.isEmpty() ? null : indices.get(0));
+        return eventGroup;
     }
 
     private LinearLayout createEventSlot(String eventKey) {
@@ -1905,8 +1993,16 @@ public class LogicBlockActivity extends AppCompatActivity {
             return false;
         });
 
-        // Short tap = edit value
-        row.setOnClickListener(v -> showEditBlockDialog(index));
+        // Short tap = edit value. ASD blocks get a code editor; others fall
+        // back to the generic params text dialog.
+        final boolean isAsd = "asd".equals(block.event);
+        row.setOnClickListener(v -> {
+            if (isAsd) {
+                showSourceCodeDialog(index, findBlockDef(block.action));
+            } else {
+                showEditBlockDialog(index);
+            }
+        });
 
         return row;
     }
@@ -2479,6 +2575,7 @@ public class LogicBlockActivity extends AppCompatActivity {
                 int before = logicBlockManager.getBlocks().size();
                 saveUndoState();
                 logicBlockManager.fromJson(json);
+                placeholderEvents.clear();
                 int after = logicBlockManager.getBlocks().size();
                 refreshWorkspace();
                 Toast.makeText(this, "Imported " + after + " block(s)" + (before > 0 ? " (replaced " + before + ")" : ""), Toast.LENGTH_SHORT).show();
@@ -2493,6 +2590,7 @@ public class LogicBlockActivity extends AppCompatActivity {
                     if (text != null) {
                         saveUndoState();
                         logicBlockManager.fromJson(text.toString());
+                        placeholderEvents.clear();
                         refreshWorkspace();
                         Toast.makeText(this, "Imported from clipboard", Toast.LENGTH_SHORT).show();
                         return;
@@ -2778,28 +2876,102 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     // ---- Block Definition ----
 
+    /**
+     * Sketchware-pro style block background:
+     *   shape == "C" -> loop.png            (event/loop wrapper)
+     *   shape == "E" -> ifelse.png          (if/else wrapper)
+     *   else         -> block_command.png   (normal action block)
+     *
+     * While dragging, every shape switches to selected_block_command.png so
+     * the block becomes a flat highlighted silhouette while in flight.
+     */
     private android.graphics.drawable.Drawable getBlockBackground(String shape, boolean selected) {
+        if (selected) {
+            return getStretchableBackground("selected_block_command.png");
+        }
         String name;
         if ("C".equals(shape)) {
-            name = selected ? "selected_block_loop.png" : "loop.png";
+            name = "loop.png";
         } else if ("E".equals(shape)) {
-            name = selected ? "selected_block_ifelse.png" : "ifelse.png";
+            name = "ifelse.png";
         } else {
-            name = selected ? "selected_block_command.png" : "command.png";
+            name = "block_command.png";
         }
-        return getBlockDrawable(name);
+        return getStretchableBackground(name);
     }
 
-    private android.graphics.drawable.Drawable getBlockDrawable(String name) {
-        try {
-            java.io.InputStream is = getAssets().open("blocks_bg/" + name);
-            // Sketchware blocks are often 9-patches. Drawable.createFromStream 
-            // handles them if they are compiled, but for assets we might 
-            // need to be careful. However, usually they are just PNGs.
-            return android.graphics.drawable.Drawable.createFromStream(is, null);
-        } catch (Exception e) {
-            return null;
+    /**
+     * Cache of decoded block backgrounds so we don't re-read the asset on
+     * every workspace refresh.
+     */
+    private final java.util.Map<String, android.graphics.Bitmap> bgBitmapCache = new java.util.HashMap<>();
+
+    /**
+     * Load a block background asset and wrap it as a NinePatchDrawable using
+     * a hand-rolled stretch chunk that keeps the corners intact and stretches
+     * only the centre row/column. Falls back to a plain BitmapDrawable if the
+     * runtime rejects the chunk for any reason — that still renders the image
+     * but stretches it uniformly.
+     */
+    private android.graphics.drawable.Drawable getStretchableBackground(String name) {
+        android.graphics.Bitmap bmp = bgBitmapCache.get(name);
+        if (bmp == null) {
+            try {
+                java.io.InputStream is = getAssets().open("blocks_bg/" + name);
+                bmp = android.graphics.BitmapFactory.decodeStream(is);
+                is.close();
+            } catch (Exception ignored) {
+                return null;
+            }
+            if (bmp == null) return null;
+            bgBitmapCache.put(name, bmp);
         }
+        byte[] chunk = bmp.getNinePatchChunk();
+        if (chunk == null) {
+            chunk = buildCenterStretchChunk(bmp.getWidth(), bmp.getHeight());
+        }
+        try {
+            android.graphics.Rect padding = new android.graphics.Rect(
+                Math.max(4, bmp.getWidth() / 8),
+                Math.max(4, bmp.getHeight() / 4),
+                Math.max(4, bmp.getWidth() / 8),
+                Math.max(4, bmp.getHeight() / 4));
+            return new android.graphics.drawable.NinePatchDrawable(getResources(), bmp, chunk, padding, name);
+        } catch (Exception e) {
+            return new android.graphics.drawable.BitmapDrawable(getResources(), bmp);
+        }
+    }
+
+    /**
+     * Build a minimal 9-patch chunk that marks a single 1px-wide centre column
+     * and 1px-tall centre row as stretchable, with everything else fixed. The
+     * binary layout is the same one Android uses internally so NinePatchDrawable
+     * accepts it without complaining.
+     */
+    private byte[] buildCenterStretchChunk(int w, int h) {
+        int cx = Math.max(1, w / 2);
+        int cy = Math.max(1, h / 2);
+        java.nio.ByteBuffer buf = java.nio.ByteBuffer
+            .allocate(32 + 4 * 2 + 4 * 2 + 4 * 9)
+            .order(java.nio.ByteOrder.nativeOrder());
+        buf.put((byte) 1);            // wasDeserialized
+        buf.put((byte) 2);            // numXDivs (start, end of stretch column)
+        buf.put((byte) 2);            // numYDivs
+        buf.put((byte) 9);            // numColors (3x3 grid)
+        buf.putInt(0);                // xDivsOffset (unused at runtime)
+        buf.putInt(0);                // yDivsOffset
+        buf.putInt(0);                // paddingLeft
+        buf.putInt(0);                // paddingRight
+        buf.putInt(0);                // paddingTop
+        buf.putInt(0);                // paddingBottom
+        buf.putInt(0);                // colorsOffset
+        buf.putInt(cx);               // x stretch start
+        buf.putInt(cx + 1);           // x stretch end
+        buf.putInt(cy);               // y stretch start
+        buf.putInt(cy + 1);           // y stretch end
+        // 9 colours: 1 = NO_COLOR (transparent / image)
+        for (int i = 0; i < 9; i++) buf.putInt(1);
+        return buf.array();
     }
 
     static class BlockDef {

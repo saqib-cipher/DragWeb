@@ -421,14 +421,18 @@ public class LogicBlockManager {
     }
 
     private String buildSelector(LogicBlock block) {
-        String target = block.targetWidget;
+        // Trim so trailing whitespace doesn't turn "#id" into the descendant
+        // selector "#id :hover", which used to fragment hover-rule grouping
+        // (multiple CSS blocks under the same :hover parent each emitted their
+        // own rule because their selectors didn't string-match exactly).
+        String target = block.targetWidget == null ? "" : block.targetWidget.trim();
         String mode = block.targetMode;
         if (TARGET_MODE_ID.equals(mode)) {
-            return "#" + target;
+            return target.isEmpty() ? "*" : "#" + target;
         } else if (TARGET_MODE_CLASS.equals(mode)) {
-            return "." + target;
+            return target.isEmpty() ? "*" : "." + target;
         } else if (TARGET_MODE_TAG.equals(mode)) {
-            return target;
+            return target.isEmpty() ? "*" : target;
         }
         return "[data-widget='" + target + "']";
     }
