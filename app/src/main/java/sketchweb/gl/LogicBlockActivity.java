@@ -581,13 +581,15 @@ public class LogicBlockActivity extends AppCompatActivity {
                 case DragEvent.ACTION_DRAG_STARTED:
                     return event.getClipDescription() != null
                         && event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
-                case DragEvent.ACTION_DRAG_ENTERED:
-                    setWorkspaceHighlight(true, event.getLocalState());
+                case DragEvent.ACTION_DRAG_LOCATION:
+                    showDropIndicator(event.getY());
                     return true;
                 case DragEvent.ACTION_DRAG_EXITED:
+                    hideDropIndicator();
                     setWorkspaceHighlight(false, null);
                     return true;
                 case DragEvent.ACTION_DROP:
+                    hideDropIndicator();
                     setWorkspaceHighlight(false, null);
                     Object localState = event.getLocalState();
                     if (localState instanceof BlockDef) {
@@ -596,9 +598,14 @@ public class LogicBlockActivity extends AppCompatActivity {
                         int fromIndex = (Integer) localState;
                         float dropY = event.getY();
                         reorderBlock(fromIndex, dropY);
+                    } else if (localState instanceof String && ((String) localState).startsWith("event:")) {
+                        String eventKey = ((String) localState).substring(6);
+                        float dropY = event.getY();
+                        reorderEventGroup(eventKey, dropY);
                     }
                     return true;
                 case DragEvent.ACTION_DRAG_ENDED:
+                    hideDropIndicator();
                     setWorkspaceHighlight(false, null);
                     return true;
             }
@@ -616,32 +623,143 @@ public class LogicBlockActivity extends AppCompatActivity {
         List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
         if (fromIndex < 0 || fromIndex >= blocks.size()) return;
 
+        List<ViewInfo> allViews = new ArrayList<>();
+        collectBlockViewInfo(blockWorkspace, 0, allViews);
+        
         int targetIdx = -1;
-        for (int i = 0; i < blockWorkspace.getChildCount(); i++) {
-            View child = blockWorkspace.getChildAt(i);
-            Integer blockIdx = findBlockIndexTag(child);
-            if (blockIdx == null) continue;
-            float midY = child.getTop() + child.getHeight() / 2f;
+        for (ViewInfo vi : allViews) {
+            float midY = vi.top + vi.height / 2f;
             if (y < midY) {
-                targetIdx = blockIdx;
+                targetIdx = vi.blockIndex;
                 break;
             }
-            // Track the index after the last block we passed
-            targetIdx = blockIdx + 1;
+            targetIdx = vi.blockIndex + 1;
         }
 
         if (targetIdx < 0) targetIdx = blocks.size();
         if (targetIdx > blocks.size()) targetIdx = blocks.size();
 
-        // No-op cases — dropping in same slot or right after self
         if (targetIdx == fromIndex || targetIdx == fromIndex + 1) return;
 
         saveUndoState();
         LogicBlockManager.LogicBlock moving = blocks.remove(fromIndex);
         if (targetIdx > fromIndex) targetIdx--;
-        if (targetIdx > blocks.size()) targetIdx = blocks.size();
+        
+        // Inherit event from neighbors
+        if (targetIdx <= 0) {
+            moving.event = blocks.isEmpty() ? activeEventKey : blocks.get(0).event;
+        } else {
+            moving.event = blocks.get(targetIdx - 1).event;
+        }
+        
         blocks.add(targetIdx, moving);
         refreshWorkspace();
+    }
+
+    private void reorderEventGroup(String eventKey, float y) {
+        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+        List<LogicBlockManager.LogicBlock> movingGroup = new ArrayList<>();
+        for (LogicBlockManager.LogicBlock b : blocks) {
+            if (eventKey.equals(b.event)) movingGroup.add(b);
+        }
+        if (movingGroup.isEmpty()) return;
+
+        List<ViewInfo> allViews = new ArrayList<>();
+        collectBlockViewInfo(blockWorkspace, 0, allViews);
+        
+        int targetIdx = -1;
+        for (ViewInfo vi : allViews) {
+            // When moving a group, we only want to drop between other groups or blocks.
+            float midY = vi.top + vi.height / 2f;
+            if (y < midY) {
+                targetIdx = vi.blockIndex;
+                break;
+            }
+            targetIdx = vi.blockIndex + 1;
+        }
+
+        if (targetIdx < 0) targetIdx = blocks.size();
+
+        saveUndoState();
+        blocks.removeIf(b -> eventKey.equals(b.event));
+        if (targetIdx > blocks.size()) targetIdx = blocks.size();
+        blocks.addAll(targetIdx, movingGroup);
+        refreshWorkspace();
+    }
+
+    private static class ViewInfo {
+        int blockIndex;
+        float top;
+        float height;
+    }
+
+    private void collectBlockViewInfo(ViewGroup parent, float parentTop, List<ViewInfo> result) {
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            View child = parent.getChildAt(i);
+            float childTop = parentTop + child.getTop();
+            Object tag = child.getTag();
+            if (tag instanceof Integer) {
+                ViewInfo vi = new ViewInfo();
+                vi.blockIndex = (Integer) tag;
+                vi.top = childTop;
+                vi.height = child.getHeight();
+                result.add(vi);
+            } else if (child instanceof ViewGroup) {
+                collectBlockViewInfo((ViewGroup) child, childTop, result);
+            }
+        }
+    }
+
+    private View dropIndicator;
+
+    private void showDropIndicator(float y) {
+        if (dropIndicator == null) {
+            dropIndicator = new View(this);
+            dropIndicator.setBackgroundColor(Color.parseColor("#448AFF"));
+            dropIndicator.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(4)));
+        }
+        
+        if (dropIndicator.getParent() != null) {
+            ((ViewGroup) dropIndicator.getParent()).removeView(dropIndicator);
+        }
+
+        int insertPos = -1;
+        for (int i = 0; i < blockWorkspace.getChildCount(); i++) {
+            View child = blockWorkspace.getChildAt(i);
+            if (child == dropIndicator) continue;
+            float midY = child.getTop() + child.getHeight() / 2f;
+            if (y < midY) {
+                insertPos = i;
+                break;
+            }
+            insertPos = i + 1;
+        }
+        
+        if (insertPos != -1) {
+            blockWorkspace.addView(dropIndicator, insertPos);
+        }
+    }
+
+    private void hideDropIndicator() {
+        if (dropIndicator != null && dropIndicator.getParent() != null) {
+            ((ViewGroup) dropIndicator.getParent()).removeView(dropIndicator);
+        }
+    }
+
+    private void setBlockChildrenVisible(View v, boolean visible) {
+        if (!(v instanceof ViewGroup)) return;
+        ViewGroup vg = (ViewGroup) v;
+        for (int i = 0; i < vg.getChildCount(); i++) {
+            View child = vg.getChildAt(i);
+            // In C-shaped containers (event groups), the first child is the label, second is slot.
+            // We hide the labels and all chips.
+            if (child instanceof TextView) {
+                child.setVisibility(visible ? View.VISIBLE : View.INVISIBLE);
+            } else if (child instanceof ViewGroup) {
+                setBlockChildrenVisible(child, visible);
+            }
+        }
     }
 
     /**
@@ -1002,17 +1120,11 @@ public class LogicBlockActivity extends AppCompatActivity {
         // subsequent CSS rules attach under that pseudo-class group.
         if (CAT_CSS.equals(def.category) && "C".equals(def.shape)) {
             activeEventKey = pseudoEventKey(def.id);
-            Toast.makeText(this,
-                "Active scope: " + def.label,
-                Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (CAT_EVENT.equals(def.category)) {
             activeEventKey = mapEventKey(def.id);
-            Toast.makeText(this,
-                "Active event: " + LogicBlockManager.getEventDisplayName(activeEventKey),
-                Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -1490,7 +1602,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         }
         if (blocks.isEmpty()) {
             TextView empty = new TextView(this);
-            empty.setText("Drag a CSS or Logic block here.\nEvents are C-shapes that wrap actions.");
+            empty.setText("Drag a CSS or Logic block here.\nEvents wrap actions.");
             empty.setTextColor(Color.parseColor("#7A8B9C"));
             empty.setTextSize(14);
             empty.setGravity(Gravity.CENTER);
@@ -1499,84 +1611,90 @@ public class LogicBlockActivity extends AppCompatActivity {
             return;
         }
 
-        // Flat rendering with visual "C" shape markers.
-        // This makes reordering trivial as each View corresponds to exactly one index.
         String currentEvent = null;
+        LinearLayout eventGroup = null;
+        LinearLayout slot = null;
+
         for (int i = 0; i < blocks.size(); i++) {
             LogicBlockManager.LogicBlock block = blocks.get(i);
             String ev = block.event != null ? block.event : "immediate";
 
             if (!ev.equals(currentEvent)) {
-                // Event Header
-                View header = createEventHeaderBlock(ev);
-                blockWorkspace.addView(header);
                 currentEvent = ev;
+                eventGroup = new LinearLayout(this);
+                eventGroup.setOrientation(LinearLayout.VERTICAL);
+                eventGroup.setBackground(getBlockBackground("C", false));
+                eventGroup.setPadding(dp(14), dp(10), dp(12), dp(12));
+                
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                lp.setMargins(dp(4), dp(8), dp(4), dp(8));
+                eventGroup.setLayoutParams(lp);
+
+                TextView header = new TextView(this);
+                header.setText(LogicBlockManager.getEventDisplayName(ev));
+                header.setTextColor(Color.WHITE);
+                header.setTypeface(null, Typeface.BOLD);
+                header.setTextSize(13);
+                header.setPadding(0, 0, 0, dp(4));
+                eventGroup.addView(header);
+
+                // Make the event group draggable via its header
+                final String finalEv = ev;
+                final LinearLayout finalGroup = eventGroup;
+                header.setOnLongClickListener(v -> {
+                    finalGroup.setBackground(getBlockBackground("C", true));
+                    // Hide inputs in the whole group
+                    setBlockChildrenVisible(finalGroup, false);
+                    
+                    ClipData.Item item = new ClipData.Item("reorder_event|" + finalEv);
+                    ClipData dragData = new ClipData("reorder_event", new String[]{ClipDescription.MIMETYPE_TEXT_PLAIN}, item);
+                    View.DragShadowBuilder shadow = new View.DragShadowBuilder(finalGroup);
+                    finalGroup.startDragAndDrop(dragData, shadow, "event:" + finalEv, 0);
+                    return true;
+                });
+
+                eventGroup.setOnDragListener((v, dragEvent) -> {
+                    if (dragEvent.getAction() == DragEvent.ACTION_DRAG_ENDED) {
+                        finalGroup.setBackground(getBlockBackground("C", false));
+                        setBlockChildrenVisible(finalGroup, true);
+                    }
+                    return false;
+                });
+
+                slot = new LinearLayout(this);
+                slot.setOrientation(LinearLayout.VERTICAL);
+                slot.setPadding(dp(12), dp(4), 0, 0);
+                eventGroup.addView(slot);
+
+                blockWorkspace.addView(eventGroup);
             }
-
-            // Indented block with left rail
-            LinearLayout wrapper = new LinearLayout(this);
-            wrapper.setOrientation(LinearLayout.HORIZONTAL);
-            wrapper.setPadding(dp(12), 0, 0, 0);
-            // Tag the wrapper too so reorder hit-testing works on either.
-            wrapper.setTag(i);
-
-            View rail = new View(this);
-            rail.setBackgroundColor(COLOR_EVENT);
-            wrapper.addView(rail, new LinearLayout.LayoutParams(dp(6), ViewGroup.LayoutParams.MATCH_PARENT));
 
             View blockView = createWorkspacePuzzleBlock(block, i);
             blockView.setTag(i);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
-            lp.setMargins(dp(8), 0, 0, 0);
-            wrapper.addView(blockView, lp);
-
-            blockWorkspace.addView(wrapper);
-
-            // Close C-shape if next block has a different event or it's the end
-            boolean isLastOfEvent = (i == blocks.size() - 1) || !blocks.get(i + 1).event.equals(ev);
-            if (isLastOfEvent) {
-                blockWorkspace.addView(createEventBottomCap(ev));
-            }
+            if (slot != null) slot.addView(blockView);
         }
     }
 
-    /**
-     * Vertical container with an orange left rail — visually completes the
-     * "C" shape between the event header and bottom cap. Children are the
-     * rectangular CSS / Logic action blocks.
-     */
     private LinearLayout createEventSlot(String eventKey) {
-        // Wrapper for the "C" shape vertical bar and the inner content
+        // This is used for nested drops - updating it to match the new C-shape style
         LinearLayout wrapper = new LinearLayout(this);
-        wrapper.setOrientation(LinearLayout.HORIZONTAL);
+        wrapper.setOrientation(LinearLayout.VERTICAL);
+        wrapper.setBackground(getBlockBackground("C", false));
+        wrapper.setPadding(dp(14), dp(10), dp(12), dp(12));
 
-        // Left rail (the vertical bar of the C)
-        View rail = new View(this);
-        GradientDrawable railBg = new GradientDrawable();
-        railBg.setColor(COLOR_EVENT);
-        rail.setBackground(railBg);
-        LinearLayout.LayoutParams railLp = new LinearLayout.LayoutParams(dp(6),
-            ViewGroup.LayoutParams.MATCH_PARENT);
-        railLp.setMargins(dp(4), 0, 0, 0);
-        rail.setLayoutParams(railLp);
-        wrapper.addView(rail);
-
-        // Inner stack where action blocks are placed
         LinearLayout inner = new LinearLayout(this);
         inner.setOrientation(LinearLayout.VERTICAL);
-        inner.setPadding(dp(8), dp(2), dp(4), dp(2));
-        LinearLayout.LayoutParams innerLp = new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        inner.setLayoutParams(innerLp);
+        inner.setPadding(dp(12), dp(4), 0, 0);
         wrapper.addView(inner);
 
         LinearLayout.LayoutParams wrapLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        wrapLp.setMargins(dp(4), 0, dp(4), 0);
+        wrapLp.setMargins(dp(4), dp(4), dp(4), dp(4));
         wrapper.setLayoutParams(wrapLp);
 
-        // Drag listener for dropping blocks into this event
         inner.setOnDragListener((v, event) -> {
+
             switch (event.getAction()) {
                 case DragEvent.ACTION_DRAG_STARTED:
                     return event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
@@ -1647,48 +1765,8 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     /**
-     * Bottom cap of the C-shape. Mirrors the orange header so the wrapping
-     * around the slot looks closed.
+     * Bottom cap of the C-shape. Uses loop.png (bottom part).
      */
-    private View createEventBottomCap(String eventKey) {
-        View cap = new View(this);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadii(new float[]{0, 0, dp(10), dp(10), dp(10), dp(10), 0, 0});
-        bg.setColor(COLOR_EVENT);
-        cap.setBackground(bg);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(60), dp(8));
-        lp.setMargins(dp(4), 0, 0, dp(8));
-        cap.setLayoutParams(lp);
-        return cap;
-    }
-
-    /**
-     * Renders a Sketchware-style orange header block, eg.
-     * "On Click" / "On Page Load" / "Immediate".
-     */
-    private View createEventHeaderBlock(String eventKey) {
-        String label = LogicBlockManager.getEventDisplayName(eventKey);
-
-        TextView header = new TextView(this);
-        header.setText(label);
-        header.setTextColor(Color.WHITE);
-        header.setTypeface(null, Typeface.BOLD);
-        header.setTextSize(13);
-        header.setPadding(dp(14), dp(8), dp(14), dp(10));
-
-        GradientDrawable bg = new GradientDrawable();
-        // Tab on top-left, slight curve elsewhere — matches Sketchware "event" cap.
-        bg.setCornerRadii(new float[]{dp(10), dp(10), dp(10), dp(10), dp(10), dp(10), 0, 0});
-        bg.setColor(COLOR_EVENT);
-        header.setBackground(bg);
-        header.setElevation(2);
-
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.setMargins(dp(4), dp(8), dp(4), 0);
-        header.setLayoutParams(params);
-        return header;
-    }
 
     /**
      * Render a single block as a horizontal Sketchware-style "puzzle" row:
@@ -1720,23 +1798,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         row.setPadding(dp(10), dp(7), dp(10), dp(9));
         row.setBaselineAligned(false);
 
-        GradientDrawable bg = new GradientDrawable();
-        if ("E".equals(shape)) {
-            // Logic = E-shape: rounded but flatter on the left so it visually
-            // pairs with the C-shape event around it.
-            bg.setCornerRadii(new float[]{
-                dp(2), dp(2),     // top-left
-                dp(8), dp(8),     // top-right
-                dp(8), dp(8),     // bottom-right
-                dp(2), dp(2)      // bottom-left
-            });
-        } else {
-            // "rect" or default
-            bg.setCornerRadius(dp(4));
-        }
-        bg.setColor(baseColor);
-        bg.setStroke(dp(1), strokeColor);
-        row.setBackground(bg);
+        row.setBackground(getBlockBackground(shape, false));
         row.setElevation(2);
 
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
@@ -1824,6 +1886,9 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         // Long press = Start Drag for reordering
         row.setOnLongClickListener(v -> {
+            row.setBackground(getBlockBackground(shape, true));
+            setBlockChildrenVisible(row, false);
+            
             ClipData.Item item = new ClipData.Item("reorder|" + index);
             ClipData dragData = new ClipData("reorder", new String[]{ClipDescription.MIMETYPE_TEXT_PLAIN}, item);
             View.DragShadowBuilder shadow = new View.DragShadowBuilder(v);
@@ -1831,6 +1896,15 @@ public class LogicBlockActivity extends AppCompatActivity {
             v.startDragAndDrop(dragData, shadow, index, 0);
             return true;
         });
+
+        row.setOnDragListener((v, event) -> {
+            if (event.getAction() == DragEvent.ACTION_DRAG_ENDED) {
+                row.setBackground(getBlockBackground(shape, false));
+                setBlockChildrenVisible(row, true);
+            }
+            return false;
+        });
+
         // Short tap = edit value
         row.setOnClickListener(v -> showEditBlockDialog(index));
 
@@ -2703,6 +2777,30 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     // ---- Block Definition ----
+
+    private android.graphics.drawable.Drawable getBlockBackground(String shape, boolean selected) {
+        String name;
+        if ("C".equals(shape)) {
+            name = selected ? "selected_block_loop.png" : "loop.png";
+        } else if ("E".equals(shape)) {
+            name = selected ? "selected_block_ifelse.png" : "ifelse.png";
+        } else {
+            name = selected ? "selected_block_command.png" : "command.png";
+        }
+        return getBlockDrawable(name);
+    }
+
+    private android.graphics.drawable.Drawable getBlockDrawable(String name) {
+        try {
+            java.io.InputStream is = getAssets().open("blocks_bg/" + name);
+            // Sketchware blocks are often 9-patches. Drawable.createFromStream 
+            // handles them if they are compiled, but for assets we might 
+            // need to be careful. However, usually they are just PNGs.
+            return android.graphics.drawable.Drawable.createFromStream(is, null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     static class BlockDef {
         String id;

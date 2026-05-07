@@ -523,28 +523,49 @@ public class LogicBlockManager {
 
     /**
      * Generate CSS pseudo-class rules for blocks that use CSS-only interactions.
+     * Rules are grouped by selector and pseudo-class to prevent duplicate rule blocks.
      * Output is suitable for embedding in a {@code <style>} block.
      *
-     * Example output:  #btn1:hover { color: red; }
+     * Example output:  #btn1:hover { color: red; font-size: 14px; }
      */
     public String generateCssPseudoRules() {
-        StringBuilder css = new StringBuilder();
+        java.util.LinkedHashMap<String, java.util.LinkedHashMap<String, String>> bySelector =
+            new java.util.LinkedHashMap<>();
+
         for (LogicBlock block : blocks) {
             if (!isCssPseudoEvent(block.event)) continue;
             String pseudoClass = block.event.substring("css:".length()); // "hover", "focus", etc.
-            String selector = buildSelector(block);
-            // params format: "property:value" (matches ACTION_CHANGE_STYLE convention)
+            String selector = buildSelector(block) + ":" + pseudoClass;
+
             if (block.params != null) {
                 String[] parts = block.params.split(":", 2);
                 if (parts.length == 2) {
-                    css.append("  ").append(selector).append(":").append(pseudoClass)
-                       .append(" { ").append(parts[0].trim()).append(": ")
-                       .append(parts[1].trim()).append("; }\n");
+                    String prop = camelToKebab(parts[0].trim());
+                    String val = parts[1].trim();
+
+                    java.util.LinkedHashMap<String, String> rules = bySelector.get(selector);
+                    if (rules == null) {
+                        rules = new java.util.LinkedHashMap<>();
+                        bySelector.put(selector, rules);
+                    }
+                    rules.put(prop, val);
                 }
             }
         }
+
+        if (bySelector.isEmpty()) return "";
+
+        StringBuilder css = new StringBuilder();
+        for (Map.Entry<String, java.util.LinkedHashMap<String, String>> entry : bySelector.entrySet()) {
+            css.append("  ").append(entry.getKey()).append(" {\n");
+            for (Map.Entry<String, String> rule : entry.getValue().entrySet()) {
+                css.append("    ").append(rule.getKey()).append(": ").append(rule.getValue()).append(";\n");
+            }
+            css.append("  }\n");
+        }
         return css.toString();
     }
+
 
     /**
      * Generate JavaScript with HTML-first approach.
