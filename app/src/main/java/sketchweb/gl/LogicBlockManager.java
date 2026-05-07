@@ -883,6 +883,30 @@ public class LogicBlockManager {
         return str.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
     }
 
+    /**
+     * Sketchware-style template engine. Replaces positional tokens
+     * ({@code %1$s}, {@code %2$s}, ...) inside a block template with the
+     * supplied values and returns the resulting source code string.
+     *
+     * <p>Used by {@link CustomBlockManager} to convert visual custom blocks
+     * into static HTML or CSS at code-generation time. The same engine
+     * powers selector tokens (%m.id, %m.class, %m.tag, %m.file, %m.section)
+     * because the values supplied are resolved selectors.
+     */
+    public String applyTemplate(String template, List<String> values) {
+        if (template == null) return "";
+        if (values == null) return template;
+        String result = template;
+        for (int i = 0; i < values.size(); i++) {
+            String value = values.get(i) != null ? values.get(i) : "";
+            // Positional string tokens: %1$s, %2$s, ...
+            result = result.replace("%" + (i + 1) + "$s", value);
+            // Positional decimal tokens: %1$d, %2$d, ...
+            result = result.replace("%" + (i + 1) + "$d", value);
+        }
+        return result;
+    }
+
     public String toJson() {
         return new Gson().toJson(blocks);
     }

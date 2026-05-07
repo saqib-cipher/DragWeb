@@ -1,0 +1,576 @@
+package sketchweb.gl;
+
+import android.content.Context;
+import android.os.Environment;
+import android.util.Log;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Sketchware-style custom block template engine for DragWeb.
+ *
+ * <p>Loads block templates from {@code /.dragweb/custom/blocks.json}, manages
+ * per-page block instances, and renders them into static HTML/CSS source code
+ * that is injected into the generated pages by {@link PageCodeGenerator} and
+ * {@link ExportManager}.
+ *
+ * <h3>Block format</h3>
+ * <pre>
+ * {
+ *   "id":"menu_link",
+ *   "display":"Add menu link %s to %s",
+ *   "template":"&lt;li&gt;&lt;a href='%1$s'&gt;%2$s&lt;/a&gt;&lt;/li&gt;",
+ *   "category":"HTML"
+ * }
+ * </pre>
+ *
+ * <h3>Token system</h3>
+ * <ul>
+ *   <li>{@code %s} – string input (also %1$s, %2$s, ... positional)</li>
+ *   <li>{@code %d} – number input (positional %1$d, %2$d, ...)</li>
+ *   <li>{@code %m.id} – HTML id selector (auto-completed from page tree)</li>
+ *   <li>{@code %m.class} – CSS class selector</li>
+ *   <li>{@code %m.tag} – HTML tag selector</li>
+ *   <li>{@code %m.file} – project page file selector</li>
+ *   <li>{@code %m.section} – in-page section id selector</li>
+ * </ul>
+ */
+public class CustomBlockManager {
+
+    public static final String CATEGORY_HTML = "HTML";
+    public static final String CATEGORY_CSS = "CSS";
+
+    private static final String TAG = "CustomBlockManager";
+    private static final String LIBRARY_REL_PATH = "/.dragweb/custom/blocks.json";
+
+    private final Context context;
+    private final List<CustomBlockDef> definitions = new ArrayList<>();
+    private final List<CustomBlockInstance> instances = new ArrayList<>();
+
+    public CustomBlockManager(Context context) {
+        this.context = context;
+        loadLibrary();
+    }
+
+    // -------------------------------------------------------------------------
+    // Definitions (palette / library)
+    // -------------------------------------------------------------------------
+
+    public List<CustomBlockDef> getDefinitions() {
+        return new ArrayList<>(definitions);
+    }
+
+    public CustomBlockDef findDefinition(String id) {
+        if (id == null) return null;
+        for (CustomBlockDef def : definitions) {
+            if (id.equals(def.id)) return def;
+        }
+        return null;
+    }
+
+    public List<CustomBlockDef> getDefinitionsForCategory(String category) {
+        List<CustomBlockDef> out = new ArrayList<>();
+        if (category == null) return out;
+        for (CustomBlockDef def : definitions) {
+            if (category.equalsIgnoreCase(def.category)) out.add(def);
+        }
+        return out;
+    }
+
+    public void addDefinition(CustomBlockDef def) {
+        if (def == null || def.id == null || def.id.isEmpty()) return;
+        // Replace by id if present.
+        for (int i = 0; i < definitions.size(); i++) {
+            if (def.id.equals(definitions.get(i).id)) {
+                definitions.set(i, def);
+                saveLibrary();
+                return;
+            }
+        }
+        definitions.add(def);
+        saveLibrary();
+    }
+
+    public void removeDefinition(String id) {
+        if (id == null) return;
+        for (int i = 0; i < definitions.size(); i++) {
+            if (id.equals(definitions.get(i).id)) {
+                definitions.remove(i);
+                saveLibrary();
+                return;
+            }
+        }
+    }
+
+    /**
+     * Load the block-definition library from {@code /.dragweb/custom/blocks.json}.
+     * If the file is missing, the built-in defaults are seeded and persisted so
+     * the user has a starter palette.
+     */
+    public void loadLibrary() {
+        definitions.clear();
+
+        String json = readLibraryFile();
+        if (json == null || json.trim().isEmpty()) {
+            definitions.addAll(defaultDefinitions());
+            saveLibrary();
+            return;
+        }
+
+        try {
+            List<CustomBlockDef> loaded = new Gson().fromJson(
+                json,
+                new TypeToken<List<CustomBlockDef>>(){}.getType()
+            );
+            if (loaded != null) definitions.addAll(loaded);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to parse blocks.json: " + e.getMessage());
+            definitions.addAll(defaultDefinitions());
+            saveLibrary();
+        }
+    }
+
+    /** Persist the library back to {@code /.dragweb/custom/blocks.json}. */
+    public void saveLibrary() {
+        String json = new GsonBuilder().setPrettyPrinting().create().toJson(definitions);
+        File file = libraryFile();
+        if (file == null) return;
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
+        FileUtil.writeFile(file.getAbsolutePath(), json);
+    }
+
+    private String readLibraryFile() {
+        File file = libraryFile();
+        if (file == null || !file.exists()) return null;
+        try {
+            return FileUtil.readFile(file.getAbsolutePath());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private File libraryFile() {
+        try {
+            String base = Environment.getExternalStorageDirectory().getAbsolutePath();
+            return new File(base + LIBRARY_REL_PATH);
+        } catch (Exception e) {
+            // External storage unavailable – fall back to internal app files dir.
+            File internal = new File(context.getFilesDir(), "custom");
+            if (!internal.exists()) internal.mkdirs();
+            return new File(internal, "blocks.json");
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Per-page instances
+    // -------------------------------------------------------------------------
+
+    public List<CustomBlockInstance> getInstances() {
+        return instances;
+    }
+
+    public void addInstance(CustomBlockInstance instance) {
+        if (instance != null) instances.add(instance);
+    }
+
+    public void removeInstance(int index) {
+        if (index >= 0 && index < instances.size()) instances.remove(index);
+    }
+
+    public void duplicateInstance(int index) {
+        if (index < 0 || index >= instances.size()) return;
+        CustomBlockInstance orig = instances.get(index);
+        CustomBlockInstance copy = new CustomBlockInstance();
+        copy.defId = orig.defId;
+        copy.values = orig.values != null ? new ArrayList<>(orig.values) : new ArrayList<>();
+        instances.add(copy);
+    }
+
+    public void moveInstance(int from, int to) {
+        if (from < 0 || from >= instances.size() || to < 0 || to >= instances.size()) return;
+        CustomBlockInstance b = instances.remove(from);
+        instances.add(to, b);
+    }
+
+    public void clearInstances() {
+        instances.clear();
+    }
+
+    public String instancesToJson() {
+        return new Gson().toJson(instances);
+    }
+
+    public void instancesFromJson(String json) {
+        instances.clear();
+        if (json == null || json.trim().isEmpty()) return;
+        try {
+            List<CustomBlockInstance> loaded = new Gson().fromJson(
+                json,
+                new TypeToken<List<CustomBlockInstance>>(){}.getType()
+            );
+            if (loaded != null) instances.addAll(loaded);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to parse custom block instances: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Load this page's custom-block instances from
+     * {@code <files>/projects/<projectId>_<pageName>.cblocks}, mirroring the
+     * naming used by {@link LogicBlockManager} for {@code .logic} files.
+     */
+    public void loadInstancesForPage(String projectId, String pageName) {
+        File file = pageInstanceFile(projectId, pageName);
+        if (file == null || !file.exists()) {
+            instances.clear();
+            return;
+        }
+        instancesFromJson(FileUtil.readFile(file.getAbsolutePath()));
+    }
+
+    public void saveInstancesForPage(String projectId, String pageName) {
+        File file = pageInstanceFile(projectId, pageName);
+        if (file == null) return;
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
+        FileUtil.writeFile(file.getAbsolutePath(), instancesToJson());
+    }
+
+    private File pageInstanceFile(String projectId, String pageName) {
+        if (projectId == null) projectId = "";
+        if (pageName == null || pageName.isEmpty()) pageName = "index";
+        File dir = new File(context.getFilesDir(), "projects");
+        return new File(dir, projectId + "_" + pageName + ".cblocks");
+    }
+
+    // -------------------------------------------------------------------------
+    // Template engine + token detection
+    // -------------------------------------------------------------------------
+
+    private static final Pattern TOKEN_PATTERN = Pattern.compile(
+        "%(?:(\\d+)\\$([sd])|([sd])|m\\.(id|class|tag|file|section))"
+    );
+
+    /**
+     * Detect every token in a template string and return them in declaration
+     * order. Each token entry preserves both the literal token text and a
+     * normalised type used by selector auto-detection ({@link #suggestionsForToken}).
+     */
+    public List<Token> detectTokens(String template) {
+        List<Token> out = new ArrayList<>();
+        if (template == null) return out;
+        Matcher m = TOKEN_PATTERN.matcher(template);
+        int positional = 0;
+        while (m.find()) {
+            Token t = new Token();
+            t.literal = m.group(0);
+            if (m.group(1) != null) {
+                // %1$s / %1$d
+                t.position = Integer.parseInt(m.group(1));
+                t.type = "s".equals(m.group(2)) ? "string" : "number";
+            } else if (m.group(3) != null) {
+                // %s / %d
+                positional++;
+                t.position = positional;
+                t.type = "s".equals(m.group(3)) ? "string" : "number";
+            } else {
+                // %m.id / %m.class / %m.tag / %m.file / %m.section
+                positional++;
+                t.position = positional;
+                t.type = "m." + m.group(4);
+            }
+            out.add(t);
+        }
+        return out;
+    }
+
+    /**
+     * Render a single instance to its source-code form by substituting values
+     * into the definition's template. Delegates the actual replacement to
+     * {@link LogicBlockManager#applyTemplate(String, List)}.
+     */
+    public String renderInstance(CustomBlockInstance instance) {
+        if (instance == null) return "";
+        CustomBlockDef def = findDefinition(instance.defId);
+        if (def == null || def.template == null) return "";
+        // Reuse the template engine that lives on LogicBlockManager so
+        // there is one source of truth for token replacement.
+        LogicBlockManager engine = new LogicBlockManager(context);
+        List<String> values = instance.values != null ? instance.values : new ArrayList<>();
+        return engine.applyTemplate(def.template, values);
+    }
+
+    /**
+     * Render every {@link #CATEGORY_HTML} instance and return the joined
+     * output, separated by newlines, ready for injection into the generated
+     * page body.
+     */
+    public String renderAllHtml() {
+        StringBuilder sb = new StringBuilder();
+        for (CustomBlockInstance inst : instances) {
+            CustomBlockDef def = findDefinition(inst.defId);
+            if (def == null) continue;
+            if (!CATEGORY_HTML.equalsIgnoreCase(def.category)) continue;
+            String rendered = renderInstance(inst);
+            if (rendered.isEmpty()) continue;
+            sb.append(rendered).append("\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Render every {@link #CATEGORY_CSS} instance and return the joined
+     * stylesheet ready for injection into the page's {@code <style>} block
+     * or its companion {@code style.css} file.
+     */
+    public String renderAllCss() {
+        StringBuilder sb = new StringBuilder();
+        for (CustomBlockInstance inst : instances) {
+            CustomBlockDef def = findDefinition(inst.defId);
+            if (def == null) continue;
+            if (!CATEGORY_CSS.equalsIgnoreCase(def.category)) continue;
+            String rendered = renderInstance(inst);
+            if (rendered.isEmpty()) continue;
+            sb.append(rendered).append("\n");
+        }
+        return sb.toString();
+    }
+
+    // -------------------------------------------------------------------------
+    // Selector auto-detection
+    //
+    // The %m.* tokens automatically read selectors from the project's saved
+    // page trees (and from the page list for %m.file). The collectors walk the
+    // serialised JSON tree without instantiating Android views so they work
+    // both at edit-time and at export-time.
+    // -------------------------------------------------------------------------
+
+    /** All {@code id="..."} values present in the supplied widget tree. */
+    @SuppressWarnings("unchecked")
+    public Set<String> collectIds(List<Map<String, Object>> tree) {
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        if (tree == null) return out;
+        for (Map<String, Object> node : tree) {
+            Object fnObj = node.get("function");
+            if (fnObj instanceof Map) {
+                Object idObj = ((Map<String, Object>) fnObj).get("id");
+                if (idObj != null) {
+                    String id = idObj.toString().trim();
+                    if (!id.isEmpty()) out.add(id);
+                }
+            }
+            Object children = node.get("children");
+            if (children instanceof List) {
+                out.addAll(collectIds((List<Map<String, Object>>) children));
+            }
+        }
+        return out;
+    }
+
+    /** All {@code class="..."} tokens present in the supplied widget tree. */
+    @SuppressWarnings("unchecked")
+    public Set<String> collectClasses(List<Map<String, Object>> tree) {
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        if (tree == null) return out;
+        for (Map<String, Object> node : tree) {
+            Object fnObj = node.get("function");
+            if (fnObj instanceof Map) {
+                Object classObj = ((Map<String, Object>) fnObj).get("class");
+                if (classObj != null) {
+                    for (String cls : classObj.toString().trim().split("\\s+")) {
+                        if (!cls.isEmpty()) out.add(cls);
+                    }
+                }
+            }
+            Object children = node.get("children");
+            if (children instanceof List) {
+                out.addAll(collectClasses((List<Map<String, Object>>) children));
+            }
+        }
+        return out;
+    }
+
+    /** Every distinct HTML tag present in the supplied widget tree. */
+    @SuppressWarnings("unchecked")
+    public Set<String> collectTags(List<Map<String, Object>> tree) {
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        if (tree == null) return out;
+        for (Map<String, Object> node : tree) {
+            Object tagObj = node.get("tag");
+            if (tagObj != null) {
+                String tag = tagObj.toString().trim();
+                if (!tag.isEmpty()) out.add(tag);
+            }
+            Object children = node.get("children");
+            if (children instanceof List) {
+                out.addAll(collectTags((List<Map<String, Object>>) children));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Project page files. Each entry is a relative href such as
+     * {@code about.html} that is safe to drop into an {@code href} attribute.
+     */
+    public List<String> collectFiles(PageManager pageManager) {
+        List<String> out = new ArrayList<>();
+        if (pageManager == null) return out;
+        for (String pageName : pageManager.getPages()) {
+            out.add(pageName + ".html");
+        }
+        return out;
+    }
+
+    /**
+     * In-page sections – any element with an id is considered a valid section
+     * anchor (returned as the bare id, ready to be prefixed with {@code #}).
+     */
+    public List<String> collectSections(List<Map<String, Object>> tree) {
+        return new ArrayList<>(collectIds(tree));
+    }
+
+    /**
+     * Selector candidates appropriate for a single token. Used by the editor
+     * to populate dropdowns when the user is filling values for a custom
+     * block instance.
+     */
+    public List<String> suggestionsForToken(Token token,
+                                            List<Map<String, Object>> tree,
+                                            PageManager pageManager) {
+        if (token == null) return new ArrayList<>();
+        switch (token.type) {
+            case "m.id":      return new ArrayList<>(collectIds(tree));
+            case "m.class":   return new ArrayList<>(collectClasses(tree));
+            case "m.tag":     return new ArrayList<>(collectTags(tree));
+            case "m.file":    return collectFiles(pageManager);
+            case "m.section": return collectSections(tree);
+            default:          return new ArrayList<>();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Defaults
+    // -------------------------------------------------------------------------
+
+    /**
+     * Built-in starter palette. Mirrors the worked examples in the design
+     * brief (navbar link, section link, button, image, class color, padding,
+     * width, ...).
+     */
+    public static List<CustomBlockDef> defaultDefinitions() {
+        return new ArrayList<>(Arrays.asList(
+            // ---- HTML blocks ----
+            def("navbar_link",
+                "Add navbar link %s to %s",
+                "<li><a href='%1$s'>%2$s</a></li>",
+                CATEGORY_HTML),
+            def("menu_link",
+                "Add menu link %s to %s",
+                "<li><a href='%1$s'>%2$s</a></li>",
+                CATEGORY_HTML),
+            def("section_link",
+                "Add section link %s to %s",
+                "<a href='#%1$s'>%2$s</a>",
+                CATEGORY_HTML),
+            def("button_block",
+                "Add button %s",
+                "<button>%1$s</button>",
+                CATEGORY_HTML),
+            def("image_block",
+                "Add image %s",
+                "<img src='%1$s'>",
+                CATEGORY_HTML),
+            def("paragraph_block",
+                "Add paragraph %s",
+                "<p>%1$s</p>",
+                CATEGORY_HTML),
+            def("heading_block",
+                "Add heading %s",
+                "<h2>%1$s</h2>",
+                CATEGORY_HTML),
+            def("page_link",
+                "Link to page %m.file labelled %s",
+                "<a href='%1$s'>%2$s</a>",
+                CATEGORY_HTML),
+
+            // ---- CSS blocks ----
+            def("class_color",
+                "Set class %s color to %s",
+                ".%1$s{color:%2$s;}",
+                CATEGORY_CSS),
+            def("class_padding",
+                "Set class %s padding to %s",
+                ".%1$s{padding:%2$s;}",
+                CATEGORY_CSS),
+            def("class_margin",
+                "Set class %s margin to %s",
+                ".%1$s{margin:%2$s;}",
+                CATEGORY_CSS),
+            def("class_background",
+                "Set class %s background to %s",
+                ".%1$s{background:%2$s;}",
+                CATEGORY_CSS),
+            def("id_width",
+                "Set id %s width to %s",
+                "#%1$s{width:%2$s;}",
+                CATEGORY_CSS),
+            def("id_height",
+                "Set id %s height to %s",
+                "#%1$s{height:%2$s;}",
+                CATEGORY_CSS),
+            def("tag_font_size",
+                "Set tag %s font-size to %s",
+                "%1$s{font-size:%2$s;}",
+                CATEGORY_CSS)
+        ));
+    }
+
+    private static CustomBlockDef def(String id, String display, String template, String category) {
+        CustomBlockDef d = new CustomBlockDef();
+        d.id = id;
+        d.display = display;
+        d.template = template;
+        d.category = category;
+        return d;
+    }
+
+    // -------------------------------------------------------------------------
+    // Data classes
+    // -------------------------------------------------------------------------
+
+    /** A reusable block definition stored in the library. */
+    public static class CustomBlockDef {
+        public String id;
+        public String display;
+        public String template;
+        public String category;
+    }
+
+    /** A placed block instance bound to specific user-supplied values. */
+    public static class CustomBlockInstance {
+        public String defId;
+        public List<String> values = new ArrayList<>();
+    }
+
+    /** A single token detected inside a template string. */
+    public static class Token {
+        public String literal;
+        public int position;
+        /** "string", "number", "m.id", "m.class", "m.tag", "m.file", "m.section" */
+        public String type;
+    }
+}

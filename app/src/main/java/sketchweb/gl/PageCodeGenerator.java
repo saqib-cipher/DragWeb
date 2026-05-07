@@ -25,10 +25,16 @@ public class PageCodeGenerator {
     }
 
     public String generateAllCode(View screen) {
-        return generateFullCode(screen, null, null);
+        return generateFullCode(screen, null, null, null);
     }
 
     public String generateFullCode(View screen, ThemeManager themeManager, LogicBlockManager logicBlockManager) {
+        return generateFullCode(screen, themeManager, logicBlockManager, null);
+    }
+
+    public String generateFullCode(View screen, ThemeManager themeManager,
+                                   LogicBlockManager logicBlockManager,
+                                   CustomBlockManager customBlockManager) {
         resetStyleCache();
         StringBuilder bodyBuilder = new StringBuilder();
 
@@ -39,10 +45,22 @@ public class PageCodeGenerator {
             }
         }
 
+        // Custom-block HTML is appended after the main widget tree so it
+        // becomes part of the page body (e.g. navbar items added via the
+        // custom-block engine).
+        if (customBlockManager != null) {
+            String customHtml = customBlockManager.renderAllHtml();
+            if (customHtml != null && !customHtml.trim().isEmpty()) {
+                bodyBuilder.append("  <!-- Custom blocks -->\n  ");
+                bodyBuilder.append(customHtml.replace("\n", "\n  "));
+                bodyBuilder.append("\n");
+            }
+        }
+
         StringBuilder htmlBuilder = new StringBuilder();
         appendHtmlHeader(htmlBuilder, themeManager);
         htmlBuilder.append(bodyBuilder);
-        appendHtmlFooter(htmlBuilder, logicBlockManager);
+        appendHtmlFooter(htmlBuilder, logicBlockManager, customBlockManager);
         return htmlBuilder.toString();
     }
 
@@ -51,6 +69,13 @@ public class PageCodeGenerator {
      * This allows generating code for pages that aren't currently loaded on screen.
      */
     public String generateFullCodeFromTree(List<Map<String, Object>> widgetTree, ThemeManager themeManager, LogicBlockManager logicBlockManager) {
+        return generateFullCodeFromTree(widgetTree, themeManager, logicBlockManager, null);
+    }
+
+    public String generateFullCodeFromTree(List<Map<String, Object>> widgetTree,
+                                           ThemeManager themeManager,
+                                           LogicBlockManager logicBlockManager,
+                                           CustomBlockManager customBlockManager) {
         resetStyleCache();
         StringBuilder bodyBuilder = new StringBuilder();
 
@@ -60,10 +85,19 @@ public class PageCodeGenerator {
             }
         }
 
+        if (customBlockManager != null) {
+            String customHtml = customBlockManager.renderAllHtml();
+            if (customHtml != null && !customHtml.trim().isEmpty()) {
+                bodyBuilder.append("  <!-- Custom blocks -->\n  ");
+                bodyBuilder.append(customHtml.replace("\n", "\n  "));
+                bodyBuilder.append("\n");
+            }
+        }
+
         StringBuilder htmlBuilder = new StringBuilder();
         appendHtmlHeader(htmlBuilder, themeManager);
         htmlBuilder.append(bodyBuilder);
-        appendHtmlFooter(htmlBuilder, logicBlockManager);
+        appendHtmlFooter(htmlBuilder, logicBlockManager, customBlockManager);
         return htmlBuilder.toString();
     }
 
@@ -101,6 +135,12 @@ public class PageCodeGenerator {
     }
 
     private void appendHtmlFooter(StringBuilder htmlBuilder, LogicBlockManager logicBlockManager) {
+        appendHtmlFooter(htmlBuilder, logicBlockManager, null);
+    }
+
+    private void appendHtmlFooter(StringBuilder htmlBuilder,
+                                  LogicBlockManager logicBlockManager,
+                                  CustomBlockManager customBlockManager) {
         // Emit static CSS rules (CSS blocks scheduled at page-load) and
         // pseudo-class rules (hover/focus/active) as inline stylesheets.
         if (logicBlockManager != null) {
@@ -116,6 +156,17 @@ public class PageCodeGenerator {
                 htmlBuilder.append("\n  <style>\n  /* CSS interaction rules */\n");
                 htmlBuilder.append(cssRules);
                 htmlBuilder.append("  </style>\n");
+            }
+        }
+
+        // Custom-block CSS instances are emitted as a normal stylesheet so
+        // template-based blocks like ".menu{color:red;}" land in the page.
+        if (customBlockManager != null) {
+            String customCss = customBlockManager.renderAllCss();
+            if (customCss != null && !customCss.trim().isEmpty()) {
+                htmlBuilder.append("\n  <style>\n  /* Custom block styles */\n  ");
+                htmlBuilder.append(customCss.replace("\n", "\n  "));
+                htmlBuilder.append("\n  </style>\n");
             }
         }
 
