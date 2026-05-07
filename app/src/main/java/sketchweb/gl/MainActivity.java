@@ -104,7 +104,6 @@ public class MainActivity extends AppCompatActivity {
 	private RecyclerView rvDrawerWidgets;
 	private android.widget.Spinner widgetSpinner, spnPageSelector;
 	private TabLayout tabLayout;
-	private Chip chipBasic, chipStyles, chipLayout, chipEvent;
 	private TextInputEditText etSearchWidget, etSearchHierarchy;
 	private ChipGroup chipGroupCategories;
 
@@ -315,10 +314,6 @@ public class MainActivity extends AppCompatActivity {
 		tvProjectTitle = findViewById(R.id.tvProjectTitle);
 		tvAssetsPath = findViewById(R.id.tvAssetsPath);
 		tabLayout = findViewById(R.id.tabLayout);
-		chipBasic = findViewById(R.id.chipBasic);
-		chipStyles = findViewById(R.id.chipStyles);
-		chipLayout = findViewById(R.id.chipLayout);
-		chipEvent = findViewById(R.id.chipEvent);
 		etSearchWidget = findViewById(R.id.etSearchWidget);
 		etSearchHierarchy = findViewById(R.id.etSearchHierarchy);
 		chipGroupCategories = findViewById(R.id.chipGroupCategories);
@@ -441,10 +436,8 @@ public class MainActivity extends AppCompatActivity {
 
 		setupTabLayout();
 		setupWidgetCategoryChips();
-		setupBottomChips();
 		setupWidgetSearch();
 		setupHierarchySearch();
-		setupDrawerCategoryChips();
 	}
 
 	private void initializeLogic() {
@@ -1127,23 +1120,6 @@ public class MainActivity extends AppCompatActivity {
 		});
 	}
 
-	private void setupDrawerCategoryChips() {
-		ChipGroup drawerChips = findViewById(R.id.chipGroupDrawerCategories);
-		if (drawerChips == null) return;
-		drawerChips.setOnCheckedStateChangeListener((group, checkedIds) -> {
-			if (checkedIds.isEmpty()) {
-				filterWidgetsByCategory("all");
-				return;
-			}
-			int checkedId = checkedIds.get(0);
-			if (checkedId == R.id.chipDrawerAll) filterWidgetsByCategory("all");
-			else if (checkedId == R.id.chipDrawerLayout) filterWidgetsByCategory("layout");
-			else if (checkedId == R.id.chipDrawerBasic) filterWidgetsByCategory("basic");
-			else if (checkedId == R.id.chipDrawerForm) filterWidgetsByCategory("form");
-			else filterWidgetsByCategory("all");
-		});
-	}
-
 	private void filterWidgetsByCategory(String category) {
 		filteredWidgets.clear();
 		if ("all".equals(category)) {
@@ -1165,43 +1141,6 @@ public class MainActivity extends AppCompatActivity {
 		}
 		if (rvDrawerWidgets != null && rvDrawerWidgets.getAdapter() != null) {
 			rvDrawerWidgets.getAdapter().notifyDataSetChanged();
-		}
-	}
-
-	private void setupBottomChips() {
-		chipBasic.setOnCheckedChangeListener((btn, checked) -> {
-			if (checked) {
-				chipStyles.setChecked(false);
-				chipLayout.setChecked(false);
-				if (chipEvent != null) chipEvent.setChecked(false);
-				buildDesignList();
-			}
-		});
-		chipStyles.setOnCheckedChangeListener((btn, checked) -> {
-			if (checked) {
-				chipBasic.setChecked(false);
-				chipLayout.setChecked(false);
-				if (chipEvent != null) chipEvent.setChecked(false);
-				buildAdvancedDesignList();
-			}
-		});
-		chipLayout.setOnCheckedChangeListener((btn, checked) -> {
-			if (checked) {
-				chipBasic.setChecked(false);
-				chipStyles.setChecked(false);
-				if (chipEvent != null) chipEvent.setChecked(false);
-				buildLayoutDesignList();
-			}
-		});
-		if (chipEvent != null) {
-			chipEvent.setOnCheckedChangeListener((btn, checked) -> {
-				if (checked) {
-					chipBasic.setChecked(false);
-					chipStyles.setChecked(false);
-					chipLayout.setChecked(false);
-					buildEventDesignList();
-				}
-			});
 		}
 	}
 
@@ -2590,29 +2529,36 @@ public class MainActivity extends AppCompatActivity {
 
 	// ---- Design Property Lists (removed event items from view section) ----
 
+	/**
+	 * Build the design property strip for the currently-selected widget.
+	 *
+	 * <p>The list shows only HTML-related actions – attribute edits and
+	 * structural helpers tied to the widget's tag. Pure CSS properties
+	 * (color, background, dimensions, flex, etc.) live in the block editor
+	 * (see {@link LogicBlockActivity}) and are no longer surfaced here.
+	 *
+	 * <p>Tag-aware additions:
+	 * <ul>
+	 *   <li>{@code ul} / {@code ol} / {@code dl} → "AddListItem" opens a
+	 *       dialog that appends an {@code &lt;li&gt;} child.</li>
+	 *   <li>{@code select} → "AddOption" appends an {@code &lt;option&gt;}.</li>
+	 *   <li>{@code nav} → "AddNavLink" appends an {@code &lt;a&gt;}.</li>
+	 *   <li>{@code table} → "AddRow" appends a {@code &lt;tr&gt;}.</li>
+	 * </ul>
+	 */
 	private void buildDesignList() {
 		design.clear();
 		String tag = getSelectedTag();
 
 		List<String> items = new ArrayList<>();
+		// Generic HTML attribute editors – present for every tag.
 		items.add("Edittext");
 		items.add("SetId");
 		items.add("SetClass");
-		items.add("Color");
-		items.add("Background");
-		items.add("Width");
-		items.add("Height");
-		items.add("Padding");
-		items.add("Margin");
 
+		// Tag-specific HTML actions.
 		if ("img".equals(tag)) {
-			items.add(1, "ImageSrc");
-		}
-		if ("p".equals(tag) || "h1".equals(tag) || "h2".equals(tag) || "h3".equals(tag)
-			|| "span".equals(tag) || "label".equals(tag) || "a".equals(tag) || "button".equals(tag)) {
-			items.add("TextSize");
-			items.add("Font");
-			items.add("TextAlign");
+			items.add("ImageSrc");
 		}
 		if ("a".equals(tag)) {
 			items.add("SetHref");
@@ -2622,62 +2568,29 @@ public class MainActivity extends AppCompatActivity {
 			items.add("SetPlaceholder");
 			items.add("SetType");
 		}
-		items.add("BorderRadius");
-		items.add("BorderWidth");
-		items.add("BorderColor");
+
+		// Container widgets that have a canonical "add child" gesture –
+		// surface it as a dedicated HTML action rather than burying it in
+		// drag-and-drop, matching the user's request for an "item listing
+		// dialog in HTML" when a list widget is selected.
+		if ("ul".equals(tag) || "ol".equals(tag) || "dl".equals(tag)) {
+			items.add("AddListItem");
+		}
+		if ("select".equals(tag)) {
+			items.add("AddOption");
+		}
+		if ("nav".equals(tag)) {
+			items.add("AddNavLink");
+		}
+		if ("table".equals(tag)) {
+			items.add("AddRow");
+		}
 
 		for (String item : items) {
 			HashMap<String, Object> map = new HashMap<>();
 			map.put("edit", item);
 			design.add(map);
 		}
-		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
-		recyclerview3.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-	}
-
-	private void buildAdvancedDesignList() {
-		design.clear();
-		String[] items = {
-			"Elevation", "Opacity", "Rotation",
-			"BoxShadow", "TextDecor", "LineHeight", "LetterSpace",
-			"ZIndex", "Overflow", "Cursor",
-			"BorderTop", "BorderRight", "BorderBottom", "BorderLeft",
-			"RadiusTL", "RadiusTR", "RadiusBL", "RadiusBR",
-			"Gradient", "CssVar", "CustomStyle"
-		};
-		for (String item : items) {
-			HashMap<String, Object> map = new HashMap<>();
-			map.put("edit", item);
-			design.add(map);
-		}
-		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
-		recyclerview3.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-	}
-
-	private void buildLayoutDesignList() {
-		design.clear();
-		String[] items = {
-			"Display", "Position", "FlexDir", "FlexWrap",
-			"JustifyContent", "AlignItems", "AlignSelf", "AlignContent",
-			"Gap", "RowGap", "ColGap",
-			"GridCols", "GridRows", "GridGap",
-			"Float", "Clear",
-			"Top", "Right", "Bottom", "Left",
-			"MinWidth", "MaxWidth", "MinHeight", "MaxHeight",
-			"ObjectFit", "AspectRatio"
-		};
-		for (String item : items) {
-			HashMap<String, Object> map = new HashMap<>();
-			map.put("edit", item);
-			design.add(map);
-		}
-		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
-		recyclerview3.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-	}
-
-	private void buildEventDesignList() {
-		design.clear();
-		// Event items now hidden from view section - use Event tab instead
 		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
 		recyclerview3.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 	}
@@ -2770,6 +2683,18 @@ public class MainActivity extends AppCompatActivity {
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 				});
+				break;
+			case "AddListItem":
+				showAddListItemDialog(selected);
+				break;
+			case "AddOption":
+				showAddOptionDialog(selected);
+				break;
+			case "AddNavLink":
+				showAddNavLinkDialog(selected);
+				break;
+			case "AddRow":
+				showAddTableRowDialog(selected);
 				break;
 			case "TextSize":
 				showStyleDialogWithUnits("Change Text Size", "16", "fontSize", selected);
@@ -3279,6 +3204,98 @@ public class MainActivity extends AppCompatActivity {
 				callback.onConfirmed(options[which]);
 			})
 			.show();
+	}
+
+	// ---- HTML-structural "add child" dialogs --------------------------------
+	//
+	// These open from the design strip when a list-style container widget
+	// (ul/ol/select/nav/table) is selected. They append a real child widget
+	// through the standard WidgetBuilderEngine pipeline so the new node
+	// participates in selection, drag-reorder, drop-zone registration and
+	// undo/redo just like a drag-from-palette would.
+
+	private void showAddListItemDialog(View listView) {
+		showStyleDialog("Add List Item", "Item text", value -> {
+			Map<String, Object> function = new HashMap<>();
+			function.put("text", value);
+			appendChildWidget(listView, "li", function);
+		});
+	}
+
+	private void showAddOptionDialog(View selectView) {
+		showStyleDialog("Add Option", "Option label", value -> {
+			Map<String, Object> function = new HashMap<>();
+			function.put("text", value);
+			appendChildWidget(selectView, "option", function);
+		});
+	}
+
+	private void showAddNavLinkDialog(View navView) {
+		// Two-step prompt: label, then href. The second showStyleDialog runs
+		// from the first's callback so we keep using the existing dialog
+		// helper without inventing a multi-field form.
+		showStyleDialog("Nav Link Label", "About", label -> {
+			showStyleDialog("Nav Link Href", "about.html", href -> {
+				Map<String, Object> function = new HashMap<>();
+				function.put("text", label);
+				function.put("href", href);
+				appendChildWidget(navView, "a", function);
+			});
+		});
+	}
+
+	private void showAddTableRowDialog(View tableView) {
+		showStyleDialog("Number of cells", "3", value -> {
+			int cells;
+			try { cells = Math.max(1, Math.min(20, Integer.parseInt(value.trim()))); }
+			catch (NumberFormatException e) { cells = 3; }
+
+			View rowView = createChildWidget(tableView, "tr", new HashMap<>());
+			if (rowView == null) return;
+			for (int i = 0; i < cells; i++) {
+				Map<String, Object> cellFn = new HashMap<>();
+				cellFn.put("text", "Cell " + (i + 1));
+				appendChildWidget(rowView, "td", cellFn);
+			}
+		});
+	}
+
+	/**
+	 * Append a new widget of {@code tag} as the last child of {@code parent}
+	 * and run it through the same engine/selector/drop-zone wiring as a
+	 * drag-from-palette drop. {@code function} carries any HTML attributes
+	 * (e.g. {@code text}, {@code href}). Saves an undo state on success.
+	 */
+	private View appendChildWidget(View parent, String tag, Map<String, Object> function) {
+		View created = createChildWidget(parent, tag, function);
+		if (created != null) {
+			saveUndoState();
+			refreshHierarchy();
+		}
+		return created;
+	}
+
+	private View createChildWidget(View parent, String tag, Map<String, Object> function) {
+		if (!(parent instanceof ViewGroup)) {
+			Toast.makeText(this, "Selected widget can't contain children", Toast.LENGTH_SHORT).show();
+			return null;
+		}
+		View newView = engine.createWidget(tag);
+		if (newView == null) {
+			Toast.makeText(this, "Could not create <" + tag + ">", Toast.LENGTH_SHORT).show();
+			return null;
+		}
+		Map<String, Object> widgetMap = new HashMap<>();
+		widgetMap.put("tag", tag);
+		widgetMap.put("function", function != null ? function : new HashMap<>());
+
+		engine.applyPropertiesToView(newView, widgetMap);
+		newView.setTag(widgetMap);
+		((ViewGroup) parent).addView(newView);
+		selector.registerView(newView);
+		setupWidgetReorderDrag(newView);
+		dropZoneManager.registerWidgetAsDropZoneIfContainer(newView);
+		return newView;
 	}
 
 	private void showStyleDialog(String title, String hint, OnStyleConfirmed callback) {

@@ -441,45 +441,6 @@
 				</LinearLayout>
 			</HorizontalScrollView>
 
-			<!-- Tabs: Basic / Styles / Layout -->
-			<LinearLayout
-				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:orientation="horizontal"
-				android:layout_marginTop="4dp"
-				android:layout_marginBottom="4dp">
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipBasic"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Basic"
-					android:textSize="11sp"
-					style="@style/Widget.Material3.Chip.Filter"
-					android:checked="true" />
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipStyles"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Styles"
-					android:textSize="11sp"
-					style="@style/Widget.Material3.Chip.Filter" />
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipLayout"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Layout"
-					android:textSize="11sp"
-					style="@style/Widget.Material3.Chip.Filter" />
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipEvent"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Event"
-					android:textSize="11sp"
-					android:visibility="gone"
-					style="@style/Widget.Material3.Chip.Filter" />
-			</LinearLayout>
-
 			<!-- Bottom row: Selected widget & actions -->
 			<LinearLayout
 				android:layout_width="match_parent"
@@ -600,52 +561,6 @@
 				android:inputType="text"
 				android:maxLines="1" />
 		</com.google.android.material.textfield.TextInputLayout>
-
-		<!-- Widget category chips in drawer -->
-		<HorizontalScrollView
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:scrollbars="none"
-			android:layout_marginTop="4dp"
-			android:paddingLeft="8dp"
-			android:paddingRight="8dp">
-			<com.google.android.material.chip.ChipGroup
-				android:id="@+id/chipGroupDrawerCategories"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				app:singleSelection="true"
-				app:singleLine="true">
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipDrawerAll"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="All"
-					android:textSize="11sp"
-					android:checked="true"
-					style="@style/Widget.Material3.Chip.Filter" />
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipDrawerLayout"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Layout"
-					android:textSize="11sp"
-					style="@style/Widget.Material3.Chip.Filter" />
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipDrawerBasic"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Basic"
-					android:textSize="11sp"
-					style="@style/Widget.Material3.Chip.Filter" />
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipDrawerForm"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Form"
-					android:textSize="11sp"
-					style="@style/Widget.Material3.Chip.Filter" />
-			</com.google.android.material.chip.ChipGroup>
-		</HorizontalScrollView>
 
 		<!-- Widget list in drawer (vertical) with bigger text -->
 		<androidx.recyclerview.widget.RecyclerView
