@@ -283,6 +283,18 @@ public class PreviewActivity extends AppCompatActivity {
         if (tempPreviewDir == null) return;
         try {
             localServer = new LocalHttpServer(tempPreviewDir);
+
+            // Expose the project's external assets directory at /assets/* so
+            // generated <img src="assets/foo.png"> tags resolve even if the
+            // copy-to-temp step couldn't run (no project_id) or hasn't
+            // finished. Aliases are sandboxed to the target dir.
+            if (assetBasePath != null) {
+                File externalAssets = new File(assetBasePath, "assets");
+                if (externalAssets.exists() && externalAssets.isDirectory()) {
+                    localServer.addAlias("/assets", externalAssets);
+                }
+            }
+
             localServer.start();
         } catch (IOException e) {
             Log.e(TAG, "Failed to start local preview server: " + e.getMessage());

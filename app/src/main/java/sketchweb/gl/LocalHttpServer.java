@@ -36,12 +36,35 @@ public final class LocalHttpServer {
 
     private final File rootDir;
     private final ExecutorService pool = Executors.newCachedThreadPool();
+    private final Map<String, File> aliases = new java.util.LinkedHashMap<>();
     private ServerSocket socket;
     private volatile boolean running;
     private int port;
 
     public LocalHttpServer(File rootDir) {
         this.rootDir = rootDir;
+    }
+
+    /**
+     * Map a URL prefix onto an external directory so its files are served as
+     * if they lived under {@link #rootDir}. Used by the preview to expose
+     * project assets that physically live in
+     * {@code /sdcard/.dragweb/projects/<id>/assets/} at the {@code /assets/}
+     * URL the generated HTML expects, without copying every image into the
+     * temp dir.
+     *
+     * <p>Aliases are matched longest-prefix first, then the request falls
+     * back to {@link #rootDir}. Path traversal outside the alias target is
+     * rejected.
+     */
+    public void addAlias(String urlPrefix, File targetDir) {
+        if (urlPrefix == null || targetDir == null) return;
+        // Normalise: ensure leading '/', no trailing '/'
+        if (!urlPrefix.startsWith("/")) urlPrefix = "/" + urlPrefix;
+        while (urlPrefix.length() > 1 && urlPrefix.endsWith("/")) {
+            urlPrefix = urlPrefix.substring(0, urlPrefix.length() - 1);
+        }
+        aliases.put(urlPrefix, targetDir);
     }
 
     /** Bind to a random free loopback port and start serving. Returns the port. */
@@ -142,17 +165,49 @@ public final class LocalHttpServer {
     }
 
     /**
-     * Resolve a request path within {@link #rootDir}, refusing any traversal
-     * attempts that escape the root.
+     * Resolve a request path either within an alias target or within
+     * {@link #rootDir}, refusing any traversal attempts that escape the
+     * resolved root.
      */
     private File resolveSafe(String path) {
         if (path == null || path.isEmpty()) path = "/";
-        if (path.startsWith("/")) path = path.substring(1);
-        File f = new File(rootDir, path);
+        if (!path.startsWith("/")) path = "/" + path;
+
+        // Longest-prefix alias match. Aliases let the preview server expose
+        // project assets that live outside the temp preview dir.
+        String bestPrefix = null;
+        File bestTarget = null;
+        for (Map.Entry<String, File> entry : aliases.entrySet()) {
+            String prefix = entry.getKey();
+            boolean match = path.equals(prefix) || path.startsWith(prefix + "/");
+            if (match && (bestPrefix == null || prefix.length() > bestPrefix.length())) {
+                bestPrefix = prefix;
+                bestTarget = entry.getValue();
+            }
+        }
+
+        if (bestTarget != null) {
+            String rel = path.substring(bestPrefix.length());
+            if (rel.startsWith("/")) rel = rel.substring(1);
+            File f = rel.isEmpty() ? bestTarget : new File(bestTarget, rel);
+            return canonicalChildOf(bestTarget, f);
+        }
+
+        String rootRel = path.startsWith("/") ? path.substring(1) : path;
+        File f = new File(rootDir, rootRel);
+        return canonicalChildOf(rootDir, f);
+    }
+
+    /**
+     * Return {@code f} only when its canonical path is a descendant of
+     * {@code base} (or {@code base} itself); otherwise return {@code null} to
+     * signal a traversal attempt.
+     */
+    private File canonicalChildOf(File base, File f) {
         try {
-            String rootCanon = rootDir.getCanonicalPath();
+            String baseCanon = base.getCanonicalPath();
             String fileCanon = f.getCanonicalPath();
-            if (!fileCanon.equals(rootCanon) && !fileCanon.startsWith(rootCanon + File.separator)) {
+            if (!fileCanon.equals(baseCanon) && !fileCanon.startsWith(baseCanon + File.separator)) {
                 return null;
             }
             return f;

@@ -1675,6 +1675,9 @@ public class MainActivity extends AppCompatActivity {
 		previewIntent.putStringArrayListExtra("page_names", pageNames);
 		previewIntent.putStringArrayListExtra("page_codes", pageCodes);
 		previewIntent.putExtra("start_page_index", startIndex);
+		// Pass the project id so PreviewActivity can locate /.dragweb/projects/<id>/assets
+		// and the local HTTP server can serve images referenced as "assets/...".
+		previewIntent.putExtra("project_id", projectId);
 		startActivity(previewIntent);
 	}
 
