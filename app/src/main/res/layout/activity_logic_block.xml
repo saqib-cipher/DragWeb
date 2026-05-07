@@ -1,201 +1,117 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<androidx.drawerlayout.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/main"
+    android:id="@+id/drawerLogic"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="?attr/colorSurface">
+    android:layout_height="match_parent">
 
-    <!-- Top App Bar -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbarLogic"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="?attr/colorSurfaceContainerHigh"
-        app:title="Logic Blocks"
-        app:subtitle="Page Event"
-        app:titleTextColor="?attr/colorOnSurface"
-        app:subtitleTextColor="?attr/colorOnSurfaceVariant"
-        app:navigationIcon="@drawable/icon_arrow_back_round"
-        app:navigationIconTint="?attr/colorOnSurface" />
-
-    <!-- Target Widget Selector Row -->
+    <!-- ===== Main content ===== -->
     <LinearLayout
+        android:id="@+id/main"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="10dp"
-        android:background="?attr/colorSurfaceContainer">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="?attr/colorSurface">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Top App Bar -->
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbarLogic"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Target:"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:textColor="?attr/colorOnSurface"
-            android:paddingEnd="6dp" />
+            android:background="?attr/colorSurfaceContainerHigh"
+            app:title="Logic Blocks"
+            app:subtitle="Page Event"
+            app:titleTextColor="?attr/colorOnSurface"
+            app:subtitleTextColor="?attr/colorOnSurfaceVariant"
+            app:navigationIcon="@drawable/icon_arrow_back_round"
+            app:navigationIconTint="?attr/colorOnSurface"
+            app:menu="@menu/menu_logic_block" />
 
-        <Spinner
-            android:id="@+id/spnTargetMode"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:minWidth="70dp"
-            android:background="?attr/colorSurfaceContainerHighest" />
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="0dp"
+        <!-- ===== Hidden palette panel: tabs + horizontal block list ===== -->
+        <LinearLayout
+            android:id="@+id/palettePanel"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="6dp"
-            android:hint="Element selector"
-            app:boxCornerRadiusTopStart="10dp"
-            app:boxCornerRadiusTopEnd="10dp"
-            app:boxCornerRadiusBottomStart="10dp"
-            app:boxCornerRadiusBottomEnd="10dp"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense">
-            <AutoCompleteTextView
-                android:id="@+id/etTargetSelector"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:background="?attr/colorSurfaceContainer">
+
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tabBlockCategories"
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:textSize="12sp"
-                android:inputType="text"
-                android:maxLines="1"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:completionThreshold="1" />
-        </com.google.android.material.textfield.TextInputLayout>
-    </LinearLayout>
+                android:layout_height="wrap_content"
+                app:tabMode="scrollable"
+                app:tabGravity="start"
+                app:tabIndicatorColor="?attr/colorPrimary"
+                app:tabSelectedTextColor="?attr/colorPrimary"
+                app:tabTextColor="?attr/colorOnSurfaceVariant"
+                android:background="?attr/colorSurfaceContainerHigh">
 
-    <!-- Block Category Tabs -->
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/tabBlockCategories"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:tabMode="scrollable"
-        app:tabGravity="start"
-        app:tabIndicatorColor="?attr/colorPrimary"
-        app:tabSelectedTextColor="?attr/colorPrimary"
-        app:tabTextColor="?attr/colorOnSurfaceVariant"
-        android:background="?attr/colorSurfaceContainerHigh">
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Events" />
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CSS" />
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Logic" />
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Variables" />
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Animation" />
+            </com.google.android.material.tabs.TabLayout>
 
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Events" />
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="CSS" />
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Logic" />
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Variables" />
-    </com.google.android.material.tabs.TabLayout>
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxHeight="220dp"
+                android:scrollbars="none"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp">
 
-    <!-- Block Palette (horizontal scrollable) -->
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:scrollbars="none"
-        android:background="?attr/colorSurfaceContainer"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp">
+                <LinearLayout
+                    android:id="@+id/blockPaletteContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp" />
+            </ScrollView>
+        </LinearLayout>
 
+        <!-- ===== Block count / quick-actions strip ===== -->
         <LinearLayout
-            android:id="@+id/blockPaletteContainer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp" />
-    </HorizontalScrollView>
-
-    <!-- Toolbar: Undo, Redo, Import, Export, View Code, Add -->
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:scrollbars="none"
-        android:background="?attr/colorSurfaceContainerHigh">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:padding="4dp">
+            android:padding="8dp"
+            android:background="?attr/colorSurfaceContainerHigh">
 
-            <Button
-                android:id="@+id/btnBlockUndo"
-                android:layout_width="wrap_content"
+            <TextView
+                android:id="@+id/tvBlockCount"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:contentDescription="Undo"
-                style="?attr/materialIconButtonStyle"
-                app:icon="@drawable/icon_undo_round" />
-
-            <Button
-                android:id="@+id/btnBlockRedo"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:contentDescription="Redo"
-                style="?attr/materialIconButtonStyle"
-                app:icon="@drawable/icon_redo_round" />
-
-            <View
-                android:layout_width="1dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"
-                android:background="?attr/colorOutlineVariant" />
-
-            <Button
-                android:id="@+id/btnBlockImport"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Import"
-                android:textSize="11sp"
-                style="?attr/materialButtonOutlinedStyle"
-                app:icon="@drawable/icon_import_round" />
-
-            <Button
-                android:id="@+id/btnBlockExport"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Export"
-                android:textSize="11sp"
-                android:layout_marginStart="4dp"
-                style="?attr/materialButtonOutlinedStyle"
-                app:icon="@drawable/icon_export_round" />
-
-            <Button
-                android:id="@+id/btnBlockViewJs"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Code"
-                android:textSize="11sp"
-                android:layout_marginStart="4dp"
-                style="?attr/materialButtonOutlinedStyle"
-                app:icon="@drawable/icon_code_round" />
-
-            <View
-                android:layout_width="1dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"
-                android:background="?attr/colorOutlineVariant" />
+                android:layout_weight="1"
+                android:text="0 blocks"
+                android:textSize="12sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:paddingStart="4dp" />
 
             <Button
                 android:id="@+id/btnBlockDuplicate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:contentDescription="Duplicate Dragged"
+                android:contentDescription="Drop here to duplicate"
                 style="?attr/materialIconButtonStyle"
                 app:icon="@drawable/icon_copy_all_round"
                 app:iconTint="?attr/colorPrimary" />
@@ -204,51 +120,165 @@
                 android:id="@+id/btnBlockDelete"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:contentDescription="Delete Dragged"
+                android:contentDescription="Drop here to delete"
                 style="?attr/materialIconButtonStyle"
                 app:icon="@drawable/icon_delete_round"
                 app:iconTint="?attr/colorError" />
-
-            <Button
-                android:id="@+id/btnBlockAdd"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="+ Add"
-                android:textSize="11sp"
-                android:layout_marginStart="6dp"
-                style="?attr/materialButtonStyle" />
-
-            <!-- Block count indicator -->
-            <TextView
-                android:id="@+id/tvBlockCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0 blocks"
-                android:textSize="11sp"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:layout_marginStart="8dp"
-                android:paddingEnd="8dp" />
         </LinearLayout>
-    </HorizontalScrollView>
 
-    <!-- Block Workspace (drop area) - Sketchware-style canvas -->
-    <androidx.core.widget.NestedScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:fillViewport="true"
-        android:background="@drawable/bg_block_canvas">
+        <!-- ===== Workspace + FAB ===== -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.core.widget.NestedScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true"
+                android:background="@drawable/bg_block_canvas">
+
+                <LinearLayout
+                    android:id="@+id/blockWorkspace"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="6dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="6dp"
+                    android:paddingBottom="120dp"
+                    android:minHeight="300dp" />
+            </androidx.core.widget.NestedScrollView>
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabBlockPalette"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="20dp"
+                android:contentDescription="Toggle block palette"
+                app:srcCompat="@drawable/icon_widgets_round"
+                app:tint="?attr/colorOnPrimary" />
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- ===== Right-side collection drawer ===== -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        app:cardElevation="6dp"
+        app:cardCornerRadius="0dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainer">
 
         <LinearLayout
-            android:id="@+id/blockWorkspace"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingStart="6dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="6dp"
-            android:paddingBottom="80dp"
-            android:minHeight="300dp" />
-    </androidx.core.widget.NestedScrollView>
+            android:layout_height="match_parent"
+            android:orientation="vertical">
 
-</LinearLayout>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Block Collection"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:padding="14dp"
+                android:background="?attr/colorSurfaceContainerHigh" />
+
+            <!-- Drop targets (save / delete / duplicate) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="10dp">
+
+                <LinearLayout
+                    android:id="@+id/dropSaveCollection"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginBottom="6dp"
+                    android:background="@drawable/bg_drop_target_save">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⬇  Save to Collection"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/dropDuplicateCollection"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginBottom="6dp"
+                    android:background="@drawable/bg_drop_target_duplicate">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⧉  Duplicate Block"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/dropDeleteCollection"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:background="@drawable/bg_drop_target_delete">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="✖  Delete Block"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Saved Collections"
+                android:textSize="12sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:padding="12dp" />
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/collectionList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="20dp" />
+            </ScrollView>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.drawerlayout.widget.DrawerLayout>

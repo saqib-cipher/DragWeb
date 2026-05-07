@@ -260,5 +260,101 @@
     "description": "Boolean variable",
     "category": "variable",
     "shape": "rect"
+  },
+  {
+    "id": "animateFadeIn",
+    "label": "Fade In",
+    "description": "Fade element in",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateFadeOut",
+    "label": "Fade Out",
+    "description": "Fade element out",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateSlideIn",
+    "label": "Slide In",
+    "description": "Slide element in",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateSlideOut",
+    "label": "Slide Out",
+    "description": "Slide element out",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateBounce",
+    "label": "Bounce",
+    "description": "Bouncing motion",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animatePulse",
+    "label": "Pulse",
+    "description": "Pulsing scale",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateRotate",
+    "label": "Rotate",
+    "description": "Rotation animation",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateShake",
+    "label": "Shake",
+    "description": "Shake motion",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "transitionAll",
+    "label": "Transition All",
+    "description": "Smooth transitions",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "transition"
+  },
+  {
+    "id": "transitionColor",
+    "label": "Transition Color",
+    "description": "Color smoothly",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "transition"
+  },
+  {
+    "id": "transitionSize",
+    "label": "Transition Size",
+    "description": "Width/height smooth",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "transition"
+  },
+  {
+    "id": "transitionTransform",
+    "label": "Transition Transform",
+    "description": "Transform smooth",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "transition"
   }
 ]

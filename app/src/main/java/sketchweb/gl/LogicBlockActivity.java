@@ -12,23 +12,23 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
+import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
@@ -49,6 +49,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     private static final String CAT_HTML = "html";
     private static final String CAT_LOGIC = "logic";
     private static final String CAT_VARIABLE = "variable";
+    private static final String CAT_ANIMATION = "animation";
 
     // Category colors
     private static final int COLOR_EVENT = Color.parseColor("#FF9800");
@@ -56,6 +57,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     private static final int COLOR_HTML = Color.parseColor("#4CAF50");
     private static final int COLOR_LOGIC = Color.parseColor("#E91E63");
     private static final int COLOR_VARIABLE = Color.parseColor("#00BCD4");
+    private static final int COLOR_ANIMATION = Color.parseColor("#9C27B0");
 
     private LogicBlockManager logicBlockManager;
     private String projectId;
@@ -63,13 +65,15 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     // Views
     private MaterialToolbar toolbar;
-    private Spinner spnTargetMode;
-    private AutoCompleteTextView etTargetSelector;
+    private DrawerLayout drawerLayout;
+    private LinearLayout palettePanel;
     private TabLayout tabCategories;
     private LinearLayout blockPaletteContainer;
     private LinearLayout blockWorkspace;
-    private Button btnBlockUndo, btnBlockRedo, btnBlockViewJs, btnBlockAdd;
-    private Button btnBlockImport, btnBlockExport, btnBlockDelete, btnBlockDuplicate;
+    private FloatingActionButton fabBlockPalette;
+    private Button btnBlockDelete, btnBlockDuplicate;
+    private LinearLayout dropSaveCollection, dropDeleteCollection, dropDuplicateCollection;
+    private LinearLayout collectionList;
     private TextView tvBlockCount;
 
     private String currentCategory = CAT_EVENT;
@@ -113,15 +117,16 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         initViews();
         setupToolbar();
-        setupTargetSelector();
-        setupSelectorAutocomplete();
         setupCategoryTabs();
-        setupToolbarButtons();
+        setupQuickActionButtons();
+        setupFab();
+        setupCollectionDrawer();
         setupWorkspaceDragDrop();
 
         loadBlockDefinitions();
         showCategory(CAT_EVENT);
         refreshWorkspace();
+        refreshCollectionList();
         saveUndoState();
 
         final int toolbarInitialTop = toolbar != null ? toolbar.getPaddingTop() : 0;
@@ -148,104 +153,52 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     private void initViews() {
         toolbar = findViewById(R.id.toolbarLogic);
-        spnTargetMode = findViewById(R.id.spnTargetMode);
-        // etTargetSelector is an AutoCompleteTextView in layout XML, not TextInputEditText
-        etTargetSelector = findViewById(R.id.etTargetSelector);
+        drawerLayout = findViewById(R.id.drawerLogic);
+        palettePanel = findViewById(R.id.palettePanel);
         tabCategories = findViewById(R.id.tabBlockCategories);
         blockPaletteContainer = findViewById(R.id.blockPaletteContainer);
         blockWorkspace = findViewById(R.id.blockWorkspace);
-        btnBlockUndo = findViewById(R.id.btnBlockUndo);
-        btnBlockRedo = findViewById(R.id.btnBlockRedo);
-        btnBlockViewJs = findViewById(R.id.btnBlockViewJs);
-        btnBlockAdd = findViewById(R.id.btnBlockAdd);
-        btnBlockImport = findViewById(R.id.btnBlockImport);
-        btnBlockExport = findViewById(R.id.btnBlockExport);
+        fabBlockPalette = findViewById(R.id.fabBlockPalette);
         btnBlockDelete = findViewById(R.id.btnBlockDelete);
         btnBlockDuplicate = findViewById(R.id.btnBlockDuplicate);
+        dropSaveCollection = findViewById(R.id.dropSaveCollection);
+        dropDeleteCollection = findViewById(R.id.dropDeleteCollection);
+        dropDuplicateCollection = findViewById(R.id.dropDuplicateCollection);
+        collectionList = findViewById(R.id.collectionList);
         tvBlockCount = findViewById(R.id.tvBlockCount);
     }
 
     private void setupToolbar() {
-        toolbar.setNavigationOnClickListener(v -> {
-            saveAndFinish();
+        toolbar.setNavigationOnClickListener(v -> saveAndFinish());
+        toolbar.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.action_undo) { undo(); return true; }
+            if (id == R.id.action_redo) { redo(); return true; }
+            if (id == R.id.action_view_code) { showJsPreview(); return true; }
+            if (id == R.id.action_import) { showImportDialog(); return true; }
+            if (id == R.id.action_export) { showExportDialog(); return true; }
+            if (id == R.id.action_collections) {
+                if (drawerLayout != null) {
+                    if (drawerLayout.isDrawerOpen(GravityCompat.END)) {
+                        drawerLayout.closeDrawer(GravityCompat.END);
+                    } else {
+                        drawerLayout.openDrawer(GravityCompat.END);
+                    }
+                }
+                return true;
+            }
+            return false;
         });
     }
 
-    private void setupTargetSelector() {
-        String[] modes = {"By ID", "By Class", "By Tag"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-            android.R.layout.simple_spinner_item, modes);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spnTargetMode.setAdapter(adapter);
-    }
-
-    private void setupSelectorAutocomplete() {
-        List<String> suggestions = new ArrayList<>();
-        try {
-            File pageFile = new File(getFilesDir(), "projects/" + projectId + "_" + pageName + ".json");
-            if (!pageFile.exists()) {
-                pageFile = new File(getFilesDir(), "projects/" + projectId + ".json");
-            }
-            if (pageFile.exists()) {
-                String json = FileUtil.readFile(pageFile.getAbsolutePath());
-                List<java.util.Map<String, Object>> tree = new com.google.gson.Gson().fromJson(
-                    json,
-                    new com.google.gson.reflect.TypeToken<List<java.util.Map<String, Object>>>(){}.getType()
-                );
-                collectSelectorSuggestions(tree, suggestions);
-            }
-        } catch (Exception e) {
-            Log.w("LogicBlockActivity", "Could not build selector autocomplete: " + e.getMessage());
-        }
-        ArrayAdapter<String> acAdapter = new ArrayAdapter<>(
-            this,
-            android.R.layout.simple_dropdown_item_1line,
-            suggestions
-        );
-        etTargetSelector.setAdapter(acAdapter);
-    }
-
-    @SuppressWarnings("unchecked")
-    private void collectSelectorSuggestions(List<java.util.Map<String, Object>> tree, List<String> out) {
-        if (tree == null) return;
-        for (java.util.Map<String, Object> node : tree) {
-            Object fnObj = node.get("function");
-            if (fnObj instanceof java.util.Map) {
-                java.util.Map<String, Object> fn = (java.util.Map<String, Object>) fnObj;
-                Object idObj = fn.get("id");
-                if (idObj != null) {
-                    String id = idObj.toString().trim();
-                    if (!id.isEmpty()) {
-                        out.add(id);
-                    }
-                }
-                Object classObj = fn.get("class");
-                if (classObj != null) {
-                    String[] parts = classObj.toString().trim().split("\\s+");
-                    for (String part : parts) {
-                        if (!part.isEmpty()) out.add(part);
-                    }
-                }
-            }
-            Object childrenObj = node.get("children");
-            if (childrenObj instanceof List) {
-                collectSelectorSuggestions((List<java.util.Map<String, Object>>) childrenObj, out);
-            }
-        }
-    }
-
     private String getTargetMode() {
-        int pos = spnTargetMode.getSelectedItemPosition();
-        switch (pos) {
-            case 0: return "id";
-            case 1: return "class";
-            case 2: return "tag";
-            default: return "id";
-        }
+        // Selector row removed: blocks default to "id" target with empty value
+        // and the user edits the target chip in the workspace.
+        return "id";
     }
 
     private String getTargetValue() {
-        return etTargetSelector.getText() != null ? etTargetSelector.getText().toString().trim() : "";
+        return "";
     }
 
     private void setupCategoryTabs() {
@@ -257,6 +210,7 @@ public class LogicBlockActivity extends AppCompatActivity {
                     case 1: showCategory(CAT_CSS); break;
                     case 2: showCategory(CAT_LOGIC); break;
                     case 3: showCategory(CAT_VARIABLE); break;
+                    case 4: showCategory(CAT_ANIMATION); break;
                 }
             }
             @Override
@@ -266,14 +220,15 @@ public class LogicBlockActivity extends AppCompatActivity {
         });
     }
 
-    private void setupToolbarButtons() {
-        btnBlockUndo.setOnClickListener(v -> undo());
-        btnBlockRedo.setOnClickListener(v -> redo());
-        btnBlockViewJs.setOnClickListener(v -> showJsPreview());
-        btnBlockAdd.setOnClickListener(v -> showAddBlockDialog());
-        if (btnBlockImport != null) btnBlockImport.setOnClickListener(v -> showImportDialog());
-        if (btnBlockExport != null) btnBlockExport.setOnClickListener(v -> showExportDialog());
+    private void setupFab() {
+        if (fabBlockPalette == null || palettePanel == null) return;
+        fabBlockPalette.setOnClickListener(v -> {
+            boolean visible = palettePanel.getVisibility() == View.VISIBLE;
+            palettePanel.setVisibility(visible ? View.GONE : View.VISIBLE);
+        });
+    }
 
+    private void setupQuickActionButtons() {
         if (btnBlockDelete != null) {
             btnBlockDelete.setOnDragListener((v, event) -> {
                 if (event.getAction() == DragEvent.ACTION_DROP) {
@@ -297,12 +252,7 @@ public class LogicBlockActivity extends AppCompatActivity {
                         saveUndoState();
                         int idx = (Integer) state;
                         LogicBlockManager.LogicBlock orig = logicBlockManager.getBlocks().get(idx);
-                        LogicBlockManager.LogicBlock copy = new LogicBlockManager.LogicBlock();
-                        copy.targetWidget = orig.targetWidget;
-                        copy.targetMode = orig.targetMode;
-                        copy.event = orig.event;
-                        copy.action = orig.action;
-                        copy.params = orig.params;
+                        LogicBlockManager.LogicBlock copy = cloneBlock(orig);
                         logicBlockManager.addBlock(copy);
                         refreshWorkspace();
                     }
@@ -313,32 +263,265 @@ public class LogicBlockActivity extends AppCompatActivity {
         }
     }
 
+    private LogicBlockManager.LogicBlock cloneBlock(LogicBlockManager.LogicBlock orig) {
+        LogicBlockManager.LogicBlock copy = new LogicBlockManager.LogicBlock();
+        copy.targetWidget = orig.targetWidget;
+        copy.targetMode = orig.targetMode;
+        copy.event = orig.event;
+        copy.action = orig.action;
+        copy.params = orig.params;
+        return copy;
+    }
+
+    // ---- Collection Drawer (shared across all projects) ----
+
+    private File getCollectionDir() {
+        File dir = new File(android.os.Environment.getExternalStorageDirectory(),
+            ".dragweb/collections");
+        if (!dir.exists()) dir.mkdirs();
+        return dir;
+    }
+
+    private void setupCollectionDrawer() {
+        if (dropSaveCollection != null) {
+            dropSaveCollection.setOnDragListener((v, event) -> {
+                switch (event.getAction()) {
+                    case DragEvent.ACTION_DRAG_STARTED:
+                        return event.getClipDescription() != null
+                            && event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
+                    case DragEvent.ACTION_DRAG_ENTERED:
+                        v.setAlpha(0.7f);
+                        return true;
+                    case DragEvent.ACTION_DRAG_EXITED:
+                    case DragEvent.ACTION_DRAG_ENDED:
+                        v.setAlpha(1.0f);
+                        return true;
+                    case DragEvent.ACTION_DROP:
+                        v.setAlpha(1.0f);
+                        Object state = event.getLocalState();
+                        if (state instanceof Integer) {
+                            saveBlockChainToCollection((Integer) state);
+                        }
+                        return true;
+                }
+                return true;
+            });
+        }
+        if (dropDeleteCollection != null) {
+            dropDeleteCollection.setOnDragListener((v, event) -> {
+                if (event.getAction() == DragEvent.ACTION_DROP) {
+                    Object state = event.getLocalState();
+                    if (state instanceof Integer) {
+                        saveUndoState();
+                        logicBlockManager.removeBlock((Integer) state);
+                        refreshWorkspace();
+                    }
+                    return true;
+                }
+                if (event.getAction() == DragEvent.ACTION_DRAG_ENTERED) v.setAlpha(0.7f);
+                if (event.getAction() == DragEvent.ACTION_DRAG_EXITED
+                    || event.getAction() == DragEvent.ACTION_DRAG_ENDED) v.setAlpha(1.0f);
+                return true;
+            });
+        }
+        if (dropDuplicateCollection != null) {
+            dropDuplicateCollection.setOnDragListener((v, event) -> {
+                if (event.getAction() == DragEvent.ACTION_DROP) {
+                    Object state = event.getLocalState();
+                    if (state instanceof Integer) {
+                        saveUndoState();
+                        int idx = (Integer) state;
+                        LogicBlockManager.LogicBlock orig = logicBlockManager.getBlocks().get(idx);
+                        logicBlockManager.addBlock(cloneBlock(orig));
+                        refreshWorkspace();
+                    }
+                    return true;
+                }
+                if (event.getAction() == DragEvent.ACTION_DRAG_ENTERED) v.setAlpha(0.7f);
+                if (event.getAction() == DragEvent.ACTION_DRAG_EXITED
+                    || event.getAction() == DragEvent.ACTION_DRAG_ENDED) v.setAlpha(1.0f);
+                return true;
+            });
+        }
+    }
+
+    /**
+     * Save the dragged block plus every block under it (same and following
+     * indices) as a reusable collection in /sdcard/.dragweb/collections.
+     */
+    private void saveBlockChainToCollection(int fromIndex) {
+        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+        if (fromIndex < 0 || fromIndex >= blocks.size()) return;
+        List<LogicBlockManager.LogicBlock> chain = new ArrayList<>();
+        for (int i = fromIndex; i < blocks.size(); i++) {
+            chain.add(cloneBlock(blocks.get(i)));
+        }
+        showSaveCollectionDialog(chain);
+    }
+
+    private void showSaveCollectionDialog(List<LogicBlockManager.LogicBlock> chain) {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(20), dp(8), dp(20), 0);
+
+        TextInputLayout til = createTil("Collection name");
+        TextInputEditText input = (TextInputEditText) til.getEditText();
+        if (input != null) input.setText("collection_" + System.currentTimeMillis());
+        layout.addView(til);
+
+        TextView count = new TextView(this);
+        count.setText("Saving " + chain.size() + " block(s)");
+        count.setTextSize(12);
+        count.setTextColor(Color.parseColor("#7A8B9C"));
+        count.setPadding(0, dp(6), 0, 0);
+        layout.addView(count);
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Save to Collection")
+            .setView(layout)
+            .setPositiveButton("Save", (d, w) -> {
+                String name = getText(til);
+                if (name.isEmpty()) name = "collection_" + System.currentTimeMillis();
+                try {
+                    File dir = getCollectionDir();
+                    File file = new File(dir, name.replaceAll("[^a-zA-Z0-9_-]", "_") + ".json");
+                    String json = new com.google.gson.Gson().toJson(chain);
+                    FileUtil.writeFile(file.getAbsolutePath(), json);
+                    Toast.makeText(this, "Saved: " + file.getName(), Toast.LENGTH_SHORT).show();
+                    refreshCollectionList();
+                } catch (Exception e) {
+                    Toast.makeText(this, "Save failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    private void refreshCollectionList() {
+        if (collectionList == null) return;
+        collectionList.removeAllViews();
+        File dir = getCollectionDir();
+        File[] files = dir.listFiles((f, n) -> n.endsWith(".json"));
+        if (files == null || files.length == 0) {
+            TextView empty = new TextView(this);
+            empty.setText("Drop a block on \"Save to Collection\" to add one.");
+            empty.setTextSize(12);
+            empty.setTextColor(Color.parseColor("#7A8B9C"));
+            empty.setPadding(dp(4), dp(8), dp(4), 0);
+            collectionList.addView(empty);
+            return;
+        }
+        for (File f : files) {
+            collectionList.addView(createCollectionRow(f));
+        }
+    }
+
+    private View createCollectionRow(File file) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(8), dp(10), dp(8));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(8));
+        bg.setColor(Color.parseColor("#22000000"));
+        row.setBackground(bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, dp(4), 0, dp(4));
+        row.setLayoutParams(lp);
+
+        TextView name = new TextView(this);
+        name.setText(file.getName().replace(".json", ""));
+        name.setTextColor(Color.parseColor("#0D47A1"));
+        name.setTextSize(13);
+        name.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        name.setLayoutParams(nameLp);
+        row.addView(name);
+
+        TextView load = new TextView(this);
+        load.setText("LOAD");
+        load.setTextSize(11);
+        load.setTypeface(null, Typeface.BOLD);
+        load.setTextColor(Color.WHITE);
+        load.setPadding(dp(8), dp(4), dp(8), dp(4));
+        GradientDrawable loadBg = new GradientDrawable();
+        loadBg.setCornerRadius(dp(4));
+        loadBg.setColor(COLOR_CSS);
+        load.setBackground(loadBg);
+        LinearLayout.LayoutParams loadLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        loadLp.setMargins(dp(4), 0, dp(4), 0);
+        load.setLayoutParams(loadLp);
+        load.setOnClickListener(v -> loadCollection(file));
+        row.addView(load);
+
+        TextView del = new TextView(this);
+        del.setText("✕");
+        del.setTextSize(12);
+        del.setTypeface(null, Typeface.BOLD);
+        del.setTextColor(Color.WHITE);
+        del.setPadding(dp(8), dp(4), dp(8), dp(4));
+        GradientDrawable delBg = new GradientDrawable();
+        delBg.setCornerRadius(dp(4));
+        delBg.setColor(Color.parseColor("#C62828"));
+        del.setBackground(delBg);
+        del.setOnClickListener(v -> {
+            file.delete();
+            refreshCollectionList();
+        });
+        row.addView(del);
+
+        return row;
+    }
+
+    private void loadCollection(File file) {
+        try {
+            String json = FileUtil.readFile(file.getAbsolutePath());
+            java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<List<LogicBlockManager.LogicBlock>>(){}.getType();
+            List<LogicBlockManager.LogicBlock> chain =
+                new com.google.gson.Gson().fromJson(json, type);
+            if (chain == null || chain.isEmpty()) {
+                Toast.makeText(this, "Empty collection", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            saveUndoState();
+            for (LogicBlockManager.LogicBlock b : chain) {
+                logicBlockManager.addBlock(cloneBlock(b));
+            }
+            refreshWorkspace();
+            Toast.makeText(this, "Loaded " + chain.size() + " block(s)", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Load failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void setupWorkspaceDragDrop() {
         blockWorkspace.setOnDragListener((v, event) -> {
             switch (event.getAction()) {
                 case DragEvent.ACTION_DRAG_STARTED:
-                    return event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
+                    return event.getClipDescription() != null
+                        && event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
                 case DragEvent.ACTION_DRAG_ENTERED:
-                    setWorkspaceHighlight(true);
+                    setWorkspaceHighlight(true, event.getLocalState());
                     return true;
                 case DragEvent.ACTION_DRAG_EXITED:
-                    setWorkspaceHighlight(false);
+                    setWorkspaceHighlight(false, null);
                     return true;
                 case DragEvent.ACTION_DROP:
-                    setWorkspaceHighlight(false);
+                    setWorkspaceHighlight(false, null);
                     Object localState = event.getLocalState();
                     if (localState instanceof BlockDef) {
-                        BlockDef def = (BlockDef) localState;
-                        addBlockFromDef(def);
+                        addBlockFromDef((BlockDef) localState);
                     } else if (localState instanceof Integer) {
-                        // Reorder within workspace (if dropped outside a slot)
                         int fromIndex = (Integer) localState;
                         float dropY = event.getY();
                         reorderBlock(fromIndex, dropY);
                     }
                     return true;
                 case DragEvent.ACTION_DRAG_ENDED:
-                    setWorkspaceHighlight(false);
+                    setWorkspaceHighlight(false, null);
                     return true;
             }
             return false;
@@ -392,16 +575,19 @@ public class LogicBlockActivity extends AppCompatActivity {
         }
     }
 
-    private void setWorkspaceHighlight(boolean highlight) {
-        if (highlight) {
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(16);
-            bg.setColor(Color.parseColor("#0D2196F3"));
-            bg.setStroke(2, Color.parseColor("#2196F3"));
-            blockWorkspace.setBackground(bg);
-        } else {
+    private void setWorkspaceHighlight(boolean highlight, Object localState) {
+        if (!highlight) {
             blockWorkspace.setBackground(null);
+            return;
         }
+        int drawableRes = R.drawable.bg_block_shape_rect;
+        if (localState instanceof BlockDef) {
+            BlockDef def = (BlockDef) localState;
+            if ("C".equals(def.shape)) drawableRes = R.drawable.bg_block_shape_event;
+            else if ("E".equals(def.shape)) drawableRes = R.drawable.bg_block_shape_logic;
+        }
+        blockWorkspace.setBackground(androidx.core.content.ContextCompat
+            .getDrawable(this, drawableRes));
     }
 
     // ---- Block Palette ----
@@ -426,8 +612,8 @@ public class LogicBlockActivity extends AppCompatActivity {
         block.setPadding(dp(12), dp(8), dp(12), dp(10));
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.setMargins(dp(4), dp(2), dp(4), dp(4));
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setMargins(dp(4), dp(3), dp(4), dp(3));
         block.setLayoutParams(params);
 
         // Puzzle pill background based on shape
@@ -472,106 +658,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         return block;
     }
 
-    // ---- Add Block Dialogs (Spinner-based) ----
-
-    private void showAddBlockDialog() {
-        // Use spinners instead of dialogs for selection (Sketchware-Pro style)
-        String target = getTargetValue();
-        String targetMode = getTargetMode();
-
-        if (CAT_LOGIC.equals(currentCategory) || CAT_VARIABLE.equals(currentCategory)) {
-            // Logic and Variable blocks don't need target
-            showBlockPickerSpinner(currentCategory);
-        } else {
-            if (target.isEmpty()) {
-                Toast.makeText(this, "Enter a target selector first", Toast.LENGTH_SHORT).show();
-                etTargetSelector.requestFocus();
-                return;
-            }
-            showBlockPickerSpinner(currentCategory);
-        }
-    }
-
-    private void showBlockPickerSpinner(String category) {
-        BlockDef[] blocks = getBlocksForCategory(category);
-        String[] labels = new String[blocks.length];
-        for (int i = 0; i < blocks.length; i++) {
-            labels[i] = blocks[i].label + " - " + blocks[i].description;
-        }
-
-        // Event spinner selection
-        if (CAT_EVENT.equals(category)) {
-            // Select event, then action
-            new MaterialAlertDialogBuilder(this)
-                .setTitle("Select Event")
-                .setItems(labels, (dialog, which) -> {
-                    BlockDef eventDef = blocks[which];
-                    showActionPickerForEvent(eventDef);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-        } else if (CAT_LOGIC.equals(category) || CAT_VARIABLE.equals(category)) {
-            new MaterialAlertDialogBuilder(this)
-                .setTitle("Select Block")
-                .setItems(labels, (dialog, which) -> {
-                    addBlockFromDef(blocks[which]);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-        } else {
-            // CSS/HTML action - select action, then event
-            new MaterialAlertDialogBuilder(this)
-                .setTitle("Select Action")
-                .setItems(labels, (dialog, which) -> {
-                    BlockDef actionDef = blocks[which];
-                    showEventPickerForAction(actionDef);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-        }
-    }
-
-    /**
-     * Show only CSS actions for a chosen event - HTML category was removed.
-     * The dialog is kept as a fallback for accessibility; primary UX is
-     * drag-and-drop CSS rectangles into the C-shaped event slot.
-     */
-    private void showActionPickerForEvent(BlockDef eventDef) {
-        BlockDef[] cssBlocks = getBlocksForCategory(CAT_CSS);
-        String[] labels = new String[cssBlocks.length];
-        for (int i = 0; i < cssBlocks.length; i++) {
-            labels[i] = cssBlocks[i].label + " - " + cssBlocks[i].description;
-        }
-
-        new MaterialAlertDialogBuilder(this)
-            .setTitle("Action for " + eventDef.label)
-            .setItems(labels, (dialog, which) -> {
-                showValueInputForBlock(eventDef, cssBlocks[which]);
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
-    }
-
-    /**
-     * For a CSS rule dropped without an explicit event, default it to
-     * page-load so it emits as a static CSS rule in <style>.
-     */
-    private void showEventPickerForAction(BlockDef actionDef) {
-        BlockDef eventDef = new BlockDef("load", "On Load", "Apply as CSS rule on page load", CAT_EVENT);
-        showValueInputForBlock(eventDef, actionDef);
-    }
-
-    private void showValueInputForBlock(BlockDef eventDef, BlockDef actionDef) {
-        String hint = getValueHint(actionDef);
-        // Use the universal value+unit dialog when the action is a CSS sizing
-        // value (px/rem/% friendly). For colors / strings, no unit chips are shown.
-        boolean wantsUnit = isSizingAction(actionDef.id);
-        boolean wantsColor = isColorAction(actionDef.id);
-
-        showUniversalValueDialog(actionDef.label, hint, "", wantsUnit, wantsColor, value -> {
-            createBlock(eventDef, actionDef, value);
-        });
-    }
+    // ---- Add Block Dialogs (legacy stubs kept for callers) ----
 
     /**
      * Universal Sketchware-style value editor:
@@ -797,27 +884,145 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     // ---- Block Creation ----
 
+    /** Most recent event selected from the palette — new actions attach here. */
+    private String activeEventKey = "load";
+
+    /**
+     * Create a block from a palette definition with sensible defaults — no
+     * dialogs. Users tweak the block in the workspace by tapping its chips.
+     * If an "onLoad" event header already exists, CSS/animation blocks
+     * attach to it as a child instead of asking.
+     */
     private void addBlockFromDef(BlockDef def) {
-        if (CAT_LOGIC.equals(def.category)) {
-            showLogicBlockInput(def);
-        } else if (CAT_VARIABLE.equals(def.category)) {
-            showVariableBlockInput(def);
-        } else if (CAT_EVENT.equals(def.category)) {
-            String target = getTargetValue();
-            if (target.isEmpty()) {
-                Toast.makeText(this, "Enter a target selector first", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            showActionPickerForEvent(def);
-        } else {
-            // CSS/HTML action
-            String target = getTargetValue();
-            if (target.isEmpty()) {
-                Toast.makeText(this, "Enter a target selector first", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            showEventPickerForAction(def);
+        if (CAT_EVENT.equals(def.category)) {
+            // Events are implicit headers — switch the active event so the
+            // next dropped action attaches to it. No standalone block.
+            activeEventKey = mapEventKey(def.id);
+            Toast.makeText(this,
+                "Active event: " + LogicBlockManager.getEventDisplayName(activeEventKey),
+                Toast.LENGTH_SHORT).show();
+            return;
         }
+
+        saveUndoState();
+        LogicBlockManager.LogicBlock block = new LogicBlockManager.LogicBlock();
+        block.targetWidget = "";
+        block.targetMode = "id";
+        block.action = mapActionKey(def.id);
+        block.params = defaultParamsFor(def);
+
+        if (CAT_LOGIC.equals(def.category) || CAT_VARIABLE.equals(def.category)) {
+            block.targetMode = CAT_LOGIC.equals(def.category) ? "logic" : "variable";
+            block.event = "immediate";
+            block.action = def.id;
+        } else if (CAT_ANIMATION.equals(def.category)) {
+            block.event = hasEvent("load") ? "load" : activeEventKey;
+            block.action = def.id;
+        } else {
+            // CSS — if there's already an onLoad header in the workspace
+            // attach to it as parent. Otherwise use the most-recently-set
+            // event (defaults to "load" so CSS just becomes a load rule).
+            block.event = hasEvent("load") ? "load" : activeEventKey;
+        }
+
+        logicBlockManager.addBlock(block);
+        refreshWorkspace();
+
+        if (CAT_ANIMATION.equals(def.category)) {
+            int idx = logicBlockManager.getBlocks().size() - 1;
+            showAnimationCustomizeDialog(idx);
+        }
+    }
+
+    private boolean hasEvent(String eventKey) {
+        for (LogicBlockManager.LogicBlock b : logicBlockManager.getBlocks()) {
+            if (eventKey.equals(b.event)) return true;
+        }
+        return false;
+    }
+
+    private String defaultParamsFor(BlockDef def) {
+        if (def == null || def.id == null) return "";
+        switch (def.id) {
+            case "setDisplay": return "display:block";
+            case "setColor": return "color:#000000";
+            case "setBackground": return "background:#FFFFFF";
+            case "setWidth": return "width:100px";
+            case "setHeight": return "height:100px";
+            case "setMargin": return "margin:0px";
+            case "setPadding": return "padding:8px";
+            case "setBorder": return "border:1px solid #000000";
+            case "setRadius": return "borderRadius:4px";
+            case "setOpacity": return "opacity:1";
+            case "setFontSize": return "fontSize:14px";
+            case "addClass": case "removeClass": case "toggleClass": return "myClass";
+            case "animateFadeIn": return "fadeIn|400ms|ease";
+            case "animateFadeOut": return "fadeOut|400ms|ease";
+            case "animateSlideIn": return "slideIn|400ms|ease";
+            case "animateSlideOut": return "slideOut|400ms|ease";
+            case "animateBounce": return "bounce|600ms|ease-out";
+            case "animatePulse": return "pulse|800ms|ease-in-out";
+            case "animateRotate": return "rotate|600ms|linear";
+            case "animateShake": return "shake|400ms|ease-in-out";
+            case "transitionAll": return "all|300ms|ease";
+            case "transitionColor": return "color|300ms|ease";
+            case "transitionSize": return "width,height|300ms|ease";
+            case "transitionTransform": return "transform|300ms|ease";
+            default: return "";
+        }
+    }
+
+    /**
+     * Open the animation/transition customise dialog: duration, easing,
+     * delay, iteration. Updates the block's params in place.
+     */
+    private void showAnimationCustomizeDialog(int blockIndex) {
+        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+        if (blockIndex < 0 || blockIndex >= blocks.size()) return;
+        LogicBlockManager.LogicBlock block = blocks.get(blockIndex);
+
+        String[] parts = (block.params != null ? block.params : "").split("\\|", -1);
+        String name = parts.length > 0 ? parts[0] : "";
+        String duration = parts.length > 1 ? parts[1] : "400ms";
+        String easing = parts.length > 2 ? parts[2] : "ease";
+        String delay = parts.length > 3 ? parts[3] : "0ms";
+        String iter = parts.length > 4 ? parts[4] : "1";
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(20), dp(8), dp(20), 0);
+
+        TextInputLayout tilName = createTil("Name / property");
+        if (tilName.getEditText() != null) tilName.getEditText().setText(name);
+        layout.addView(tilName);
+
+        TextInputLayout tilDur = createTil("Duration (e.g. 400ms)");
+        if (tilDur.getEditText() != null) tilDur.getEditText().setText(duration);
+        layout.addView(tilDur);
+
+        TextInputLayout tilEase = createTil("Easing (ease, linear, ease-in, ease-out, ease-in-out, cubic-bezier(...))");
+        if (tilEase.getEditText() != null) tilEase.getEditText().setText(easing);
+        layout.addView(tilEase);
+
+        TextInputLayout tilDelay = createTil("Delay (e.g. 0ms)");
+        if (tilDelay.getEditText() != null) tilDelay.getEditText().setText(delay);
+        layout.addView(tilDelay);
+
+        TextInputLayout tilIter = createTil("Iterations (number or 'infinite')");
+        if (tilIter.getEditText() != null) tilIter.getEditText().setText(iter);
+        layout.addView(tilIter);
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Customise " + (block.action != null ? block.action : "animation"))
+            .setView(layout)
+            .setPositiveButton("Save", (d, w) -> {
+                saveUndoState();
+                block.params = getText(tilName) + "|" + getText(tilDur) + "|"
+                    + getText(tilEase) + "|" + getText(tilDelay) + "|" + getText(tilIter);
+                refreshWorkspace();
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
     }
 
     private void createBlock(BlockDef eventDef, BlockDef actionDef, String value) {
@@ -1198,23 +1403,19 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private void addBlockToEvent(BlockDef actionDef, String eventKey) {
-        // Map the internal key if it's a display name
-        String mappedEvent = mapEventKey(eventKey);
-
-        // Find if we have an event definition for this key
-        BlockDef eventDef = null;
-        for (BlockDef d : allBlockDefs) {
-            if (mappedEvent.equals(mapEventKey(d.id))) {
-                eventDef = d;
-                break;
-            }
-        }
-        if (eventDef == null) {
-            eventDef = new BlockDef(mappedEvent, eventKey, "", CAT_EVENT);
-        }
-
-        final BlockDef finalEventDef = eventDef;
-        showValueInputForBlock(finalEventDef, actionDef);
+        // No more dialog cascade — drop the action straight in with default
+        // params under the chosen event. User edits chips inline in the
+        // workspace.
+        saveUndoState();
+        LogicBlockManager.LogicBlock block = new LogicBlockManager.LogicBlock();
+        block.targetWidget = "";
+        block.targetMode = CAT_LOGIC.equals(actionDef.category) ? "logic"
+            : CAT_VARIABLE.equals(actionDef.category) ? "variable" : "id";
+        block.event = mapEventKey(eventKey);
+        block.action = mapActionKey(actionDef.id);
+        block.params = defaultParamsFor(actionDef);
+        logicBlockManager.addBlock(block);
+        refreshWorkspace();
     }
 
     private void moveBlockToEvent(int fromIndex, String eventKey) {
@@ -1870,6 +2071,33 @@ public class LogicBlockActivity extends AppCompatActivity {
         return out;
     }
 
+    @SuppressWarnings("unchecked")
+    private void collectSelectorSuggestions(List<java.util.Map<String, Object>> tree, List<String> out) {
+        if (tree == null) return;
+        for (java.util.Map<String, Object> node : tree) {
+            Object fnObj = node.get("function");
+            if (fnObj instanceof java.util.Map) {
+                java.util.Map<String, Object> fn = (java.util.Map<String, Object>) fnObj;
+                Object idObj = fn.get("id");
+                if (idObj != null) {
+                    String id = idObj.toString().trim();
+                    if (!id.isEmpty()) out.add(id);
+                }
+                Object classObj = fn.get("class");
+                if (classObj != null) {
+                    String[] parts = classObj.toString().trim().split("\\s+");
+                    for (String part : parts) {
+                        if (!part.isEmpty()) out.add(part);
+                    }
+                }
+            }
+            Object childrenObj = node.get("children");
+            if (childrenObj instanceof List) {
+                collectSelectorSuggestions((List<java.util.Map<String, Object>>) childrenObj, out);
+            }
+        }
+    }
+
     // ---- Edit existing block ----
 
     private void showEditBlockDialog(int index) {
@@ -2128,6 +2356,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             case CAT_HTML: return COLOR_HTML;
             case CAT_LOGIC: return COLOR_LOGIC;
             case CAT_VARIABLE: return COLOR_VARIABLE;
+            case CAT_ANIMATION: return COLOR_ANIMATION;
             default: return COLOR_EVENT;
         }
     }
