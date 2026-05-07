@@ -98,7 +98,38 @@ public class LogicBlockManager {
     }
 
     public void addBlock(LogicBlock block) {
+        if (block == null) return;
+        // A block with no action is meaningless and only crashes the renderer
+        // when shown — drop it at the gate rather than discovering it later.
+        if (block.action == null || block.action.isEmpty()) return;
+        normalizeBlock(block);
+        // Suppress exact-duplicate adds (same target/mode/event/action/params).
+        // Matches the "duplicate logic generation" issue called out in the
+        // refactor brief without changing any other call site.
+        for (LogicBlock existing : blocks) {
+            if (blocksEqual(existing, block)) return;
+        }
         blocks.add(block);
+    }
+
+    /**
+     * Backfill non-null defaults for fields the generation paths assume are
+     * present. Mirrors the behavior in {@link #fromJson(String)} so blocks
+     * created in-memory aren't a different shape than blocks loaded from disk.
+     */
+    private static void normalizeBlock(LogicBlock b) {
+        if (b.event == null) b.event = "immediate";
+        if (b.params == null) b.params = "";
+        if (b.targetMode == null) b.targetMode = TARGET_MODE_ID;
+        if (b.targetWidget == null) b.targetWidget = "";
+    }
+
+    private static boolean blocksEqual(LogicBlock a, LogicBlock b) {
+        return java.util.Objects.equals(a.action, b.action)
+            && java.util.Objects.equals(a.event, b.event)
+            && java.util.Objects.equals(a.params, b.params)
+            && java.util.Objects.equals(a.targetWidget, b.targetWidget)
+            && java.util.Objects.equals(a.targetMode, b.targetMode);
     }
 
     public void removeBlock(int index) {
@@ -113,6 +144,7 @@ public class LogicBlockManager {
 
     public List<LogicBlock> getBlocksForWidget(String widgetTag) {
         List<LogicBlock> result = new ArrayList<>();
+        if (widgetTag == null) return result;
         for (LogicBlock block : blocks) {
             if (widgetTag.equals(block.targetWidget)) {
                 result.add(block);
@@ -126,6 +158,7 @@ public class LogicBlockManager {
      */
     public List<LogicBlock> getBlocksForEvent(String eventType) {
         List<LogicBlock> result = new ArrayList<>();
+        if (eventType == null) return result;
         for (LogicBlock block : blocks) {
             if (eventType.equals(block.event)) {
                 result.add(block);
@@ -138,6 +171,7 @@ public class LogicBlockManager {
      * Count blocks for a specific event type.
      */
     public int getBlockCountForEvent(String eventType) {
+        if (eventType == null) return 0;
         int count = 0;
         for (LogicBlock block : blocks) {
             if (eventType.equals(block.event)) {
@@ -421,8 +455,13 @@ public class LogicBlockManager {
     }
 
     private String buildSelector(LogicBlock block) {
-        String target = block.targetWidget;
+        String target = sanitizeSelectorIdentifier(block.targetWidget);
         String mode = block.targetMode;
+        if (target.isEmpty()) {
+            // No usable target identifier — fall back to body so we never emit
+            // an unparseable selector like "#" or "." that breaks codegen.
+            return "body";
+        }
         if (TARGET_MODE_ID.equals(mode)) {
             return "#" + target;
         } else if (TARGET_MODE_CLASS.equals(mode)) {
@@ -431,6 +470,30 @@ public class LogicBlockManager {
             return target;
         }
         return "[data-widget='" + target + "']";
+    }
+
+    /**
+     * Strip characters that would break out of a CSS selector or a single-
+     * quoted JS string (selectors are inlined into both). Keeps the common
+     * id/class/tag character set and a few utility separators.
+     *
+     * <p>This is defensive – the editor UI usually validates names, but
+     * imported / mis-parsed projects can still feed us hostile input.
+     */
+    private static String sanitizeSelectorIdentifier(String raw) {
+        if (raw == null) return "";
+        StringBuilder sb = new StringBuilder(raw.length());
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            // Letters / digits / underscores / hyphens cover ids, classes,
+            // and tag names. Anything else (quotes, backslashes, brackets,
+            // whitespace, control chars, semicolons) is dropped.
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                || (c >= '0' && c <= '9') || c == '-' || c == '_') {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     /**
@@ -476,11 +539,16 @@ public class LogicBlockManager {
 
         for (LogicBlock block : blocks) {
             if (!isStaticCssBlock(block)) continue;
+            if (block.params == null) continue;
             String[] parts = block.params.split(":", 2);
             if (parts.length != 2) continue;
             String property = camelToKebab(parts[0].trim());
             String value = parts[1].trim();
             if (property.isEmpty() || value.isEmpty()) continue;
+            // Static CSS rules must never contain `;` or closing braces – a
+            // malformed param could otherwise terminate the rule early and
+            // inject arbitrary CSS into the page.
+            if (value.indexOf(';') >= 0 || value.indexOf('}') >= 0) continue;
 
             String selector = buildSelector(block);
             java.util.LinkedHashMap<String, String> rules = bySelector.get(selector);
@@ -531,19 +599,35 @@ public class LogicBlockManager {
         StringBuilder css = new StringBuilder();
         for (LogicBlock block : blocks) {
             if (!isCssPseudoEvent(block.event)) continue;
+            if (block.params == null) continue;
             String pseudoClass = block.event.substring("css:".length()); // "hover", "focus", etc.
+            // Pseudo-class is interpolated raw into the CSS; reject anything
+            // that isn't a plain word so we never emit `:hover{}; @import ...`.
+            if (!isSimpleWord(pseudoClass)) continue;
             String selector = buildSelector(block);
-            // params format: "property:value" (matches ACTION_CHANGE_STYLE convention)
-            if (block.params != null) {
-                String[] parts = block.params.split(":", 2);
-                if (parts.length == 2) {
-                    css.append("  ").append(selector).append(":").append(pseudoClass)
-                       .append(" { ").append(parts[0].trim()).append(": ")
-                       .append(parts[1].trim()).append("; }\n");
-                }
-            }
+            String[] parts = block.params.split(":", 2);
+            if (parts.length != 2) continue;
+            String property = parts[0].trim();
+            String value = parts[1].trim();
+            if (property.isEmpty() || value.isEmpty()) continue;
+            if (value.indexOf(';') >= 0 || value.indexOf('}') >= 0) continue;
+            css.append("  ").append(selector).append(":").append(pseudoClass)
+               .append(" { ").append(property).append(": ")
+               .append(value).append("; }\n");
         }
         return css.toString();
+    }
+
+    private static boolean isSimpleWord(String s) {
+        if (s == null || s.isEmpty()) return false;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                  || (c >= '0' && c <= '9') || c == '-' || c == '_')) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -559,6 +643,12 @@ public class LogicBlockManager {
         js.append("document.addEventListener('DOMContentLoaded', function() {\n");
 
         for (LogicBlock block : blocks) {
+            // Defense in depth: even though addBlock/fromJson reject null
+            // actions, somebody could still mutate a block reference after
+            // the fact — keep the codegen path crash-free regardless.
+            if (block == null || block.action == null || block.action.isEmpty()) continue;
+            if (block.params == null) block.params = "";
+
             String eventName = block.event;
 
             // Skip CSS pseudo-class blocks – they are written as CSS, not JS
@@ -880,7 +970,14 @@ public class LogicBlockManager {
     }
 
     private String escapeJs(String str) {
-        return str.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+        if (str == null) return "";
+        return str.replace("\\", "\\\\")
+                  .replace("'", "\\'")
+                  .replace("\r", "\\r")
+                  .replace("\n", "\\n")
+                  // Prevents an inlined string from closing the surrounding
+                  // <script> tag and injecting markup into the page.
+                  .replace("</", "<\\/");
     }
 
     /**
