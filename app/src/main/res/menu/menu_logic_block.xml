@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_undo"
+        android:title="Undo"
+        android:icon="@drawable/icon_undo_round"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_redo"
+        android:title="Redo"
+        android:icon="@drawable/icon_redo_round"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_view_code"
+        android:title="View Code"
+        android:icon="@drawable/icon_code_round"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_import"
+        android:title="Import"
+        android:icon="@drawable/icon_import_round"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_export"
+        android:title="Export"
+        android:icon="@drawable/icon_export_round"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_collections"
+        android:title="Collections"
+        android:icon="@drawable/icon_folder_round"
+        app:showAsAction="never" />
+</menu>

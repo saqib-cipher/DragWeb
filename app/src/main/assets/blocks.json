@@ -1,58 +1,37 @@
 [
   {
-    "id": "onClick",
-    "label": "On Click",
-    "description": "When element is clicked",
-    "category": "event",
+    "id": "cssHover",
+    "label": ":hover",
+    "description": "Apply on hover",
+    "category": "css",
     "shape": "C"
   },
   {
-    "id": "onHover",
-    "label": "On Hover",
-    "description": "When mouse hovers",
-    "category": "event",
+    "id": "cssBefore",
+    "label": "::before",
+    "description": "Pseudo before",
+    "category": "css",
     "shape": "C"
   },
   {
-    "id": "onLoad",
-    "label": "On Load",
-    "description": "When page loads",
-    "category": "event",
+    "id": "cssAfter",
+    "label": "::after",
+    "description": "Pseudo after",
+    "category": "css",
     "shape": "C"
   },
   {
-    "id": "onInput",
-    "label": "On Input",
-    "description": "When input changes",
-    "category": "event",
+    "id": "cssFocus",
+    "label": ":focus",
+    "description": "Apply on focus",
+    "category": "css",
     "shape": "C"
   },
   {
-    "id": "onSubmit",
-    "label": "On Submit",
-    "description": "When form submits",
-    "category": "event",
-    "shape": "C"
-  },
-  {
-    "id": "onScroll",
-    "label": "On Scroll",
-    "description": "When user scrolls",
-    "category": "event",
-    "shape": "C"
-  },
-  {
-    "id": "onKeyDown",
-    "label": "On Key Down",
-    "description": "When key pressed",
-    "category": "event",
-    "shape": "C"
-  },
-  {
-    "id": "onChange",
-    "label": "On Change",
-    "description": "When value changes",
-    "category": "event",
+    "id": "cssActive",
+    "label": ":active",
+    "description": "Apply on active",
+    "category": "css",
     "shape": "C"
   },
   {
@@ -260,5 +239,141 @@
     "description": "Boolean variable",
     "category": "variable",
     "shape": "rect"
+  },
+  {
+    "id": "animateFadeIn",
+    "label": "Fade In",
+    "description": "Fade element in",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateFadeOut",
+    "label": "Fade Out",
+    "description": "Fade element out",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateSlideIn",
+    "label": "Slide In",
+    "description": "Slide element in",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateSlideOut",
+    "label": "Slide Out",
+    "description": "Slide element out",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateBounce",
+    "label": "Bounce",
+    "description": "Bouncing motion",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animatePulse",
+    "label": "Pulse",
+    "description": "Pulsing scale",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateRotate",
+    "label": "Rotate",
+    "description": "Rotation animation",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "animateShake",
+    "label": "Shake",
+    "description": "Shake motion",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "animation"
+  },
+  {
+    "id": "transitionAll",
+    "label": "Transition All",
+    "description": "Smooth transitions",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "transition"
+  },
+  {
+    "id": "transitionColor",
+    "label": "Transition Color",
+    "description": "Color smoothly",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "transition"
+  },
+  {
+    "id": "transitionSize",
+    "label": "Transition Size",
+    "description": "Width/height smooth",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "transition"
+  },
+  {
+    "id": "transitionTransform",
+    "label": "Transition Transform",
+    "description": "Transform smooth",
+    "category": "animation",
+    "shape": "rect",
+    "spec": "transition"
+  },
+  {
+    "id": "asdHtml",
+    "label": "HTML Source",
+    "description": "Insert raw HTML",
+    "category": "asd",
+    "shape": "rect",
+    "spec": "source"
+  },
+  {
+    "id": "asdCss",
+    "label": "CSS Source",
+    "description": "Insert raw CSS",
+    "category": "asd",
+    "shape": "rect",
+    "spec": "source"
+  },
+  {
+    "id": "asdJs",
+    "label": "JS Source",
+    "description": "Insert raw JavaScript",
+    "category": "asd",
+    "shape": "rect",
+    "spec": "source"
+  },
+  {
+    "id": "asdHead",
+    "label": "Head Tag",
+    "description": "Insert in <head>",
+    "category": "asd",
+    "shape": "rect",
+    "spec": "source"
+  },
+  {
+    "id": "asdMeta",
+    "label": "Meta Tag",
+    "description": "Insert <meta>",
+    "category": "asd",
+    "shape": "rect",
+    "spec": "source"
   }
 ]
