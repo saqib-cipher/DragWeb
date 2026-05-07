@@ -1,58 +1,37 @@
 [
   {
-    "id": "onClick",
-    "label": "On Click",
-    "description": "When element is clicked",
-    "category": "event",
+    "id": "cssHover",
+    "label": ":hover",
+    "description": "Apply on hover",
+    "category": "css",
     "shape": "C"
   },
   {
-    "id": "onHover",
-    "label": "On Hover",
-    "description": "When mouse hovers",
-    "category": "event",
+    "id": "cssBefore",
+    "label": "::before",
+    "description": "Pseudo before",
+    "category": "css",
     "shape": "C"
   },
   {
-    "id": "onLoad",
-    "label": "On Load",
-    "description": "When page loads",
-    "category": "event",
+    "id": "cssAfter",
+    "label": "::after",
+    "description": "Pseudo after",
+    "category": "css",
     "shape": "C"
   },
   {
-    "id": "onInput",
-    "label": "On Input",
-    "description": "When input changes",
-    "category": "event",
+    "id": "cssFocus",
+    "label": ":focus",
+    "description": "Apply on focus",
+    "category": "css",
     "shape": "C"
   },
   {
-    "id": "onSubmit",
-    "label": "On Submit",
-    "description": "When form submits",
-    "category": "event",
-    "shape": "C"
-  },
-  {
-    "id": "onScroll",
-    "label": "On Scroll",
-    "description": "When user scrolls",
-    "category": "event",
-    "shape": "C"
-  },
-  {
-    "id": "onKeyDown",
-    "label": "On Key Down",
-    "description": "When key pressed",
-    "category": "event",
-    "shape": "C"
-  },
-  {
-    "id": "onChange",
-    "label": "On Change",
-    "description": "When value changes",
-    "category": "event",
+    "id": "cssActive",
+    "label": ":active",
+    "description": "Apply on active",
+    "category": "css",
     "shape": "C"
   },
   {
@@ -356,5 +335,45 @@
     "category": "animation",
     "shape": "rect",
     "spec": "transition"
+  },
+  {
+    "id": "asdHtml",
+    "label": "HTML Source",
+    "description": "Insert raw HTML",
+    "category": "asd",
+    "shape": "rect",
+    "spec": "source"
+  },
+  {
+    "id": "asdCss",
+    "label": "CSS Source",
+    "description": "Insert raw CSS",
+    "category": "asd",
+    "shape": "rect",
+    "spec": "source"
+  },
+  {
+    "id": "asdJs",
+    "label": "JS Source",
+    "description": "Insert raw JavaScript",
+    "category": "asd",
+    "shape": "rect",
+    "spec": "source"
+  },
+  {
+    "id": "asdHead",
+    "label": "Head Tag",
+    "description": "Insert in <head>",
+    "category": "asd",
+    "shape": "rect",
+    "spec": "source"
+  },
+  {
+    "id": "asdMeta",
+    "label": "Meta Tag",
+    "description": "Insert <meta>",
+    "category": "asd",
+    "shape": "rect",
+    "spec": "source"
   }
 ]

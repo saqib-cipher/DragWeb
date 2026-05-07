@@ -29,7 +29,6 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -50,6 +49,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     private static final String CAT_LOGIC = "logic";
     private static final String CAT_VARIABLE = "variable";
     private static final String CAT_ANIMATION = "animation";
+    private static final String CAT_ASD = "asd";
 
     // Category colors
     private static final int COLOR_EVENT = Color.parseColor("#FF9800");
@@ -58,6 +58,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     private static final int COLOR_LOGIC = Color.parseColor("#E91E63");
     private static final int COLOR_VARIABLE = Color.parseColor("#00BCD4");
     private static final int COLOR_ANIMATION = Color.parseColor("#9C27B0");
+    private static final int COLOR_ASD = Color.parseColor("#455A64");
 
     private LogicBlockManager logicBlockManager;
     private String projectId;
@@ -67,16 +68,17 @@ public class LogicBlockActivity extends AppCompatActivity {
     private MaterialToolbar toolbar;
     private DrawerLayout drawerLayout;
     private LinearLayout palettePanel;
-    private TabLayout tabCategories;
+    private LinearLayout categoryListContainer;
     private LinearLayout blockPaletteContainer;
     private LinearLayout blockWorkspace;
     private FloatingActionButton fabBlockPalette;
-    private Button btnBlockDelete, btnBlockDuplicate;
+    private Button btnBlockDelete, btnBlockDuplicate, btnSaveAllToCollection;
     private LinearLayout dropSaveCollection, dropDeleteCollection, dropDuplicateCollection;
+    private LinearLayout dropSaveAllCollection;
     private LinearLayout collectionList;
     private TextView tvBlockCount;
 
-    private String currentCategory = CAT_EVENT;
+    private String currentCategory = CAT_CSS;
     private List<BlockDef> allBlockDefs = new ArrayList<>();
 
     // Undo/redo
@@ -117,14 +119,14 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         initViews();
         setupToolbar();
-        setupCategoryTabs();
         setupQuickActionButtons();
         setupFab();
         setupCollectionDrawer();
         setupWorkspaceDragDrop();
 
         loadBlockDefinitions();
-        showCategory(CAT_EVENT);
+        setupCategoryButtons();
+        showCategory(CAT_CSS);
         refreshWorkspace();
         refreshCollectionList();
         saveUndoState();
@@ -155,13 +157,15 @@ public class LogicBlockActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbarLogic);
         drawerLayout = findViewById(R.id.drawerLogic);
         palettePanel = findViewById(R.id.palettePanel);
-        tabCategories = findViewById(R.id.tabBlockCategories);
+        categoryListContainer = findViewById(R.id.categoryListContainer);
         blockPaletteContainer = findViewById(R.id.blockPaletteContainer);
         blockWorkspace = findViewById(R.id.blockWorkspace);
         fabBlockPalette = findViewById(R.id.fabBlockPalette);
         btnBlockDelete = findViewById(R.id.btnBlockDelete);
         btnBlockDuplicate = findViewById(R.id.btnBlockDuplicate);
+        btnSaveAllToCollection = findViewById(R.id.btnSaveAllToCollection);
         dropSaveCollection = findViewById(R.id.dropSaveCollection);
+        dropSaveAllCollection = findViewById(R.id.dropSaveAllCollection);
         dropDeleteCollection = findViewById(R.id.dropDeleteCollection);
         dropDuplicateCollection = findViewById(R.id.dropDuplicateCollection);
         collectionList = findViewById(R.id.collectionList);
@@ -201,23 +205,53 @@ public class LogicBlockActivity extends AppCompatActivity {
         return "";
     }
 
-    private void setupCategoryTabs() {
-        tabCategories.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                switch (tab.getPosition()) {
-                    case 0: showCategory(CAT_EVENT); break;
-                    case 1: showCategory(CAT_CSS); break;
-                    case 2: showCategory(CAT_LOGIC); break;
-                    case 3: showCategory(CAT_VARIABLE); break;
-                    case 4: showCategory(CAT_ANIMATION); break;
-                }
-            }
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {}
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {}
+    /**
+     * Build a vertical list of category buttons in the right column of the
+     * bottom palette. Tapping a category swaps the block list on the left.
+     */
+    private void setupCategoryButtons() {
+        if (categoryListContainer == null) return;
+        categoryListContainer.removeAllViews();
+
+        String[][] cats = {
+            {CAT_CSS, "CSS"},
+            {CAT_LOGIC, "Logic"},
+            {CAT_VARIABLE, "Var"},
+            {CAT_ANIMATION, "Anim"},
+            {CAT_ASD, "ASD"}
+        };
+
+        for (String[] cat : cats) {
+            categoryListContainer.addView(createCategoryButton(cat[0], cat[1]));
+        }
+    }
+
+    private View createCategoryButton(String category, String label) {
+        TextView btn = new TextView(this);
+        btn.setText(label);
+        btn.setTextSize(12);
+        btn.setTextColor(Color.WHITE);
+        btn.setTypeface(null, Typeface.BOLD);
+        btn.setGravity(Gravity.CENTER);
+        btn.setPadding(dp(8), dp(12), dp(8), dp(12));
+
+        int color = getCategoryColor(category);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(8));
+        bg.setColor(color);
+        bg.setStroke(dp(2), category.equals(currentCategory) ? Color.WHITE : darken(color));
+        btn.setBackground(bg);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(dp(2), dp(3), dp(2), dp(3));
+        btn.setLayoutParams(lp);
+
+        btn.setOnClickListener(v -> {
+            showCategory(category);
+            setupCategoryButtons();
         });
+        return btn;
     }
 
     private void setupFab() {
@@ -229,6 +263,18 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private void setupQuickActionButtons() {
+        if (btnSaveAllToCollection != null) {
+            // Click = save all blocks
+            btnSaveAllToCollection.setOnClickListener(v -> saveAllBlocksToCollection());
+            // Drop = also save all blocks (any block dropped saves the whole workspace)
+            btnSaveAllToCollection.setOnDragListener((v, event) -> {
+                if (event.getAction() == DragEvent.ACTION_DROP) {
+                    saveAllBlocksToCollection();
+                    return true;
+                }
+                return true;
+            });
+        }
         if (btnBlockDelete != null) {
             btnBlockDelete.setOnDragListener((v, event) -> {
                 if (event.getAction() == DragEvent.ACTION_DROP) {
@@ -282,7 +328,39 @@ public class LogicBlockActivity extends AppCompatActivity {
         return dir;
     }
 
+    private void saveAllBlocksToCollection() {
+        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+        if (blocks.isEmpty()) {
+            Toast.makeText(this, "No blocks to save", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        List<LogicBlockManager.LogicBlock> chain = new ArrayList<>();
+        for (LogicBlockManager.LogicBlock b : blocks) chain.add(cloneBlock(b));
+        showSaveCollectionDialog(chain);
+    }
+
     private void setupCollectionDrawer() {
+        if (dropSaveAllCollection != null) {
+            dropSaveAllCollection.setOnDragListener((v, event) -> {
+                switch (event.getAction()) {
+                    case DragEvent.ACTION_DRAG_STARTED:
+                        return event.getClipDescription() != null
+                            && event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
+                    case DragEvent.ACTION_DRAG_ENTERED:
+                        v.setAlpha(0.7f);
+                        return true;
+                    case DragEvent.ACTION_DRAG_EXITED:
+                    case DragEvent.ACTION_DRAG_ENDED:
+                        v.setAlpha(1.0f);
+                        return true;
+                    case DragEvent.ACTION_DROP:
+                        v.setAlpha(1.0f);
+                        saveAllBlocksToCollection();
+                        return true;
+                }
+                return true;
+            });
+        }
         if (dropSaveCollection != null) {
             dropSaveCollection.setOnDragListener((v, event) -> {
                 switch (event.getAction()) {
@@ -528,35 +606,60 @@ public class LogicBlockActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Drop-anywhere reorder. Walks every workspace row that carries a
+     * block index tag, picks the one whose midpoint is closest to the
+     * drop Y, and inserts the moving block before/after based on which
+     * half it fell into. If the drop is below the last row, append.
+     */
     private void reorderBlock(int fromIndex, float y) {
-        saveUndoState();
         List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
         if (fromIndex < 0 || fromIndex >= blocks.size()) return;
 
-        LogicBlockManager.LogicBlock moving = blocks.remove(fromIndex);
-
-        // Find new index based on Y coordinate
-        int newIdx = 0;
+        int targetIdx = -1;
         for (int i = 0; i < blockWorkspace.getChildCount(); i++) {
             View child = blockWorkspace.getChildAt(i);
-            if (y > child.getTop() + child.getHeight() / 2) {
-                Object tag = child.getTag();
-                if (tag instanceof Integer) {
-                    newIdx = (Integer) tag + 1;
-                } else {
-                    // It's a header or a cap, we can still use it for positioning
-                    // but it doesn't give us a direct block index.
-                }
+            Integer blockIdx = findBlockIndexTag(child);
+            if (blockIdx == null) continue;
+            float midY = child.getTop() + child.getHeight() / 2f;
+            if (y < midY) {
+                targetIdx = blockIdx;
+                break;
             }
+            // Track the index after the last block we passed
+            targetIdx = blockIdx + 1;
         }
 
-        // The simple algorithm above handles basic repositioning.
-        // If it was dropped above the first block's header, newIdx remains 0.
+        if (targetIdx < 0) targetIdx = blocks.size();
+        if (targetIdx > blocks.size()) targetIdx = blocks.size();
 
-        if (newIdx > blocks.size()) newIdx = blocks.size();
-        blocks.add(newIdx, moving);
+        // No-op cases — dropping in same slot or right after self
+        if (targetIdx == fromIndex || targetIdx == fromIndex + 1) return;
 
+        saveUndoState();
+        LogicBlockManager.LogicBlock moving = blocks.remove(fromIndex);
+        if (targetIdx > fromIndex) targetIdx--;
+        if (targetIdx > blocks.size()) targetIdx = blocks.size();
+        blocks.add(targetIdx, moving);
         refreshWorkspace();
+    }
+
+    /**
+     * Recursively search the View / its children for an Integer tag set
+     * by the workspace renderer (which tags both wrapper and inner block).
+     */
+    private Integer findBlockIndexTag(View v) {
+        if (v == null) return null;
+        Object t = v.getTag();
+        if (t instanceof Integer) return (Integer) t;
+        if (v instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) v;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                Integer found = findBlockIndexTag(vg.getChildAt(i));
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private void loadBlockDefinitions() {
@@ -894,9 +997,18 @@ public class LogicBlockActivity extends AppCompatActivity {
      * attach to it as a child instead of asking.
      */
     private void addBlockFromDef(BlockDef def) {
+        // CSS pseudo-class C-shapes (hover/before/after/focus/active)
+        // act as scope headers — they switch the activeEventKey so that
+        // subsequent CSS rules attach under that pseudo-class group.
+        if (CAT_CSS.equals(def.category) && "C".equals(def.shape)) {
+            activeEventKey = pseudoEventKey(def.id);
+            Toast.makeText(this,
+                "Active scope: " + def.label,
+                Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         if (CAT_EVENT.equals(def.category)) {
-            // Events are implicit headers — switch the active event so the
-            // next dropped action attaches to it. No standalone block.
             activeEventKey = mapEventKey(def.id);
             Toast.makeText(this,
                 "Active event: " + LogicBlockManager.getEventDisplayName(activeEventKey),
@@ -916,22 +1028,92 @@ public class LogicBlockActivity extends AppCompatActivity {
             block.event = "immediate";
             block.action = def.id;
         } else if (CAT_ANIMATION.equals(def.category)) {
-            block.event = hasEvent("load") ? "load" : activeEventKey;
+            block.event = activeEventKey != null ? activeEventKey
+                : (hasEvent("load") ? "load" : "load");
             block.action = def.id;
+        } else if (CAT_ASD.equals(def.category)) {
+            block.targetMode = "source";
+            block.event = "asd";
+            block.action = def.id;
+            // Params populated by source dialog
         } else {
-            // CSS — if there's already an onLoad header in the workspace
-            // attach to it as parent. Otherwise use the most-recently-set
-            // event (defaults to "load" so CSS just becomes a load rule).
-            block.event = hasEvent("load") ? "load" : activeEventKey;
+            // CSS — attach to the active scope (load by default; a pseudo-
+            // class block sets it to css:hover etc.).
+            block.event = activeEventKey != null ? activeEventKey
+                : (hasEvent("load") ? "load" : "load");
         }
 
         logicBlockManager.addBlock(block);
+        int idx = logicBlockManager.getBlocks().size() - 1;
         refreshWorkspace();
 
         if (CAT_ANIMATION.equals(def.category)) {
-            int idx = logicBlockManager.getBlocks().size() - 1;
             showAnimationCustomizeDialog(idx);
+        } else if (CAT_ASD.equals(def.category)) {
+            showSourceCodeDialog(idx, def);
         }
+    }
+
+    /** Map CSS pseudo-class block ids to the event key used by the renderer. */
+    private String pseudoEventKey(String id) {
+        if (id == null) return "load";
+        switch (id) {
+            case "cssHover": return "css:hover";
+            case "cssFocus": return "css:focus";
+            case "cssActive": return "css:active";
+            case "cssBefore": return "css:before";
+            case "cssAfter": return "css:after";
+            default: return "load";
+        }
+    }
+
+    /**
+     * Edit raw HTML / CSS / JS source for an ASD block. Stored verbatim
+     * in `block.params` and emitted directly into the page bundle.
+     */
+    private void showSourceCodeDialog(int blockIndex, BlockDef def) {
+        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+        if (blockIndex < 0 || blockIndex >= blocks.size()) return;
+        LogicBlockManager.LogicBlock block = blocks.get(blockIndex);
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(20), dp(8), dp(20), 0);
+
+        TextView hint = new TextView(this);
+        hint.setText("Paste raw " + (def != null ? def.label : "source")
+            + " — appended directly to the generated page.");
+        hint.setTextSize(12);
+        hint.setTextColor(Color.parseColor("#7A8B9C"));
+        layout.addView(hint);
+
+        TextInputLayout til = createTil("Source");
+        TextInputEditText input = (TextInputEditText) til.getEditText();
+        if (input != null) {
+            input.setMinLines(8);
+            input.setMaxLines(20);
+            input.setGravity(Gravity.TOP | Gravity.START);
+            input.setTypeface(Typeface.MONOSPACE);
+            input.setTextSize(12);
+            if (block.params != null) input.setText(block.params);
+        }
+        layout.addView(til);
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(def != null ? def.label : "Source")
+            .setView(layout)
+            .setPositiveButton("Save", (d, w) -> {
+                saveUndoState();
+                block.params = getText(til);
+                refreshWorkspace();
+            })
+            .setNeutralButton("Delete", (d, w) -> {
+                saveUndoState();
+                logicBlockManager.removeBlock(blockIndex);
+                refreshWorkspace();
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
     }
 
     private boolean hasEvent(String eventKey) {
@@ -968,6 +1150,26 @@ public class LogicBlockActivity extends AppCompatActivity {
             case "transitionColor": return "color|300ms|ease";
             case "transitionSize": return "width,height|300ms|ease";
             case "transitionTransform": return "transform|300ms|ease";
+            // Logic blocks
+            case "ifBlock": return "value|==|other|action()";
+            case "ifElseBlock": return "value|==|other|then()|else()";
+            case "compareEqual": return "a|==|b|action()";
+            case "compareNotEqual": return "a|!=|b|action()";
+            case "compareGreater": return "a|>|b|action()";
+            case "compareLess": return "a|<|b|action()";
+            case "delay": return "1000|action()";
+            case "loop": return "5|action(i)";
+            // Variable blocks
+            case "createVar": return "myVar|any|0";
+            case "createVarString": return "myVar|string|";
+            case "createVarNumber": return "myVar|number|0";
+            case "createVarBoolean": return "myVar|boolean|false";
+            case "setVar": return "myVar|0";
+            case "getVar": return "myVar|";
+            // ASD source blocks (filled by source dialog)
+            case "asdHtml": case "asdCss": case "asdJs":
+            case "asdHead": case "asdMeta":
+                return "";
             default: return "";
         }
     }
@@ -1315,6 +1517,8 @@ public class LogicBlockActivity extends AppCompatActivity {
             LinearLayout wrapper = new LinearLayout(this);
             wrapper.setOrientation(LinearLayout.HORIZONTAL);
             wrapper.setPadding(dp(12), 0, 0, 0);
+            // Tag the wrapper too so reorder hit-testing works on either.
+            wrapper.setTag(i);
 
             View rail = new View(this);
             rail.setBackgroundColor(COLOR_EVENT);
@@ -2357,7 +2561,8 @@ public class LogicBlockActivity extends AppCompatActivity {
             case CAT_LOGIC: return COLOR_LOGIC;
             case CAT_VARIABLE: return COLOR_VARIABLE;
             case CAT_ANIMATION: return COLOR_ANIMATION;
-            default: return COLOR_EVENT;
+            case CAT_ASD: return COLOR_ASD;
+            default: return COLOR_CSS;
         }
     }
 
