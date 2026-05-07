@@ -1,116 +1,178 @@
 {
-  "version": 3,
+  "version": 4,
   "format": "custom-block-template",
-  "description": "Sketchware-style custom block templates for DragWeb. Each block has an id, a human-readable display string, a template that emits static HTML or CSS, and a category (HTML or CSS). Tokens: %s string, %d number, %1$s/%2$s positional, %m.id %m.class %m.tag selectors.",
+  "description": "Sketchware-style custom block templates for DragWeb. HTML blocks are NOT here - those are handled by the visual widget designer in MainActivity. This file holds CSS rules and runtime-effect blocks only. Each block declares: id, display, template, category (CSS or LOGIC or EVENT), and shape ('C' for events, 'rect' for CSS rules, 'E' for logic with two slots).",
   "blocks": [
     {
-      "id": "link",
-      "display": "Link to %s labelled %s",
-      "template": "<a href='%1$s'>%2$s</a>",
-      "category": "HTML"
+      "id": "evt_click",
+      "display": "On click of %m.id",
+      "template": "document.querySelector('#%1$s').addEventListener('click', function(){ %SLOT% });",
+      "category": "EVENT",
+      "shape": "C"
     },
     {
-      "id": "external_link",
-      "display": "External link %s labelled %s",
-      "template": "<a href='%1$s' target='_blank' rel='noopener'>%2$s</a>",
-      "category": "HTML"
+      "id": "evt_hover",
+      "display": "On hover of %m.id",
+      "template": "document.querySelector('#%1$s').addEventListener('mouseenter', function(){ %SLOT% });",
+      "category": "EVENT",
+      "shape": "C"
     },
     {
-      "id": "button_class",
-      "display": "Button %s with class %s",
-      "template": "<button class='%2$s'>%1$s</button>",
-      "category": "HTML"
+      "id": "evt_load",
+      "display": "On page load",
+      "template": "document.addEventListener('DOMContentLoaded', function(){ %SLOT% });",
+      "category": "EVENT",
+      "shape": "C"
     },
     {
-      "id": "image_with_alt",
-      "display": "Image %s with alt %s",
-      "template": "<img src='%1$s' alt='%2$s'>",
-      "category": "HTML"
+      "id": "evt_input",
+      "display": "On input of %m.id",
+      "template": "document.querySelector('#%1$s').addEventListener('input', function(event){ %SLOT% });",
+      "category": "EVENT",
+      "shape": "C"
     },
     {
-      "id": "paragraph_block",
-      "display": "Paragraph %s",
-      "template": "<p>%1$s</p>",
-      "category": "HTML"
+      "id": "evt_submit",
+      "display": "On submit of %m.id",
+      "template": "document.querySelector('#%1$s').addEventListener('submit', function(event){ event.preventDefault(); %SLOT% });",
+      "category": "EVENT",
+      "shape": "C"
     },
     {
-      "id": "heading_block",
-      "display": "Heading %d - %s",
-      "template": "<h%1$d>%2$s</h%1$d>",
-      "category": "HTML"
-    },
-    {
-      "id": "div_class_text",
-      "display": "Div class %s with text %s",
-      "template": "<div class='%1$s'>%2$s</div>",
-      "category": "HTML"
-    },
-    {
-      "id": "section_block",
-      "display": "Section #%s containing %s",
-      "template": "<section id='%1$s'>%2$s</section>",
-      "category": "HTML"
+      "id": "evt_scroll",
+      "display": "On page scroll",
+      "template": "window.addEventListener('scroll', function(){ %SLOT% });",
+      "category": "EVENT",
+      "shape": "C"
     },
 
     {
       "id": "class_color",
       "display": "Set class %m.class color to %s",
       "template": ".%1$s{color:%2$s;}",
-      "category": "CSS"
+      "category": "CSS",
+      "shape": "rect"
     },
     {
       "id": "class_background",
       "display": "Set class %m.class background to %s",
       "template": ".%1$s{background:%2$s;}",
-      "category": "CSS"
+      "category": "CSS",
+      "shape": "rect"
     },
     {
       "id": "class_padding",
       "display": "Set class %m.class padding to %s",
       "template": ".%1$s{padding:%2$s;}",
-      "category": "CSS"
+      "category": "CSS",
+      "shape": "rect"
     },
     {
       "id": "class_margin",
       "display": "Set class %m.class margin to %s",
       "template": ".%1$s{margin:%2$s;}",
-      "category": "CSS"
+      "category": "CSS",
+      "shape": "rect"
     },
     {
       "id": "class_radius",
       "display": "Set class %m.class border-radius to %s",
       "template": ".%1$s{border-radius:%2$s;}",
-      "category": "CSS"
+      "category": "CSS",
+      "shape": "rect"
     },
     {
       "id": "class_font_size",
       "display": "Set class %m.class font-size to %s",
       "template": ".%1$s{font-size:%2$s;}",
-      "category": "CSS"
+      "category": "CSS",
+      "shape": "rect"
     },
     {
       "id": "class_display",
       "display": "Set class %m.class display to %s",
       "template": ".%1$s{display:%2$s;}",
-      "category": "CSS"
+      "category": "CSS",
+      "shape": "rect"
     },
     {
-      "id": "id_size",
-      "display": "Set id #%m.id width %s height %s",
-      "template": "#%1$s{width:%2$s;height:%3$s;}",
-      "category": "CSS"
+      "id": "class_width",
+      "display": "Set class %m.class width to %s",
+      "template": ".%1$s{width:%2$s;}",
+      "category": "CSS",
+      "shape": "rect"
+    },
+    {
+      "id": "class_height",
+      "display": "Set class %m.class height to %s",
+      "template": ".%1$s{height:%2$s;}",
+      "category": "CSS",
+      "shape": "rect"
     },
     {
       "id": "hover_color",
-      "display": "On hover for class %m.class, color %s",
+      "display": "On hover of %m.class set color %s",
       "template": ".%1$s:hover{color:%2$s;}",
-      "category": "CSS"
+      "category": "CSS",
+      "shape": "rect"
     },
     {
       "id": "media_max_width",
       "display": "Below %dpx, class %m.class display %s",
       "template": "@media (max-width:%1$dpx){.%2$s{display:%3$s;}}",
-      "category": "CSS"
+      "category": "CSS",
+      "shape": "rect"
+    },
+
+    {
+      "id": "logic_if",
+      "display": "If %s %s %s",
+      "template": "if (%1$s %2$s %3$s) { %SLOT% }",
+      "category": "LOGIC",
+      "shape": "C"
+    },
+    {
+      "id": "logic_if_else",
+      "display": "If %s %s %s",
+      "template": "if (%1$s %2$s %3$s) { %SLOT_THEN% } else { %SLOT_ELSE% }",
+      "category": "LOGIC",
+      "shape": "E"
+    },
+    {
+      "id": "logic_loop",
+      "display": "Repeat %d times",
+      "template": "for (var i = 0; i < %1$d; i++) { %SLOT% }",
+      "category": "LOGIC",
+      "shape": "C"
+    },
+    {
+      "id": "logic_delay",
+      "display": "After %d ms",
+      "template": "setTimeout(function(){ %SLOT% }, %1$d);",
+      "category": "LOGIC",
+      "shape": "C"
+    },
+
+    {
+      "id": "var_create",
+      "display": "Create var %s = %s",
+      "template": "var %1$s = %2$s;",
+      "category": "VARIABLE",
+      "shape": "rect"
+    },
+    {
+      "id": "var_set",
+      "display": "Set %s to %s",
+      "template": "%1$s = %2$s;",
+      "category": "VARIABLE",
+      "shape": "rect"
+    },
+    {
+      "id": "var_log",
+      "display": "Log %s",
+      "template": "console.log(%1$s);",
+      "category": "VARIABLE",
+      "shape": "rect"
     }
   ]
 }

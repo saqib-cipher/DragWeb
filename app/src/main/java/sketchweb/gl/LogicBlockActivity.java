@@ -251,9 +251,8 @@ public class LogicBlockActivity extends AppCompatActivity {
                 switch (tab.getPosition()) {
                     case 0: showCategory(CAT_EVENT); break;
                     case 1: showCategory(CAT_CSS); break;
-                    case 2: showCategory(CAT_HTML); break;
-                    case 3: showCategory(CAT_LOGIC); break;
-                    case 4: showCategory(CAT_VARIABLE); break;
+                    case 2: showCategory(CAT_LOGIC); break;
+                    case 3: showCategory(CAT_VARIABLE); break;
                 }
             }
             @Override
@@ -435,74 +434,228 @@ public class LogicBlockActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Show only CSS actions for a chosen event - HTML category was removed.
+     * The dialog is kept as a fallback for accessibility; primary UX is
+     * drag-and-drop CSS rectangles into the C-shaped event slot.
+     */
     private void showActionPickerForEvent(BlockDef eventDef) {
-        // Combine CSS and HTML actions
         BlockDef[] cssBlocks = getBlocksForCategory(CAT_CSS);
-        BlockDef[] htmlBlocks = getBlocksForCategory(CAT_HTML);
-
-        List<String> labels = new ArrayList<>();
-        List<BlockDef> allActions = new ArrayList<>();
-
-        for (BlockDef b : cssBlocks) { labels.add("[CSS] " + b.label); allActions.add(b); }
-        for (BlockDef b : htmlBlocks) { labels.add("[HTML] " + b.label); allActions.add(b); }
+        String[] labels = new String[cssBlocks.length];
+        for (int i = 0; i < cssBlocks.length; i++) {
+            labels[i] = cssBlocks[i].label + " - " + cssBlocks[i].description;
+        }
 
         new MaterialAlertDialogBuilder(this)
-            .setTitle("Select Action for " + eventDef.label)
-            .setItems(labels.toArray(new String[0]), (dialog, which) -> {
-                BlockDef actionDef = allActions.get(which);
-                showValueInputForBlock(eventDef, actionDef);
+            .setTitle("Action for " + eventDef.label)
+            .setItems(labels, (dialog, which) -> {
+                showValueInputForBlock(eventDef, cssBlocks[which]);
             })
             .setNegativeButton("Cancel", null)
             .show();
     }
 
+    /**
+     * For a CSS rule dropped without an explicit event, default it to
+     * page-load so it emits as a static CSS rule in <style>.
+     */
     private void showEventPickerForAction(BlockDef actionDef) {
-        // CSS-category styling actions default to page-load so the generator
-        // emits proper CSS rules (e.g. ".myClass { width: 48px; ... }") rather
-        // than runtime JavaScript that mutates element.style.
-        if (CAT_CSS.equals(actionDef.category)) {
-            BlockDef eventDef = new BlockDef("load", "On Load", "Apply as CSS rule on page load", CAT_EVENT);
-            showValueInputForBlock(eventDef, actionDef);
-            return;
-        }
-
-        // For HTML / other actions, "On Load" is offered first so static
-        // edits are also emitted without runtime JS when possible.
-        String[] events = {"On Load", "On Click", "On Hover", "On Input", "On Submit", "On Scroll"};
-        String[] eventKeys = {"load", "click", "hover", "input", "submit", "scroll"};
-
-        new MaterialAlertDialogBuilder(this)
-            .setTitle("Select Event for " + actionDef.label)
-            .setItems(events, (dialog, which) -> {
-                BlockDef eventDef = new BlockDef(eventKeys[which], events[which], "", CAT_EVENT);
-                showValueInputForBlock(eventDef, actionDef);
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
+        BlockDef eventDef = new BlockDef("load", "On Load", "Apply as CSS rule on page load", CAT_EVENT);
+        showValueInputForBlock(eventDef, actionDef);
     }
 
     private void showValueInputForBlock(BlockDef eventDef, BlockDef actionDef) {
         String hint = getValueHint(actionDef);
+        // Use the universal value+unit dialog when the action is a CSS sizing
+        // value (px/rem/% friendly). For colors / strings, no unit chips are shown.
+        boolean wantsUnit = isSizingAction(actionDef.id);
+        boolean wantsColor = isColorAction(actionDef.id);
 
+        showUniversalValueDialog(actionDef.label, hint, "", wantsUnit, wantsColor, value -> {
+            createBlock(eventDef, actionDef, value);
+        });
+    }
+
+    /**
+     * Universal Sketchware-style value editor:
+     *   [ EditText ] [ px ] [ rem ] [ % ]   for sizes
+     *   [ ColorPickerHexEditText ]          for colors
+     *   [ EditText ]                        for plain strings
+     *
+     * @param onCommit called with the final stringified value (e.g. "16px")
+     */
+    private void showUniversalValueDialog(String title, String hint, String initialValue,
+                                          boolean wantsUnit, boolean wantsColor,
+                                          ValueCommitListener onCommit) {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(48, 16, 48, 0);
+        layout.setPadding(dp(20), dp(16), dp(20), 0);
 
-        TextInputLayout til = new TextInputLayout(this);
-        til.setHint(hint);
-        TextInputEditText input = new TextInputEditText(this);
-        til.addView(input);
+        // Numeric / value field
+        TextInputLayout til = createTil(hint != null ? hint : "Value");
+        TextInputEditText input = (TextInputEditText) til.getEditText();
+        if (input != null && initialValue != null) {
+            // Strip a trailing unit from initialValue if it matches one of the chips
+            String stripped = stripUnit(initialValue);
+            input.setText(stripped);
+            input.setSelection(input.getText().length());
+        }
         layout.addView(til);
 
+        // Unit chip row (only shown when sizes are expected)
+        final String[] unitChips = {"px", "rem", "%", "em", "vw", "vh", "auto", "0"};
+        final String[] selectedUnit = { detectUnit(initialValue, "px") };
+        if (wantsUnit) {
+            android.widget.HorizontalScrollView hsv = new android.widget.HorizontalScrollView(this);
+            hsv.setHorizontalScrollBarEnabled(false);
+            LinearLayout chipRow = new LinearLayout(this);
+            chipRow.setOrientation(LinearLayout.HORIZONTAL);
+            chipRow.setPadding(0, dp(8), 0, dp(4));
+
+            for (String unit : unitChips) {
+                TextView chip = makeUnitChip(unit, unit.equals(selectedUnit[0]));
+                chip.setOnClickListener(v -> {
+                    selectedUnit[0] = unit;
+                    for (int i = 0; i < chipRow.getChildCount(); i++) {
+                        View child = chipRow.getChildAt(i);
+                        if (child instanceof TextView) {
+                            String t = ((TextView) child).getText().toString();
+                            styleUnitChip((TextView) child, t.equals(unit));
+                        }
+                    }
+                });
+                chipRow.addView(chip);
+            }
+            hsv.addView(chipRow);
+            layout.addView(hsv);
+        }
+
+        // Color preview (only for color actions)
+        if (wantsColor && input != null) {
+            input.setHint("#FF6B35 or red");
+            TextView preview = new TextView(this);
+            preview.setHeight(dp(28));
+            preview.setBackgroundColor(parseColorSafe(initialValue, Color.LTGRAY));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(28));
+            lp.setMargins(0, dp(8), 0, 0);
+            preview.setLayoutParams(lp);
+            layout.addView(preview);
+
+            input.addTextChangedListener(new android.text.TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+                @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+                @Override public void afterTextChanged(android.text.Editable s) {
+                    preview.setBackgroundColor(parseColorSafe(s.toString(), Color.LTGRAY));
+                }
+            });
+        }
+
         new MaterialAlertDialogBuilder(this)
-            .setTitle(actionDef.label)
+            .setTitle(title)
             .setView(layout)
-            .setPositiveButton("Add Block", (d, w) -> {
-                String value = input.getText() != null ? input.getText().toString().trim() : "";
-                createBlock(eventDef, actionDef, value);
+            .setPositiveButton("OK", (d, w) -> {
+                String v = input != null && input.getText() != null
+                    ? input.getText().toString().trim() : "";
+                if (wantsUnit && !v.isEmpty()) {
+                    if (!hasAnyUnit(v) && !"auto".equals(selectedUnit[0]) && !"0".equals(selectedUnit[0])) {
+                        v = v + selectedUnit[0];
+                    } else if ("auto".equals(selectedUnit[0])) {
+                        v = "auto";
+                    }
+                }
+                onCommit.onCommit(v);
             })
             .setNegativeButton("Cancel", null)
             .show();
+    }
+
+    interface ValueCommitListener { void onCommit(String value); }
+
+    private TextView makeUnitChip(String text, boolean selected) {
+        TextView chip = new TextView(this);
+        chip.setText(text);
+        chip.setTextSize(12);
+        chip.setPadding(dp(12), dp(6), dp(12), dp(6));
+        styleUnitChip(chip, selected);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, dp(6), 0);
+        chip.setLayoutParams(lp);
+        return chip;
+    }
+
+    private void styleUnitChip(TextView chip, boolean selected) {
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(14));
+        if (selected) {
+            bg.setColor(COLOR_CSS);
+            chip.setTextColor(Color.WHITE);
+            chip.setTypeface(null, Typeface.BOLD);
+        } else {
+            bg.setColor(Color.parseColor("#11000000"));
+            bg.setStroke(dp(1), Color.parseColor("#33000000"));
+            chip.setTextColor(Color.parseColor("#0D47A1"));
+            chip.setTypeface(null, Typeface.NORMAL);
+        }
+        chip.setBackground(bg);
+    }
+
+    private String detectUnit(String value, String fallback) {
+        if (value == null) return fallback;
+        String[] units = {"px", "rem", "%", "em", "vw", "vh"};
+        for (String u : units) if (value.endsWith(u)) return u;
+        if ("auto".equals(value)) return "auto";
+        return fallback;
+    }
+
+    private String stripUnit(String value) {
+        if (value == null) return "";
+        String[] units = {"px", "rem", "%", "em", "vw", "vh"};
+        for (String u : units) {
+            if (value.endsWith(u)) return value.substring(0, value.length() - u.length());
+        }
+        return value;
+    }
+
+    private boolean hasAnyUnit(String value) {
+        if (value == null) return false;
+        String[] units = {"px", "rem", "%", "em", "vw", "vh", "auto"};
+        for (String u : units) if (value.endsWith(u)) return true;
+        return false;
+    }
+
+    private boolean isSizingAction(String id) {
+        if (id == null) return false;
+        switch (id) {
+            case "setWidth": case "setHeight": case "setMargin": case "setPadding":
+            case "setRadius": case "setFontSize":
+                return true;
+            default: return false;
+        }
+    }
+
+    private boolean isColorAction(String id) {
+        if (id == null) return false;
+        switch (id) {
+            case "setColor": case "setBackground": case "setBorder":
+                return true;
+            default: return false;
+        }
+    }
+
+    private int parseColorSafe(String hex, int fallback) {
+        if (hex == null || hex.isEmpty()) return fallback;
+        try {
+            String s = hex.trim();
+            if (!s.startsWith("#")) {
+                // try named colors via Color.parseColor
+                return Color.parseColor(s);
+            }
+            return Color.parseColor(s);
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 
     // ---- Block Creation ----
@@ -793,7 +946,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         }
         if (blocks.isEmpty()) {
             TextView empty = new TextView(this);
-            empty.setText("Tap + Add or drag a block here\nto build your page logic");
+            empty.setText("Drag a CSS or Logic block here.\nEvents are C-shapes that wrap actions.");
             empty.setTextColor(Color.parseColor("#7A8B9C"));
             empty.setTextSize(14);
             empty.setGravity(Gravity.CENTER);
@@ -802,18 +955,107 @@ public class LogicBlockActivity extends AppCompatActivity {
             return;
         }
 
-        // Group consecutive blocks by event header (Sketchware-style:
-        // orange "On Click" header followed by stacked action blocks)
+        // Group consecutive blocks by event into a C-shaped wrapper.
+        // Event = orange C-shape (header cap + left rail + bottom cap) wrapping
+        //         the rectangular CSS / Logic blocks that belong to it.
         String currentEvent = null;
+        LinearLayout currentSlot = null;
         for (int i = 0; i < blocks.size(); i++) {
             LogicBlockManager.LogicBlock block = blocks.get(i);
             String ev = block.event != null ? block.event : "immediate";
+            boolean isLogicGroup = "logic".equals(block.targetMode) || "variable".equals(block.targetMode);
+
             if (!ev.equals(currentEvent)) {
+                // Close previous C-shape with a bottom cap
+                if (currentSlot != null) {
+                    blockWorkspace.addView(createEventBottomCap(currentEvent));
+                }
+                // Open a new C-shape: orange header, then a vertical slot
+                // that holds rectangular action blocks.
                 blockWorkspace.addView(createEventHeaderBlock(ev));
+                // createEventSlot adds its wrapper to blockWorkspace itself
+                // and returns the inner stack we should populate.
+                currentSlot = createEventSlot(ev);
                 currentEvent = ev;
             }
-            blockWorkspace.addView(createWorkspacePuzzleBlock(block, i));
+
+            if (isLogicGroup) {
+                currentSlot.addView(createWorkspacePuzzleBlock(block, i));
+            } else {
+                currentSlot.addView(createWorkspacePuzzleBlock(block, i));
+            }
         }
+        if (currentSlot != null) {
+            blockWorkspace.addView(createEventBottomCap(currentEvent));
+        }
+    }
+
+    /**
+     * Vertical container with an orange left rail — visually completes the
+     * "C" shape between the event header and bottom cap. Children are the
+     * rectangular CSS / Logic action blocks.
+     */
+    private LinearLayout createEventSlot(String eventKey) {
+        LinearLayout slot = new LinearLayout(this);
+        slot.setOrientation(LinearLayout.VERTICAL);
+        slot.setPadding(dp(14), dp(4), dp(8), dp(4));
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(adjustAlpha(COLOR_EVENT, 28));
+        bg.setStroke(0, Color.TRANSPARENT);
+        slot.setBackground(bg);
+
+        // Left rail (the vertical bar of the C)
+        // Implemented via a layered drawable using setBackground on the slot
+        // wouldn't give us a thick left rail, so instead we add a vertical
+        // colored View as the first child of a horizontal wrapper.
+        LinearLayout wrapper = new LinearLayout(this);
+        wrapper.setOrientation(LinearLayout.HORIZONTAL);
+
+        View rail = new View(this);
+        GradientDrawable railBg = new GradientDrawable();
+        railBg.setColor(COLOR_EVENT);
+        rail.setBackground(railBg);
+        LinearLayout.LayoutParams railLp = new LinearLayout.LayoutParams(dp(6),
+            ViewGroup.LayoutParams.MATCH_PARENT);
+        railLp.setMargins(dp(4), 0, 0, 0);
+        rail.setLayoutParams(railLp);
+        wrapper.addView(rail);
+
+        // Inner stack
+        LinearLayout inner = new LinearLayout(this);
+        inner.setOrientation(LinearLayout.VERTICAL);
+        inner.setPadding(dp(8), dp(2), dp(4), dp(2));
+        LinearLayout.LayoutParams innerLp = new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        inner.setLayoutParams(innerLp);
+        wrapper.addView(inner);
+
+        LinearLayout.LayoutParams wrapLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        wrapLp.setMargins(dp(4), 0, dp(4), 0);
+        wrapper.setLayoutParams(wrapLp);
+
+        // The slot variable returned to caller is the inner stack so further
+        // addView calls populate the children of the C.
+        blockWorkspace.addView(wrapper);
+        return inner;
+    }
+
+    /**
+     * Bottom cap of the C-shape. Mirrors the orange header so the wrapping
+     * around the slot looks closed.
+     */
+    private View createEventBottomCap(String eventKey) {
+        View cap = new View(this);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadii(new float[]{0, 0, dp(10), dp(10), dp(10), dp(10), 0, 0});
+        bg.setColor(COLOR_EVENT);
+        cap.setBackground(bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(60), dp(8));
+        lp.setMargins(dp(4), 0, 0, dp(8));
+        cap.setLayoutParams(lp);
+        return cap;
     }
 
     /**
@@ -877,46 +1119,104 @@ public class LogicBlockActivity extends AppCompatActivity {
         row.setBaselineAligned(false);
 
         GradientDrawable bg = new GradientDrawable();
-        // Sketchware "C" shape: notch top-left, tab bottom-left
-        bg.setCornerRadii(new float[]{
-            dp(4), dp(4),     // top-left
-            dp(8), dp(8),     // top-right
-            dp(8), dp(8),     // bottom-right
-            dp(4), dp(4)      // bottom-left
-        });
+        if (isLogic) {
+            // Logic = E-shape: rounded but flatter on the left so it visually
+            // pairs with the C-shape event around it.
+            bg.setCornerRadii(new float[]{
+                dp(2), dp(2),     // top-left
+                dp(8), dp(8),     // top-right
+                dp(8), dp(8),     // bottom-right
+                dp(2), dp(2)      // bottom-left
+            });
+        } else {
+            // CSS / Var = plain rectangle that snaps into a slot.
+            bg.setCornerRadius(dp(4));
+        }
         bg.setColor(baseColor);
         bg.setStroke(dp(1), strokeColor);
         row.setBackground(bg);
         row.setElevation(2);
 
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rowParams.setMargins(dp(8), 0, dp(4), 0);
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowParams.setMargins(0, dp(2), 0, dp(2));
         row.setLayoutParams(rowParams);
 
         if (isLogic || isVar) {
-            // Logic / Variable rows - leading category chip then params
+            // Logic / Variable rows - leading category chip (NOT editable verb)
+            // followed by editable param chips.
             String catLabel = isLogic ? getLogicLabel(block.action) : getVarLabel(block.action);
-            row.addView(createTargetChip(catLabel, darken(baseColor)));
+            row.addView(createVerbChip(catLabel, darken(baseColor)));
             String[] parts = (block.params != null ? block.params : "").split("\\|");
-            for (String p : parts) {
-                if (p == null) continue;
-                String trimmed = p.trim();
-                if (!trimmed.isEmpty()) row.addView(createValueChip(trimmed));
+            for (int p = 0; p < parts.length; p++) {
+                if (parts[p] == null) continue;
+                String trimmed = parts[p].trim();
+                if (trimmed.isEmpty()) continue;
+                final int paramIdx = p;
+                TextView chip = createValueChip(trimmed);
+                chip.setOnClickListener(v -> editParamPart(index, paramIdx));
+                row.addView(chip);
+            }
+
+            // If this is an if-else logic block, render a second slot ("else")
+            // below it to give the block its E-shape silhouette. This is
+            // visual only - the params already encode the else branch.
+            if ("ifElseBlock".equals(block.action)) {
+                LinearLayout column = new LinearLayout(this);
+                column.setOrientation(LinearLayout.VERTICAL);
+                column.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                column.addView(row);
+
+                TextView elseTab = new TextView(this);
+                elseTab.setText("else");
+                elseTab.setTextColor(Color.WHITE);
+                elseTab.setTextSize(11);
+                elseTab.setTypeface(null, Typeface.BOLD);
+                elseTab.setPadding(dp(12), dp(4), dp(12), dp(4));
+                GradientDrawable elseBg = new GradientDrawable();
+                elseBg.setCornerRadii(new float[]{0, 0, dp(6), dp(6), dp(6), dp(6), 0, 0});
+                elseBg.setColor(darken(COLOR_LOGIC));
+                elseTab.setBackground(elseBg);
+                LinearLayout.LayoutParams tabLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                tabLp.setMargins(dp(20), dp(2), 0, dp(2));
+                elseTab.setLayoutParams(tabLp);
+                column.addView(elseTab);
+
+                return column;
             }
         } else {
             // Element-targeted action row:  [target] verb [value] [extra value]
             String modePrefix = "id".equals(block.targetMode) ? "#"
                 : "class".equals(block.targetMode) ? "." : "";
             String targetText = modePrefix + block.targetWidget;
-            row.addView(createTargetChip(targetText.isEmpty() ? "page" : targetText, Color.parseColor("#3D5AFE")));
+            // Target chip is EDITABLE - tap opens id/class/tag picker.
+            TextView targetChip = createTargetChip(
+                targetText.isEmpty() ? "page" : targetText,
+                Color.parseColor("#3D5AFE"));
+            targetChip.setOnClickListener(v -> showTargetPickerDialog(
+                block.targetMode, block.targetWidget,
+                (mode, value) -> {
+                    saveUndoState();
+                    block.targetMode = mode;
+                    block.targetWidget = value;
+                    refreshWorkspace();
+                }));
+            row.addView(targetChip);
 
-            // Verb (action name in human form)
+            // Verb is NOT editable - just a label between chips.
             row.addView(createVerb(getActionVerb(block.action)));
 
-            // Value chips - split params if multi-part (eg "color:red")
-            for (String chip : extractValueChips(block)) {
-                if (chip != null && !chip.isEmpty()) row.addView(createValueChip(chip));
+            // Value chips are EDITABLE — tap opens the universal value+unit dialog.
+            List<String> chips = extractValueChips(block);
+            for (int ci = 0; ci < chips.size(); ci++) {
+                String chipText = chips.get(ci);
+                if (chipText == null || chipText.isEmpty()) continue;
+                final int chipIdx = ci;
+                TextView vChip = createValueChip(chipText);
+                vChip.setOnClickListener(v -> editValueChip(index, chipIdx));
+                row.addView(vChip);
             }
         }
 
@@ -929,6 +1229,94 @@ public class LogicBlockActivity extends AppCompatActivity {
         row.setOnClickListener(v -> showEditBlockDialog(index));
 
         return row;
+    }
+
+    /**
+     * Edit a single value chip in a CSS / element-action block. Uses the
+     * universal value+unit dialog when the action is sizing/color, otherwise
+     * a plain text input.
+     */
+    private void editValueChip(int blockIndex, int chipIndex) {
+        List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
+        if (blockIndex < 0 || blockIndex >= all.size()) return;
+        LogicBlockManager.LogicBlock block = all.get(blockIndex);
+
+        boolean wantsUnit = isSizingActionForParams(block.action);
+        boolean wantsColor = isColorActionForParams(block.action);
+
+        // For "changeStyle" / "setAttribute" with two chips (property : value)
+        // we only edit the chip the user tapped.
+        List<String> chips = extractValueChips(block);
+        if (chipIndex < 0 || chipIndex >= chips.size()) return;
+        String currentValue = chips.get(chipIndex);
+
+        showUniversalValueDialog(
+            getActionVerb(block.action) + " - " + (chipIndex == 0 ? "property" : "value"),
+            getValueHint(new BlockDef(block.action, "", "", CAT_CSS)),
+            currentValue,
+            wantsUnit && chipIndex > 0,
+            wantsColor && chipIndex > 0,
+            newValue -> {
+                saveUndoState();
+                chips.set(chipIndex, newValue);
+                if (chips.size() == 2) {
+                    block.params = chips.get(0) + ":" + chips.get(1);
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < chips.size(); i++) {
+                        if (i > 0) sb.append("|");
+                        sb.append(chips.get(i));
+                    }
+                    block.params = sb.toString();
+                }
+                refreshWorkspace();
+            });
+    }
+
+    /**
+     * Edit a single | -separated param of a logic / variable block.
+     */
+    private void editParamPart(int blockIndex, int partIndex) {
+        List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
+        if (blockIndex < 0 || blockIndex >= all.size()) return;
+        LogicBlockManager.LogicBlock block = all.get(blockIndex);
+        String[] parts = (block.params != null ? block.params : "").split("\\|", -1);
+        if (partIndex < 0 || partIndex >= parts.length) return;
+        String current = parts[partIndex];
+
+        showUniversalValueDialog(
+            "Edit value", "Value", current, false, false,
+            newVal -> {
+                saveUndoState();
+                parts[partIndex] = newVal;
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < parts.length; i++) {
+                    if (i > 0) sb.append("|");
+                    sb.append(parts[i]);
+                }
+                block.params = sb.toString();
+                refreshWorkspace();
+            });
+    }
+
+    private boolean isSizingActionForParams(String action) {
+        if (action == null) return false;
+        // "changeStyle" carries property:value where value may need a unit
+        return "changeStyle".equals(action);
+    }
+
+    private boolean isColorActionForParams(String action) {
+        // changeStyle property "color", "background", "border" want color
+        // hint - we surface that via the dialog the second chip when relevant.
+        return "changeStyle".equals(action);
+    }
+
+    /** Read-only verb chip used as the leading badge for logic/var rows. */
+    private TextView createVerbChip(String text, int color) {
+        TextView chip = createTargetChip(text, color);
+        chip.setClickable(false);
+        chip.setFocusable(false);
+        return chip;
     }
 
     /** Coloured rounded chip used for the leading "target" piece of a block. */
@@ -1175,6 +1563,108 @@ public class LogicBlockActivity extends AppCompatActivity {
         String next = redoStack.remove(redoStack.size() - 1);
         logicBlockManager.fromJson(next);
         refreshWorkspace();
+    }
+
+    // ---- Target Picker (id / class / tag) ----
+
+    /**
+     * Show a Sketchware-style horizontal-chip picker for the target element.
+     * The user picks Tag/Class/Id with chips, then types/picks a value with
+     * autocomplete sourced from the page tree.
+     */
+    private void showTargetPickerDialog(String currentMode, String currentValue,
+                                        TargetCommitListener listener) {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(20), dp(12), dp(20), 0);
+
+        TextView modeLabel = new TextView(this);
+        modeLabel.setText("Selector type");
+        modeLabel.setTextSize(12);
+        modeLabel.setTextColor(Color.parseColor("#7A8B9C"));
+        layout.addView(modeLabel);
+
+        LinearLayout chipRow = new LinearLayout(this);
+        chipRow.setOrientation(LinearLayout.HORIZONTAL);
+        chipRow.setPadding(0, dp(6), 0, dp(8));
+
+        final String[] modes = {"id", "class", "tag"};
+        final String[] selectedMode = { currentMode != null ? currentMode : "id" };
+
+        for (String mode : modes) {
+            String label = "id".equals(mode) ? "# ID"
+                         : "class".equals(mode) ? ". Class" : "<> Tag";
+            TextView chip = makeUnitChip(label, mode.equals(selectedMode[0]));
+            chip.setOnClickListener(v -> {
+                selectedMode[0] = mode;
+                for (int i = 0; i < chipRow.getChildCount(); i++) {
+                    View child = chipRow.getChildAt(i);
+                    if (child instanceof TextView) {
+                        String t = ((TextView) child).getText().toString();
+                        boolean isSelected =
+                            ("id".equals(mode) && t.contains("ID"))
+                            || ("class".equals(mode) && t.contains("Class"))
+                            || ("tag".equals(mode) && t.contains("Tag"));
+                        styleUnitChip((TextView) child, isSelected);
+                    }
+                }
+            });
+            chipRow.addView(chip);
+        }
+        layout.addView(chipRow);
+
+        TextInputLayout til = createTil("Selector value");
+        TextInputEditText input = (TextInputEditText) til.getEditText();
+        // Replace the inner view with an autocompleting one
+        til.removeView(til.getEditText());
+        AutoCompleteTextView ac = new AutoCompleteTextView(this);
+        ac.setHint("Selector value");
+        ac.setText(currentValue != null ? currentValue : "");
+        ac.setCompletionThreshold(1);
+        ac.setSingleLine(true);
+        ac.setPadding(dp(12), dp(10), dp(12), dp(10));
+        ac.setMinHeight(dp(44));
+        ac.setAdapter(new ArrayAdapter<>(this,
+            android.R.layout.simple_dropdown_item_1line, collectAutocompleteSuggestions()));
+        til.addView(ac);
+        layout.addView(til);
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Pick target element")
+            .setView(layout)
+            .setPositiveButton("OK", (d, w) -> {
+                String value = ac.getText() != null ? ac.getText().toString().trim() : "";
+                listener.onCommit(selectedMode[0], value);
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    interface TargetCommitListener { void onCommit(String mode, String value); }
+
+    /**
+     * Collect id/class/tag suggestions from the persisted page tree so the
+     * autocomplete dropdown shows real elements from the user's page.
+     */
+    private List<String> collectAutocompleteSuggestions() {
+        List<String> out = new ArrayList<>();
+        try {
+            File pageFile = new File(getFilesDir(), "projects/" + projectId + "_" + pageName + ".json");
+            if (!pageFile.exists()) {
+                pageFile = new File(getFilesDir(), "projects/" + projectId + ".json");
+            }
+            if (pageFile.exists()) {
+                String json = FileUtil.readFile(pageFile.getAbsolutePath());
+                List<java.util.Map<String, Object>> tree = new com.google.gson.Gson().fromJson(
+                    json,
+                    new com.google.gson.reflect.TypeToken<List<java.util.Map<String, Object>>>(){}.getType()
+                );
+                collectSelectorSuggestions(tree, out);
+            }
+        } catch (Exception e) {
+            Log.w("LogicBlockActivity", "autocomplete: " + e.getMessage());
+        }
+        return out;
     }
 
     // ---- Edit existing block ----
@@ -1443,21 +1933,9 @@ public class LogicBlockActivity extends AppCompatActivity {
             new BlockDef("toggleClass", "Toggle Class", "Toggle CSS class", CAT_CSS),
         };
 
-        case CAT_HTML: return new BlockDef[]{
-            new BlockDef("setText", "Set Text", "Change text content", CAT_HTML),
-            new BlockDef("setHTML", "Set HTML", "Set inner HTML", CAT_HTML),
-            new BlockDef("showElement", "Show", "Show element", CAT_HTML),
-            new BlockDef("hideElement", "Hide", "Hide element", CAT_HTML),
-            new BlockDef("toggleElement", "Toggle", "Toggle visibility", CAT_HTML),
-            new BlockDef("navigate", "Navigate", "Go to URL", CAT_HTML),
-            new BlockDef("goToPage", "Go To Page", "Navigate to page", CAT_HTML),
-            new BlockDef("alert", "Alert", "Show alert dialog", CAT_HTML),
-            new BlockDef("scrollTo", "Scroll To", "Scroll to position", CAT_HTML),
-            new BlockDef("focusInput", "Focus Input", "Focus input field", CAT_HTML),
-            new BlockDef("setAttribute", "Set Attribute", "Set HTML attribute", CAT_HTML),
-            new BlockDef("setHref", "Set Href", "Set href (#section/page/link)", CAT_HTML),
-            new BlockDef("removeElement", "Remove", "Remove element", CAT_HTML),
-        };
+        // HTML category removed - those are handled by the visual widget
+        // designer in MainActivity now. Only CSS rules + Logic + Vars remain
+        // here, plus a few runtime effects exposed via CSS-like blocks.
 
         case CAT_LOGIC: return new BlockDef[]{
             new BlockDef("ifBlock", "If", "Conditional execution", CAT_LOGIC),
