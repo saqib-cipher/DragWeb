@@ -57,8 +57,18 @@ public class PageCodeGenerator {
             }
         }
 
+        // Append any ASD raw-HTML source blocks the user authored.
+        if (logicBlockManager != null) {
+            String asdHtml = logicBlockManager.generateAsdSource("html");
+            if (asdHtml != null && !asdHtml.trim().isEmpty()) {
+                bodyBuilder.append("  <!-- ASD HTML source -->\n  ");
+                bodyBuilder.append(asdHtml.replace("\n", "\n  "));
+                bodyBuilder.append("\n");
+            }
+        }
+
         StringBuilder htmlBuilder = new StringBuilder();
-        appendHtmlHeader(htmlBuilder, themeManager);
+        appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager);
         htmlBuilder.append(bodyBuilder);
         appendHtmlFooter(htmlBuilder, logicBlockManager, customBlockManager);
         return htmlBuilder.toString();
@@ -94,19 +104,42 @@ public class PageCodeGenerator {
             }
         }
 
+        if (logicBlockManager != null) {
+            String asdHtml = logicBlockManager.generateAsdSource("html");
+            if (asdHtml != null && !asdHtml.trim().isEmpty()) {
+                bodyBuilder.append("  <!-- ASD HTML source -->\n  ");
+                bodyBuilder.append(asdHtml.replace("\n", "\n  "));
+                bodyBuilder.append("\n");
+            }
+        }
+
         StringBuilder htmlBuilder = new StringBuilder();
-        appendHtmlHeader(htmlBuilder, themeManager);
+        appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager);
         htmlBuilder.append(bodyBuilder);
         appendHtmlFooter(htmlBuilder, logicBlockManager, customBlockManager);
         return htmlBuilder.toString();
     }
 
     private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager) {
+        appendHtmlHeader(htmlBuilder, themeManager, null);
+    }
+
+    private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager,
+                                  LogicBlockManager logicBlockManager) {
         String pageTitle = projectName.isEmpty() ? "DragWeb Page" : escapeHtml(projectName);
         htmlBuilder.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
         htmlBuilder.append("  <meta charset=\"UTF-8\">\n");
         htmlBuilder.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
         htmlBuilder.append("  <title>").append(pageTitle).append("</title>\n");
+
+        // ASD <meta> additions go before user styles.
+        if (logicBlockManager != null) {
+            String asdMeta = logicBlockManager.generateAsdSource("meta");
+            if (asdMeta != null && !asdMeta.trim().isEmpty()) {
+                htmlBuilder.append("  ").append(asdMeta.replace("\n", "\n  ")).append("\n");
+            }
+        }
+
         htmlBuilder.append("  <style>\n");
 
         // Theme CSS variables
@@ -121,16 +154,29 @@ public class PageCodeGenerator {
         htmlBuilder.append("    input, textarea { font-family: inherit; }\n");
         htmlBuilder.append("    img { max-width: 100%; height: auto; }\n");
 
-        // Animation keyframes
+        // Animation keyframes used by the CSS animation blocks.
         htmlBuilder.append("    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }\n");
-        htmlBuilder.append("    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }\n");
-        htmlBuilder.append("    @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }\n");
+        htmlBuilder.append("    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }\n");
+        htmlBuilder.append("    @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }\n");
+        htmlBuilder.append("    @keyframes slideOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-20px); opacity: 0; } }\n");
+        htmlBuilder.append("    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }\n");
         htmlBuilder.append("    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }\n");
+        htmlBuilder.append("    @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }\n");
+        htmlBuilder.append("    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }\n");
         for (String styleRule : styleRules) {
             htmlBuilder.append(styleRule);
         }
 
         htmlBuilder.append("  </style>\n");
+
+        // ASD <head> source goes last so it can override anything above.
+        if (logicBlockManager != null) {
+            String asdHead = logicBlockManager.generateAsdSource("head");
+            if (asdHead != null && !asdHead.trim().isEmpty()) {
+                htmlBuilder.append("  ").append(asdHead.replace("\n", "\n  ")).append("\n");
+            }
+        }
+
         htmlBuilder.append("</head>\n<body>\n");
     }
 
@@ -170,10 +216,27 @@ public class PageCodeGenerator {
             }
         }
 
+        // ASD raw-CSS source.
+        if (logicBlockManager != null) {
+            String asdCss = logicBlockManager.generateAsdSource("css");
+            if (asdCss != null && !asdCss.trim().isEmpty()) {
+                htmlBuilder.append("\n  <style>\n  /* ASD CSS source */\n  ");
+                htmlBuilder.append(asdCss.replace("\n", "\n  "));
+                htmlBuilder.append("\n  </style>\n");
+            }
+        }
+
         String logicJs = logicBlockManager != null ? logicBlockManager.generateJavaScript() : "";
-        if (logicJs != null && !logicJs.trim().isEmpty()) {
+        String asdJs = logicBlockManager != null ? logicBlockManager.generateAsdSource("js") : "";
+        boolean hasJs = (logicJs != null && !logicJs.trim().isEmpty())
+            || (asdJs != null && !asdJs.trim().isEmpty());
+        if (hasJs) {
             htmlBuilder.append("\n  <script>\n");
-            htmlBuilder.append(logicJs);
+            if (logicJs != null && !logicJs.trim().isEmpty()) htmlBuilder.append(logicJs);
+            if (asdJs != null && !asdJs.trim().isEmpty()) {
+                if (logicJs != null && !logicJs.trim().isEmpty()) htmlBuilder.append("\n");
+                htmlBuilder.append(asdJs).append("\n");
+            }
             htmlBuilder.append("  </script>\n");
         }
         htmlBuilder.append("</body>\n</html>");
