@@ -1,525 +1,379 @@
 package sketchweb.gl;
 
 import android.content.Context;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.RectF;
 import android.util.AttributeSet;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
-import android.view.ScaleGestureDetector;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+
+import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-public class WorkspaceView extends View {
+/**
+ * Vertical Sketchware/Blockly-style block workspace.
+ *
+ * <p>This is the modern replacement for the old free-canvas
+ * {@code WorkspaceView}. Blocks are stacked top-to-bottom in a single
+ * scrollable column. Container blocks (cblock / loop / condition) render an
+ * interior slot that other blocks can be nested into. There is no zoom,
+ * no pan, no free positioning.
+ *
+ * <p>Identity and ordering are tracked by {@link LogicBlockManager.LogicBlock#id}
+ * and {@link LogicBlockManager.LogicBlock#parentBlockId}. Sibling order is
+ * implied by position inside the master list.
+ */
+public class WorkspaceView extends ScrollView {
 
-    private final List<LogicBlockManager.LogicBlock> blocks = new ArrayList<>();
+    private final LinearLayout stack;
+    private final View insertionIndicator;
+    private final Map<String, BlockView> viewByBlockId = new HashMap<>();
+
     private LogicBlockManager logicBlockManager;
     private OnBlockInteractionListener interactionListener;
+    private List<BlockDef> defs = new ArrayList<>();
+    private BlockChipFactory chipFactory;
+    private BlockDragDropManager dragDropManager;
 
-    private final Paint blockPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint strokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    public WorkspaceView(Context context) { this(context, null); }
+    public WorkspaceView(Context context, @Nullable AttributeSet attrs) { this(context, attrs, 0); }
 
-    private float scaleFactor = 1f;
-    private float offsetX = 0;
-    private float offsetY = 0;
+    public WorkspaceView(Context context, AttributeSet attrs, int defStyle) {
+        super(context, attrs, defStyle);
+        setFillViewport(true);
 
-    private static final float BLOCK_WIDTH = 400f;
-    private static final float BLOCK_MIN_HEIGHT = 90f;
-    private static final float SNAP_DISTANCE = 60f;
+        // Top-level container so we can overlay an insertion indicator on top
+        // of the vertical stack without breaking ScrollView's single-child rule.
+        FrameContainer container = new FrameContainer(context);
+        addView(container, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
-    private ScaleGestureDetector scaleDetector;
-    private GestureDetector gestureDetector;
+        stack = new LinearLayout(context);
+        stack.setOrientation(LinearLayout.VERTICAL);
+        stack.setPadding(dp(8), dp(8), dp(8), dp(120));
+        container.addView(stack, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-    private LogicBlockManager.LogicBlock draggingBlock;
-    private float dragStartX, dragStartY;
-
-    private float lastTouchX;
-    private float lastTouchY;
-
-    public WorkspaceView(Context context) {
-        super(context);
-        init(context);
+        insertionIndicator = new View(context);
+        insertionIndicator.setBackgroundColor(Color.parseColor("#FFEB3B"));
+        insertionIndicator.setVisibility(GONE);
+        container.addView(insertionIndicator, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(3)));
     }
 
-    public WorkspaceView(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        init(context);
+    /**
+     * Wire the workspace to its data backend, definition table and chip
+     * factory. Called once from the activity during onCreate.
+     */
+    public void configure(LogicBlockManager manager,
+                          List<BlockDef> definitions,
+                          BlockChipFactory chipFactory,
+                          BlockDragDropManager dragDrop) {
+        this.logicBlockManager = manager;
+        this.defs = definitions != null ? definitions : new ArrayList<>();
+        this.chipFactory = chipFactory;
+        this.dragDropManager = dragDrop;
+        if (dragDrop != null) dragDrop.attachWorkspaceTarget(this);
     }
 
-    public WorkspaceView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        init(context);
-    }
-
-    private void init(Context context) {
-        setBackgroundColor(Color.parseColor("#0D1117"));
-
-        textPaint.setColor(Color.WHITE);
-        textPaint.setTextSize(32);
-        textPaint.setFakeBoldText(true);
-
-        gridPaint.setColor(Color.parseColor("#1B2430"));
-        gridPaint.setStrokeWidth(1.5f);
-
-        strokePaint.setStyle(Paint.Style.STROKE);
-        strokePaint.setStrokeWidth(2f);
-        strokePaint.setColor(Color.parseColor("#44FFFFFF"));
-
-        scaleDetector = new ScaleGestureDetector(context, new ScaleListener());
-        gestureDetector = new GestureDetector(context, new GestureListener());
-    }
-
+    /** Back-compat: kept so older call sites still link. */
     public void setLogicBlockManager(LogicBlockManager manager) {
         this.logicBlockManager = manager;
     }
 
-    public void setBlocks(List<LogicBlockManager.LogicBlock> newBlocks) {
-        this.blocks.clear();
-        this.blocks.addAll(newBlocks);
-        invalidate();
+    /**
+     * Re-render the entire stack from the current
+     * {@link LogicBlockManager#getBlocks()} list. Cheap because each block view
+     * is a flat {@link android.widget.LinearLayout LinearLayout} – no Canvas
+     * paths, no large RecyclerView item recycling overhead.
+     */
+    public void rebuild() {
+        stack.removeAllViews();
+        viewByBlockId.clear();
+        if (logicBlockManager == null) return;
+        renderChildrenInto(stack, null);
     }
 
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-
-        canvas.save();
-        canvas.translate(offsetX, offsetY);
-        canvas.scale(scaleFactor, scaleFactor);
-
-        drawGrid(canvas);
-
-        // Draw only top-level blocks; children are drawn recursively
-        for (LogicBlockManager.LogicBlock block : blocks) {
-            if (block.parentBlockId == null || block.parentBlockId.isEmpty()) {
-                drawBlockAndChain(canvas, block);
-            }
+    /** Back-compat: behaves identically to {@link #rebuild()}. */
+    public void setBlocks(List<LogicBlockManager.LogicBlock> blocks) {
+        if (logicBlockManager != null && blocks != null && blocks != logicBlockManager.getBlocks()) {
+            logicBlockManager.getBlocks().clear();
+            logicBlockManager.getBlocks().addAll(blocks);
         }
-
-        canvas.restore();
-        drawDeleteZone(canvas);
-    }
-
-    private void drawGrid(Canvas canvas) {
-        int gridSize = 80;
-        int width = getWidth() * 3;
-        int height = getHeight() * 3;
-
-        for (int x = -width; x < width; x += gridSize) {
-            canvas.drawLine(x, -height, x, height, gridPaint);
-        }
-
-        for (int y = -height; y < height; y += gridSize) {
-            canvas.drawLine(-width, y, width, y, gridPaint);
-        }
-    }
-
-    private void drawBlockAndChain(Canvas canvas, LogicBlockManager.LogicBlock block) {
-        drawBlock(canvas, block);
-        
-        // Draw sub-stack if it's a container
-        if (block.subStackId != null && !block.subStackId.isEmpty()) {
-            LogicBlockManager.LogicBlock sub = findBlockById(block.subStackId);
-            if (sub != null) {
-                sub.x = block.x + 60;
-                sub.y = block.y + BLOCK_MIN_HEIGHT;
-                drawBlockAndChain(canvas, sub);
-            }
-        }
-
-        // Draw next block in chain
-        if (block.nextBlockId != null && !block.nextBlockId.isEmpty()) {
-            LogicBlockManager.LogicBlock next = findBlockById(block.nextBlockId);
-            if (next != null) {
-                next.x = block.x;
-                next.y = block.y + getBlockTotalHeight(block);
-                drawBlockAndChain(canvas, next);
-            }
-        }
-    }
-
-    private float getBlockTotalHeight(LogicBlockManager.LogicBlock block) {
-        float h = BLOCK_MIN_HEIGHT;
-        if ("C".equals(block.shape) || "E".equals(block.shape)) {
-            float subH = 0;
-            if (block.subStackId != null && !block.subStackId.isEmpty()) {
-                subH = getChainHeight(block.subStackId);
-            }
-            h = Math.max(h, 60 + subH + 40); // Top + SubStack + Bottom
-        }
-        return h;
-    }
-
-    private float getChainHeight(String firstBlockId) {
-        float h = 0;
-        LogicBlockManager.LogicBlock current = findBlockById(firstBlockId);
-        while (current != null) {
-            h += getBlockTotalHeight(current);
-            current = findBlockById(current.nextBlockId);
-        }
-        return h;
-    }
-
-    private void drawBlock(Canvas canvas, LogicBlockManager.LogicBlock block) {
-        float x = block.x;
-        float y = block.y;
-        float w = BLOCK_WIDTH;
-        float h = getBlockTotalHeight(block);
-
-        blockPaint.setColor(getCategoryColor(block.category));
-        
-        Path path;
-        if ("C".equals(block.shape) || "E".equals(block.shape)) {
-            path = createContainerPath(x, y, w, h);
-        } else if ("cap".equals(block.shape)) {
-            path = createCapPath(x, y, w, h);
-        } else if ("value".equals(block.shape)) {
-            path = createValuePath(x, y, w, h);
-        } else {
-            path = createPuzzlePath(x, y, w, h);
-        }
-        
-        canvas.drawPath(path, blockPaint);
-        canvas.drawPath(path, strokePaint);
-
-        // Draw Content (Labels and Chips)
-        drawBlockContent(canvas, block);
-    }
-
-    private void drawBlockContent(Canvas canvas, LogicBlockManager.LogicBlock block) {
-        String spec = block.spec != null ? block.spec : block.action;
-        float drawX = block.x + 30;
-        float drawY = block.y + 55;
-
-        String[] parts = spec.split("(?=%)|(?<=%)");
-        int paramIdx = 0;
-
-        for (String part : parts) {
-            if (part.startsWith("%")) {
-                // Draw Chip
-                String val = "...";
-                if (block.paramValues != null && paramIdx < block.paramValues.size()) {
-                    val = block.paramValues.get(paramIdx);
-                } else if (block.params != null) {
-                    String[] vals = block.params.split("\\|");
-                    if (paramIdx < vals.length && !vals[paramIdx].isEmpty()) {
-                        val = vals[paramIdx];
-                    }
-                }
-                
-                float chipW = textPaint.measureText(val) + 40;
-                RectF chipRect = new RectF(drawX, drawY - 35, drawX + chipW, drawY + 15);
-                
-                Paint chipPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                chipPaint.setColor(Color.WHITE);
-                canvas.drawRoundRect(chipRect, 20, 20, chipPaint);
-                
-                Paint chipTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                chipTextPaint.setColor(getCategoryColor(block.category));
-                chipTextPaint.setTextSize(28);
-                chipTextPaint.setFakeBoldText(true);
-                canvas.drawText(val, drawX + 20, drawY, chipTextPaint);
-                
-                drawX += chipW + 15;
-                paramIdx++;
-            } else {
-                // Draw Text
-                canvas.drawText(part, drawX, drawY, textPaint);
-                drawX += textPaint.measureText(part) + 10;
-            }
-        }
-    }
-
-    private int getCategoryColor(String category) {
-        if (category == null) return Color.GRAY;
-        switch (category) {
-            case "css": return Color.parseColor("#2196F3");
-            case "html": return Color.parseColor("#4CAF50");
-            case "logic": return Color.parseColor("#E91E63");
-            case "event": return Color.parseColor("#FF9800");
-            case "variable": return Color.parseColor("#00BCD4");
-            case "asd": return Color.parseColor("#455A64");
-            case "value": return Color.parseColor("#7E57C2");
-            default: return Color.parseColor("#607D8B");
-        }
-    }
-
-    private Path createPuzzlePath(float x, float y, float w, float h) {
-        Path path = new Path();
-        path.moveTo(x, y);
-        // Top notch
-        path.lineTo(x + 40, y);
-        path.lineTo(x + 55, y + 15);
-        path.lineTo(x + 85, y + 15);
-        path.lineTo(x + 100, y);
-        path.lineTo(x + w, y);
-        path.lineTo(x + w, y + h);
-        // Bottom notch
-        path.lineTo(x + 100, y + h);
-        path.lineTo(x + 85, y + h + 15);
-        path.lineTo(x + 55, y + h + 15);
-        path.lineTo(x + 40, y + h);
-        path.lineTo(x, y + h);
-        path.close();
-        return path;
-    }
-
-    private Path createCapPath(float x, float y, float w, float h) {
-        Path path = new Path();
-        path.moveTo(x, y + 20);
-        path.quadTo(x + w/2, y - 20, x + w, y + 20);
-        path.lineTo(x + w, y + h);
-        path.lineTo(x + 100, y + h);
-        path.lineTo(x + 85, y + h + 15);
-        path.lineTo(x + 55, y + h + 15);
-        path.lineTo(x + 40, y + h);
-        path.lineTo(x, y + h);
-        path.close();
-        return path;
-    }
-
-    private Path createValuePath(float x, float y, float w, float h) {
-        Path path = new Path();
-        path.addRoundRect(new RectF(x, y, x + w, y + h), h/2, h/2, Path.Direction.CW);
-        return path;
-    }
-
-    private Path createContainerPath(float x, float y, float w, float h) {
-        Path path = new Path();
-        path.moveTo(x, y);
-        path.lineTo(x + 40, y);
-        path.lineTo(x + 55, y + 15);
-        path.lineTo(x + 85, y + 15);
-        path.lineTo(x + 100, y);
-        path.lineTo(x + w, y);
-        path.lineTo(x + w, y + 50);
-        path.lineTo(x + 120, y + 50);
-        path.lineTo(x + 105, y + 65);
-        path.lineTo(x + 75, y + 65);
-        path.lineTo(x + 60, y + 50);
-        path.lineTo(x + 60, y + h - 40);
-        path.lineTo(x + 75, y + h - 25);
-        path.lineTo(x + 105, y + h - 25);
-        path.lineTo(x + 120, y + h - 40);
-        path.lineTo(x + w, y + h - 40);
-        path.lineTo(x + w, y + h);
-        path.lineTo(x, y + h);
-        path.close();
-        return path;
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        scaleDetector.onTouchEvent(event);
-        gestureDetector.onTouchEvent(event);
-
-        float x = (event.getX() - offsetX) / scaleFactor;
-        float y = (event.getY() - offsetY) / scaleFactor;
-
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                draggingBlock = findTouchedBlock(x, y);
-                if (draggingBlock != null) {
-                    dragStartX = x - draggingBlock.x;
-                    dragStartY = y - draggingBlock.y;
-                    
-                    // Detach from parent
-                    if (draggingBlock.parentBlockId != null) {
-                        LogicBlockManager.LogicBlock parent = findBlockById(draggingBlock.parentBlockId);
-                        if (parent != null) {
-                            if (draggingBlock.id.equals(parent.nextBlockId)) parent.nextBlockId = null;
-                            if (draggingBlock.id.equals(parent.subStackId)) parent.subStackId = null;
-                        }
-                        draggingBlock.parentBlockId = null;
-                    }
-                    
-                    blocks.remove(draggingBlock);
-                    blocks.add(draggingBlock); // Bring to front
-                }
-                lastTouchX = x;
-                lastTouchY = y;
-                break;
-            case MotionEvent.ACTION_MOVE:
-                if (draggingBlock != null) {
-                    float dx = x - lastTouchX;
-                    float dy = y - lastTouchY;
-                    moveBlockAndChain(draggingBlock, dx, dy);
-                    invalidate();
-                }
-                lastTouchX = x;
-                lastTouchY = y;
-                break;
-            case MotionEvent.ACTION_UP:
-                if (draggingBlock != null) {
-                    trySnap(draggingBlock);
-                    
-                    // Check Delete
-                    if (event.getX() > getWidth() - 240 && event.getY() > getHeight() - 160) {
-                        deleteBlockAndChain(draggingBlock);
-                    }
-                }
-                draggingBlock = null;
-                if (interactionListener != null) interactionListener.onWorkspaceChanged();
-                invalidate();
-                break;
-        }
-        return true;
-    }
-
-    private void moveBlockAndChain(LogicBlockManager.LogicBlock block, float dx, float dy) {
-        block.x += dx;
-        block.y += dy;
-        if (block.nextBlockId != null) {
-            LogicBlockManager.LogicBlock next = findBlockById(block.nextBlockId);
-            if (next != null) moveBlockAndChain(next, dx, dy);
-        }
-        if (block.subStackId != null) {
-            LogicBlockManager.LogicBlock sub = findBlockById(block.subStackId);
-            if (sub != null) moveBlockAndChain(sub, dx, dy);
-        }
-    }
-
-    private void deleteBlockAndChain(LogicBlockManager.LogicBlock block) {
-        if (block.nextBlockId != null) {
-            LogicBlockManager.LogicBlock next = findBlockById(block.nextBlockId);
-            if (next != null) deleteBlockAndChain(next);
-        }
-        if (block.subStackId != null) {
-            LogicBlockManager.LogicBlock sub = findBlockById(block.subStackId);
-            if (sub != null) deleteBlockAndChain(sub);
-        }
-        blocks.remove(block);
-    }
-
-    private LogicBlockManager.LogicBlock findTouchedBlock(float x, float y) {
-        for (int i = blocks.size() - 1; i >= 0; i--) {
-            LogicBlockManager.LogicBlock block = blocks.get(i);
-            float h = getBlockTotalHeight(block);
-            if (x >= block.x && x <= block.x + BLOCK_WIDTH && y >= block.y && y <= block.y + h) {
-                return block;
-            }
-        }
-        return null;
-    }
-
-    private LogicBlockManager.LogicBlock findBlockById(String id) {
-        if (id == null || id.isEmpty()) return null;
-        for (LogicBlockManager.LogicBlock b : blocks) {
-            if (id.equals(b.id)) return b;
-        }
-        return null;
-    }
-
-    private void trySnap(LogicBlockManager.LogicBlock moving) {
-        for (LogicBlockManager.LogicBlock target : blocks) {
-            if (target == moving || isChildOf(target, moving)) continue;
-
-            float snapX = target.x;
-            float snapY = target.y + getBlockTotalHeight(target);
-
-            // Bottom snap
-            if (Math.abs(moving.x - snapX) < SNAP_DISTANCE && Math.abs(moving.y - snapY) < SNAP_DISTANCE) {
-                moving.x = snapX;
-                moving.y = snapY;
-                moving.parentBlockId = target.id;
-                target.nextBlockId = moving.id;
-                return;
-            }
-
-            // Sub-stack snap (C-shape)
-            if ("C".equals(target.shape) || "E".equals(target.shape)) {
-                float subX = target.x + 60;
-                float subY = target.y + BLOCK_MIN_HEIGHT;
-                if (Math.abs(moving.x - subX) < SNAP_DISTANCE && Math.abs(moving.y - subY) < SNAP_DISTANCE) {
-                    moving.x = subX;
-                    moving.y = subY;
-                    moving.parentBlockId = target.id;
-                    target.subStackId = moving.id;
-                    return;
-                }
-            }
-        }
-    }
-
-    private boolean isChildOf(LogicBlockManager.LogicBlock potentialChild, LogicBlockManager.LogicBlock potentialParent) {
-        String parentId = potentialChild.parentBlockId;
-        while (parentId != null && !parentId.isEmpty()) {
-            if (parentId.equals(potentialParent.id)) return true;
-            LogicBlockManager.LogicBlock p = findBlockById(parentId);
-            parentId = (p != null) ? p.parentBlockId : null;
-        }
-        return false;
-    }
-
-    private void drawDeleteZone(Canvas canvas) {
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paint.setColor(Color.parseColor("#44E53935"));
-        RectF rect = new RectF(getWidth() - 240, getHeight() - 160, getWidth() - 40, getHeight() - 40);
-        canvas.drawRoundRect(rect, 32, 32, paint);
-        
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(4);
-        paint.setColor(Color.parseColor("#E53935"));
-        canvas.drawRoundRect(rect, 32, 32, paint);
-
-        textPaint.setColor(Color.parseColor("#E53935"));
-        textPaint.setTextSize(36);
-        float textW = textPaint.measureText("DELETE");
-        canvas.drawText("DELETE", rect.centerX() - textW/2, rect.centerY() + 12, textPaint);
+        rebuild();
     }
 
     public void setOnBlockInteractionListener(OnBlockInteractionListener listener) {
         this.interactionListener = listener;
     }
 
-    public void setupDropListener(final OnBlockDroppedListener droppedListener) {
-        setOnDragListener((v, event) -> {
-            if (event.getAction() == android.view.DragEvent.ACTION_DROP) {
-                float x = (event.getX() - offsetX) / scaleFactor;
-                float y = (event.getY() - offsetY) / scaleFactor;
-                if (droppedListener != null) {
-                    droppedListener.onBlockDropped(x, y, event);
+    /**
+     * Back-compat shim: the new editor handles drops via
+     * {@link BlockDragDropManager} but we keep the old API so {@code
+     * LogicBlockActivity} compiles unchanged when it routes through us.
+     */
+    public void setupDropListener(OnBlockDroppedListener listener) {
+        // No-op: the modern editor uses BlockDragDropManager for snap-style
+        // drops. The legacy free-drop callback no longer fires.
+    }
+
+    // -------------------------------------------------------------------
+    // Insertion / move / delete API used by BlockDragDropManager
+    // -------------------------------------------------------------------
+
+    int indexFromY(float y) {
+        // ScrollView delivers DragEvent Y relative to the visible viewport, so
+        // add the scroll offset to land in the inner content's coordinate
+        // space before comparing against block midpoints.
+        float content = y + getScrollY();
+        return computeInsertIndexAbsolute(stack, content);
+    }
+
+    int indexInSlotFromY(BlockView container, float y) {
+        LinearLayout slot = container.getStackSlot();
+        if (slot == null) return 0;
+        // y comes from a drag listener attached to the slot itself, so it is
+        // already in slot-local coordinates.
+        return computeInsertIndexLocal(slot, y);
+    }
+
+    /**
+     * Coordinate-space-aware insertion search: {@code y} is in the same
+     * coordinate system as {@code host.getTop() + child.getTop()}. The stack
+     * lives at {@code FrameContainer (0,0)} so we just compare child tops.
+     */
+    private int computeInsertIndexAbsolute(LinearLayout host, float y) {
+        int count = host.getChildCount();
+        float baseTop = host.getTop();
+        for (int i = 0; i < count; i++) {
+            View child = host.getChildAt(i);
+            float top = baseTop + child.getTop();
+            float midpoint = top + child.getHeight() / 2f;
+            if (y < midpoint) return i;
+        }
+        return count;
+    }
+
+    private int computeInsertIndexLocal(LinearLayout host, float y) {
+        int count = host.getChildCount();
+        for (int i = 0; i < count; i++) {
+            View child = host.getChildAt(i);
+            float midpoint = child.getTop() + child.getHeight() / 2f;
+            if (y < midpoint) return i;
+        }
+        return count;
+    }
+
+    void insertNewBlock(BlockDef def, @Nullable BlockView containerView, int siblingIndex) {
+        if (logicBlockManager == null || def == null) return;
+        LogicBlockManager.LogicBlock block = new LogicBlockManager.LogicBlock();
+        block.id = "blk_" + System.currentTimeMillis();
+        block.action = def.id;
+        block.category = def.category;
+        block.shape = def.resolvedShape();
+        block.event = "immediate";
+        block.spec = def.resolvedTemplate();
+        block.targetMode = LogicBlockManager.TARGET_MODE_ID;
+        block.targetWidget = "";
+        block.parentBlockId = containerView != null ? containerView.getBlock().id : null;
+        block.paramValues = defaultParamValues(def);
+        block.params = joinPipe(block.paramValues);
+        insertIntoMaster(block, containerView, siblingIndex);
+        rebuild();
+    }
+
+    void moveBlockTo(String blockId, @Nullable BlockView containerView, int siblingIndex) {
+        if (logicBlockManager == null) return;
+        LogicBlockManager.LogicBlock target = findBlockById(blockId);
+        if (target == null) return;
+        // Disallow nesting a container inside its own descendants.
+        if (containerView != null && isAncestor(target.id, containerView.getBlock().id)) return;
+
+        // Detach the moved block plus its descendants from the master list.
+        List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
+        List<LogicBlockManager.LogicBlock> chain = collectSubtree(target);
+        all.removeAll(chain);
+
+        target.parentBlockId = containerView != null ? containerView.getBlock().id : null;
+
+        insertChainAt(chain, target.parentBlockId, siblingIndex);
+        rebuild();
+    }
+
+    void deleteBlockChainById(String id) {
+        if (logicBlockManager == null) return;
+        LogicBlockManager.LogicBlock target = findBlockById(id);
+        if (target == null) return;
+        List<LogicBlockManager.LogicBlock> chain = collectSubtree(target);
+        logicBlockManager.getBlocks().removeAll(chain);
+        rebuild();
+    }
+
+    void showInsertionIndicator(float y) {
+        float content = y + getScrollY();
+        int idx = computeInsertIndexAbsolute(stack, content);
+        float top;
+        float baseTop = stack.getTop();
+        if (idx <= 0) {
+            top = baseTop;
+        } else if (idx >= stack.getChildCount()) {
+            View last = stack.getChildAt(stack.getChildCount() - 1);
+            top = last != null ? (baseTop + last.getTop() + last.getHeight()) : baseTop;
+        } else {
+            View child = stack.getChildAt(idx);
+            top = baseTop + child.getTop();
+        }
+        insertionIndicator.setVisibility(VISIBLE);
+        insertionIndicator.setTranslationY(top - dp(1));
+    }
+
+    void hideInsertionIndicator() {
+        insertionIndicator.setVisibility(GONE);
+    }
+
+    // -------------------------------------------------------------------
+    // Internals
+    // -------------------------------------------------------------------
+
+    private void renderChildrenInto(LinearLayout host, @Nullable String parentId) {
+        for (LogicBlockManager.LogicBlock b : logicBlockManager.getBlocks()) {
+            if (!sameParent(b.parentBlockId, parentId)) continue;
+            BlockDef def = findDef(b.action);
+            BlockView view = new BlockView(getContext(), b, def, chipFactory, this::onBlockMutated);
+            viewByBlockId.put(b.id, view);
+            host.addView(view);
+            if (view.isContainer()) {
+                renderChildrenInto(view.getStackSlot(), b.id);
+                if (dragDropManager != null) {
+                    dragDropManager.attachContainerSlot(view.getStackSlot(), view);
                 }
-                return true;
             }
-            return true;
-        });
+            if (dragDropManager != null) dragDropManager.attachWorkspaceSource(view);
+        }
+    }
+
+    private void onBlockMutated(LogicBlockManager.LogicBlock block) {
+        if (interactionListener != null) interactionListener.onWorkspaceChanged();
+    }
+
+    private static boolean sameParent(String a, String b) {
+        if (a == null || a.isEmpty()) return b == null || b.isEmpty();
+        return a.equals(b);
+    }
+
+    private BlockDef findDef(String id) {
+        if (id == null) return null;
+        for (BlockDef d : defs) if (id.equals(d.id)) return d;
+        return null;
+    }
+
+    private LogicBlockManager.LogicBlock findBlockById(String id) {
+        if (logicBlockManager == null || id == null) return null;
+        for (LogicBlockManager.LogicBlock b : logicBlockManager.getBlocks()) {
+            if (id.equals(b.id)) return b;
+        }
+        return null;
+    }
+
+    private boolean isAncestor(String ancestorId, String maybeDescendantId) {
+        String cursor = maybeDescendantId;
+        int safety = 0;
+        while (cursor != null && safety++ < 256) {
+            if (cursor.equals(ancestorId)) return true;
+            LogicBlockManager.LogicBlock b = findBlockById(cursor);
+            if (b == null) break;
+            cursor = b.parentBlockId;
+        }
+        return false;
+    }
+
+    private List<LogicBlockManager.LogicBlock> collectSubtree(LogicBlockManager.LogicBlock root) {
+        List<LogicBlockManager.LogicBlock> out = new ArrayList<>();
+        out.add(root);
+        for (int i = 0; i < out.size(); i++) {
+            String id = out.get(i).id;
+            if (id == null) continue;
+            for (LogicBlockManager.LogicBlock b : logicBlockManager.getBlocks()) {
+                if (id.equals(b.parentBlockId) && !out.contains(b)) out.add(b);
+            }
+        }
+        return out;
+    }
+
+    private void insertIntoMaster(LogicBlockManager.LogicBlock block,
+                                  @Nullable BlockView containerView,
+                                  int siblingIndex) {
+        String parentId = containerView != null ? containerView.getBlock().id : null;
+        List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
+        int target = resolveMasterIndex(parentId, siblingIndex);
+        all.add(Math.min(target, all.size()), block);
+    }
+
+    private void insertChainAt(List<LogicBlockManager.LogicBlock> chain,
+                               @Nullable String parentId,
+                               int siblingIndex) {
+        List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
+        int target = resolveMasterIndex(parentId, siblingIndex);
+        for (int i = 0; i < chain.size(); i++) {
+            int pos = Math.min(target + i, all.size());
+            all.add(pos, chain.get(i));
+        }
+    }
+
+    private int resolveMasterIndex(@Nullable String parentId, int siblingIndex) {
+        List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
+        int seen = 0;
+        for (int i = 0; i < all.size(); i++) {
+            if (sameParent(all.get(i).parentBlockId, parentId)) {
+                if (seen == siblingIndex) return i;
+                seen++;
+            }
+        }
+        return all.size();
+    }
+
+    private static List<String> defaultParamValues(BlockDef def) {
+        List<String> values = new ArrayList<>();
+        if (def == null) return values;
+        for (ChipInput input : def.resolvedInputs()) {
+            values.add(input.defaultValue != null ? input.defaultValue : "");
+        }
+        return values;
+    }
+
+    private static String joinPipe(List<String> values) {
+        if (values == null || values.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < values.size(); i++) {
+            if (i > 0) sb.append('|');
+            String v = values.get(i);
+            sb.append(v != null ? v : "");
+        }
+        return sb.toString();
+    }
+
+    private int dp(int px) {
+        return (int) (px * getResources().getDisplayMetrics().density);
+    }
+
+    // -------------------------------------------------------------------
+    // Listener types (legacy + new)
+    // -------------------------------------------------------------------
+
+    public interface OnBlockInteractionListener {
+        void onWorkspaceChanged();
     }
 
     public interface OnBlockDroppedListener {
         void onBlockDropped(float x, float y, android.view.DragEvent event);
     }
 
-    public interface OnBlockInteractionListener {
-        void onWorkspaceChanged();
-    }
-
-    private class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
-        @Override
-        public boolean onScale(ScaleGestureDetector detector) {
-            scaleFactor *= detector.getScaleFactor();
-            scaleFactor = Math.max(0.3f, Math.min(scaleFactor, 3.0f));
-            invalidate();
-            return true;
-        }
-    }
-
-    private class GestureListener extends GestureDetector.SimpleOnGestureListener {
-        @Override
-        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-            if (draggingBlock == null) {
-                offsetX -= distanceX;
-                offsetY -= distanceY;
-                invalidate();
-            }
-            return true;
-        }
+    /** Tiny FrameLayout-style holder so the indicator overlays the stack. */
+    private static final class FrameContainer extends android.widget.FrameLayout {
+        FrameContainer(Context context) { super(context); }
     }
 }
