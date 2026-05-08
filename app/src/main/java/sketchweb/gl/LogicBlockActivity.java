@@ -63,6 +63,7 @@ public class LogicBlockActivity extends AppCompatActivity {
     private LogicBlockManager logicBlockManager;
     private String projectId;
     private String pageName = "index";
+    private int currentMode = 0; // 0 = JS, 1 = CSS
 
     // Views
     private MaterialToolbar toolbar;
@@ -170,6 +171,26 @@ public class LogicBlockActivity extends AppCompatActivity {
         dropDuplicateCollection = findViewById(R.id.dropDuplicateCollection);
         collectionList = findViewById(R.id.collectionList);
         tvBlockCount = findViewById(R.id.tvBlockCount);
+
+        com.google.android.material.tabs.TabLayout tabLayoutMode = findViewById(R.id.tabLayoutMode);
+        if (tabLayoutMode != null) {
+            tabLayoutMode.addOnTabSelectedListener(new com.google.android.material.tabs.TabLayout.OnTabSelectedListener() {
+                @Override
+                public void onTabSelected(com.google.android.material.tabs.TabLayout.Tab tab) {
+                    currentMode = tab.getPosition();
+                    refreshWorkspace();
+                    if (currentMode == 1) {
+                        showCategory(CAT_CSS);
+                    } else {
+                        showCategory(CAT_LOGIC);
+                    }
+                }
+                @Override
+                public void onTabUnselected(com.google.android.material.tabs.TabLayout.Tab tab) {}
+                @Override
+                public void onTabReselected(com.google.android.material.tabs.TabLayout.Tab tab) {}
+            });
+        }
     }
 
     private void setupToolbar() {
@@ -393,6 +414,14 @@ public class LogicBlockActivity extends AppCompatActivity {
                         saveUndoState();
                         logicBlockManager.removeBlock((Integer) state);
                         refreshWorkspace();
+                    } else if (event.getClipData() != null && event.getClipData().getItemCount() > 0) {
+                        String dropData = event.getClipData().getItemAt(0).getText().toString();
+                        if (dropData.startsWith("reorder_event|")) {
+                            String evKey = dropData.substring(14);
+                            saveUndoState();
+                            logicBlockManager.getBlocks().removeIf(b -> evKey.equals(b.event));
+                            refreshWorkspace();
+                        }
                     }
                     return true;
                 }
@@ -593,7 +622,50 @@ public class LogicBlockActivity extends AppCompatActivity {
                     setWorkspaceHighlight(false, null);
                     Object localState = event.getLocalState();
                     if (localState instanceof BlockDef) {
-                        addBlockFromDef((BlockDef) localState);
+                        BlockDef def = (BlockDef) localState;
+                        if ("C".equals(def.shape) || "E".equals(def.shape)) {
+                            addBlockFromDef(def);
+                        } else {
+                            float y = event.getY();
+                            List<ViewInfo> allViews = new ArrayList<>();
+                            collectBlockViewInfo(blockWorkspace, 0, allViews);
+                            int targetIdx = -1;
+                            for (ViewInfo vi : allViews) {
+                                float midY = vi.top + vi.height / 2f;
+                                if (y < midY) {
+                                    targetIdx = vi.blockIndex;
+                                    break;
+                                }
+                                targetIdx = vi.blockIndex + 1;
+                            }
+                            List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+                            if (targetIdx < 0) targetIdx = blocks.size();
+                            if (targetIdx > blocks.size()) targetIdx = blocks.size();
+                            
+                            String newEventKey;
+                            if (targetIdx <= 0) {
+                                newEventKey = blocks.isEmpty() ? activeEventKey : blocks.get(0).event;
+                            } else {
+                                newEventKey = blocks.get(targetIdx - 1).event;
+                            }
+                            
+                            boolean isCssEvent = newEventKey != null && newEventKey.startsWith("css:");
+                            boolean isCssAction = CAT_CSS.equals(def.category);
+                            if (isCssEvent != isCssAction) {
+                                Toast.makeText(LogicBlockActivity.this, "Cannot mix JS and CSS blocks", Toast.LENGTH_SHORT).show();
+                            } else {
+                                saveUndoState();
+                                LogicBlockManager.LogicBlock block = new LogicBlockManager.LogicBlock();
+                                block.targetWidget = "";
+                                block.targetMode = CAT_LOGIC.equals(def.category) ? "logic"
+                                    : CAT_VARIABLE.equals(def.category) ? "variable" : "id";
+                                block.event = mapEventKey(newEventKey);
+                                block.action = mapActionKey(def.id);
+                                block.params = defaultParamsFor(def);
+                                blocks.add(targetIdx, block);
+                                refreshWorkspace();
+                            }
+                        }
                     } else if (localState instanceof Integer) {
                         int fromIndex = (Integer) localState;
                         float dropY = event.getY();
@@ -646,12 +718,24 @@ public class LogicBlockActivity extends AppCompatActivity {
         if (targetIdx > fromIndex) targetIdx--;
         
         // Inherit event from neighbors
+        String newEventKey;
         if (targetIdx <= 0) {
-            moving.event = blocks.isEmpty() ? activeEventKey : blocks.get(0).event;
+            newEventKey = blocks.isEmpty() ? activeEventKey : blocks.get(0).event;
         } else {
-            moving.event = blocks.get(targetIdx - 1).event;
+            newEventKey = blocks.get(targetIdx - 1).event;
         }
         
+        BlockDef def = findBlockDef(moving.action);
+        boolean isCssEvent = newEventKey != null && newEventKey.startsWith("css:");
+        boolean isCssAction = def != null && CAT_CSS.equals(def.category);
+        
+        if (isCssEvent != isCssAction) {
+            Toast.makeText(this, "Cannot mix JS and CSS blocks", Toast.LENGTH_SHORT).show();
+            blocks.add(fromIndex, moving); // revert
+            return;
+        }
+        
+        moving.event = newEventKey;
         blocks.add(targetIdx, moving);
         refreshWorkspace();
     }
@@ -1120,11 +1204,13 @@ public class LogicBlockActivity extends AppCompatActivity {
         // subsequent CSS rules attach under that pseudo-class group.
         if (CAT_CSS.equals(def.category) && "C".equals(def.shape)) {
             activeEventKey = pseudoEventKey(def.id);
+            addEmptyEventContainer(activeEventKey);
             return;
         }
 
         if (CAT_EVENT.equals(def.category)) {
             activeEventKey = mapEventKey(def.id);
+            addEmptyEventContainer(activeEventKey);
             return;
         }
 
@@ -1598,11 +1684,23 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
         if (tvBlockCount != null) {
-            tvBlockCount.setText(blocks.size() + " block" + (blocks.size() == 1 ? "" : "s"));
+            tvBlockCount.setText(blocks.size() + " block" + (blocks.size() == 1 ? "" : "s") + " total");
         }
-        if (blocks.isEmpty()) {
+        
+        // We'll calculate if any blocks are visible in the current mode inside the loop
+        boolean hasVisibleBlocks = false;
+        for (LogicBlockManager.LogicBlock b : blocks) {
+            String e = b.event != null ? b.event : "immediate";
+            BlockDef d = findBlockDef(b.action);
+            boolean isC = d != null && CAT_CSS.equals(d.category);
+            if (e.startsWith("css:")) isC = true;
+            if (currentMode == 0 && !isC) hasVisibleBlocks = true;
+            if (currentMode == 1 && isC) hasVisibleBlocks = true;
+        }
+
+        if (!hasVisibleBlocks) {
             TextView empty = new TextView(this);
-            empty.setText("Drag a CSS or Logic block here.\nEvents wrap actions.");
+            empty.setText(currentMode == 0 ? "Drag a Logic or Action block here.\nEvents wrap actions." : "Drag a CSS block here.\nCSS blocks style your page.");
             empty.setTextColor(Color.parseColor("#7A8B9C"));
             empty.setTextSize(14);
             empty.setGravity(Gravity.CENTER);
@@ -1615,35 +1713,85 @@ public class LogicBlockActivity extends AppCompatActivity {
         LinearLayout eventGroup = null;
         LinearLayout slot = null;
 
+        int visibleCount = 0;
         for (int i = 0; i < blocks.size(); i++) {
             LogicBlockManager.LogicBlock block = blocks.get(i);
             String ev = block.event != null ? block.event : "immediate";
+
+            BlockDef def = findBlockDef(block.action);
+            boolean isCss = def != null && CAT_CSS.equals(def.category);
+            if (ev.startsWith("css:")) isCss = true;
+            if (currentMode == 0 && isCss) continue;
+            if (currentMode == 1 && !isCss) continue;
+            
+            visibleCount++;
 
             if (!ev.equals(currentEvent)) {
                 currentEvent = ev;
                 eventGroup = new LinearLayout(this);
                 eventGroup.setOrientation(LinearLayout.VERTICAL);
-                eventGroup.setBackground(getBlockBackground("C", false));
-                eventGroup.setPadding(dp(14), dp(10), dp(12), dp(12));
+                eventGroup.setBackground(getBlockBackground("C", false, COLOR_EVENT));
+                // Do not explicitly set padding. The NinePatchDrawable will handle it.
+                // If it's not a NinePatch, the user's PNG shouldn't have arbitrary padding forced.
                 
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 lp.setMargins(dp(4), dp(8), dp(4), dp(8));
                 eventGroup.setLayoutParams(lp);
 
+                LinearLayout headerRow = new LinearLayout(this);
+                headerRow.setOrientation(LinearLayout.HORIZONTAL);
+                headerRow.setGravity(Gravity.CENTER_VERTICAL);
+                
                 TextView header = new TextView(this);
                 header.setText(LogicBlockManager.getEventDisplayName(ev));
                 header.setTextColor(Color.WHITE);
                 header.setTypeface(null, Typeface.BOLD);
                 header.setTextSize(13);
-                header.setPadding(0, 0, 0, dp(4));
-                eventGroup.addView(header);
+                header.setPadding(dp(12), dp(6), dp(8), dp(6));
+                headerRow.addView(header);
 
-                // Make the event group draggable via its header
+                if (ev.startsWith("css:")) {
+                    LogicBlockManager.LogicBlock containerBlock = null;
+                    for (LogicBlockManager.LogicBlock b : blocks) {
+                        if ("event_container".equals(b.action) && ev.equals(b.event)) {
+                            containerBlock = b;
+                            break;
+                        }
+                    }
+                    if (containerBlock != null) {
+                        String modePrefix = "id".equals(containerBlock.targetMode) ? "#"
+                            : "class".equals(containerBlock.targetMode) ? "." : "";
+                        String targetText = modePrefix + containerBlock.targetWidget;
+                        TextView targetChip = createTargetChip(
+                            (targetText.isEmpty() ? "select element" : targetText) + " \u25BC",
+                            Color.parseColor("#3D5AFE"));
+                        final LogicBlockManager.LogicBlock finalContainer = containerBlock;
+                        targetChip.setOnClickListener(v -> showTargetPickerDialog(
+                            finalContainer.targetMode, finalContainer.targetWidget,
+                            (mode, value) -> {
+                                saveUndoState();
+                                finalContainer.targetMode = mode;
+                                finalContainer.targetWidget = value;
+                                for (LogicBlockManager.LogicBlock b : logicBlockManager.getBlocks()) {
+                                    if (ev.equals(b.event)) {
+                                        b.targetMode = mode;
+                                        b.targetWidget = value;
+                                    }
+                                }
+                                refreshWorkspace();
+                            }));
+                        headerRow.addView(targetChip);
+                    }
+                }
+                
+                eventGroup.addView(headerRow);
+
+                // Make the event group draggable via its headerRow
                 final String finalEv = ev;
                 final LinearLayout finalGroup = eventGroup;
-                header.setOnLongClickListener(v -> {
-                    finalGroup.setBackground(getBlockBackground("C", true));
+                headerRow.setOnLongClickListener(v -> {
+                    finalGroup.setBackground(getBlockBackground("C", true, COLOR_EVENT));
                     // Hide inputs in the whole group
                     setBlockChildrenVisible(finalGroup, false);
                     
@@ -1656,7 +1804,7 @@ public class LogicBlockActivity extends AppCompatActivity {
 
                 eventGroup.setOnDragListener((v, dragEvent) -> {
                     if (dragEvent.getAction() == DragEvent.ACTION_DRAG_ENDED) {
-                        finalGroup.setBackground(getBlockBackground("C", false));
+                        finalGroup.setBackground(getBlockBackground("C", false, COLOR_EVENT));
                         setBlockChildrenVisible(finalGroup, true);
                     }
                     return false;
@@ -1664,10 +1812,18 @@ public class LogicBlockActivity extends AppCompatActivity {
 
                 slot = new LinearLayout(this);
                 slot.setOrientation(LinearLayout.VERTICAL);
-                slot.setPadding(dp(12), dp(4), 0, 0);
+                LinearLayout.LayoutParams slotLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                slotLp.setMargins(dp(16), dp(4), 0, 0);
+                slot.setLayoutParams(slotLp);
                 eventGroup.addView(slot);
 
                 blockWorkspace.addView(eventGroup);
+            }
+
+            if ("event_container".equals(block.action)) {
+                // Empty container marker, do not render an action block
+                continue;
             }
 
             View blockView = createWorkspacePuzzleBlock(block, i);
@@ -1676,12 +1832,31 @@ public class LogicBlockActivity extends AppCompatActivity {
         }
     }
 
+    private void addEmptyEventContainer(String eventKey) {
+        saveUndoState();
+        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
+        if (!blocks.isEmpty()) {
+            LogicBlockManager.LogicBlock last = blocks.get(blocks.size() - 1);
+            if ("event_container".equals(last.action) && eventKey.equals(last.event)) {
+                return; // Already have an empty container for this event
+            }
+        }
+        LogicBlockManager.LogicBlock container = new LogicBlockManager.LogicBlock();
+        container.targetWidget = "";
+        container.targetMode = "id";
+        container.action = "event_container";
+        container.event = eventKey;
+        container.params = "";
+        logicBlockManager.addBlock(container);
+        refreshWorkspace();
+    }
+
     private LinearLayout createEventSlot(String eventKey) {
         // This is used for nested drops - updating it to match the new C-shape style
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.VERTICAL);
-        wrapper.setBackground(getBlockBackground("C", false));
-        wrapper.setPadding(dp(14), dp(10), dp(12), dp(12));
+        wrapper.setBackground(getBlockBackground("C", false, COLOR_EVENT));
+        // Removed explicit padding here as well for consistency
 
         LinearLayout inner = new LinearLayout(this);
         inner.setOrientation(LinearLayout.VERTICAL);
@@ -1725,6 +1900,13 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private void addBlockToEvent(BlockDef actionDef, String eventKey) {
+        boolean isCssEvent = eventKey != null && eventKey.startsWith("css:");
+        boolean isCssAction = CAT_CSS.equals(actionDef.category);
+        if (isCssEvent != isCssAction) {
+            Toast.makeText(this, "Cannot mix JS and CSS blocks", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         // No more dialog cascade — drop the action straight in with default
         // params under the chosen event. User edits chips inline in the
         // workspace.
@@ -1745,6 +1927,15 @@ public class LogicBlockActivity extends AppCompatActivity {
         List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
         if (fromIndex >= 0 && fromIndex < blocks.size()) {
             LogicBlockManager.LogicBlock block = blocks.get(fromIndex);
+            
+            BlockDef def = findBlockDef(block.action);
+            boolean isCssEvent = eventKey != null && eventKey.startsWith("css:");
+            boolean isCssAction = def != null && CAT_CSS.equals(def.category);
+            if (isCssEvent != isCssAction) {
+                Toast.makeText(this, "Cannot mix JS and CSS blocks", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             block.event = mapEventKey(eventKey);
 
             // Move it to be adjacent to other blocks of this event if possible
@@ -1776,6 +1967,15 @@ public class LogicBlockActivity extends AppCompatActivity {
      * Each block stacks immediately below the previous one with no margin
      * so the chain looks connected.
      */
+    private void setBackgroundRetainingPadding(View v, android.graphics.drawable.Drawable d) {
+        int pL = v.getPaddingLeft();
+        int pT = v.getPaddingTop();
+        int pR = v.getPaddingRight();
+        int pB = v.getPaddingBottom();
+        v.setBackground(d);
+        v.setPadding(pL, pT, pR, pB);
+    }
+
     private View createWorkspacePuzzleBlock(LogicBlockManager.LogicBlock block, int index) {
         // Defensive: render even when a block was loaded from a malformed file.
         if (block.targetMode == null) block.targetMode = LogicBlockManager.TARGET_MODE_ID;
@@ -1798,12 +1998,12 @@ public class LogicBlockActivity extends AppCompatActivity {
         row.setPadding(dp(10), dp(7), dp(10), dp(9));
         row.setBaselineAligned(false);
 
-        row.setBackground(getBlockBackground(shape, false));
-        row.setElevation(2);
+        setBackgroundRetainingPadding(row, getBlockBackground(shape, false, baseColor));
 
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rowParams.setMargins(0, dp(2), 0, dp(2));
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        // Zero margins for a connected "attached" effect like Sketchware blocks
+        rowParams.setMargins(0, 0, 0, 0);
         row.setLayoutParams(rowParams);
 
         if (CAT_LOGIC.equals(category) || CAT_VARIABLE.equals(category)) {
@@ -1817,36 +2017,43 @@ public class LogicBlockActivity extends AppCompatActivity {
                 String trimmed = parts[p].trim();
                 if (trimmed.isEmpty()) continue;
                 final int paramIdx = p;
-                TextView chip = createValueChip(trimmed);
+                TextView chip = createValueChip(trimmed + " \u25BC");
                 chip.setOnClickListener(v -> editParamPart(index, paramIdx));
                 row.addView(chip);
             }
 
-            // If this is an if-else logic block, render a second slot ("else")
-            // below it to give the block its E-shape silhouette. This is
-            // visual only - the params already encode the else branch.
             if ("ifElseBlock".equals(block.action)) {
                 LinearLayout column = new LinearLayout(this);
                 column.setOrientation(LinearLayout.VERTICAL);
                 column.setLayoutParams(new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                
+                android.graphics.drawable.Drawable eBg = androidx.core.content.ContextCompat.getDrawable(this, sketchweb.gl.R.drawable.if_else);
+                if (eBg != null) {
+                    eBg = androidx.core.graphics.drawable.DrawableCompat.wrap(eBg).mutate();
+                    eBg.setColorFilter(new android.graphics.PorterDuffColorFilter(baseColor, android.graphics.PorterDuff.Mode.MULTIPLY));
+                    setBackgroundRetainingPadding(column, eBg);
+                }
+                
+                setBackgroundRetainingPadding(row, null);
+                row.setPadding(dp(10), dp(4), dp(10), dp(4));
                 column.addView(row);
+
+                android.widget.Space gap1 = new android.widget.Space(this);
+                gap1.setLayoutParams(new LinearLayout.LayoutParams(dp(80), dp(24)));
+                column.addView(gap1);
 
                 TextView elseTab = new TextView(this);
                 elseTab.setText("else");
                 elseTab.setTextColor(Color.WHITE);
-                elseTab.setTextSize(11);
+                elseTab.setTextSize(12);
                 elseTab.setTypeface(null, Typeface.BOLD);
-                elseTab.setPadding(dp(12), dp(4), dp(12), dp(4));
-                GradientDrawable elseBg = new GradientDrawable();
-                elseBg.setCornerRadii(new float[]{0, 0, dp(6), dp(6), dp(6), dp(6), 0, 0});
-                elseBg.setColor(darken(COLOR_LOGIC));
-                elseTab.setBackground(elseBg);
-                LinearLayout.LayoutParams tabLp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                tabLp.setMargins(dp(20), dp(2), 0, dp(2));
-                elseTab.setLayoutParams(tabLp);
+                elseTab.setPadding(dp(12), dp(2), 0, dp(2));
                 column.addView(elseTab);
+
+                android.widget.Space gap2 = new android.widget.Space(this);
+                gap2.setLayoutParams(new LinearLayout.LayoutParams(dp(80), dp(24)));
+                column.addView(gap2);
 
                 return column;
             }
@@ -1857,7 +2064,7 @@ public class LogicBlockActivity extends AppCompatActivity {
             String targetText = modePrefix + block.targetWidget;
             // Target chip is EDITABLE - tap opens id/class/tag picker.
             TextView targetChip = createTargetChip(
-                targetText.isEmpty() ? "page" : targetText,
+                (targetText.isEmpty() ? "page" : targetText) + " \u25BC",
                 Color.parseColor("#3D5AFE"));
             targetChip.setOnClickListener(v -> showTargetPickerDialog(
                 block.targetMode, block.targetWidget,
@@ -1886,7 +2093,7 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         // Long press = Start Drag for reordering
         row.setOnLongClickListener(v -> {
-            row.setBackground(getBlockBackground(shape, true));
+            setBackgroundRetainingPadding(row, getBlockBackground(shape, true, baseColor));
             setBlockChildrenVisible(row, false);
             
             ClipData.Item item = new ClipData.Item("reorder|" + index);
@@ -1899,7 +2106,7 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         row.setOnDragListener((v, event) -> {
             if (event.getAction() == DragEvent.ACTION_DRAG_ENDED) {
-                row.setBackground(getBlockBackground(shape, false));
+                setBackgroundRetainingPadding(row, getBlockBackground(shape, false, baseColor));
                 setBlockChildrenVisible(row, true);
             }
             return false;
@@ -2032,14 +2239,24 @@ public class LogicBlockActivity extends AppCompatActivity {
     private TextView createValueChip(String text) {
         TextView chip = new TextView(this);
         chip.setText(text);
-        chip.setTextColor(Color.parseColor("#0D47A1"));
+        chip.setTextColor(Color.parseColor("#424242"));
         chip.setTextSize(12);
-        chip.setPadding(dp(8), dp(4), dp(8), dp(4));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(dp(4));
-        bg.setColor(Color.WHITE);
-        bg.setStroke(dp(1), Color.parseColor("#33000000"));
-        chip.setBackground(bg);
+        chip.setPadding(dp(12), dp(4), dp(12), dp(4));
+        
+        int resId = sketchweb.gl.R.drawable.block_string;
+        if ("true".equals(text) || "false".equals(text)) {
+            resId = sketchweb.gl.R.drawable.block_boolean;
+        } else if (text.matches("-?\\d+(\\.\\d+)?")) {
+            resId = sketchweb.gl.R.drawable.block_num;
+        }
+
+        android.graphics.drawable.Drawable bg = androidx.core.content.ContextCompat.getDrawable(this, resId);
+        if (bg != null) {
+            bg = androidx.core.graphics.drawable.DrawableCompat.wrap(bg).mutate();
+            bg.setColorFilter(new android.graphics.PorterDuffColorFilter(Color.WHITE, android.graphics.PorterDuff.Mode.MULTIPLY));
+            chip.setBackground(bg);
+        }
+
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         p.setMargins(0, 0, dp(6), 0);
@@ -2778,28 +2995,43 @@ public class LogicBlockActivity extends AppCompatActivity {
 
     // ---- Block Definition ----
 
-    private android.graphics.drawable.Drawable getBlockBackground(String shape, boolean selected) {
-        String name;
-        if ("C".equals(shape)) {
-            name = selected ? "selected_block_loop.png" : "loop.png";
-        } else if ("E".equals(shape)) {
-            name = selected ? "selected_block_ifelse.png" : "ifelse.png";
-        } else {
-            name = selected ? "selected_block_command.png" : "command.png";
+    private android.graphics.drawable.Drawable getBlockBackground(String shape, boolean selected, int color) {
+        android.graphics.drawable.Drawable d = getBlockDrawable(shape);
+        if (d != null) {
+            d = androidx.core.graphics.drawable.DrawableCompat.wrap(d).mutate();
+            if (selected) {
+                d.setColorFilter(new android.graphics.PorterDuffColorFilter(darken(color), android.graphics.PorterDuff.Mode.MULTIPLY));
+            } else {
+                d.setColorFilter(new android.graphics.PorterDuffColorFilter(color, android.graphics.PorterDuff.Mode.MULTIPLY));
+            }
         }
-        return getBlockDrawable(name);
+        return d;
     }
 
-    private android.graphics.drawable.Drawable getBlockDrawable(String name) {
-        try {
-            java.io.InputStream is = getAssets().open("blocks_bg/" + name);
-            // Sketchware blocks are often 9-patches. Drawable.createFromStream 
-            // handles them if they are compiled, but for assets we might 
-            // need to be careful. However, usually they are just PNGs.
-            return android.graphics.drawable.Drawable.createFromStream(is, null);
-        } catch (Exception e) {
-            return null;
+    private android.graphics.drawable.Drawable getBlockDrawable(String shape) {
+        int resId;
+        if ("E".equals(shape)) {
+            resId = sketchweb.gl.R.drawable.if_else;
+        } else if ("C".equals(shape)) {
+            resId = sketchweb.gl.R.drawable.loop;
+        } else {
+            resId = sketchweb.gl.R.drawable.block_ori;
         }
+        
+        android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeResource(getResources(), resId);
+        if (bitmap == null) {
+            return androidx.core.content.ContextCompat.getDrawable(this, resId);
+        }
+        
+        byte[] chunk = bitmap.getNinePatchChunk();
+        if (chunk != null && android.graphics.NinePatch.isNinePatchChunk(chunk)) {
+            // The file is a valid 9-patch compiled by AAPT, but native 9-patch
+            // stretches C and E shapes symmetrically, crushing the 'else' bar.
+            // We use our custom Sketchware slicer to enforce strict vertical zones.
+            return new BlockNineSliceDrawable(bitmap, shape);
+        }
+        
+        return new BlockNineSliceDrawable(bitmap, shape);
     }
 
     static class BlockDef {
@@ -2816,5 +3048,105 @@ public class LogicBlockActivity extends AppCompatActivity {
             this.description = description;
             this.category = category;
         }
+    }
+
+    private class BlockNineSliceDrawable extends android.graphics.drawable.Drawable {
+        private android.graphics.Bitmap bitmap;
+        private android.graphics.Paint paint;
+        private android.graphics.Rect src = new android.graphics.Rect();
+        private android.graphics.Rect dst = new android.graphics.Rect();
+        private int leftPadding, topPadding, rightPadding, bottomPadding;
+        private int srcX1, srcX2, srcY1, srcY2;
+
+        public BlockNineSliceDrawable(android.graphics.Bitmap bitmap, String shape) {
+            this.bitmap = bitmap;
+            this.paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG | android.graphics.Paint.FILTER_BITMAP_FLAG);
+            
+            int w = bitmap.getWidth();
+            int h = bitmap.getHeight();
+
+            // Sketchware logic: stretch horizontally right in the middle
+            srcX1 = (int) (w * 0.45f);
+            srcX2 = srcX1 + 1;
+
+            if ("C".equals(shape)) {
+                // Stretch at 35% height to safely stretch the spine without distorting headers
+                srcY1 = (int) (h * 0.35f);
+                srcY2 = srcY1 + 1;
+                
+                topPadding = dp(12);
+                bottomPadding = dp(20);
+                leftPadding = dp(16);
+                rightPadding = dp(4);
+            } else if ("E".equals(shape)) {
+                // E-shape must stretch ABOVE the 'else' bar. The 'else' bar and footer remain fixed.
+                srcY1 = (int) (h * 0.25f);
+                srcY2 = srcY1 + 1;
+                
+                topPadding = dp(12);
+                bottomPadding = dp(40); // Massive bottom padding to cover else bar + footer
+                leftPadding = dp(16);
+                rightPadding = dp(4);
+            } else {
+                // Standard action blocks stretch in the middle
+                srcY1 = (int) (h * 0.5f);
+                srcY2 = srcY1 + 1;
+                
+                topPadding = dp(6);
+                bottomPadding = dp(6);
+                leftPadding = dp(8);
+                rightPadding = dp(4);
+            }
+        }
+
+        @Override
+        public boolean getPadding(android.graphics.Rect padding) {
+            padding.set(leftPadding, topPadding, rightPadding, bottomPadding);
+            return true;
+        }
+
+        @Override
+        public void draw(android.graphics.Canvas canvas) {
+            android.graphics.Rect bounds = getBounds();
+            int w = bitmap.getWidth();
+            int h = bitmap.getHeight();
+
+            int dstX1 = bounds.left + srcX1;
+            int dstX2 = bounds.right - (w - srcX2);
+            if (dstX2 < dstX1) {
+                int mid = (dstX1 + dstX2) / 2;
+                dstX1 = mid; dstX2 = mid;
+            }
+
+            int dstY1 = bounds.top + srcY1;
+            int dstY2 = bounds.bottom - (h - srcY2);
+            if (dstY2 < dstY1) {
+                int mid = (dstY1 + dstY2) / 2;
+                dstY1 = mid; dstY2 = mid;
+            }
+
+            int[] sX = {0, srcX1, srcX2, w};
+            int[] sY = {0, srcY1, srcY2, h};
+            int[] dX = {bounds.left, dstX1, dstX2, bounds.right};
+            int[] dY = {bounds.top, dstY1, dstY2, bounds.bottom};
+
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if (sX[i] == sX[i+1] || sY[j] == sY[j+1]) continue;
+                    src.set(sX[i], sY[j], sX[i+1], sY[j+1]);
+                    dst.set(dX[i], dY[j], dX[i+1], dY[j+1]);
+                    canvas.drawBitmap(bitmap, src, dst, paint);
+                }
+            }
+        }
+
+        @Override
+        public void setAlpha(int alpha) { paint.setAlpha(alpha); }
+
+        @Override
+        public void setColorFilter(android.graphics.ColorFilter colorFilter) { paint.setColorFilter(colorFilter); }
+
+        @Override
+        public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
     }
 }

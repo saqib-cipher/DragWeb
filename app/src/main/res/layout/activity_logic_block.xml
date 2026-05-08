@@ -28,6 +28,25 @@
             app:navigationIconTint="?attr/colorOnSurface"
             app:menu="@menu/menu_logic_block" />
 
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayoutMode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/colorSurfaceContainerHigh"
+            app:tabIndicatorAnimationMode="elastic"
+            app:tabSelectedTextColor="?attr/colorPrimary"
+            app:tabTextColor="?attr/colorOnSurfaceVariant"
+            app:tabIndicatorColor="?attr/colorPrimary">
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="JavaScript" />
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CSS" />
+        </com.google.android.material.tabs.TabLayout>
+
         <!-- ===== Block count / quick-actions strip ===== -->
         <LinearLayout
             android:layout_width="match_parent"
