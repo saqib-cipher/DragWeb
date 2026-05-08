@@ -38,6 +38,8 @@ public class LogicBlockManager {
     public static final String EVENT_KEYDOWN = "keydown";
     public static final String EVENT_CHANGE = "change";
 
+    public String category; // Used for UI grouping
+
     // CSS pseudo-class events (generate pure CSS rules, no JavaScript)
     public static final String EVENT_CSS_HOVER   = "css:hover";
     public static final String EVENT_CSS_FOCUS   = "css:focus";
@@ -107,6 +109,7 @@ public class LogicBlockManager {
         }
     }
 
+
     public List<LogicBlock> getBlocks() {
         return blocks;
     }
@@ -147,250 +150,6 @@ public class LogicBlockManager {
         return count;
     }
 
-    public void showAddBlockDialog(String targetWidgetTag, OnBlockAddedListener listener) {
-        showAddBlockDialog(targetWidgetTag, TARGET_MODE_ID, listener);
-    }
-
-    public void showAddBlockDialog(String targetWidgetTag, String targetMode, OnBlockAddedListener listener) {
-        // Note: onClick/onHover removed – interactions are handled via CSS pseudo-class blocks
-        String[] events = {
-            "On Input", "On Submit", "On Scroll", "On Key Down", "On Change",
-            "CSS :hover (style)", "CSS :focus (style)", "CSS :active (style)", "CSS :visited (style)"
-        };
-        String[] eventKeys = {
-            EVENT_INPUT, EVENT_SUBMIT, EVENT_SCROLL, EVENT_KEYDOWN, EVENT_CHANGE,
-            EVENT_CSS_HOVER, EVENT_CSS_FOCUS, EVENT_CSS_ACTIVE, EVENT_CSS_VISITED
-        };
-
-        String modeLabel = TARGET_MODE_CLASS.equals(targetMode) ? "." :
-                           TARGET_MODE_TAG.equals(targetMode) ? "" : "#";
-
-        new MaterialAlertDialogBuilder(context)
-            .setTitle("Select Event for " + modeLabel + targetWidgetTag)
-            .setItems(events, (dialog, which) -> {
-                String selectedEvent = eventKeys[which];
-                showActionDialog(targetWidgetTag, targetMode, selectedEvent, listener);
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
-    }
-
-    private void showActionDialog(String targetWidgetTag, String targetMode, String event, OnBlockAddedListener listener) {
-        String[] actions = {
-            "Change Style", "Animate", "Navigate To URL",
-            "Go To Page", "Open Page (New Tab)",
-            "Show/Hide Element", "Set Text", "Set HTML", "Add CSS Class",
-            "Remove CSS Class", "Toggle CSS Class", "Show Alert",
-            "Console Log", "Set Attribute", "Remove Attribute",
-            "Set Input Value", "Append Child HTML", "Prepend Child HTML",
-            "Create Element", "Remove Element",
-            "Custom JavaScript", "Fetch API", "LocalStorage Set/Get",
-            "Scroll To", "Copy to Clipboard", "Delay Then Run",
-            "Set Href"
-        };
-        String[] actionKeys = {
-            ACTION_CHANGE_STYLE, ACTION_ANIMATE, ACTION_NAVIGATE,
-            ACTION_GO_TO_PAGE, ACTION_OPEN_PAGE,
-            ACTION_SHOW_HIDE, ACTION_SET_TEXT, ACTION_SET_HTML, ACTION_ADD_CLASS,
-            ACTION_REMOVE_CLASS, ACTION_TOGGLE_CLASS, ACTION_ALERT,
-            ACTION_CONSOLE_LOG, ACTION_SET_ATTRIBUTE, ACTION_REMOVE_ATTRIBUTE,
-            ACTION_SET_VALUE, ACTION_APPEND_CHILD, ACTION_PREPEND_CHILD,
-            ACTION_CREATE_ELEMENT, ACTION_REMOVE_ELEMENT,
-            ACTION_CUSTOM_JS, ACTION_FETCH_API, ACTION_LOCAL_STORAGE,
-            ACTION_SCROLL_TO, ACTION_COPY_CLIPBOARD, ACTION_DELAY,
-            ACTION_SET_HREF
-        };
-
-        new MaterialAlertDialogBuilder(context)
-            .setTitle("Select Action")
-            .setItems(actions, (dialog, which) -> {
-                String selectedAction = actionKeys[which];
-                showActionParamsDialog(targetWidgetTag, targetMode, event, selectedAction, listener);
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
-    }
-
-    private void showActionParamsDialog(String targetWidgetTag, String targetMode, String event, String action, OnBlockAddedListener listener) {
-        android.widget.EditText input = new android.widget.EditText(context);
-        input.setPadding(48, 32, 48, 32);
-
-        String hint = getHintForAction(action);
-        input.setHint(hint);
-
-        new MaterialAlertDialogBuilder(context)
-            .setTitle("Action Parameters")
-            .setView(input)
-            .setPositiveButton("Add", (dialog, which) -> {
-                String value = input.getText().toString().trim();
-                LogicBlock block = new LogicBlock();
-                block.targetWidget = targetWidgetTag;
-                block.targetMode = targetMode;
-                block.event = event;
-                block.action = action;
-                block.params = value;
-                blocks.add(block);
-                if (listener != null) {
-                    listener.onBlockAdded(block);
-                }
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
-    }
-
-    private String getHintForAction(String action) {
-        switch (action) {
-            case ACTION_CHANGE_STYLE: return "property:value (e.g. color:red)";
-            case ACTION_ANIMATE: return "animation name (e.g. fadeIn, slideUp, pulse)";
-            case ACTION_NAVIGATE: return "URL (e.g. https://example.com)";
-            case ACTION_GO_TO_PAGE: return "Page name (e.g. about, contact)";
-            case ACTION_OPEN_PAGE: return "Page name to open in new tab";
-            case ACTION_SHOW_HIDE: return "toggle, show, or hide";
-            case ACTION_SET_TEXT: return "New text content";
-            case ACTION_ADD_CLASS: return "CSS class name to add";
-            case ACTION_REMOVE_CLASS: return "CSS class name to remove";
-            case ACTION_TOGGLE_CLASS: return "CSS class name to toggle";
-            case ACTION_ALERT: return "Alert message";
-            case ACTION_CONSOLE_LOG: return "Message to log";
-            case ACTION_SET_ATTRIBUTE: return "attr:value (e.g. disabled:true)";
-            case ACTION_REMOVE_ATTRIBUTE: return "Attribute name (e.g. disabled)";
-            case ACTION_SET_VALUE: return "New input value";
-            case ACTION_SET_HTML: return "HTML content (e.g. <p>Hello</p>)";
-            case ACTION_APPEND_CHILD: return "HTML to append (e.g. <p>Hello</p>)";
-            case ACTION_PREPEND_CHILD: return "HTML to prepend (e.g. <p>First</p>)";
-            case ACTION_CREATE_ELEMENT: return "tag|content (e.g. p|Hello World)";
-            case ACTION_REMOVE_ELEMENT: return "Selector to remove (or 'self')";
-            case ACTION_CUSTOM_JS: return "JavaScript code";
-            case ACTION_FETCH_API: return "URL|method|body (e.g. /api/data|GET|)";
-            case ACTION_LOCAL_STORAGE: return "set:key:value or get:key";
-            case ACTION_SCROLL_TO: return "top, bottom, or selector";
-            case ACTION_COPY_CLIPBOARD: return "Text to copy (or 'self' for element text)";
-            case ACTION_DELAY: return "ms|action (e.g. 1000|alert:Done!)";
-            case ACTION_SET_HREF: return "URL or #section-id";
-            case ACTION_SET_TRANSFORM: return "CSS transform (e.g. rotate(45deg))";
-            case ACTION_SET_TRANSITION: return "CSS transition (e.g. all 0.3s ease)";
-            default: return "Parameters";
-        }
-    }
-
-    public void showBlocksDialog() {
-        if (blocks.isEmpty()) {
-            new MaterialAlertDialogBuilder(context)
-                .setTitle("Logic Blocks")
-                .setMessage("No logic blocks added yet.\nSelect an event from the Event tab to add blocks.")
-                .setPositiveButton("OK", null)
-                .show();
-            return;
-        }
-
-        ScrollView scrollView = new ScrollView(context);
-        LinearLayout container = new LinearLayout(context);
-        container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding(24, 16, 24, 16);
-        scrollView.addView(container);
-
-        // Group blocks by event
-        Map<String, List<Integer>> groupedBlocks = new HashMap<>();
-        for (int i = 0; i < blocks.size(); i++) {
-            LogicBlock block = blocks.get(i);
-            String key = block.event != null ? block.event : "immediate";
-            if (!groupedBlocks.containsKey(key)) {
-                groupedBlocks.put(key, new ArrayList<>());
-            }
-            groupedBlocks.get(key).add(i);
-        }
-
-        for (Map.Entry<String, List<Integer>> entry : groupedBlocks.entrySet()) {
-            TextView eventHeader = new TextView(context);
-            eventHeader.setText(getEventDisplayName(entry.getKey()));
-            eventHeader.setTextColor(Color.parseColor("#FF9800"));
-            eventHeader.setTextSize(13);
-            eventHeader.setTypeface(null, Typeface.BOLD);
-            eventHeader.setPadding(0, 12, 0, 6);
-            container.addView(eventHeader);
-
-            for (int index : entry.getValue()) {
-                LogicBlock block = blocks.get(index);
-                final int blockIndex = index;
-
-                LinearLayout blockView = new LinearLayout(context);
-                blockView.setOrientation(LinearLayout.VERTICAL);
-                blockView.setPadding(16, 10, 16, 10);
-
-                GradientDrawable blockBg = new GradientDrawable();
-                blockBg.setCornerRadius(12);
-                blockBg.setColor(Color.parseColor("#1E2030"));
-                blockBg.setStroke(1, Color.parseColor("#333355"));
-                blockView.setBackground(blockBg);
-
-                LinearLayout.LayoutParams blockParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                blockParams.setMargins(0, 3, 0, 3);
-                blockView.setLayoutParams(blockParams);
-
-                // Target info
-                if (block.targetWidget != null && !block.targetWidget.isEmpty()) {
-                    LinearLayout targetRow = new LinearLayout(context);
-                    targetRow.setOrientation(LinearLayout.HORIZONTAL);
-
-                    TextView targetLabel = new TextView(context);
-                    targetLabel.setText("TARGET ");
-                    targetLabel.setTextColor(Color.parseColor("#9C27B0"));
-                    targetLabel.setTextSize(11);
-                    targetLabel.setTypeface(null, Typeface.BOLD);
-                    targetRow.addView(targetLabel);
-
-                    String modePrefix = "id".equals(block.targetMode) ? "#" :
-                        "class".equals(block.targetMode) ? "." : "";
-                    TextView targetValue = new TextView(context);
-                    targetValue.setText(modePrefix + block.targetWidget);
-                    targetValue.setTextColor(Color.parseColor("#CE93D8"));
-                    targetValue.setTextSize(11);
-                    targetRow.addView(targetValue);
-                    blockView.addView(targetRow);
-                }
-
-                // Action label
-                LinearLayout actionRow = new LinearLayout(context);
-                actionRow.setOrientation(LinearLayout.HORIZONTAL);
-
-                TextView doLabel = new TextView(context);
-                doLabel.setText("DO ");
-                doLabel.setTextColor(Color.parseColor("#4CAF50"));
-                doLabel.setTextSize(11);
-                doLabel.setTypeface(null, Typeface.BOLD);
-                actionRow.addView(doLabel);
-
-                TextView actionLabel = new TextView(context);
-                actionLabel.setText(block.action + "(" + block.params + ")");
-                actionLabel.setTextColor(Color.parseColor("#81C784"));
-                actionLabel.setTextSize(11);
-                actionRow.addView(actionLabel);
-                blockView.addView(actionRow);
-
-                blockView.setOnLongClickListener(v -> {
-                    new MaterialAlertDialogBuilder(context)
-                        .setTitle("Delete Block?")
-                        .setMessage("Remove this logic block?")
-                        .setPositiveButton("Delete", (d, w) -> {
-                            removeBlock(blockIndex);
-                            showBlocksDialog();
-                        })
-                        .setNegativeButton("Cancel", null)
-                        .show();
-                    return true;
-                });
-
-                container.addView(blockView);
-            }
-        }
-
-        new MaterialAlertDialogBuilder(context)
-            .setTitle("Logic Blocks (" + blocks.size() + ")")
-            .setView(scrollView)
-            .setPositiveButton("Close", null)
-            .show();
-    }
 
     /**
      * Get display name for an event type.
@@ -1036,11 +795,21 @@ public class LogicBlockManager {
     }
 
     public static class LogicBlock {
+        public String category;
         public String targetWidget;
         public String targetMode = TARGET_MODE_ID; // "id", "class", or "tag"
         public String event;
         public String action;
         public String params;
+        public String shape;
+        public float x;
+        public float y;
+        public String spec; // Advanced rendering template (e.g., "set %m.view to %s")
+        public String nextBlockId; // ID of the block attached below
+        public String parentBlockId; // ID of the block it's attached to
+        public String subStackId;  // ID of the first block inside a C-shape
+        public String id; // Unique ID for referencing
+        public List<String> paramValues = new ArrayList<>(); // Values for tokens in spec
     }
 
     public interface OnBlockAddedListener {

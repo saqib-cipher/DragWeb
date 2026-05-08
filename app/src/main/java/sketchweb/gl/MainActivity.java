@@ -69,7 +69,6 @@ public class MainActivity extends AppCompatActivity {
 	private WidgetRegistry widgetRegistry;
 	private LogicBlockManager logicBlockManager;
 	private CustomBlockManager customBlockManager;
-	private BlockDragDropManager blockDragDropManager;
 	private HierarchyTreeAdapter hierarchyAdapter;
 	private PageManager pageManager;
 	private ActivityResultLauncher<Intent> logicBlockLauncher;
@@ -438,7 +437,6 @@ public class MainActivity extends AppCompatActivity {
 			logicBlockLauncher.launch(intent);
 		});
 
-		btnViewAllBlocks.setOnClickListener(v -> logicBlockManager.showBlocksDialog());
 
 		setupTabLayout();
 		setupWidgetCategoryChips();
@@ -458,10 +456,6 @@ public class MainActivity extends AppCompatActivity {
 		exportManager = new ExportManager(this, themeManager);
 		logicBlockManager = new LogicBlockManager(this);
 		customBlockManager = new CustomBlockManager(this);
-		blockDragDropManager = new BlockDragDropManager(this, logicBlockManager);
-		blockDragDropManager.setOnBlocksChangedListener(() -> {
-			// Blocks changed via drag-drop, workspace is already refreshed internally
-		});
 		pageManager = new PageManager(this, projectId);
 
 		// Load logic blocks for the initial page
@@ -483,7 +477,6 @@ public class MainActivity extends AppCompatActivity {
 		// Set up block editor in event panel
 		if (blockEditorContainer != null) {
 			blockEditorContainer.removeAllViews();
-			blockEditorContainer.addView(blockDragDropManager.buildBlockEditorView());
 		}
 
 		// Undo/Redo
@@ -578,65 +571,6 @@ public class MainActivity extends AppCompatActivity {
 
 	// ---- Add Logic Block with target selector ----
 
-	private void showAddLogicBlockDialog() {
-		String[] targetModes = {"By ID", "By Class", "By Tag"};
-		new MaterialAlertDialogBuilder(this)
-			.setTitle("Select Target Mode")
-			.setItems(targetModes, (dialog, which) -> {
-				String mode;
-				String hint;
-				switch (which) {
-					case 0: mode = "id"; hint = "Element ID (e.g. myButton)"; break;
-					case 1: mode = "class"; hint = "CSS class (e.g. btn-primary)"; break;
-					default: mode = "tag"; hint = "HTML tag (e.g. button)"; break;
-				}
-				showTargetInputDialog(mode, hint);
-			})
-			.setNegativeButton("Cancel", null)
-			.show();
-	}
-
-	private void showTargetInputDialog(String mode, String hint) {
-		// Pre-fill with selected widget info if available
-		String defaultValue = "";
-		View selected = selector.getSelectedView();
-		if (selected != null) {
-			Object tagObj = selected.getTag();
-			if (tagObj instanceof Map) {
-				Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
-				Map<String, Object> fn = (Map<String, Object>) widgetMap.get("function");
-				if ("id".equals(mode) && fn != null && fn.containsKey("id")) {
-					defaultValue = fn.get("id").toString();
-				} else if ("class".equals(mode) && fn != null && fn.containsKey("class")) {
-					defaultValue = fn.get("class").toString();
-				} else if ("tag".equals(mode) && widgetMap.containsKey("tag")) {
-					defaultValue = widgetMap.get("tag").toString();
-				}
-			}
-		}
-
-		android.widget.EditText input = new android.widget.EditText(this);
-		input.setHint(hint);
-		input.setText(defaultValue);
-		input.setPadding(48, 32, 48, 32);
-
-		new MaterialAlertDialogBuilder(this)
-			.setTitle("Enter Target (" + mode + ")")
-			.setView(input)
-			.setPositiveButton("Next", (d, w) -> {
-				String target = input.getText().toString().trim();
-				if (target.isEmpty()) {
-					Toast.makeText(this, "Target cannot be empty", Toast.LENGTH_SHORT).show();
-					return;
-				}
-				logicBlockManager.showAddBlockDialog(target, mode, block -> {
-					Toast.makeText(this, "Block added: " + block.event + " -> " + block.action, Toast.LENGTH_SHORT).show();
-					refreshLogicBlocksUI();
-				});
-			})
-			.setNegativeButton("Cancel", null)
-			.show();
-	}
 
 	// ---- Widget Context Menu (long press on hierarchy) ----
 
@@ -1894,10 +1828,6 @@ public class MainActivity extends AppCompatActivity {
 	// ---- Logic Blocks UI ----
 
 	private void refreshLogicBlocksUI() {
-		// Refresh the block drag-drop workspace
-		if (blockDragDropManager != null) {
-			blockDragDropManager.refreshWorkspace();
-		}
 
 		// Populate the event list container with events from all pages
 		populateEventList();
@@ -2107,97 +2037,6 @@ public class MainActivity extends AppCompatActivity {
 		container.addView(btnAdd);
 	}
 
-	private void showBlockPicker(String category) {
-		BlockDragDropManager.BlockDef[] blocks;
-		switch (category) {
-			case BlockDragDropManager.CAT_EVENT:
-				blocks = new BlockDragDropManager.BlockDef[]{
-					new BlockDragDropManager.BlockDef("onClick", "On Click", "When element is clicked", "event"),
-					new BlockDragDropManager.BlockDef("onHover", "On Hover", "When mouse hovers", "event"),
-					new BlockDragDropManager.BlockDef("onLoad", "On Load", "When page loads", "event"),
-					new BlockDragDropManager.BlockDef("onInput", "On Input", "When input changes", "event"),
-					new BlockDragDropManager.BlockDef("onSubmit", "On Submit", "When form submits", "event"),
-					new BlockDragDropManager.BlockDef("onScroll", "On Scroll", "When user scrolls", "event"),
-				};
-				break;
-			case BlockDragDropManager.CAT_CSS:
-				blocks = new BlockDragDropManager.BlockDef[]{
-					new BlockDragDropManager.BlockDef("setDisplay", "Set Display", "block/none/flex", "css"),
-					new BlockDragDropManager.BlockDef("setColor", "Set Color", "Text color", "css"),
-					new BlockDragDropManager.BlockDef("setBackground", "Set Background", "Background", "css"),
-					new BlockDragDropManager.BlockDef("setWidth", "Set Width", "Element width", "css"),
-					new BlockDragDropManager.BlockDef("setHeight", "Set Height", "Element height", "css"),
-					new BlockDragDropManager.BlockDef("setOpacity", "Set Opacity", "0 to 1", "css"),
-					new BlockDragDropManager.BlockDef("addClass", "Add Class", "Add CSS class", "css"),
-					new BlockDragDropManager.BlockDef("removeClass", "Remove Class", "Remove CSS class", "css"),
-				};
-				break;
-			case BlockDragDropManager.CAT_HTML:
-				blocks = new BlockDragDropManager.BlockDef[]{
-					new BlockDragDropManager.BlockDef("setText", "Set Text", "Change text", "html"),
-					new BlockDragDropManager.BlockDef("setHTML", "Set HTML", "Set inner HTML", "html"),
-					new BlockDragDropManager.BlockDef("showElement", "Show Element", "Display element", "html"),
-					new BlockDragDropManager.BlockDef("hideElement", "Hide Element", "Hide element", "html"),
-					new BlockDragDropManager.BlockDef("focusInput", "Focus Input", "Focus an input field", "html"),
-					new BlockDragDropManager.BlockDef("blurInput", "Blur Input", "Remove focus", "html"),
-					new BlockDragDropManager.BlockDef("navigate", "Navigate", "Go to URL", "html"),
-					new BlockDragDropManager.BlockDef("setHref", "Set Href", "Set href attribute", "html"),
-					new BlockDragDropManager.BlockDef("goToPage", "Go To Page", "Navigate to page", "html"),
-					new BlockDragDropManager.BlockDef("alert", "Show Alert", "Browser alert", "html"),
-					new BlockDragDropManager.BlockDef("scrollTo", "Scroll To", "Scroll to position", "html"),
-				};
-				break;
-			case BlockDragDropManager.CAT_LOGIC:
-				blocks = new BlockDragDropManager.BlockDef[]{
-					new BlockDragDropManager.BlockDef("ifBlock", "If", "Conditional execution", "logic"),
-					new BlockDragDropManager.BlockDef("ifElseBlock", "If / Else", "If-else conditional", "logic"),
-					new BlockDragDropManager.BlockDef("compareEqual", "Compare ==", "Check equality", "logic"),
-					new BlockDragDropManager.BlockDef("compareNotEqual", "Compare !=", "Check inequality", "logic"),
-					new BlockDragDropManager.BlockDef("compareGreater", "Compare >", "Greater than", "logic"),
-					new BlockDragDropManager.BlockDef("compareLess", "Compare <", "Less than", "logic"),
-					new BlockDragDropManager.BlockDef("delay", "Delay", "Wait then execute", "logic"),
-					new BlockDragDropManager.BlockDef("loop", "Loop", "Repeat N times", "logic"),
-				};
-				break;
-			case BlockDragDropManager.CAT_VARIABLE:
-				blocks = new BlockDragDropManager.BlockDef[]{
-					new BlockDragDropManager.BlockDef("createVar", "Create Variable", "Declare a variable", "variable"),
-					new BlockDragDropManager.BlockDef("setVar", "Set Variable", "Assign a value", "variable"),
-					new BlockDragDropManager.BlockDef("getVar", "Get Variable", "Read variable value", "variable"),
-					new BlockDragDropManager.BlockDef("createVarString", "String Var", "Create string variable", "variable"),
-					new BlockDragDropManager.BlockDef("createVarNumber", "Number Var", "Create number variable", "variable"),
-					new BlockDragDropManager.BlockDef("createVarBoolean", "Boolean Var", "Create boolean variable", "variable"),
-				};
-				break;
-			default:
-				blocks = new BlockDragDropManager.BlockDef[]{
-					new BlockDragDropManager.BlockDef("setText", "Set Text", "Change text", "html"),
-					new BlockDragDropManager.BlockDef("showElement", "Show Element", "Display element", "html"),
-					new BlockDragDropManager.BlockDef("hideElement", "Hide Element", "Hide element", "html"),
-					new BlockDragDropManager.BlockDef("navigate", "Navigate", "Go to URL", "html"),
-					new BlockDragDropManager.BlockDef("setHref", "Set Href", "Set href attribute", "html"),
-					new BlockDragDropManager.BlockDef("goToPage", "Go To Page", "Navigate to page", "html"),
-					new BlockDragDropManager.BlockDef("alert", "Show Alert", "Browser alert", "html"),
-					new BlockDragDropManager.BlockDef("scrollTo", "Scroll To", "Scroll to position", "html"),
-				};
-				break;
-		}
-
-		String[] labels = new String[blocks.length];
-		for (int i = 0; i < blocks.length; i++) {
-			labels[i] = blocks[i].label + " - " + blocks[i].code;
-		}
-
-		final BlockDragDropManager.BlockDef[] finalBlocks = blocks;
-		new MaterialAlertDialogBuilder(this)
-			.setTitle("Select Block")
-			.setItems(labels, (dialog, which) -> {
-				// Delegate to BlockDragDropManager's add flow
-				blockDragDropManager.showAddBlockFromPalette(finalBlocks[which]);
-			})
-			.setNegativeButton("Cancel", null)
-			.show();
-	}
 
 	// ---- Project Save/Load ----
 

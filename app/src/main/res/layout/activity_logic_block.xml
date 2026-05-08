@@ -102,23 +102,16 @@
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <androidx.core.widget.NestedScrollView
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:fillViewport="true"
                 android:background="@drawable/bg_block_canvas">
-
-                <LinearLayout
-                    android:id="@+id/blockWorkspace"
+                
+                <sketchweb.gl.WorkspaceView
+                    android:id="@+id/workspaceView"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingStart="6dp"
-                    android:paddingTop="8dp"
-                    android:paddingEnd="6dp"
-                    android:paddingBottom="20dp"
-                    android:minHeight="300dp" />
-            </androidx.core.widget.NestedScrollView>
+                    android:layout_height="match_parent" />
+            </FrameLayout>
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabBlockPalette"
