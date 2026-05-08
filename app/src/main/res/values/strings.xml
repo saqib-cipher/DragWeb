@@ -34,4 +34,5 @@
 	<string name="open" translatable="false">Open</string>
 	<string name="backup_project" translatable="false">Backup Project</string>
 	<string name="app_subtitle" translatable="false">No-Code Web Builder</string>
+    <string name="add_new">Add New</string>
 </resources>

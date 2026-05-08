@@ -251,6 +251,13 @@ public class HomeActivity extends AppCompatActivity {
 				showAboutDialog();
 			});
 		}
+		LinearLayout menuBlockParams = findViewById(R.id.menuBlockParams);
+		if (menuBlockParams != null) {
+			menuBlockParams.setOnClickListener(v -> {
+				drawer.closeDrawer(GravityCompat.START);
+				startActivity(new Intent(this, BlockParamManagerActivity.class));
+			});
+		}
 		if (menuBackup != null) {
 			menuBackup.setOnClickListener(v -> {
 				drawer.closeDrawer(GravityCompat.START);

@@ -448,11 +448,13 @@ public class LogicBlockManager {
      */
     private boolean isStaticCssBlock(LogicBlock block) {
         if (block == null || block.action == null || block.params == null) return false;
-        if (!ACTION_CHANGE_STYLE.equals(block.action)) return false;
-        String ev = block.event;
-        // Treat empty / "immediate" / page-load events as static styling.
-        if (ev == null || ev.isEmpty()) return true;
-        return "immediate".equals(ev) || EVENT_LOAD.equals(ev) || EVENT_PAGE_LOAD.equals(ev);
+        if (block.action.startsWith("css")) return true;
+        if (ACTION_CHANGE_STYLE.equals(block.action)) {
+            String ev = block.event;
+            if (ev == null || ev.isEmpty()) return true;
+            return "immediate".equals(ev) || EVENT_LOAD.equals(ev) || EVENT_PAGE_LOAD.equals(ev);
+        }
+        return false;
     }
 
     /**
@@ -473,9 +475,49 @@ public class LogicBlockManager {
         // Group "property: value" lines by selector while preserving insertion order.
         java.util.LinkedHashMap<String, java.util.LinkedHashMap<String, String>> bySelector =
             new java.util.LinkedHashMap<>();
+        StringBuilder css = new StringBuilder();
 
         for (LogicBlock block : blocks) {
             if (!isStaticCssBlock(block)) continue;
+            
+            if (block.action != null && block.action.startsWith("css")) {
+                String selector = buildSelector(block);
+                String content = "";
+                String fullSel = selector;
+                
+                if ("cssSelector".equals(block.action)) {
+                    String[] innerParts = block.params.split("\\|", 3);
+                    if (innerParts.length >= 3) {
+                        String type = innerParts[0];
+                        String sel = innerParts[1];
+                        content = innerParts[2];
+                        fullSel = "id".equals(type) ? "#" + sel : ("class".equals(type) ? "." + sel : sel);
+                    }
+                } else if (block.action.startsWith("css")) {
+                    // pseudo-classes/elements: action name like 'cssHover' -> ':hover'
+                    String pseudo = getPseudoSuffixFromAction(block.action);
+                    if (!pseudo.isEmpty()) {
+                        if (pseudo.contains("%n")) {
+                            String[] innerParts = block.params.split("\\|", 2);
+                            if (innerParts.length >= 2) {
+                                fullSel = selector + pseudo.replace("%n", innerParts[0]);
+                                content = innerParts[1];
+                            }
+                        } else {
+                            fullSel = selector + pseudo;
+                            content = block.params; // For these, params is just the inner code
+                        }
+                    }
+                }
+                
+                if (!content.isEmpty()) {
+                    css.append("  ").append(fullSel).append(" {\n    ")
+                       .append(content.trim().replace("\n", "\n    "))
+                       .append("\n  }\n");
+                }
+                continue;
+            }
+
             String[] parts = block.params.split(":", 2);
             if (parts.length != 2) continue;
             String property = camelToKebab(parts[0].trim());
@@ -491,9 +533,6 @@ public class LogicBlockManager {
             rules.put(property, value);
         }
 
-        if (bySelector.isEmpty()) return "";
-
-        StringBuilder css = new StringBuilder();
         for (Map.Entry<String, java.util.LinkedHashMap<String, String>> entry : bySelector.entrySet()) {
             css.append("  ").append(entry.getKey()).append(" {\n");
             for (Map.Entry<String, String> rule : entry.getValue().entrySet()) {
@@ -531,6 +570,7 @@ public class LogicBlockManager {
     public String generateCssPseudoRules() {
         java.util.LinkedHashMap<String, java.util.LinkedHashMap<String, String>> bySelector =
             new java.util.LinkedHashMap<>();
+        StringBuilder css = new StringBuilder();
 
         for (LogicBlock block : blocks) {
             if (!isCssPseudoEvent(block.event)) continue;
@@ -553,9 +593,6 @@ public class LogicBlockManager {
             }
         }
 
-        if (bySelector.isEmpty()) return "";
-
-        StringBuilder css = new StringBuilder();
         for (Map.Entry<String, java.util.LinkedHashMap<String, String>> entry : bySelector.entrySet()) {
             css.append("  ").append(entry.getKey()).append(" {\n");
             for (Map.Entry<String, String> rule : entry.getValue().entrySet()) {
@@ -1008,5 +1045,20 @@ public class LogicBlockManager {
 
     public interface OnBlockAddedListener {
         void onBlockAdded(LogicBlock block);
+    }
+
+    private String getPseudoSuffixFromAction(String action) {
+        switch (action) {
+            case "cssHover": return ":hover";
+            case "cssFocus": return ":focus";
+            case "cssActive": return ":active";
+            case "cssVisited": return ":visited";
+            case "cssBefore": return "::before";
+            case "cssAfter": return "::after";
+            case "cssFirstChild": return ":first-child";
+            case "cssLastChild": return ":last-child";
+            case "cssNthChild": return ":nth-child(%n)";
+            default: return "";
+        }
     }
 }

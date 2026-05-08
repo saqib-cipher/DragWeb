@@ -9,10 +9,12 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.DragEvent;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -89,11 +91,15 @@ public class LogicBlockActivity extends AppCompatActivity {
     private List<String> redoStack = new ArrayList<>();
     private static final int MAX_UNDO = 30;
 
+    private BlockParamTypeManager paramTypeManager;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_logic_block);
+
+        paramTypeManager = new BlockParamTypeManager();
 
         projectId = getIntent().getStringExtra("project_id");
         if (projectId == null) projectId = "";
@@ -133,6 +139,18 @@ public class LogicBlockActivity extends AppCompatActivity {
         refreshWorkspace();
         refreshCollectionList();
         saveUndoState();
+
+        // Add default selector block if workspace is empty
+        if (logicBlockManager.getBlocks().isEmpty()) {
+            LogicBlockManager.LogicBlock defaultBlock = new LogicBlockManager.LogicBlock();
+            defaultBlock.action = "cssSelector";
+            defaultBlock.event = "immediate";
+            defaultBlock.targetMode = "id";
+            defaultBlock.targetWidget = "";
+            defaultBlock.params = "id|body|"; // Default selector 'body'
+            logicBlockManager.addBlock(defaultBlock);
+            refreshWorkspace();
+        }
 
         final int toolbarInitialTop = toolbar != null ? toolbar.getPaddingTop() : 0;
         final int workspaceInitialBottom = blockWorkspace != null ? blockWorkspace.getPaddingBottom() : 0;
@@ -315,9 +333,17 @@ public class LogicBlockActivity extends AppCompatActivity {
                         saveUndoState();
                         logicBlockManager.removeBlock((Integer) state);
                         refreshWorkspace();
+                    } else if (state instanceof String && ((String) state).startsWith("event:")) {
+                        String evKey = ((String) state).substring(6);
+                        saveUndoState();
+                        logicBlockManager.getBlocks().removeIf(b -> evKey.equals(b.event));
+                        refreshWorkspace();
                     }
                     return true;
                 }
+                if (event.getAction() == DragEvent.ACTION_DRAG_ENTERED) v.setAlpha(0.7f);
+                if (event.getAction() == DragEvent.ACTION_DRAG_EXITED
+                    || event.getAction() == DragEvent.ACTION_DRAG_ENDED) v.setAlpha(1.0f);
                 return true;
             });
         }
@@ -634,9 +660,7 @@ public class LogicBlockActivity extends AppCompatActivity {
                     Object localState = event.getLocalState();
                     if (localState instanceof BlockDef) {
                         BlockDef def = (BlockDef) localState;
-                        if ("C".equals(def.shape) || "E".equals(def.shape) || CAT_EVENT.equals(def.category)) {
-                            addBlockFromDef(def);
-                        } else if (CAT_VALUE.equals(def.category)) {
+                        if (CAT_VALUE.equals(def.category)) {
                             // Value tokens dropped onto the workspace (not a chip) are
                             // ignored — they are only meaningful inside a logic param.
                             Toast.makeText(LogicBlockActivity.this,
@@ -766,7 +790,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
         String key;
         if (blocks.isEmpty()) {
-            key = activeEventKey;
+            key = activeEventKey != null ? activeEventKey : "immediate";
         } else if (insertIdx <= 0) {
             key = blocks.get(0).event;
         } else if (insertIdx >= blocks.size()) {
@@ -774,13 +798,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         } else {
             key = blocks.get(insertIdx - 1).event;
         }
-        if (key == null || key.isEmpty()) key = "load";
-
-        boolean keyIsCss = key.startsWith("css:");
-        boolean defIsCss = def != null && CAT_CSS.equals(def.category);
-        if (defIsCss && !keyIsCss) return "css:hover";
-        if (!defIsCss && keyIsCss) return activeEventKey != null && !activeEventKey.startsWith("css:")
-            ? activeEventKey : "load";
+        if (key == null || key.isEmpty()) key = "immediate";
         return key;
     }
 
@@ -970,20 +988,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         params.setMargins(dp(4), dp(3), dp(4), dp(3));
         block.setLayoutParams(params);
 
-        GradientDrawable bg = new GradientDrawable();
-        if ("C".equals(def.shape)) {
-            bg.setCornerRadii(new float[]{dp(8), dp(8), dp(8), dp(8), dp(8), dp(8), 0, 0});
-        } else if ("E".equals(def.shape)) {
-            bg.setCornerRadii(new float[]{dp(2), dp(2), dp(8), dp(8), dp(8), dp(8), dp(2), dp(2)});
-        } else if (isValue) {
-            bg.setCornerRadius(dp(14));
-        } else {
-            bg.setCornerRadius(dp(6));
-        }
-
-        bg.setColor(baseColor);
-        bg.setStroke(dp(1), darken(baseColor));
-        block.setBackground(bg);
+        setBackgroundRetainingPadding(block, getBlockBackground(isValue ? "value" : def.shape, false, baseColor));
         block.setElevation(2);
 
         TextView nameText = new TextView(this);
@@ -995,7 +1000,7 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         if (!isValue) {
             TextView descText = new TextView(this);
-            descText.setText(def.description);
+            descText.setText(def.code);
             descText.setTextColor(Color.parseColor("#E1F5FE"));
             descText.setTextSize(10);
             descText.setPadding(0, dp(2), 0, 0);
@@ -1281,21 +1286,12 @@ public class LogicBlockActivity extends AppCompatActivity {
             block.event = "asd";
             block.action = def.id;
             // Params populated by the source dialog below.
-        } else {
-            // Every remaining block type emits CSS — attach to the active
-            // pseudo-class scope, defaulting to :hover so the user always
-            // lands inside a valid group.
-            String key = activeEventKey;
-            if (key == null || !key.startsWith("css:")) key = "css:hover";
-            activeEventKey = key;
-            block.event = key;
         }
-
         logicBlockManager.addBlock(block);
-        int idx = logicBlockManager.getBlocks().size() - 1;
         refreshWorkspace();
 
         if (CAT_ASD.equals(def.category)) {
+            int idx = logicBlockManager.getBlocks().size() - 1;
             showSourceCodeDialog(idx, def);
         }
     }
@@ -1785,9 +1781,13 @@ public class LogicBlockActivity extends AppCompatActivity {
 
             if (!ev.equals(currentEvent)) {
                 currentEvent = ev;
-                eventGroup = new LinearLayout(this);
-                eventGroup.setOrientation(LinearLayout.VERTICAL);
-                eventGroup.setBackground(getBlockBackground("C", false, COLOR_EVENT));
+                if ("immediate".equals(ev)) {
+                    eventGroup = null;
+                    slot = null;
+                } else {
+                    eventGroup = new LinearLayout(this);
+                    eventGroup.setOrientation(LinearLayout.VERTICAL);
+                    eventGroup.setBackground(getBlockBackground("C", false, COLOR_EVENT));
                 // Do not explicitly set padding. The NinePatchDrawable will handle it.
                 // If it's not a NinePatch, the user's PNG shouldn't have arbitrary padding forced.
                 
@@ -1878,16 +1878,24 @@ public class LogicBlockActivity extends AppCompatActivity {
                 eventGroup.addView(slot);
 
                 blockWorkspace.addView(eventGroup);
+                }
             }
 
             if ("event_container".equals(block.action)) {
-                // Empty container marker, do not render an action block
                 continue;
             }
 
             View blockView = createWorkspacePuzzleBlock(block, i);
             blockView.setTag(i);
-            if (slot != null) slot.addView(blockView);
+            if (eventGroup != null && slot != null) {
+                slot.addView(blockView);
+            } else {
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                lp.setMargins(dp(4), dp(4), dp(4), dp(4));
+                blockView.setLayoutParams(lp);
+                blockWorkspace.addView(blockView);
+            }
         }
     }
 
@@ -1948,11 +1956,8 @@ public class LogicBlockActivity extends AppCompatActivity {
     private void insertActionAtSlot(BlockDef def, String eventKey, LinearLayout slot, float dropY) {
         List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
 
-        // Coerce to a valid event for the action's category.
-        boolean isCssEvent = eventKey != null && eventKey.startsWith("css:");
-        boolean isCssAction = CAT_CSS.equals(def.category);
-        if (isCssAction && !isCssEvent) eventKey = "css:hover";
-        else if (!isCssAction && isCssEvent) eventKey = "load";
+        // No restrictions: any block can be dragged into any event slot.
+        // The static code generator will handle the context.
 
         // Position within the global block list = position of the existing
         // group block we landed near, or the end of the group otherwise.
@@ -1997,10 +2002,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         LogicBlockManager.LogicBlock moving = blocks.get(fromIndex);
         BlockDef def = findBlockDef(moving.action);
 
-        boolean isCssEvent = eventKey != null && eventKey.startsWith("css:");
-        boolean isCssAction = def != null && CAT_CSS.equals(def.category);
-        if (isCssAction && !isCssEvent) eventKey = "css:hover";
-        else if (!isCssAction && isCssEvent) eventKey = "load";
+        // No restrictions.
 
         // Compute the destination index BEFORE we remove `moving` so the
         // collected anchor indexes are still valid; then adjust afterwards.
@@ -2126,14 +2128,6 @@ public class LogicBlockActivity extends AppCompatActivity {
     }
 
     private void addBlockToEvent(BlockDef actionDef, String eventKey) {
-        // Coerce CSS-style actions onto a CSS event and JS-style actions onto a
-        // JS event so the block always lands in a valid parent.
-        boolean isCssEvent = eventKey != null && eventKey.startsWith("css:");
-        boolean isCssAction = CAT_CSS.equals(actionDef.category);
-        if (isCssAction && !isCssEvent) eventKey = "css:hover";
-        else if (!isCssAction && isCssEvent) eventKey = activeEventKey != null
-            && !activeEventKey.startsWith("css:") ? activeEventKey : "load";
-
         saveUndoState();
         LogicBlockManager.LogicBlock block = new LogicBlockManager.LogicBlock();
         block.targetWidget = "";
@@ -2153,12 +2147,6 @@ public class LogicBlockActivity extends AppCompatActivity {
 
         LogicBlockManager.LogicBlock block = blocks.get(fromIndex);
         BlockDef def = findBlockDef(block.action);
-        boolean isCssEvent = eventKey != null && eventKey.startsWith("css:");
-        boolean isCssAction = def != null && CAT_CSS.equals(def.category);
-        if (isCssAction && !isCssEvent) eventKey = "css:hover";
-        else if (!isCssAction && isCssEvent) eventKey = activeEventKey != null
-            && !activeEventKey.startsWith("css:") ? activeEventKey : "load";
-
         saveUndoState();
         block.event = mapEventKey(eventKey);
 
@@ -2232,107 +2220,19 @@ public class LogicBlockActivity extends AppCompatActivity {
             // followed by editable param chips.
             String catLabel = CAT_LOGIC.equals(category) ? getLogicLabel(block.action) : getVarLabel(block.action);
             row.addView(createVerbChip(catLabel, darken(baseColor)));
-            String[] parts = (block.params != null ? block.params : "").split("\\|");
-            for (int p = 0; p < parts.length; p++) {
-                if (parts[p] == null) continue;
-                String trimmed = parts[p].trim();
-                if (trimmed.isEmpty()) continue;
-                final int paramIdx = p;
-                TextView chip = createValueChip(trimmed + " \u25BC");
-                chip.setOnClickListener(v -> editParamPart(index, paramIdx));
-                attachValueDropToChip(chip, index, paramIdx);
-                row.addView(chip);
-            }
+
+            renderTemplateChips(row, def, block, index, baseColor);
 
             if ("ifElseBlock".equals(block.action)) {
-                LinearLayout column = new LinearLayout(this);
-                column.setOrientation(LinearLayout.VERTICAL);
-                column.setLayoutParams(new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-                android.graphics.drawable.Drawable eBg = androidx.core.content.ContextCompat.getDrawable(this, sketchweb.gl.R.drawable.if_else);
-                if (eBg != null) {
-                    eBg = androidx.core.graphics.drawable.DrawableCompat.wrap(eBg).mutate();
-                    eBg.setColorFilter(new android.graphics.PorterDuffColorFilter(baseColor, android.graphics.PorterDuff.Mode.MULTIPLY));
-                    setBackgroundRetainingPadding(column, eBg);
-                }
-
-                setBackgroundRetainingPadding(row, null);
-                row.setPadding(dp(10), dp(4), dp(10), dp(4));
-                column.addView(row);
-
-                String[] parts = (block.params != null ? block.params : "").split("\\|", -1);
-                String thenCode = parts.length > 3 ? parts[3] : "";
-                String elseCode = parts.length > 4 ? parts[4] : "";
-
-                column.addView(createIfElseSlot("then", thenCode, baseColor, index, 3));
-
-                TextView elseTab = new TextView(this);
-                elseTab.setText("else");
-                elseTab.setTextColor(Color.WHITE);
-                elseTab.setTextSize(13);
-                elseTab.setTypeface(null, Typeface.BOLD);
-                elseTab.setPadding(dp(14), dp(4), dp(14), dp(4));
-                column.addView(elseTab);
-
-                column.addView(createIfElseSlot("else", elseCode, baseColor, index, 4));
-
-                return column;
+                return renderIfElseBlock(row, block, index, baseColor);
             } else if ("ifBlock".equals(block.action)) {
-                LinearLayout column = new LinearLayout(this);
-                column.setOrientation(LinearLayout.VERTICAL);
-                column.setLayoutParams(new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-                android.graphics.drawable.Drawable eBg = androidx.core.content.ContextCompat.getDrawable(this, sketchweb.gl.R.drawable.loop);
-                if (eBg != null) {
-                    eBg = androidx.core.graphics.drawable.DrawableCompat.wrap(eBg).mutate();
-                    eBg.setColorFilter(new android.graphics.PorterDuffColorFilter(baseColor, android.graphics.PorterDuff.Mode.MULTIPLY));
-                    setBackgroundRetainingPadding(column, eBg);
-                }
-
-                setBackgroundRetainingPadding(row, null);
-                row.setPadding(dp(10), dp(4), dp(10), dp(4));
-                column.addView(row);
-
-                String[] parts = (block.params != null ? block.params : "").split("\\|", -1);
-                String thenCode = parts.length > 3 ? parts[3] : "";
-                column.addView(createIfElseSlot("then", thenCode, baseColor, index, 3));
-                return column;
+                return renderIfBlock(row, block, index, baseColor);
             }
+        } else if (def != null && def.code != null && def.code.contains("%m.space")) {
+            return renderGenericContainerBlock(row, def, block, index, baseColor);
         } else {
-            // Element-targeted action row:  [target] verb [value] [extra value]
-            String modePrefix = "id".equals(block.targetMode) ? "#"
-                : "class".equals(block.targetMode) ? "." : "";
-            String targetText = modePrefix + block.targetWidget;
-            // Target chip is EDITABLE - tap opens id/class/tag picker.
-            TextView targetChip = createTargetChip(
-                (targetText.isEmpty() ? "page" : targetText) + " \u25BC",
-                Color.parseColor("#3D5AFE"));
-            targetChip.setOnClickListener(v -> showTargetPickerDialog(
-                block.targetMode, block.targetWidget,
-                (mode, value) -> {
-                    saveUndoState();
-                    block.targetMode = mode;
-                    block.targetWidget = value;
-                    refreshWorkspace();
-                }));
-            row.addView(targetChip);
-
-            // Verb is NOT editable - just a label between chips.
-            row.addView(createVerb(getActionVerb(block.action)));
-
-            // Value chips are EDITABLE — tap opens the universal value+unit dialog.
-            List<String> chips = extractValueChips(block);
-            for (int ci = 0; ci < chips.size(); ci++) {
-                String chipText = chips.get(ci);
-                if (chipText == null || chipText.isEmpty()) continue;
-                final int chipIdx = ci;
-                TextView vChip = createValueChip(chipText);
-                vChip.setOnClickListener(v -> editValueChip(index, chipIdx));
-                attachValueDropToChip(vChip, index, chipIdx);
-                row.addView(vChip);
-            }
+            // New Template-driven rendering for all blocks (CSS, etc.)
+            renderTemplateChips(row, def, block, index, baseColor);
         }
 
         // Long press = Start Drag for reordering
@@ -2368,9 +2268,268 @@ public class LogicBlockActivity extends AppCompatActivity {
         });
 
         // Short tap = edit value
-        row.setOnClickListener(v -> showEditBlockDialog(index));
-
         return row;
+    }
+
+    private View renderIfBlock(LinearLayout row, LogicBlockManager.LogicBlock block, int index, int baseColor) {
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        android.graphics.drawable.Drawable eBg = getBlockBackground("C", false, baseColor);
+        setBackgroundRetainingPadding(column, eBg);
+
+        setBackgroundRetainingPadding(row, null);
+        row.setPadding(dp(10), dp(4), dp(10), dp(4));
+        column.addView(row);
+
+        String[] innerParts = (block.params != null ? block.params : "").split("\\|", -1);
+        String thenCode = innerParts.length > 3 ? innerParts[3] : "";
+        column.addView(createIfElseSlot("then", thenCode, baseColor, index, 3));
+        return column;
+    }
+
+    private View renderIfElseBlock(LinearLayout row, LogicBlockManager.LogicBlock block, int index, int baseColor) {
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        android.graphics.drawable.Drawable eBg = getBlockBackground("E", false, baseColor);
+        setBackgroundRetainingPadding(column, eBg);
+
+        setBackgroundRetainingPadding(row, null);
+        row.setPadding(dp(10), dp(4), dp(10), dp(4));
+        column.addView(row);
+
+        String[] innerParts = (block.params != null ? block.params : "").split("\\|", -1);
+        String thenCode = innerParts.length > 3 ? innerParts[3] : "";
+        String elseCode = innerParts.length > 4 ? innerParts[4] : "";
+
+        column.addView(createIfElseSlot("then", thenCode, baseColor, index, 3));
+
+        TextView elseTab = new TextView(this);
+        elseTab.setText("else");
+        elseTab.setTextColor(Color.WHITE);
+        elseTab.setTextSize(13);
+        elseTab.setTypeface(null, Typeface.BOLD);
+        elseTab.setPadding(dp(14), dp(4), dp(14), dp(4));
+        column.addView(elseTab);
+
+        column.addView(createIfElseSlot("else", elseCode, baseColor, index, 4));
+
+        return column;
+    }
+
+    private View renderGenericContainerBlock(LinearLayout row, BlockDef def, LogicBlockManager.LogicBlock block, int index, int baseColor) {
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        android.graphics.drawable.Drawable eBg = getBlockBackground("C", false, baseColor);
+        setBackgroundRetainingPadding(column, eBg);
+
+        setBackgroundRetainingPadding(row, null);
+        row.setPadding(dp(10), dp(4), dp(10), dp(4));
+        column.addView(row);
+
+        // Splitting logic for %m.space
+        String template = def.code;
+        int spaceIdx = template.indexOf("%m.space");
+        String tail = template.substring(spaceIdx + 8).trim();
+
+        // Param index for the space (nested blocks) is usually the last part
+        String[] parts = (block.params != null ? block.params : "").split("\\|", -1);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(%s|%n|%b|%m\\.[a-zA-Z0-9]+)").matcher(template.substring(0, spaceIdx));
+        int paramIdx = 0;
+        while (m.find()) paramIdx++;
+        
+        String nestedCode = paramIdx < parts.length ? parts[paramIdx] : "";
+        column.addView(createIfElseSlot("content", nestedCode, baseColor, index, paramIdx));
+
+        if (!tail.isEmpty()) {
+            LinearLayout bottomRow = new LinearLayout(this);
+            bottomRow.setOrientation(LinearLayout.HORIZONTAL);
+            bottomRow.setPadding(dp(10), dp(4), dp(10), dp(8));
+            
+            // Render the tail part
+            String[] tailParts = tail.split(" ");
+            for (String part : tailParts) {
+                if (!part.trim().isEmpty()) {
+                    bottomRow.addView(createVerb(part));
+                }
+            }
+            column.addView(bottomRow);
+        }
+
+        return column;
+    }
+
+    private void renderTemplateChips(LinearLayout row, BlockDef def, LogicBlockManager.LogicBlock block, int blockIndex, int baseColor) {
+        String template = def != null ? def.code : "";
+        if (template == null || template.isEmpty()) {
+             // Fallback for blocks without description: show label + param chips
+             row.addView(createVerb(def != null ? def.label : block.action));
+             String[] parts = (block.params != null ? block.params : "").split("\\|", -1);
+             for (int i = 0; i < parts.length; i++) {
+                 final int idx = i;
+                 TextView chip = createValueChip(parts[i] + " \u25BC");
+                 chip.setOnClickListener(v -> editParamToken(blockIndex, idx, "%s"));
+                 row.addView(chip);
+             }
+             return;
+        }
+
+        String[] parts = (block.params != null ? block.params : "").split("\\|", -1);
+        int paramIdx = 0;
+
+        // Simple tokenizer for %s, %n, %b, %m.name
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(%s|%n|%b|%m\\.[a-zA-Z0-9]+)");
+        java.util.regex.Matcher matcher = pattern.matcher(template);
+        int lastEnd = 0;
+        while (matcher.find()) {
+            // Text before token
+            String label = template.substring(lastEnd, matcher.start()).trim();
+            if (!label.isEmpty()) {
+                row.addView(createVerb(label));
+            }
+
+            String token = matcher.group();
+            final int pIdx = paramIdx;
+            String val = paramIdx < parts.length ? parts[pIdx] : "";
+            
+            if ("%m.space".equals(token)) {
+                // Skip rendering space token as a chip, it's handled by the container logic
+            } else {
+                TextView chip = createValueChip(val.isEmpty() ? token : val + " \u25BC");
+                chip.setOnClickListener(v -> editParamToken(blockIndex, pIdx, token));
+                attachValueDropToChip(chip, blockIndex, pIdx);
+                row.addView(chip);
+            }
+
+            paramIdx++;
+            lastEnd = matcher.end();
+        }
+
+        // Remaining text
+        String tail = template.substring(lastEnd).trim();
+        if (!tail.isEmpty()) {
+            row.addView(createVerb(tail));
+        }
+    }
+
+    private void editParamToken(int blockIndex, int paramIndex, String token) {
+        List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
+        if (blockIndex < 0 || blockIndex >= all.size()) return;
+        LogicBlockManager.LogicBlock block = all.get(blockIndex);
+        String[] parts = (block.params != null ? block.params : "").split("\\|", -1);
+        String current = paramIndex < parts.length ? parts[paramIndex] : "";
+
+        if (token.startsWith("%m.")) {
+            String typeName = token.substring(3);
+            if ("color".equalsIgnoreCase(typeName)) {
+                showColorPickerDialog(current, color -> updateParam(blockIndex, paramIndex, color));
+            } else {
+                List<String> options = paramTypeManager.getOptions(typeName);
+                if (options.isEmpty()) {
+                    // Fallback to text if no options defined
+                    showUniversalValueDialog("Edit " + typeName, typeName, current, false, false, 
+                        val -> updateParam(blockIndex, paramIndex, val));
+                } else {
+                    showRadioSelectorDialog("Select " + typeName, options, current, 
+                        val -> updateParam(blockIndex, paramIndex, val));
+                }
+            }
+        } else if ("%n".equals(token)) {
+            showNumberSelectorDialog("Enter Number", current, val -> updateParam(blockIndex, paramIndex, val));
+        } else if ("%b".equals(token)) {
+            updateParam(blockIndex, paramIndex, "true".equals(current) ? "false" : "true");
+        } else {
+            // %s or fallback
+            showUniversalValueDialog("Edit Value", "Value", current, false, false, 
+                val -> updateParam(blockIndex, paramIndex, val));
+        }
+    }
+
+    private void updateParam(int blockIndex, int paramIndex, String newVal) {
+        List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
+        LogicBlockManager.LogicBlock block = all.get(blockIndex);
+        String[] parts = (block.params != null ? block.params : "").split("\\|", -1);
+        
+        if (paramIndex >= parts.length) {
+            String[] grown = new String[paramIndex + 1];
+            System.arraycopy(parts, 0, grown, 0, parts.length);
+            for (int i = parts.length; i < grown.length; i++) grown[i] = "";
+            parts = grown;
+        }
+        
+        parts[paramIndex] = newVal;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) sb.append("|");
+            sb.append(parts[i]);
+        }
+        saveUndoState();
+        block.params = sb.toString();
+        refreshWorkspace();
+    }
+
+    private void showRadioSelectorDialog(String title, List<String> options, String current, java.util.function.Consumer<String> callback) {
+        String[] items = options.toArray(new String[0]);
+        int checked = options.indexOf(current);
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setSingleChoiceItems(items, checked, (d, which) -> {
+                callback.accept(items[which]);
+                d.dismiss();
+            })
+            .show();
+    }
+
+    private void showNumberSelectorDialog(String title, String current, java.util.function.Consumer<String> callback) {
+        // Simple number + unit selector
+        View v = LayoutInflater.from(this).inflate(R.layout.dialog_number_selector, null);
+        EditText et = v.findViewById(R.id.etNumber);
+        com.google.android.material.chip.ChipGroup cg = v.findViewById(R.id.unitGroup);
+        
+        // Split current value into number and unit
+        String num = current.replaceAll("[^0-9.\\-]", "");
+        String unit = current.replaceAll("[0-9.\\-]", "");
+        
+        et.setText(num);
+        for (int i = 0; i < cg.getChildCount(); i++) {
+            com.google.android.material.chip.Chip chip = (com.google.android.material.chip.Chip) cg.getChildAt(i);
+            if (chip.getText().toString().equals(unit)) chip.setChecked(true);
+        }
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setView(v)
+            .setPositiveButton("OK", (d, w) -> {
+                String n = et.getText().toString();
+                String u = "";
+                int checkedId = cg.getCheckedChipId();
+                if (checkedId != View.NO_ID) {
+                    u = ((com.google.android.material.chip.Chip) v.findViewById(checkedId)).getText().toString();
+                }
+                callback.accept(n + u);
+            })
+            .show();
+    }
+
+    private void showColorPickerDialog(String current, java.util.function.Consumer<String> callback) {
+        // For now, use a simple text input or a grid of colors if available
+        // Ideally a real color picker, but let's start with a hex input
+        EditText et = new EditText(this);
+        et.setText(current);
+        et.setHint("#ffffff");
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Select Color")
+            .setView(et)
+            .setPositiveButton("OK", (d, w) -> callback.accept(et.getText().toString()))
+            .show();
     }
 
     /**
@@ -2585,7 +2744,19 @@ public class LogicBlockActivity extends AppCompatActivity {
         verb.setText(text);
         verb.setTextColor(Color.WHITE);
         verb.setTextSize(13);
-        verb.setPadding(0, 0, dp(6), 0);
+        verb.setPadding(dp(8), dp(4), dp(8), dp(4));
+        
+        GradientDrawable gd = new GradientDrawable();
+        gd.setCornerRadius(dp(4));
+        gd.setColor(Color.parseColor("#33FFFFFF")); // Subtle translucent box
+        gd.setStroke(dp(1), Color.parseColor("#66FFFFFF")); // Subtle white border
+        verb.setBackground(gd);
+        
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, dp(4), 0);
+        verb.setLayoutParams(lp);
+        
         return verb;
     }
 
@@ -2595,21 +2766,13 @@ public class LogicBlockActivity extends AppCompatActivity {
         chip.setText(text);
         chip.setTextColor(Color.parseColor("#424242"));
         chip.setTextSize(12);
-        chip.setPadding(dp(12), dp(4), dp(12), dp(4));
+        chip.setPadding(dp(14), dp(6), dp(14), dp(6));
         
-        int resId = sketchweb.gl.R.drawable.block_string;
-        if ("true".equals(text) || "false".equals(text)) {
-            resId = sketchweb.gl.R.drawable.block_boolean;
-        } else if (text.matches("-?\\d+(\\.\\d+)?")) {
-            resId = sketchweb.gl.R.drawable.block_num;
-        }
-
-        android.graphics.drawable.Drawable bg = androidx.core.content.ContextCompat.getDrawable(this, resId);
-        if (bg != null) {
-            bg = androidx.core.graphics.drawable.DrawableCompat.wrap(bg).mutate();
-            bg.setColorFilter(new android.graphics.PorterDuffColorFilter(Color.WHITE, android.graphics.PorterDuff.Mode.MULTIPLY));
-            chip.setBackground(bg);
-        }
+        GradientDrawable gd = new GradientDrawable();
+        gd.setCornerRadius(dp(6));
+        gd.setColor(Color.WHITE);
+        gd.setStroke(dp(1), Color.parseColor("#E0E0E0")); // Distinct border
+        chip.setBackground(gd);
 
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -3456,7 +3619,7 @@ public class LogicBlockActivity extends AppCompatActivity {
         if ("E".equals(shape)) {
             resId = sketchweb.gl.R.drawable.if_else;
         } else if ("C".equals(shape)) {
-            resId = sketchweb.gl.R.drawable.loop;
+            resId = sketchweb.gl.R.drawable.if_else;
         } else {
             resId = sketchweb.gl.R.drawable.block_ori;
         }
@@ -3480,15 +3643,15 @@ public class LogicBlockActivity extends AppCompatActivity {
     static class BlockDef {
         String id;
         String label;
-        String description;
+        String code;
         String category;
         String shape;
         String spec;
 
-        BlockDef(String id, String label, String description, String category) {
+        BlockDef(String id, String label, String code, String category) {
             this.id = id;
             this.label = label;
-            this.description = description;
+            this.code = code;
             this.category = category;
         }
     }

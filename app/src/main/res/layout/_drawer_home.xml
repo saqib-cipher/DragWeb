@@ -177,6 +177,33 @@
 			android:layout_marginEnd="16dp"
 			android:background="?attr/colorOutlineVariant" />
 
+		<!-- Block Params -->
+		<LinearLayout
+			android:id="@+id/menuBlockParams"
+			android:layout_width="match_parent"
+			android:layout_height="56dp"
+			android:orientation="horizontal"
+			android:paddingStart="16dp"
+			android:paddingEnd="24dp"
+			android:gravity="center_vertical"
+			android:layout_marginStart="12dp"
+			android:layout_marginEnd="12dp"
+			android:background="?attr/selectableItemBackground">
+
+			<ImageView
+				android:layout_width="24dp"
+				android:layout_height="24dp"
+				android:src="@drawable/icon_edit_round"
+				app:tint="?attr/colorOnSurfaceVariant" />
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Block Parameters"
+				android:textSize="14sp"
+				android:textColor="?attr/colorOnSurface"
+				android:layout_marginStart="16dp" />
+		</LinearLayout>
+
 		<!-- About -->
 		<LinearLayout
 			android:id="@+id/menuAbout"

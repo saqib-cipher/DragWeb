@@ -2185,7 +2185,7 @@ public class MainActivity extends AppCompatActivity {
 
 		String[] labels = new String[blocks.length];
 		for (int i = 0; i < blocks.length; i++) {
-			labels[i] = blocks[i].label + " - " + blocks[i].description;
+			labels[i] = blocks[i].label + " - " + blocks[i].code;
 		}
 
 		final BlockDragDropManager.BlockDef[] finalBlocks = blocks;

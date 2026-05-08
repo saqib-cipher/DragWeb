@@ -347,7 +347,7 @@ public class BlockDragDropManager {
 
         for (BlockDef def : blocks) {
             if (!searchQuery.isEmpty()) {
-                String searchable = (def.label + " " + def.description + " " + def.id).toLowerCase();
+                String searchable = (def.label + " " + def.code + " " + def.id).toLowerCase();
                 if (!searchable.contains(searchQuery)) continue;
             }
             blockPalette.addView(createPaletteBlock(def));
@@ -398,7 +398,7 @@ public class BlockDragDropManager {
 
         // Description
         TextView descText = new TextView(context);
-        descText.setText(def.description);
+        descText.setText(def.code);
         descText.setTextColor(Color.parseColor("#999999"));
         descText.setTextSize(9);
         block.addView(descText);
@@ -1496,13 +1496,13 @@ public class BlockDragDropManager {
     public static class BlockDef {
         public String id;
         public String label;
-        public String description;
+        public String code;
         public String category;
 
-        public BlockDef(String id, String label, String description, String category) {
+        public BlockDef(String id, String label, String code, String category) {
             this.id = id;
             this.label = label;
-            this.description = description;
+            this.code = code;
             this.category = category;
         }
     }
