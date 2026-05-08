@@ -52,6 +52,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
     private static final String CAT_VALUE = "value";
     private static final String CAT_LOGIC = "logic";
     private static final String CAT_ANIMATION = "animation";
+    private static final String CAT_META = "meta";
     private static final String CAT_ASD = "asd";
 
     private LogicBlockManager logicBlockManager;
@@ -214,6 +215,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
             available.add(CAT_ANIMATION);
             available.add(CAT_LOGIC);
             available.add(CAT_VALUE);
+            available.add(CAT_META);
         } else {
             available.add(CAT_ASD);
         }
@@ -255,6 +257,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
             case CAT_VALUE: return "Value";
             case CAT_LOGIC: return "Logic";
             case CAT_ANIMATION: return "Anim";
+            case CAT_META: return "Group";
             case CAT_ASD: return "ASD";
             default: return category;
         }

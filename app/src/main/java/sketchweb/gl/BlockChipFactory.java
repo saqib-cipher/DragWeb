@@ -53,18 +53,29 @@ final class BlockChipFactory {
                    int blockBaseColor,
                    OnChipValueChanged listener) {
         if (input == null) return new View(context);
-        String value = currentValue != null ? currentValue : (input.defaultValue != null ? input.defaultValue : "");
+        String value = currentValue != null && !currentValue.isEmpty()
+            ? currentValue
+            : (input.defaultValue != null ? input.defaultValue : "");
         String type = input.type != null ? input.type : "text";
         switch (type) {
             case "boolean":  return booleanChip(input, value, blockBaseColor, listener);
             case "color":    return colorChip(input, value, blockBaseColor, listener);
             case "dropdown": return dropdownChip(input, value, blockBaseColor, listener, resolveDropdownOptions(input));
-            case "selector": return dropdownChip(input, value, blockBaseColor, listener, resolveSelectorOptions(input));
+            case "selector": return selectorChip(input, value, blockBaseColor, listener);
             case "variable": return dropdownChip(input, value, blockBaseColor, listener, resolveVariableOptions());
             case "number":   return textChip(input, value, blockBaseColor, listener, true);
             default:         return textChip(input, value, blockBaseColor, listener, false);
         }
     }
+
+    /** Hex strings used by the color preset row. */
+    private static final String[] COLOR_PRESETS = {
+        "#000000", "#FFFFFF", "#F44336", "#E91E63",
+        "#9C27B0", "#673AB7", "#3F51B5", "#2196F3",
+        "#03A9F4", "#00BCD4", "#009688", "#4CAF50",
+        "#8BC34A", "#CDDC39", "#FFEB3B", "#FFC107",
+        "#FF9800", "#FF5722", "#795548", "#9E9E9E"
+    };
 
     // -------------------------------------------------------------------
     // Chip implementations
@@ -176,24 +187,232 @@ final class BlockChipFactory {
                                OnChipValueChanged listener) {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "#FFFFFF" : value);
         applyColorSwatch(chip, value);
-        chip.setOnClickListener(v -> {
-            EditText edit = new EditText(context);
-            edit.setText(value.isEmpty() ? "#" : value);
-            edit.setInputType(InputType.TYPE_CLASS_TEXT);
-            new AlertDialog.Builder(context)
-                .setTitle("Color (#RRGGBB)")
-                .setView(wrap(edit))
-                .setPositiveButton(android.R.string.ok, (d, w) -> {
-                    String nv = edit.getText().toString().trim();
-                    if (!nv.startsWith("#")) nv = "#" + nv;
-                    chip.setText(nv);
-                    applyColorSwatch(chip, nv);
-                    if (listener != null) listener.onChanged(input.id, nv);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-        });
+        chip.setOnClickListener(v -> showColorPickerDialog(input.id, value, picked -> {
+            chip.setText(picked);
+            applyColorSwatch(chip, picked);
+            if (listener != null) listener.onChanged(input.id, picked);
+        }));
         return chip;
+    }
+
+    /**
+     * Unified color picker dialog. Top row contains the color preset swatches
+     * (tap to commit). Below: live preview swatch + advanced #RRGGBB input.
+     */
+    private void showColorPickerDialog(String chipId, String current, OnPicked picked) {
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(16), dp(8), dp(16), dp(0));
+
+        // Live preview / advanced hex field
+        EditText hexInput = new EditText(context);
+        hexInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        hexInput.setText(current == null || current.isEmpty() ? "#" : current);
+
+        TextView preview = new TextView(context);
+        preview.setHeight(dp(36));
+        preview.setMinWidth(dp(64));
+        applyColorSwatch(preview, current);
+        LinearLayout previewRow = new LinearLayout(context);
+        previewRow.setOrientation(LinearLayout.HORIZONTAL);
+        previewRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams pwLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        pwLp.setMargins(0, 0, dp(10), 0);
+        previewRow.addView(preview, pwLp);
+        previewRow.addView(hexInput, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 3f));
+
+        // Preset palette grid
+        LinearLayout palette = new LinearLayout(context);
+        palette.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout currentRow = null;
+        int columns = 5;
+        for (int i = 0; i < COLOR_PRESETS.length; i++) {
+            if (i % columns == 0) {
+                currentRow = new LinearLayout(context);
+                currentRow.setOrientation(LinearLayout.HORIZONTAL);
+                palette.addView(currentRow, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            }
+            String hex = COLOR_PRESETS[i];
+            TextView swatch = new TextView(context);
+            swatch.setHeight(dp(36));
+            swatch.setText(" ");
+            applyColorSwatch(swatch, hex);
+            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            slp.setMargins(dp(2), dp(2), dp(2), dp(2));
+            swatch.setLayoutParams(slp);
+            swatch.setOnClickListener(v -> {
+                hexInput.setText(hex);
+                applyColorSwatch(preview, hex);
+            });
+            currentRow.addView(swatch);
+        }
+
+        hexInput.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable e) {
+                String t = e.toString().trim();
+                if (!t.isEmpty()) applyColorSwatch(preview, t);
+            }
+        });
+
+        TextView paletteLabel = new TextView(context);
+        paletteLabel.setText("Presets");
+        paletteLabel.setTextSize(12);
+        paletteLabel.setPadding(0, dp(12), 0, dp(4));
+
+        root.addView(previewRow);
+        root.addView(paletteLabel);
+        root.addView(palette);
+
+        new AlertDialog.Builder(context)
+            .setTitle(chipId != null ? "Color · " + chipId : "Color")
+            .setView(root)
+            .setPositiveButton(android.R.string.ok, (d, w) -> {
+                String nv = hexInput.getText().toString().trim();
+                if (!nv.startsWith("#")) nv = "#" + nv;
+                if (picked != null) picked.onPicked(nv);
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
+    }
+
+    private interface OnPicked { void onPicked(String value); }
+
+    /**
+     * Selector chip dialog: 3 horizontal mode pills (#id / .class / tag) plus
+     * an autocomplete input for fast searching of saved selectors. The chosen
+     * mode prefix is auto-applied so the chip value is always a complete CSS
+     * selector ready to splice into a generated rule.
+     */
+    private TextView selectorChip(ChipInput input, String value, int baseColor,
+                                  OnChipValueChanged listener) {
+        TextView chip = baseChip(baseColor, value.isEmpty() ? "▼" : value);
+        chip.setOnClickListener(v -> showSelectorPickerDialog(input, value, picked -> {
+            chip.setText(picked.isEmpty() ? "▼" : picked);
+            if (listener != null) listener.onChanged(input.id, picked);
+        }));
+        return chip;
+    }
+
+    private void showSelectorPickerDialog(ChipInput input, String current, OnPicked picked) {
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(16), dp(8), dp(16), 0);
+
+        final String[] modeRef = new String[]{ inferMode(current) };
+
+        final android.widget.AutoCompleteTextView ac = new android.widget.AutoCompleteTextView(context);
+        ac.setInputType(InputType.TYPE_CLASS_TEXT);
+        ac.setText(stripModePrefix(current));
+        ac.setHint("Selector name");
+        ac.setThreshold(1);
+
+        LinearLayout modeRow = new LinearLayout(context);
+        modeRow.setOrientation(LinearLayout.HORIZONTAL);
+        TextView[] pills = new TextView[3];
+        String[] modeIds = { "id", "class", "tag" };
+        String[] labels = { "# id", ". class", "tag" };
+        Runnable repaint = () -> {
+            for (int i = 0; i < pills.length; i++) {
+                pills[i].setAlpha(modeIds[i].equals(modeRef[0]) ? 1f : 0.45f);
+            }
+        };
+        for (int i = 0; i < 3; i++) {
+            final int idx = i;
+            TextView pill = baseChip(baseColorFor("css"), labels[i]);
+            pill.setOnClickListener(v -> {
+                modeRef[0] = modeIds[idx];
+                repaint.run();
+            });
+            pills[i] = pill;
+            modeRow.addView(pill, pillLp());
+        }
+        repaint.run();
+
+        java.util.List<String> suggestions = collectSelectorSuggestions();
+        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+            context, android.R.layout.simple_dropdown_item_1line, suggestions);
+        ac.setAdapter(adapter);
+
+        TextView modeLabel = new TextView(context);
+        modeLabel.setText("Match by");
+        modeLabel.setTextSize(12);
+        modeLabel.setPadding(0, 0, 0, dp(4));
+
+        root.addView(modeLabel);
+        root.addView(modeRow);
+        TextView nameLabel = new TextView(context);
+        nameLabel.setText("Selector");
+        nameLabel.setTextSize(12);
+        nameLabel.setPadding(0, dp(12), 0, dp(4));
+        root.addView(nameLabel);
+        root.addView(ac);
+
+        new AlertDialog.Builder(context)
+            .setTitle(input.id != null ? "Pick selector · " + input.id : "Pick selector")
+            .setView(root)
+            .setPositiveButton(android.R.string.ok, (d, w) -> {
+                String name = ac.getText().toString().trim();
+                String composed = composeSelector(modeRef[0], name);
+                if (picked != null) picked.onPicked(composed);
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
+    }
+
+    private java.util.List<String> collectSelectorSuggestions() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (paramTypes != null) {
+            for (String key : new String[]{"selectors_id", "selectors_class", "selectors_tag"}) {
+                java.util.List<String> opts = paramTypes.getOptions(key);
+                if (opts != null) out.addAll(opts);
+            }
+        }
+        if (out.isEmpty()) {
+            String[] defaults = {
+                "body", "html", "h1", "h2", "h3", "p", "a", "button", "input",
+                "ul", "li", "img", "section", "article", "header", "footer",
+                "nav", "main", "div", "span"
+            };
+            java.util.Collections.addAll(out, defaults);
+        }
+        return out;
+    }
+
+    private static String composeSelector(String mode, String name) {
+        if (name == null) name = "";
+        name = name.replaceFirst("^[#.]", "");
+        if ("id".equals(mode)) return "#" + name;
+        if ("class".equals(mode)) return "." + name;
+        return name;
+    }
+
+    private static String inferMode(String value) {
+        if (value == null) return "tag";
+        String v = value.trim();
+        if (v.startsWith("#")) return "id";
+        if (v.startsWith(".")) return "class";
+        return "tag";
+    }
+
+    private static String stripModePrefix(String value) {
+        if (value == null) return "";
+        String v = value.trim();
+        if (v.startsWith("#") || v.startsWith(".")) return v.substring(1);
+        return v;
+    }
+
+    private LinearLayout.LayoutParams pillLp() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp.setMargins(dp(2), 0, dp(2), 0);
+        return lp;
+    }
+
+    private int baseColorFor(String category) {
+        return BlockCategoryPalette.colorIntForCategory(category);
     }
 
     private void applyColorSwatch(TextView chip, String hex) {
@@ -224,15 +443,6 @@ final class BlockChipFactory {
             if (opts != null && !opts.isEmpty()) return opts;
         }
         return new ArrayList<>();
-    }
-
-    private List<String> resolveSelectorOptions(ChipInput input) {
-        // Selector chips ideally pull from the page tree via CustomBlockManager
-        // but at edit-time the active tree is owned by the activity; expose a
-        // free-form fallback so the chip is always usable.
-        List<String> opts = new ArrayList<>();
-        if (input.options != null) opts.addAll(input.options);
-        return opts;
     }
 
     private List<String> resolveVariableOptions() {

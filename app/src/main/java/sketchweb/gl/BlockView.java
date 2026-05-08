@@ -36,6 +36,7 @@ class BlockView extends LinearLayout {
     private final BlockDef def;
     private final BlockChipFactory chipFactory;
     private final OnBlockChanged onChange;
+    private final BlockDragDropManager dragDropManager;
 
     private LinearLayout headerRow;
     private LinearLayout stackSlot;
@@ -49,11 +50,13 @@ class BlockView extends LinearLayout {
               LogicBlockManager.LogicBlock block,
               BlockDef def,
               BlockChipFactory chipFactory,
+              BlockDragDropManager dragDropManager,
               OnBlockChanged onChange) {
         super(context);
         this.block = block;
         this.def = def;
         this.chipFactory = chipFactory;
+        this.dragDropManager = dragDropManager;
         this.onChange = onChange;
 
         setOrientation(VERTICAL);
@@ -68,6 +71,28 @@ class BlockView extends LinearLayout {
         applyShape();
         buildHeader();
         if (def != null && def.isContainer()) buildStackSlot();
+        if (isGroupBlock()) attachGroupExpandToggle();
+    }
+
+    private boolean isGroupBlock() {
+        return block != null && "groupBlock".equals(block.action) && stackSlot != null;
+    }
+
+    /**
+     * Make the group block header tap-to-toggle the visibility of its inner
+     * stack so a finished {@code <navbar>} group collapses to a single line.
+     * The first chip ({@code dragHandle}) shows ▾/▸ to indicate state.
+     */
+    private void attachGroupExpandToggle() {
+        if (headerRow == null || stackSlot == null) return;
+        headerRow.setOnClickListener(v -> {
+            boolean collapsed = stackSlot.getVisibility() == GONE;
+            stackSlot.setVisibility(collapsed ? VISIBLE : GONE);
+            if (dragHandle != null) {
+                dragHandle.setText(collapsed ? "▾" : "▸");
+            }
+        });
+        if (dragHandle != null) dragHandle.setText("▾");
     }
 
     LogicBlockManager.LogicBlock getBlock() {
@@ -220,11 +245,28 @@ class BlockView extends LinearLayout {
     private View buildChip(ChipInput input, int index) {
         String value = paramValueAt(index);
         int baseColor = def != null ? Color.parseColor(def.resolvedColor()) : BlockCategoryPalette.colorIntForCategory(block.category);
-        return chipFactory.buildChip(input, value, baseColor, (chipId, newValue) -> {
+        View chip = chipFactory.buildChip(input, value, baseColor, (chipId, newValue) -> {
             setParamValue(index, newValue);
             syncLegacyParams();
             if (onChange != null) onChange.onBlockChanged(block);
         });
+        // Allow value-shaped blocks (valueString / valueNumber / valueBoolean
+        // / valueColor) to be dropped onto this chip as a quick-fill source.
+        if (dragDropManager != null) {
+            dragDropManager.attachChipTarget(chip, accepted -> {
+                setParamValue(index, accepted);
+                syncLegacyParams();
+                refreshChipTextIfTextView(chip, accepted);
+                if (onChange != null) onChange.onBlockChanged(block);
+            });
+        }
+        return chip;
+    }
+
+    private void refreshChipTextIfTextView(View chip, String text) {
+        if (chip instanceof TextView) {
+            ((TextView) chip).setText(text == null || text.isEmpty() ? "..." : text);
+        }
     }
 
     private void ensureParamCapacity(int n) {

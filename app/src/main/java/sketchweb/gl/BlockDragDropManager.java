@@ -99,6 +99,93 @@ final class BlockDragDropManager {
         slot.setOnDragListener((v, event) -> handleSlotDrag(slot, host, event));
     }
 
+    /**
+     * Wire a chip view as a drop target for value blocks. Dropping a
+     * {@code valueString} / {@code valueNumber} / {@code valueBoolean} /
+     * {@code valueColor} block onto a chip fills the chip with the source's
+     * rendered value. Source workspace value-blocks are NOT auto-removed –
+     * the user can keep them as a reusable reference or delete by hand.
+     */
+    void attachChipTarget(View chip, OnChipDropAccepted accepted) {
+        chip.setOnDragListener((v, event) -> {
+            switch (event.getAction()) {
+                case DragEvent.ACTION_DRAG_STARTED:
+                    return descriptionMatches(event);
+                case DragEvent.ACTION_DRAG_ENTERED:
+                    chip.setAlpha(0.7f);
+                    return true;
+                case DragEvent.ACTION_DRAG_EXITED:
+                case DragEvent.ACTION_DRAG_ENDED:
+                    chip.setAlpha(1f);
+                    return true;
+                case DragEvent.ACTION_DROP:
+                    chip.setAlpha(1f);
+                    String payload = readPayload(event);
+                    String value = resolveValueFromPayload(payload);
+                    if (value != null && accepted != null) {
+                        accepted.onAccepted(value);
+                        return true;
+                    }
+                    return false;
+                default:
+                    return true;
+            }
+        });
+    }
+
+    /**
+     * Resolve a draggable payload to its rendered scalar value. Only succeeds
+     * for {@link #isValueDef(BlockDef) value-style block definitions}; any other
+     * payload yields {@code null} so the chip can fall through and let the
+     * normal workspace-level drop logic handle reordering instead.
+     */
+    private String resolveValueFromPayload(String payload) {
+        if (payload == null) return null;
+        if (payload.startsWith(SOURCE_PALETTE)) {
+            String defId = payload.substring(SOURCE_PALETTE.length());
+            BlockDef def = host.findDef(defId);
+            if (def == null || !isValueDef(def)) return null;
+            // Use the def's first input default as the rendered value.
+            java.util.List<ChipInput> inputs = def.resolvedInputs();
+            if (inputs.isEmpty() || inputs.get(0).defaultValue == null) return "";
+            StringBuilder sb = new StringBuilder();
+            for (ChipInput ci : inputs) sb.append(ci.defaultValue != null ? ci.defaultValue : "");
+            return sb.toString();
+        }
+        if (payload.startsWith(SOURCE_WORKSPACE)) {
+            String id = payload.substring(SOURCE_WORKSPACE.length());
+            LogicBlockManager mgr = host.getWorkspace() != null
+                ? host.getWorkspace().getLogicBlockManager() : null;
+            if (mgr == null) return null;
+            LogicBlockManager.LogicBlock src = null;
+            for (LogicBlockManager.LogicBlock b : mgr.getBlocks()) {
+                if (id.equals(b.id)) { src = b; break; }
+            }
+            if (src == null) return null;
+            BlockDef def = host.findDef(src.action);
+            if (def == null || !isValueDef(def)) return null;
+            // Render the value by concatenating the chip values – mirrors
+            // {@code applyChipTemplate} for the simple linear-token case used
+            // by every value-shaped block.
+            StringBuilder sb = new StringBuilder();
+            if (src.paramValues != null) {
+                for (String v : src.paramValues) sb.append(v != null ? v : "");
+            }
+            return sb.toString();
+        }
+        return null;
+    }
+
+    private static boolean isValueDef(BlockDef def) {
+        if (def == null) return false;
+        if (def.isReporter()) return true;
+        return "value".equals(def.category);
+    }
+
+    interface OnChipDropAccepted {
+        void onAccepted(String value);
+    }
+
     /** Wire the delete bar. */
     void attachDeleteBar(View deleteBar) {
         deleteBar.setOnDragListener((v, event) -> {

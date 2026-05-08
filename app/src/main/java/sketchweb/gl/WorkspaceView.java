@@ -85,6 +85,11 @@ public class WorkspaceView extends ScrollView {
         this.logicBlockManager = manager;
     }
 
+    /** Resolve the active manager so the drag/drop layer can introspect blocks. */
+    public LogicBlockManager getLogicBlockManager() {
+        return logicBlockManager;
+    }
+
     /**
      * Re-render the entire stack from the current
      * {@link LogicBlockManager#getBlocks()} list. Cheap because each block view
@@ -243,7 +248,7 @@ public class WorkspaceView extends ScrollView {
         for (LogicBlockManager.LogicBlock b : logicBlockManager.getBlocks()) {
             if (!sameParent(b.parentBlockId, parentId)) continue;
             BlockDef def = findDef(b.action);
-            BlockView view = new BlockView(getContext(), b, def, chipFactory, this::onBlockMutated);
+            BlockView view = new BlockView(getContext(), b, def, chipFactory, dragDropManager, this::onBlockMutated);
             viewByBlockId.put(b.id, view);
             host.addView(view);
             if (view.isContainer()) {
