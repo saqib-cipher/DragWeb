@@ -40,11 +40,11 @@
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="JavaScript" />
+                android:text="Style" />
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="CSS" />
+                android:text="Source" />
         </com.google.android.material.tabs.TabLayout>
 
         <!-- ===== Block count / quick-actions strip ===== -->
