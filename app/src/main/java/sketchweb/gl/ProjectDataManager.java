@@ -36,12 +36,16 @@ public class ProjectDataManager {
     private static final String TAG = "ProjectDataManager";
 
     // ZIP folder names used by the new clean backup format
-    private static final String ZIP_PAGES   = "pages/";
-    private static final String ZIP_STYLES  = "styles/";
-    private static final String ZIP_LOGIC   = "logic/";
-    private static final String ZIP_ASSETS  = "assets/";
-    private static final String ZIP_META    = "meta/";
-    private static final String ZIP_WIDGETS = "widgets/";
+    private static final String ZIP_PAGES       = "pages/";
+    private static final String ZIP_STYLES      = "styles/";
+    private static final String ZIP_LOGIC       = "logic/";
+    private static final String ZIP_ASSETS      = "assets/";
+    private static final String ZIP_META        = "meta/";
+    private static final String ZIP_WIDGETS     = "widgets/";
+    private static final String ZIP_COMPONENTS  = "components/";
+    private static final String ZIP_ANIMATIONS  = "animations/";
+    private static final String ZIP_ICONS       = "icons/";
+    private static final String ZIP_BREAKPOINTS = "breakpoints/";
 
     private Context context;
     private Gson gson = new GsonBuilder().create();
@@ -151,6 +155,22 @@ public class ProjectDataManager {
                         } else if (name.equals(projectId + ".meta")) {
                             // Metadata → meta/
                             addFileToZip(zos, ZIP_META + name, file);
+
+                        } else if (name.equals(projectId + ".icons")) {
+                            // Icon library config → icons/
+                            addFileToZip(zos, ZIP_ICONS + name, file);
+
+                        } else if (name.equals(projectId + ".components.json")) {
+                            // Reusable components → components/
+                            addFileToZip(zos, ZIP_COMPONENTS + name, file);
+
+                        } else if (name.equals(projectId + ".animations.json")) {
+                            // Custom animation presets → animations/
+                            addFileToZip(zos, ZIP_ANIMATIONS + name, file);
+
+                        } else if (name.equals(projectId + ".breakpoints.json")) {
+                            // Responsive breakpoints → breakpoints/
+                            addFileToZip(zos, ZIP_BREAKPOINTS + name, file);
                         }
                         // Other files (e.g. belonging to other projects) are skipped
                     }
@@ -234,6 +254,10 @@ public class ProjectDataManager {
      * Returns null if the file should not be included.
      */
     private String classifyInternalFile(String name) {
+        if (name.endsWith(".icons")) return ZIP_ICONS + name;
+        if (name.endsWith(".components.json")) return ZIP_COMPONENTS + name;
+        if (name.endsWith(".animations.json")) return ZIP_ANIMATIONS + name;
+        if (name.endsWith(".breakpoints.json")) return ZIP_BREAKPOINTS + name;
         if (name.endsWith(".json")) return ZIP_PAGES + name;
         if (name.endsWith(".theme")) return ZIP_STYLES + name;
         if (name.endsWith(".logic")) return ZIP_LOGIC + name;
@@ -293,6 +317,34 @@ public class ProjectDataManager {
                 } else if (entryName.startsWith(ZIP_META)) {
                     // meta/{projectId}.meta → internal projects dir
                     String relative = entryName.substring(ZIP_META.length());
+                    outFile = new File(internalProjectsDir, relative);
+                    safeBase = internalBase;
+                    captureProjectIdFromInternalFile(relative, result.importedProjectIds);
+
+                } else if (entryName.startsWith(ZIP_ICONS)) {
+                    // icons/{projectId}.icons → internal projects dir
+                    String relative = entryName.substring(ZIP_ICONS.length());
+                    outFile = new File(internalProjectsDir, relative);
+                    safeBase = internalBase;
+                    captureProjectIdFromInternalFile(relative, result.importedProjectIds);
+
+                } else if (entryName.startsWith(ZIP_COMPONENTS)) {
+                    // components/{projectId}.components.json → internal projects dir
+                    String relative = entryName.substring(ZIP_COMPONENTS.length());
+                    outFile = new File(internalProjectsDir, relative);
+                    safeBase = internalBase;
+                    captureProjectIdFromInternalFile(relative, result.importedProjectIds);
+
+                } else if (entryName.startsWith(ZIP_ANIMATIONS)) {
+                    // animations/{projectId}.animations.json → internal projects dir
+                    String relative = entryName.substring(ZIP_ANIMATIONS.length());
+                    outFile = new File(internalProjectsDir, relative);
+                    safeBase = internalBase;
+                    captureProjectIdFromInternalFile(relative, result.importedProjectIds);
+
+                } else if (entryName.startsWith(ZIP_BREAKPOINTS)) {
+                    // breakpoints/{projectId}.breakpoints.json → internal projects dir
+                    String relative = entryName.substring(ZIP_BREAKPOINTS.length());
                     outFile = new File(internalProjectsDir, relative);
                     safeBase = internalBase;
                     captureProjectIdFromInternalFile(relative, result.importedProjectIds);

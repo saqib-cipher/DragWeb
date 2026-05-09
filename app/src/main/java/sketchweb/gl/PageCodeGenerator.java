@@ -16,12 +16,18 @@ public class PageCodeGenerator {
     private final Map<String, String> styleClassMap = new HashMap<>();
     private final List<String> styleRules = new ArrayList<>();
     private int styleClassCounter = 1;
+    private IconLibraryManager iconLibraryManager;
 
     public PageCodeGenerator() {}
 
     public void setProjectInfo(String name, String logoPath) {
         this.projectName = name != null ? name : "";
         this.projectLogoPath = logoPath != null ? logoPath : "";
+    }
+
+    /** Optional icon library configuration whose CDN tags will be injected. */
+    public void setIconLibraryManager(IconLibraryManager m) {
+        this.iconLibraryManager = m;
     }
 
     public String generateAllCode(View screen) {
@@ -154,14 +160,19 @@ public class PageCodeGenerator {
         htmlBuilder.append("    input, textarea { font-family: inherit; }\n");
         htmlBuilder.append("    img { max-width: 100%; height: auto; }\n");
 
-        // Animation keyframes used by the CSS animation blocks.
-        htmlBuilder.append("    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }\n");
-        htmlBuilder.append("    @keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }\n");
+        // Full keyframe library used by the animation blocks.
+        htmlBuilder.append(AnimationLibrary.generateKeyframesCss("    "));
         for (String styleRule : styleRules) {
             htmlBuilder.append(styleRule);
         }
 
         htmlBuilder.append("  </style>\n");
+
+        // External icon-library CDN includes (Font Awesome, Material Icons, …).
+        if (iconLibraryManager != null) {
+            String includes = iconLibraryManager.generateHtmlIncludes();
+            if (includes != null && !includes.isEmpty()) htmlBuilder.append(includes);
+        }
 
         // ASD <head> source goes last so it can override anything above.
         if (logicBlockManager != null) {
@@ -221,9 +232,15 @@ public class PageCodeGenerator {
             || (asdJs != null && !asdJs.trim().isEmpty());
         if (hasJs) {
             htmlBuilder.append("\n  <script>\n");
-            if (logicJs != null && !logicJs.trim().isEmpty()) htmlBuilder.append(logicJs);
+            htmlBuilder.append("    /* state */\n");
+            htmlBuilder.append("    var DW = window.DW = window.DW || { state: {}, components: {} };\n");
+            if (logicJs != null && !logicJs.trim().isEmpty()) {
+                htmlBuilder.append("    /* logic blocks */\n");
+                htmlBuilder.append(logicJs);
+            }
             if (asdJs != null && !asdJs.trim().isEmpty()) {
                 if (logicJs != null && !logicJs.trim().isEmpty()) htmlBuilder.append("\n");
+                htmlBuilder.append("    /* user JS */\n");
                 htmlBuilder.append(asdJs).append("\n");
             }
             htmlBuilder.append("  </script>\n");
