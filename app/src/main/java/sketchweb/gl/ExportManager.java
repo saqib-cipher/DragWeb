@@ -21,6 +21,7 @@ public class ExportManager {
     private Context context;
     private ThemeManager themeManager;
     private IconLibraryManager iconLibraryManager;
+    private String projectId;
 
     public ExportManager(Context context, ThemeManager themeManager) {
         this.context = context;
@@ -30,6 +31,15 @@ public class ExportManager {
     /** Optional icon library configuration for the active project. */
     public void setIconLibraryManager(IconLibraryManager m) {
         this.iconLibraryManager = m;
+    }
+
+    /**
+     * Set the active project id so non-ZIP exports can locate the matching
+     * assets folder ({@code .dragweb/projects/&lt;id&gt;/assets}). Without this
+     * the HTML export still works, but ships with an empty assets directory.
+     */
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
     }
 
     public static class ExportResult {
@@ -77,6 +87,9 @@ public class ExportManager {
             writeFile(new File(jsDir, "script.js"), jsContent);
             writeFile(new File(exportDir, "project.json"),
                 generateProjectManifest(projectName));
+            // Mirror the assets panel into the HTML export so a plain-folder
+            // export ships images/fonts/etc. alongside the generated HTML.
+            copyAssetsPanel(projectName, assetsDir);
             result.success = true;
             result.message = "Exported to: " + exportDir.getAbsolutePath();
         } catch (IOException e) {
@@ -85,6 +98,25 @@ public class ExportManager {
         }
 
         return result;
+    }
+
+    /**
+     * Copy the user's Assets-panel directory into the export's {@code assets/}
+     * folder. Resolves the path via the same key the file explorer uses
+     * ({@code .dragweb/projects/&lt;id&gt;/assets}) — call {@link #setProjectId}
+     * before exporting or this is a silent no-op.
+     */
+    private void copyAssetsPanel(String projectName, File targetAssetsDir) {
+        if (projectId == null || projectId.isEmpty()) return;
+        try {
+            String panelPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectId + "/assets";
+            File src = new File(panelPath);
+            if (!src.exists() || !src.isDirectory()) return;
+            copyDirectory(src, targetAssetsDir);
+        } catch (Exception e) {
+            Log.w("ExportManager", "Could not mirror assets panel: " + e.getMessage());
+        }
     }
 
     /**
