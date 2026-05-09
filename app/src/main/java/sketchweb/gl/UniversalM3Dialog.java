@@ -11,8 +11,11 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
+import android.widget.ArrayAdapter;
+import android.widget.ScrollView;
 
 import java.util.Arrays;
 import java.util.List;
@@ -95,79 +98,66 @@ public final class UniversalM3Dialog {
      */
     public void showRadioWithCustom(List<String> presets, String currentValue, OnText cb) {
         int pad = dp(16);
-
+        ScrollView scroll = new ScrollView(context);
         LinearLayout root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(pad, dp(8), pad, 0);
+        scroll.addView(root);
 
-        // Outlined surface holding the radio group
-        LinearLayout outlined = new LinearLayout(context);
-        outlined.setOrientation(LinearLayout.VERTICAL);
-        outlined.setPadding(dp(12), dp(8), dp(12), dp(8));
-        GradientDrawable outline = new GradientDrawable();
-        outline.setCornerRadius(dp(14));
-        outline.setStroke(dp(1), 0x55000000);
-        outline.setColor(0x00000000);
-        outlined.setBackground(outline);
-
+        // Radio group for presets
         RadioGroup group = new RadioGroup(context);
         group.setOrientation(RadioGroup.VERTICAL);
-        outlined.addView(group);
+        group.setPadding(0, 0, 0, dp(8));
 
         int customId = View.generateViewId();
-        boolean[] matched = { false };
+        boolean matched = false;
         if (presets != null) {
-            for (int i = 0; i < presets.size(); i++) {
-                String p = presets.get(i);
+            for (String p : presets) {
                 RadioButton rb = new RadioButton(context);
-                rb.setId(View.generateViewId());
                 rb.setText(p);
                 rb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-                rb.setPadding(dp(4), dp(6), dp(4), dp(6));
                 group.addView(rb);
                 if (p.equals(currentValue)) {
                     rb.setChecked(true);
-                    matched[0] = true;
+                    matched = true;
                 }
             }
         }
+        root.addView(group);
 
-        // Custom row: radio toggle on the LEFT, outlined input fills remaining space.
+        // Custom row: Radio + Input
         LinearLayout customRow = new LinearLayout(context);
         customRow.setOrientation(LinearLayout.HORIZONTAL);
+        customRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
         RadioButton customRb = new RadioButton(context);
         customRb.setId(customId);
         customRb.setText("Custom");
         customRb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        customRb.setPadding(dp(4), dp(6), dp(4), dp(6));
-        // The radio sits in its own group anchor; we still link selection by
-        // listening for focus on the custom field below.
-        LinearLayout.LayoutParams rbLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        customRow.addView(customRb, rbLp);
+        customRow.addView(customRb);
 
-        TextInputLayout customTil = new TextInputLayout(context);
-        customTil.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        customTil.setHint(hint == null ? "Custom value" : hint);
-        customTil.setBoxCornerRadii(dp(12), dp(12), dp(12), dp(12));
+        TextInputLayout til = new TextInputLayout(context);
+        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        til.setHint(hint == null ? "Type..." : hint);
+        til.setBoxCornerRadii(dp(12), dp(12), dp(12), dp(12));
 
-        TextInputEditText customEdit = new TextInputEditText(customTil.getContext());
-        customEdit.setSingleLine(true);
-        customEdit.setInputType(InputType.TYPE_CLASS_TEXT);
-        if (!matched[0] && currentValue != null && !currentValue.isEmpty()) {
-            customEdit.setText(currentValue);
+        MaterialAutoCompleteTextView edit = new MaterialAutoCompleteTextView(til.getContext());
+        edit.setSingleLine(true);
+        if (!matched && currentValue != null && !currentValue.isEmpty()) {
+            edit.setText(currentValue);
             customRb.setChecked(true);
         }
-        customTil.addView(customEdit);
-        LinearLayout.LayoutParams customLp = new LinearLayout.LayoutParams(
-            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        customLp.leftMargin = dp(8);
-        customRow.addView(customTil, customLp);
+        if (presets != null) {
+            edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, presets));
+        }
+        til.addView(edit);
+        
+        LinearLayout.LayoutParams tilLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tilLp.leftMargin = dp(8);
+        customRow.addView(til, tilLp);
+        root.addView(customRow);
 
-        outlined.addView(customRow);
-
-        customEdit.setOnFocusChangeListener((v, has) -> {
+        edit.setOnFocusChangeListener((v, has) -> {
             if (has) {
                 group.clearCheck();
                 customRb.setChecked(true);
@@ -176,31 +166,167 @@ public final class UniversalM3Dialog {
         customRb.setOnClickListener(v -> {
             group.clearCheck();
             customRb.setChecked(true);
-            customEdit.requestFocus();
+            edit.requestFocus();
         });
-
-        root.addView(outlined);
 
         new MaterialAlertDialogBuilder(context)
             .setTitle(title)
-            .setView(root)
-            // "Done" lives on the right (positive button).
+            .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
                 int checkedId = group.getCheckedRadioButtonId();
                 String result;
-                if (checkedId == -1 || customRb.isChecked()) {
-                    result = customEdit.getText() == null ? "" : customEdit.getText().toString().trim();
+                if (customRb.isChecked() || checkedId == -1) {
+                    result = edit.getText().toString().trim();
                 } else {
-                    View selectedView = group.findViewById(checkedId);
-                    result = (selectedView instanceof RadioButton)
-                        ? ((RadioButton) selectedView).getText().toString()
-                        : "";
+                    RadioButton rb = group.findViewById(checkedId);
+                    result = rb.getText().toString();
                 }
                 if (cb != null) cb.onText(result);
             })
             .setNegativeButton("Cancel", null)
-            .setBackgroundInsetStart(dp(24))
-            .setBackgroundInsetEnd(dp(24))
+            .show();
+    }
+
+    public void showFourValueInput(String prop, OnText cb) {
+        int pad = dp(16);
+        ScrollView scroll = new ScrollView(context);
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, dp(16), pad, 0);
+        scroll.addView(root);
+
+        String[] parts = (initial == null ? "" : initial).split("\\s+");
+        String vT = parts.length > 0 ? parts[0] : "0px";
+        String vR = parts.length > 1 ? parts[1] : (parts.length > 0 ? parts[0] : "0px");
+        String vB = parts.length > 2 ? parts[2] : (parts.length > 0 ? parts[0] : "0px");
+        String vL = parts.length > 3 ? parts[3] : (parts.length > 1 ? parts[1] : (parts.length > 0 ? parts[0] : "0px"));
+
+        String[] labels = {"Top", "Right", "Bottom", "Left"};
+        String[] vals = {vT, vR, vB, vL};
+        MaterialAutoCompleteTextView[] edits = new MaterialAutoCompleteTextView[4];
+
+        for (int i = 0; i < 4; i++) {
+            TextInputLayout til = new TextInputLayout(context);
+            til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+            til.setHint(labels[i]);
+            til.setBoxCornerRadii(dp(12), dp(12), dp(12), dp(12));
+            
+            edits[i] = new MaterialAutoCompleteTextView(til.getContext());
+            edits[i].setText(vals[i]);
+            edits[i].setSingleLine(true);
+            if (units != null) {
+                edits[i].setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, units));
+            }
+            til.addView(edits[i]);
+            
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.bottomMargin = dp(12);
+            root.addView(til, lp);
+        }
+
+        new MaterialAlertDialogBuilder(context)
+            .setTitle(title)
+            .setView(scroll)
+            .setPositiveButton("Done", (d, w) -> {
+                String res = edits[0].getText().toString().trim() + " " +
+                             edits[1].getText().toString().trim() + " " +
+                             edits[2].getText().toString().trim() + " " +
+                             edits[3].getText().toString().trim();
+                if (cb != null) cb.onText(res);
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    public void showAutocompleteChoice(List<String> suggestions, String initialValue, OnText cb) {
+        showRadioWithCustom(suggestions, initialValue, cb);
+    }
+
+    /**
+     * A smart selector dialog that handles ID (#), Class (.), and Tag (none).
+     * Automatically swaps autocomplete suggestions based on the selected prefix.
+     */
+    public void showSelectorInput(List<String> idSuggestions, 
+                                 List<String> classSuggestions, 
+                                 List<String> tagSuggestions, 
+                                 OnText cb) {
+        int pad = dp(16);
+        ScrollView scroll = new ScrollView(context);
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, dp(16), pad, 0);
+        scroll.addView(root);
+
+        // Prefix selector (horizontal radio pills)
+        RadioGroup group = new RadioGroup(context);
+        group.setOrientation(RadioGroup.HORIZONTAL);
+        group.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+        group.setPadding(0, 0, 0, dp(16));
+
+        String[] prefixes = {"ID (#)", "Class (.)", "Tag"};
+        for (int i = 0; i < 3; i++) {
+            RadioButton rb = new RadioButton(context);
+            rb.setId(100 + i);
+            rb.setText(prefixes[i]);
+            rb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            group.addView(rb);
+        }
+        root.addView(group);
+
+        TextInputLayout til = new TextInputLayout(context);
+        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        til.setHint("Name");
+        til.setBoxCornerRadii(dp(14), dp(14), dp(14), dp(14));
+        til.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);
+        // We'll use a standard search icon if possible, but for now just clear icon
+        til.setEndIconDrawable(android.R.drawable.ic_menu_search);
+
+        MaterialAutoCompleteTextView edit = new MaterialAutoCompleteTextView(til.getContext());
+        edit.setSingleLine(true);
+        til.addView(edit);
+        root.addView(til);
+
+        // Initial parsing
+        String val = initial == null ? "" : initial.trim();
+        if (val.startsWith("#")) {
+            ((RadioButton)group.getChildAt(0)).setChecked(true);
+            edit.setText(val.substring(1));
+        } else if (val.startsWith(".")) {
+            ((RadioButton)group.getChildAt(1)).setChecked(true);
+            edit.setText(val.substring(1));
+        } else {
+            ((RadioButton)group.getChildAt(2)).setChecked(true);
+            edit.setText(val);
+        }
+
+        group.setOnCheckedChangeListener((g, id) -> {
+            List<String> active = (id == 100) ? idSuggestions : (id == 101 ? classSuggestions : tagSuggestions);
+            if (active != null) {
+                edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, active));
+                if (!edit.getText().toString().isEmpty()) edit.showDropDown();
+            } else {
+                edit.setAdapter(null);
+            }
+        });
+        
+        // Trigger initial adapter
+        int initialId = group.getCheckedRadioButtonId();
+        List<String> initActive = (initialId == 100) ? idSuggestions : (initialId == 101 ? classSuggestions : tagSuggestions);
+        if (initActive != null) edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, initActive));
+
+        new MaterialAlertDialogBuilder(context)
+            .setTitle(title)
+            .setView(scroll)
+            .setPositiveButton("Done", (d, w) -> {
+                String name = edit.getText().toString().trim();
+                int checked = group.getCheckedRadioButtonId();
+                String prefix = (checked == 100) ? "#" : (checked == 101 ? "." : "");
+                
+                // Clean up name
+                name = name.replaceFirst("^[#.]", "");
+                if (cb != null) cb.onText(prefix + name);
+            })
+            .setNegativeButton("Cancel", null)
             .show();
     }
 

@@ -38,6 +38,11 @@ public final class UniversalDialog {
     public interface OnNumberUnitResult { void onValue(float value, String unit); }
     public interface OnColorResult { void onColor(String hex); }
 
+    private static String formatFloat(float f) {
+        if (f == (int) f) return String.valueOf((int) f);
+        return String.valueOf(f);
+    }
+
     private UniversalDialog() {}
 
     // -------------------------------------------------------------------
@@ -159,10 +164,10 @@ public final class UniversalDialog {
         TextInputLayout til = makeInputLayout(themed, "Value");
         TextInputEditText edit = new TextInputEditText(til.getContext());
         edit.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED);
-        edit.setText(String.valueOf(initial));
+        edit.setText(formatFloat(initial));
         til.addView(edit);
         LinearLayout.LayoutParams tilLp = new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 2f);
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1.2f);
         til.setLayoutParams(tilLp);
 
         TextInputLayout unitTil = makeInputLayout(themed, "Unit");

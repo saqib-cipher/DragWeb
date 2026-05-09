@@ -17,6 +17,7 @@ public class PageCodeGenerator {
     private final List<String> styleRules = new ArrayList<>();
     private int styleClassCounter = 1;
     private IconLibraryManager iconLibraryManager;
+    private AnimationLibraryManager animationLibraryManager;
 
     public PageCodeGenerator() {}
 
@@ -28,6 +29,10 @@ public class PageCodeGenerator {
     /** Optional icon library configuration whose CDN tags will be injected. */
     public void setIconLibraryManager(IconLibraryManager m) {
         this.iconLibraryManager = m;
+    }
+
+    public void setAnimationLibraryManager(AnimationLibraryManager m) {
+        this.animationLibraryManager = m;
     }
 
     public String generateAllCode(View screen) {
@@ -161,7 +166,11 @@ public class PageCodeGenerator {
         htmlBuilder.append("    img { max-width: 100%; height: auto; }\n");
 
         // Full keyframe library used by the animation blocks.
-        htmlBuilder.append(AnimationLibrary.generateKeyframesCss("    "));
+        if (animationLibraryManager != null) {
+            htmlBuilder.append(animationLibraryManager.generateLocalKeyframesCss("    "));
+        } else {
+            htmlBuilder.append(AnimationLibrary.generateKeyframesCss("    "));
+        }
         for (String styleRule : styleRules) {
             htmlBuilder.append(styleRule);
         }
@@ -171,6 +180,10 @@ public class PageCodeGenerator {
         // External icon-library CDN includes (Font Awesome, Material Icons, …).
         if (iconLibraryManager != null) {
             String includes = iconLibraryManager.generateHtmlIncludes();
+            if (includes != null && !includes.isEmpty()) htmlBuilder.append(includes);
+        }
+        if (animationLibraryManager != null) {
+            String includes = animationLibraryManager.generateHtmlIncludes();
             if (includes != null && !includes.isEmpty()) htmlBuilder.append(includes);
         }
 

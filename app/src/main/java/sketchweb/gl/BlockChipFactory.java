@@ -137,7 +137,7 @@ final class BlockChipFactory {
                 .setTitle(input.id != null ? input.id : "Choose")
                 .setHint(input.placeholder != null ? input.placeholder : "Custom value")
                 .setInitialValue(value)
-                .showRadioWithCustom(options, value, chosen -> {
+                .showAutocompleteChoice(options, value, chosen -> {
                     chip.setText(chosen.isEmpty() ? "▼" : chosen + " ▼");
                     if (listener != null) listener.onChanged(input.id, chosen);
                 });
@@ -197,50 +197,45 @@ final class BlockChipFactory {
         // the picker shares the same Done/Cancel layout as every other chip.
         // Existing selectors gathered from BlockParamTypeManager show up as
         // radio rows; the custom input row lets the user type a fresh one.
-        java.util.List<String> presets = collectSelectorSuggestions();
         new UniversalM3Dialog(context)
             .setTitle(input.id != null ? "Pick selector · " + input.id : "Pick selector")
-            .setHint("e.g. #header, .btn, h1")
             .setInitialValue(current)
-            .showRadioWithCustom(presets, current, chosen -> {
-                String composed = composeSelector(inferMode(chosen), chosen);
-                if (picked != null) picked.onPicked(composed);
-            });
+            .showSelectorInput(
+                collectSuggestions("selectors_id"),
+                collectSuggestions("selectors_class"),
+                collectSuggestions("selectors_tag"),
+                chosen -> {
+                    if (picked != null) picked.onPicked(chosen);
+                });
     }
 
-    private java.util.List<String> collectSelectorSuggestions() {
+    private java.util.List<String> collectSuggestions(String key) {
         java.util.List<String> out = new java.util.ArrayList<>();
+        
+        // 1. Add live project assets first
+        ProjectAssetManager pam = ProjectAssetManager.getInstance();
+        if ("selectors_id".equals(key)) out.addAll(pam.getIds());
+        else if ("selectors_class".equals(key)) out.addAll(pam.getClasses());
+        else if ("selectors_tag".equals(key)) out.addAll(pam.getTags());
+
+        // 2. Add library/preset options
         if (paramTypes != null) {
-            for (String key : new String[]{"selectors_id", "selectors_class", "selectors_tag"}) {
-                java.util.List<String> opts = paramTypes.getOptions(key);
-                if (opts != null) out.addAll(opts);
+            java.util.List<String> opts = paramTypes.getOptions(key);
+            if (opts != null) {
+                for (String o : opts) if (!out.contains(o)) out.add(o);
             }
         }
-        if (out.isEmpty()) {
+
+        // 3. Defaults for tags if still empty
+        if (out.isEmpty() && key.equals("selectors_tag")) {
             String[] defaults = {
                 "body", "html", "h1", "h2", "h3", "p", "a", "button", "input",
                 "ul", "li", "img", "section", "article", "header", "footer",
                 "nav", "main", "div", "span"
             };
-            java.util.Collections.addAll(out, defaults);
+            for (String d : defaults) if (!out.contains(d)) out.add(d);
         }
         return out;
-    }
-
-    private static String composeSelector(String mode, String name) {
-        if (name == null) name = "";
-        name = name.replaceFirst("^[#.]", "");
-        if ("id".equals(mode)) return "#" + name;
-        if ("class".equals(mode)) return "." + name;
-        return name;
-    }
-
-    private static String inferMode(String value) {
-        if (value == null) return "tag";
-        String v = value.trim();
-        if (v.startsWith("#")) return "id";
-        if (v.startsWith(".")) return "class";
-        return "tag";
     }
 
     private void applyColorSwatch(TextView chip, String hex) {

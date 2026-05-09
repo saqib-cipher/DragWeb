@@ -390,16 +390,25 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 
-		btnTheme.setOnClickListener(v -> showThemeDialog());
-		btnTheme.setOnLongClickListener(v -> {
-			showLibrariesDialog();
-			return true;
+		btnTheme.setOnClickListener(v -> {
+			android.widget.PopupMenu popup = new android.widget.PopupMenu(this, v);
+			popup.getMenu().add("Themes");
+			popup.getMenu().add("Icon Libraries");
+			popup.getMenu().add("Animation Library");
+			popup.setOnMenuItemClickListener(item -> {
+				if (item.getTitle().equals("Themes")) {
+					showThemeDialog();
+				} else if (item.getTitle().equals("Icon Libraries")) {
+					showIconLibrariesDialog();
+				} else if (item.getTitle().equals("Animation Library")) {
+					showAnimationLibraryDialog();
+				}
+				return true;
+			});
+			popup.show();
 		});
+
 		btnExport.setOnClickListener(v -> showExportDialog());
-		btnExport.setOnLongClickListener(v -> {
-			showLibrariesDialog();
-			return true;
-		});
 		btnNewFolder.setOnClickListener(v -> {
 			new UniversalM3Dialog(this)
 				.setTitle("New Folder")
@@ -423,7 +432,31 @@ public class MainActivity extends AppCompatActivity {
 		setupBottomChips();
 		setupWidgetSearch();
 		setupHierarchySearch();
+		setupDrawerCategories();
 
+	}
+
+	private void setupDrawerCategories() {
+		com.google.android.material.chip.ChipGroup chipGroup = findViewById(R.id.chipGroupDrawerCategories);
+		if (chipGroup == null) return;
+		chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+			String filter = "all";
+			if (!checkedIds.isEmpty()) {
+				int checkedId = checkedIds.get(0);
+				if (checkedId == R.id.chipDrawerLayout) filter = "layout";
+				else if (checkedId == R.id.chipDrawerBasic) filter = "basic";
+				else if (checkedId == R.id.chipDrawerForm) filter = "form";
+			}
+			filteredWidgets.clear();
+			for (HashMap<String, Object> w : widgets) {
+				if ("all".equals(filter) || filter.equalsIgnoreCase(String.valueOf(w.get("category")))) {
+					filteredWidgets.add(w);
+				}
+			}
+			if (rvDrawerWidgets != null && rvDrawerWidgets.getAdapter() != null) {
+				rvDrawerWidgets.getAdapter().notifyDataSetChanged();
+			}
+		});
 	}
 
 	private void initializeLogic() {
@@ -440,6 +473,9 @@ public class MainActivity extends AppCompatActivity {
 		IconLibraryManager iconMgr = new IconLibraryManager(this, projectId);
 		exportManager.setIconLibraryManager(iconMgr);
 		codeGenerator.setIconLibraryManager(iconMgr);
+		AnimationLibraryManager animMgr = new AnimationLibraryManager(this, projectId);
+		exportManager.setAnimationLibraryManager(animMgr);
+		codeGenerator.setAnimationLibraryManager(animMgr);
 		logicBlockManager = new LogicBlockManager(this);
 		customBlockManager = new CustomBlockManager(this);
 		pageManager = new PageManager(this, projectId);
@@ -1527,6 +1563,10 @@ public class MainActivity extends AppCompatActivity {
 
 		PageCodeGenerator codeGen = new PageCodeGenerator();
 		codeGen.setProjectInfo(projectName, getProjectLogoPathForExport());
+		if (exportManager != null) {
+			codeGen.setIconLibraryManager(new IconLibraryManager(this, projectId));
+			codeGen.setAnimationLibraryManager(new AnimationLibraryManager(this, projectId));
+		}
 		ArrayList<String> pageNames = new ArrayList<>();
 		ArrayList<String> pageCodes = new ArrayList<>();
 
@@ -2427,29 +2467,35 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void showAnimationLibraryDialog() {
-		// AnimationLibrary is a static registry – render its keyframe names so
-		// the user knows what `animation: <name>` references resolve to.
-		String[] names = AnimationLibrary.generateKeyframesCss("").split("\\n");
-		java.util.List<String> rows = new java.util.ArrayList<>();
-		for (String line : names) {
-			String t = line.trim();
-			if (t.startsWith("@keyframes ")) {
-				int brace = t.indexOf('{');
-				rows.add(brace > 0 ? t.substring(11, brace).trim() : t.substring(11));
+		AnimationLibraryManager mgr = new AnimationLibraryManager(this, projectId);
+		java.util.List<String> all = mgr.allLocalAnimations();
+		all.add(0, AnimationLibraryManager.ANIMATE_CSS_ID);
+		
+		String[] labels = new String[all.size()];
+		boolean[] checked = new boolean[all.size()];
+		
+		for (int i = 0; i < all.size(); i++) {
+			String id = all.get(i);
+			if (id.equals(AnimationLibraryManager.ANIMATE_CSS_ID)) {
+				labels[i] = "Animate.css (External CDN)";
+			} else {
+				labels[i] = "Local: " + id;
 			}
+			checked[i] = mgr.isEnabled(id);
 		}
-		java.util.Map<String, String> easings = AnimationLibrary.easingPresets();
-		StringBuilder summary = new StringBuilder();
-		summary.append("Keyframes:\n");
-		for (String r : rows) summary.append("• ").append(r).append('\n');
-		summary.append("\nEasing presets:\n");
-		for (java.util.Map.Entry<String, String> e : easings.entrySet()) {
-			summary.append("• ").append(e.getKey()).append('\n');
-		}
+		
 		new MaterialAlertDialogBuilder(this)
-			.setTitle("Animation library")
-			.setMessage(summary.toString())
-			.setPositiveButton("OK", null)
+			.setTitle("Animation Libraries")
+			.setMultiChoiceItems(labels, checked, (d, which, isChecked) -> {
+				if (isChecked) mgr.enable(all.get(which));
+				else mgr.disable(all.get(which));
+			})
+			.setPositiveButton("Done", (d, w) -> {
+				if (exportManager != null) exportManager.setAnimationLibraryManager(mgr);
+				if (codeGenerator != null) codeGenerator.setAnimationLibraryManager(mgr);
+				Toast.makeText(this, "Animation libraries updated", Toast.LENGTH_SHORT).show();
+			})
+			.setNegativeButton("Cancel", null)
 			.show();
 	}
 
@@ -2490,6 +2536,8 @@ public class MainActivity extends AppCompatActivity {
 		dialogView.findViewById(R.id.cardExportPreview).setOnClickListener(v -> {
 			PageCodeGenerator gen = new PageCodeGenerator();
 			gen.setProjectInfo(projectName, getProjectLogoPath());
+			gen.setIconLibraryManager(new IconLibraryManager(this, projectId));
+			gen.setAnimationLibraryManager(new AnimationLibraryManager(this, projectId));
 			String html = gen.generateFullCode(screen, themeManager, logicBlockManager, customBlockManager);
 			ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
 			clipboard.setPrimaryClip(ClipData.newPlainText("html", html));
@@ -2700,6 +2748,62 @@ public class MainActivity extends AppCompatActivity {
 		return "div";
 	}
 
+	private java.util.List<String> harvestIds() {
+		java.util.Set<String> set = new java.util.HashSet<>();
+		harvestIdsRecursive(screen, set);
+		return new java.util.ArrayList<>(set);
+	}
+	private void harvestIdsRecursive(View v, java.util.Set<String> set) {
+		Object tag = v.getTag();
+		if (tag instanceof Map) {
+			Map<String, Object> wm = (Map<String, Object>) tag;
+			Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+			if (fn != null && fn.containsKey("id")) {
+				String s = String.valueOf(fn.get("id")).trim();
+				if (!s.isEmpty()) set.add(s);
+			}
+		}
+		if (v instanceof ViewGroup) {
+			ViewGroup vg = (ViewGroup) v;
+			for (int i = 0; i < vg.getChildCount(); i++) harvestIdsRecursive(vg.getChildAt(i), set);
+		}
+	}
+
+	private java.util.List<String> harvestClasses() {
+		java.util.Set<String> set = new java.util.HashSet<>();
+		harvestClassesRecursive(screen, set);
+		return new java.util.ArrayList<>(set);
+	}
+	private void harvestClassesRecursive(View v, java.util.Set<String> set) {
+		Object tag = v.getTag();
+		if (tag instanceof Map) {
+			Map<String, Object> wm = (Map<String, Object>) tag;
+			Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+			if (fn != null && fn.containsKey("class")) {
+				String s = String.valueOf(fn.get("class")).trim();
+				for (String c : s.split("\\s+")) {
+					if (!c.isEmpty()) set.add(c);
+				}
+			}
+		}
+		if (v instanceof ViewGroup) {
+			ViewGroup vg = (ViewGroup) v;
+			for (int i = 0; i < vg.getChildCount(); i++) harvestClassesRecursive(vg.getChildAt(i), set);
+		}
+	}
+
+	private java.util.List<String> harvestTags() {
+		return java.util.Arrays.asList(
+			"div", "span", "p", "h1", "h2", "h3", "h4", "h5", "h6",
+			"a", "button", "input", "textarea", "select", "form",
+			"ul", "ol", "li", "img", "header", "footer", "nav", "main", "section"
+		);
+	}
+
+	private void syncProjectAssets() {
+		ProjectAssetManager.getInstance().update(harvestIds(), harvestClasses(), harvestTags());
+	}
+
 	public void handleDesignItemClick(int position) {
 		if (isDialogShowing) return; // Prevent duplicate dialogs
 		View selected = selector.getSelectedView();
@@ -2710,6 +2814,7 @@ public class MainActivity extends AppCompatActivity {
 
 		String editType = design.get(position).get("edit").toString();
 		String initialValue = design.get(position).containsKey("value") ? design.get(position).get("value").toString() : "";
+		syncProjectAssets();
 		UniversalM3Dialog dialog = new UniversalM3Dialog(this).setTitle(editType).setInitialValue(initialValue);
 
 		switch (editType) {
@@ -2723,19 +2828,19 @@ public class MainActivity extends AppCompatActivity {
 				});
 				break;
 			case "SetId":
-				dialog.setHint("id-name").showTextInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("id", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshHierarchy();
-					buildDesignList();
-				});
-				break;
 			case "SetClass":
-				dialog.setHint("class1 class2").showTextInput(value -> {
+				dialog.showSelectorInput(harvestIds(), harvestClasses(), harvestTags(), value -> {
 					Map<String, Object> style = new HashMap<>();
-					style.put("class", value);
+					if (value.startsWith("#")) {
+						style.put("id", value.substring(1));
+					} else if (value.startsWith(".")) {
+						style.put("class", value.substring(1));
+					} else {
+						// It's a tag? Or just raw?
+						// For SetId/SetClass we probably want to update the respective field
+						if (editType.equals("SetId")) style.put("id", value.replaceFirst("^[#.]", ""));
+						else style.put("class", value.replaceFirst("^[#.]", ""));
+					}
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 					refreshHierarchy();
@@ -2863,7 +2968,7 @@ public class MainActivity extends AppCompatActivity {
 				});
 				break;
 			case "Padding":
-				dialog.setUnits(new String[]{"px", "rem", "%", "em"}).showUnitInput("padding", value -> {
+				dialog.setUnits(new String[]{"px", "rem", "%", "em"}).showFourValueInput("padding", value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("padding", value);
 					widgetUpdater.updateWidget(selected, "", style);
@@ -2872,7 +2977,7 @@ public class MainActivity extends AppCompatActivity {
 				});
 				break;
 			case "Margin":
-				dialog.setUnits(new String[]{"px", "rem", "%", "em", "auto"}).showUnitInput("margin", value -> {
+				dialog.setUnits(new String[]{"px", "rem", "%", "em", "auto"}).showFourValueInput("margin", value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("margin", value);
 					widgetUpdater.updateWidget(selected, "", style);

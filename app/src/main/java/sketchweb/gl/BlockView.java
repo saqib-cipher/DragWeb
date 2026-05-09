@@ -279,6 +279,10 @@ class BlockView extends LinearLayout {
         headerRow.setPadding(dp(10), dp(8), dp(10), dp(8));
         addView(headerRow, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
+        buildHeaderRowContents();
+    }
+
+    private void buildHeaderRowContents() {
         // Drag handle on the left – long-press to drag, short-press passthrough.
         dragHandle = new TextView(getContext());
         dragHandle.setText("☰");
@@ -317,8 +321,8 @@ class BlockView extends LinearLayout {
      * get human-readable copy like "Set Width %n%m.unit" when present.
      */
     private void renderTemplate(LinearLayout into) {
-        String label = def != null && def.label != null ? def.label : (block.action != null ? block.action : "block");
-        List<ChipInput> inputs = def != null ? def.resolvedInputs() : new ArrayList<>();
+        String label = block.labelOverride != null ? block.labelOverride : (def != null && def.label != null ? def.label : (block.action != null ? block.action : "block"));
+        List<ChipInput> inputs = block.inputsOverride != null ? block.inputsOverride : (def != null ? def.resolvedInputs() : new ArrayList<>());
         ensureParamCapacity(inputs.size());
 
         // Token positions inside the *label* if it has any; otherwise we just
@@ -379,14 +383,83 @@ class BlockView extends LinearLayout {
         // Allow value-shaped blocks (valueString / valueNumber / valueBoolean
         // / valueColor) to be dropped onto this chip as a quick-fill source.
         if (dragDropManager != null) {
-            dragDropManager.attachChipTarget(chip, accepted -> {
-                setParamValue(index, accepted);
-                syncLegacyParams();
-                refreshChipTextIfTextView(chip, accepted);
-                if (onChange != null) onChange.onBlockChanged(block);
+            dragDropManager.attachChipTarget(chip, (accepted, droppedDef) -> {
+                if (droppedDef != null && droppedDef.label != null && droppedDef.label.contains("%")) {
+                    expandChipWithBlock(index, droppedDef);
+                } else {
+                    setParamValue(index, accepted);
+                    syncLegacyParams();
+                    refreshChipTextIfTextView(chip, accepted);
+                    if (onChange != null) onChange.onBlockChanged(block);
+                }
             });
         }
         return chip;
+    }
+
+    private void expandChipWithBlock(int index, BlockDef droppedDef) {
+        String currentLabel = block.labelOverride != null ? block.labelOverride : (def != null && def.label != null ? def.label : (block.action != null ? block.action : "block"));
+        List<ChipInput> currentInputs = block.inputsOverride != null ? new ArrayList<>(block.inputsOverride) : (def != null ? new ArrayList<>(def.resolvedInputs()) : new ArrayList<>());
+        
+        Pattern p = Pattern.compile("%(?:m\\.[a-zA-Z]+|[nsbd]|(\\d+)\\$[sd])");
+        Matcher m = p.matcher(currentLabel);
+        int currentChipIdx = 0;
+        int tokenStart = -1;
+        int tokenEnd = -1;
+        while (m.find()) {
+            if (currentChipIdx == index) {
+                tokenStart = m.start();
+                tokenEnd = m.end();
+                break;
+            }
+            currentChipIdx++;
+        }
+        
+        if (tokenStart != -1) {
+            String droppedLabel = droppedDef.label;
+            List<ChipInput> droppedInputs = droppedDef.resolvedInputs();
+            
+            String newLabel = currentLabel.substring(0, tokenStart) + droppedLabel + currentLabel.substring(tokenEnd);
+            
+            if (index < currentInputs.size()) currentInputs.remove(index);
+            if (index < block.paramValues.size()) block.paramValues.remove(index);
+            
+            for (int i = 0; i < droppedInputs.size(); i++) {
+                currentInputs.add(index + i, droppedInputs.get(i));
+                String defaultVal = droppedInputs.get(i).defaultValue != null ? droppedInputs.get(i).defaultValue : "";
+                if (block.paramValues.size() >= index + i) {
+                    block.paramValues.add(index + i, defaultVal);
+                } else {
+                    block.paramValues.add(defaultVal);
+                }
+            }
+            
+            if (block.spec != null) {
+                Matcher sm = p.matcher(block.spec);
+                int specTokenStart = -1;
+                int specTokenEnd = -1;
+                int specChipIdx = 0;
+                while (sm.find()) {
+                    if (specChipIdx == index) {
+                        specTokenStart = sm.start();
+                        specTokenEnd = sm.end();
+                        break;
+                    }
+                    specChipIdx++;
+                }
+                if (specTokenStart != -1 && droppedDef.code != null) {
+                    block.spec = block.spec.substring(0, specTokenStart) + droppedDef.code + block.spec.substring(specTokenEnd);
+                }
+            }
+            
+            block.labelOverride = newLabel;
+            block.inputsOverride = currentInputs;
+            syncLegacyParams();
+            
+            headerRow.removeAllViews();
+            buildHeaderRowContents();
+            if (onChange != null) onChange.onBlockChanged(block);
+        }
     }
 
     private void refreshChipTextIfTextView(View chip, String text) {

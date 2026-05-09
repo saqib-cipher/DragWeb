@@ -8,7 +8,9 @@
 
   { "id": "cssSelector", "category": "css", "shape": "cblock", "color": "#1976D2",
     "label": "%s {", "code": "%s { %m.space }",
-    "inputs": [ { "id": "selector", "type": "selector", "selector": "any", "default": "body" } ] },
+    "inputs": [
+      { "id": "selector", "type": "selector", "selector": "any", "default": ".container" }
+    ] },
   { "id": "cssHover", "category": "css", "shape": "cblock", "color": "#1976D2",
     "label": "%s :hover {", "code": "%s:hover { %m.space }",
     "inputs": [ { "id": "selector", "type": "selector", "selector": "any", "default": "a" } ] },
@@ -297,7 +299,7 @@
     "label": "%m.color", "code": "%m.color",
     "inputs": [ { "id": "value", "type": "color", "default": "#000000" } ] },
   { "id": "stringConcat", "category": "value", "shape": "value", "color": "#7E57C2",
-    "label": "%s + %s", "code": "%s%s",
+    "label": "%s + %s", "code": "%s %s",
     "inputs": [
       { "id": "a", "type": "text", "default": "" },
       { "id": "b", "type": "text", "default": "" }

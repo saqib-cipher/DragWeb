@@ -122,8 +122,9 @@ final class BlockDragDropManager {
                     chip.setAlpha(1f);
                     String payload = readPayload(event);
                     String value = resolveValueFromPayload(payload);
+                    BlockDef def = resolveDefFromPayload(payload);
                     if (value != null && accepted != null) {
-                        accepted.onAccepted(value);
+                        accepted.onAccepted(value, def);
                         return true;
                     }
                     return false;
@@ -182,8 +183,25 @@ final class BlockDragDropManager {
         return "value".equals(def.category);
     }
 
+    private BlockDef resolveDefFromPayload(String payload) {
+        if (payload == null) return null;
+        if (payload.startsWith(SOURCE_PALETTE)) {
+            return host.findDef(payload.substring(SOURCE_PALETTE.length()));
+        }
+        if (payload.startsWith(SOURCE_WORKSPACE)) {
+            String id = payload.substring(SOURCE_WORKSPACE.length());
+            LogicBlockManager mgr = host.getWorkspace() != null
+                ? host.getWorkspace().getLogicBlockManager() : null;
+            if (mgr == null) return null;
+            for (LogicBlockManager.LogicBlock b : mgr.getBlocks()) {
+                if (id.equals(b.id)) return host.findDef(b.action);
+            }
+        }
+        return null;
+    }
+
     interface OnChipDropAccepted {
-        void onAccepted(String value);
+        void onAccepted(String value, BlockDef droppedDef);
     }
 
     /** Wire the delete bar. */

@@ -103,6 +103,14 @@ public final class AnimationLibrary {
         return sb.toString();
     }
 
+    public static java.util.Set<String> getAllAnimations() {
+        return KEYFRAMES.keySet();
+    }
+
+    public static String getKeyframeBody(String name) {
+        return KEYFRAMES.get(name);
+    }
+
     public static Map<String, String> easingPresets() {
         return EASING_PRESETS;
     }

@@ -238,35 +238,8 @@ public class LogicBlockManager {
         // 1. Process modern blocks (from spec templates)
         for (LogicBlock b : blocks) {
             if (b.parentBlockId != null && !b.parentBlockId.isEmpty()) continue;
-            if (!isCssEmitting(b)) continue;
-            
-            // If it's a direct style block (like cssSelector { %m.space }), try to group it
-            String rendered = applyChipTemplate(b);
-            if (rendered != null && rendered.contains("{")) {
-                int openBrace = rendered.indexOf('{');
-                int closeBrace = rendered.lastIndexOf('}');
-                if (openBrace > 0 && closeBrace > openBrace) {
-                    String selector = rendered.substring(0, openBrace).trim();
-                    String body = rendered.substring(openBrace + 1, closeBrace).trim();
-                    
-                    java.util.LinkedHashMap<String, String> rules = bySelector.get(selector);
-                    if (rules == null) {
-                        rules = new java.util.LinkedHashMap<>();
-                        bySelector.put(selector, rules);
-                    }
-                    
-                    // Parse simple rules: "key: val;"
-                    String[] ruleLines = body.split(";");
-                    for (String line : ruleLines) {
-                        String[] pair = line.split(":", 2);
-                        if (pair.length == 2) {
-                            rules.put(pair[0].trim(), pair[1].trim());
-                        }
-                    }
-                } else {
-                    // Fallback for complex templates
-                    css.append(rendered).append("\n");
-                }
+            if (isCssEmitting(b)) {
+                emitCssBlock(css, b, 0);
             }
         }
 
@@ -862,7 +835,11 @@ public class LogicBlockManager {
             }
 
             default:
-                return "// Unknown action\n";
+                String rendered = applyChipTemplate(block);
+                if (rendered != null && !rendered.isEmpty()) {
+                    return rendered + "\n";
+                }
+                return "// Unknown action: " + block.action + "\n";
         }
     }
 
@@ -950,6 +927,8 @@ public class LogicBlockManager {
         public String id; // Unique ID for referencing
         public List<String> paramValues = new ArrayList<>(); // Values for tokens in spec
         public boolean collapsed;
+        public String labelOverride;
+        public List<ChipInput> inputsOverride;
     }
 
     public interface OnBlockAddedListener {

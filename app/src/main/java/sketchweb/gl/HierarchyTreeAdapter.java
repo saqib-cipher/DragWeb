@@ -85,17 +85,10 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     public void buildTree(ViewGroup screen) {
         this.rootScreen = screen;
 
-        // Capture current list before rebuild for DiffUtil comparison
         List<TreeNode> oldList = new ArrayList<>(flatList);
-
         flatList.clear();
-        
-        // Always add root if screen exists - don't check for children
-        if (screen != null) {
-            addNode(screen, 0, "body");
-        }
+        addNode(screen, 0, "body");
 
-        // Diff old vs new and animate changes
         DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(
                 new TreeDiffCallback(oldList, flatList, selectedWidgetView), true);
         diffResult.dispatchUpdatesTo(this);
@@ -305,8 +298,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
-        if (position < 0 || position >= flatList.size()) return;
-        
         TreeNode node = flatList.get(position);
         LinearLayout layout = (LinearLayout) holder.itemView;
         layout.removeAllViews();
@@ -484,13 +475,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             }
         });
 
-        cardRow.setOnLongClickListener(v -> {
-            if (longClickListener != null && !isRoot) {
-                longClickListener.onItemLongClick(node.view);
-                return true;
-            }
-            return false;
-        });
+
     }
 
     @Override
