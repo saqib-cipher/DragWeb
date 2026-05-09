@@ -21,6 +21,14 @@ public class ExportManager {
     private Context context;
     private ThemeManager themeManager;
     private IconLibraryManager iconLibraryManager;
+    private String projectId;
+
+    /**
+     * Per-export accumulator for element-level CSS. Cleared at the start of
+     * each call to {@link #generateExportFiles} so widget styles get appended
+     * into {@code css/style.css} instead of being baked inline on the element.
+     */
+    private final StringBuilder elementCssBuffer = new StringBuilder();
 
     public ExportManager(Context context, ThemeManager themeManager) {
         this.context = context;
@@ -30,6 +38,15 @@ public class ExportManager {
     /** Optional icon library configuration for the active project. */
     public void setIconLibraryManager(IconLibraryManager m) {
         this.iconLibraryManager = m;
+    }
+
+    /**
+     * Set the active project id so non-ZIP exports can locate the matching
+     * assets folder ({@code .dragweb/projects/&lt;id&gt;/assets}). Without this
+     * the HTML export still works, but ships with an empty assets directory.
+     */
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
     }
 
     public static class ExportResult {
@@ -50,9 +67,13 @@ public class ExportManager {
                                             CustomBlockManager customBlockManager) {
         ExportResult result = new ExportResult();
 
+        // Order matters: build HTML first so generateElementHtml() can populate
+        // elementCssBuffer with the per-element rules, then ask generateCss()
+        // to fold them into the final stylesheet alongside theme + logic CSS.
+        elementCssBuffer.setLength(0);
+        String htmlContent = generateHtml(screen, projectName, customBlockManager, logicBlockManager);
         String cssContent = generateCss(screen, logicBlockManager, customBlockManager);
         String jsContent = generateJs(logicBlockManager);
-        String htmlContent = generateHtml(screen, projectName, customBlockManager);
 
         result.htmlContent = htmlContent;
         result.cssContent = cssContent;
@@ -77,6 +98,9 @@ public class ExportManager {
             writeFile(new File(jsDir, "script.js"), jsContent);
             writeFile(new File(exportDir, "project.json"),
                 generateProjectManifest(projectName));
+            // Mirror the assets panel into the HTML export so a plain-folder
+            // export ships images/fonts/etc. alongside the generated HTML.
+            copyAssetsPanel(assetsDir);
             result.success = true;
             result.message = "Exported to: " + exportDir.getAbsolutePath();
         } catch (IOException e) {
@@ -85,6 +109,25 @@ public class ExportManager {
         }
 
         return result;
+    }
+
+    /**
+     * Copy the user's Assets-panel directory into the export's {@code assets/}
+     * folder. Resolves the path via the same key the file explorer uses
+     * ({@code .dragweb/projects/&lt;id&gt;/assets}) — call {@link #setProjectId}
+     * before exporting or this is a silent no-op.
+     */
+    private void copyAssetsPanel(File targetAssetsDir) {
+        if (projectId == null || projectId.isEmpty()) return;
+        try {
+            String panelPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectId + "/assets";
+            File src = new File(panelPath);
+            if (!src.exists() || !src.isDirectory()) return;
+            copyDirectory(src, targetAssetsDir);
+        } catch (Exception e) {
+            Log.w("ExportManager", "Could not mirror assets panel: " + e.getMessage());
+        }
     }
 
     /**
@@ -254,7 +297,8 @@ public class ExportManager {
         }
     }
 
-    private String generateHtml(View screen, String projectName, CustomBlockManager customBlockManager) {
+    private String generateHtml(View screen, String projectName, CustomBlockManager customBlockManager,
+                                LogicBlockManager logicBlockManager) {
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html>\n");
         html.append("<html lang=\"en\">\n");
@@ -265,11 +309,30 @@ public class ExportManager {
             .append(escapeHtml(projectName)).append("\">\n");
         html.append("  <meta name=\"generator\" content=\"DragWeb\">\n");
         html.append("  <title>").append(escapeHtml(projectName)).append("</title>\n");
+
+        // ASD <meta> additions go before icon CDN includes.
+        if (logicBlockManager != null) {
+            String asdMeta = logicBlockManager.generateAsdSource("meta");
+            if (asdMeta != null && !asdMeta.trim().isEmpty()) {
+                html.append("  ").append(asdMeta.replace("\n", "\n  ")).append("\n");
+            }
+        }
+
         if (iconLibraryManager != null) {
             String includes = iconLibraryManager.generateHtmlIncludes();
             if (includes != null && !includes.isEmpty()) html.append(includes);
         }
         html.append("  <link rel=\"stylesheet\" href=\"css/style.css\">\n");
+
+        // ASD <head> source (e.g. extra <link> or <script src> tags) goes last
+        // so it can override anything emitted above.
+        if (logicBlockManager != null) {
+            String asdHead = logicBlockManager.generateAsdSource("head");
+            if (asdHead != null && !asdHead.trim().isEmpty()) {
+                html.append("  ").append(asdHead.replace("\n", "\n  ")).append("\n");
+            }
+        }
+
         html.append("</head>\n");
         html.append("<body>\n");
 
@@ -286,6 +349,16 @@ public class ExportManager {
             if (customHtml != null && !customHtml.trim().isEmpty()) {
                 html.append("\n  <!-- Custom blocks -->\n  ");
                 html.append(customHtml.replace("\n", "\n  "));
+                html.append("\n");
+            }
+        }
+
+        // ASD raw-HTML source blocks (authored in the Logic Blocks editor).
+        if (logicBlockManager != null) {
+            String asdHtml = logicBlockManager.generateAsdSource("html");
+            if (asdHtml != null && !asdHtml.trim().isEmpty()) {
+                html.append("\n  <!-- ASD HTML source -->\n  ");
+                html.append(asdHtml.replace("\n", "\n  "));
                 html.append("\n");
             }
         }
@@ -314,19 +387,34 @@ public class ExportManager {
         // Data attribute for logic
         html.append(" data-widget=\"").append(tag).append("\"");
 
-        // Generate class name
-        String className = "el-" + tag + "-" + Math.abs(view.hashCode() % 10000);
-        html.append(" class=\"").append(className).append("\"");
+        // Generated class name. Any user-authored class lives alongside it so
+        // pseudo/state rules from the logic block manager still match.
+        String generatedClass = "el-" + tag + "-" + Math.abs(view.hashCode() % 10000);
+        StringBuilder classAttr = new StringBuilder(generatedClass);
+        if (function.containsKey("class")) {
+            String userClass = String.valueOf(function.get("class")).trim();
+            if (!userClass.isEmpty()) classAttr.append(' ').append(userClass);
+        }
+        html.append(" class=\"").append(escapeHtml(classAttr.toString())).append("\"");
 
-        // Inline styles
+        if (function.containsKey("id")) {
+            String elId = String.valueOf(function.get("id")).trim();
+            if (!elId.isEmpty()) html.append(" id=\"").append(escapeHtml(elId)).append("\"");
+        }
+
+        // Per-element styles are emitted into the shared CSS buffer instead of
+        // an inline style="" attribute so the final output keeps every rule
+        // together in css/style.css. The exception is empty style maps, which
+        // we just skip.
         Map<String, Object> style = (Map<String, Object>) function.get("style");
         if (style != null && !style.isEmpty()) {
-            html.append(" style=\"");
+            elementCssBuffer.append('.').append(generatedClass).append(" {\n");
             for (Map.Entry<String, Object> entry : style.entrySet()) {
                 String cssKey = camelToKebab(entry.getKey());
-                html.append(cssKey).append(": ").append(entry.getValue()).append("; ");
+                elementCssBuffer.append("  ").append(cssKey).append(": ")
+                    .append(entry.getValue()).append(";\n");
             }
-            html.append("\"");
+            elementCssBuffer.append("}\n");
         }
 
         // Tag-specific attributes
@@ -417,7 +505,20 @@ public class ExportManager {
             }
         }
 
+        // ASD raw CSS source authored in the Logic Blocks editor.
+        if (logicBlockManager != null) {
+            String asdCss = logicBlockManager.generateAsdSource("css");
+            if (asdCss != null && !asdCss.trim().isEmpty()) {
+                css.append("/* ASD CSS source */\n");
+                css.append(asdCss);
+                css.append("\n");
+            }
+        }
+
         css.append("/* Element Styles */\n");
+        if (elementCssBuffer.length() > 0) {
+            css.append(elementCssBuffer);
+        }
         return css.toString();
     }
 
@@ -438,6 +539,13 @@ public class ExportManager {
         if (logicJs != null && !logicJs.isEmpty()) {
             js.append("/* ----- logic blocks ----- */\n");
             js.append(logicJs).append("\n");
+        }
+
+        // ----- ASD raw JS source authored in the Logic Blocks editor -----
+        String asdJs = logicBlockManager != null ? logicBlockManager.generateAsdSource("js") : "";
+        if (asdJs != null && !asdJs.trim().isEmpty()) {
+            js.append("\n/* ----- user JS (ASD) ----- */\n");
+            js.append(asdJs).append("\n");
         }
 
         // ----- init -----

@@ -391,7 +391,15 @@ public class MainActivity extends AppCompatActivity {
 		});
 
 		btnTheme.setOnClickListener(v -> showThemeDialog());
+		btnTheme.setOnLongClickListener(v -> {
+			showLibrariesDialog();
+			return true;
+		});
 		btnExport.setOnClickListener(v -> showExportDialog());
+		btnExport.setOnLongClickListener(v -> {
+			showLibrariesDialog();
+			return true;
+		});
 		btnNewFolder.setOnClickListener(v -> {
 			new UniversalM3Dialog(this)
 				.setTitle("New Folder")
@@ -426,6 +434,12 @@ public class MainActivity extends AppCompatActivity {
 		projectDataManager = new ProjectDataManager(this);
 		themeManager = new ThemeManager();
 		exportManager = new ExportManager(this, themeManager);
+		exportManager.setProjectId(projectId);
+		// Wire the persisted IconLibraryManager so generated HTML and ZIP
+		// exports pick up whichever icon CDNs the project has enabled.
+		IconLibraryManager iconMgr = new IconLibraryManager(this, projectId);
+		exportManager.setIconLibraryManager(iconMgr);
+		codeGenerator.setIconLibraryManager(iconMgr);
 		logicBlockManager = new LogicBlockManager(this);
 		customBlockManager = new CustomBlockManager(this);
 		pageManager = new PageManager(this, projectId);
@@ -674,6 +688,7 @@ public class MainActivity extends AppCompatActivity {
 		options.add("Copy Selected Widget");
 		options.add("Paste Widget");
 		options.add("Duplicate Selected Widget");
+		options.add("Duplicate Multiple…");
 
 		new MaterialAlertDialogBuilder(this)
 			.setTitle("Copy / Paste")
@@ -692,10 +707,68 @@ public class MainActivity extends AppCompatActivity {
 						if (sel2 != null) duplicateWidget(sel2);
 						else Toast.makeText(this, "Select a widget first", Toast.LENGTH_SHORT).show();
 						break;
+					case 3:
+						showDuplicateMultiPicker();
+						break;
 				}
 			})
 			.setNegativeButton("Cancel", null)
 			.show();
+	}
+
+	/**
+	 * Multi-select duplicate: gather every widget on the canvas, let the user
+	 * tick the ones they want, then duplicate each in place. Avoids the
+	 * select-one-tap-duplicate-repeat treadmill for users who need to clone
+	 * several siblings at once.
+	 */
+	private void showDuplicateMultiPicker() {
+		List<View> flat = new ArrayList<>();
+		List<String> labels = new ArrayList<>();
+		collectWidgetsForPicker(screen, flat, labels, 0);
+		if (flat.isEmpty()) {
+			Toast.makeText(this, "Nothing to duplicate yet", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		boolean[] checked = new boolean[flat.size()];
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Pick widgets to duplicate")
+			.setMultiChoiceItems(labels.toArray(new String[0]), checked,
+				(d, which, isChecked) -> checked[which] = isChecked)
+			.setPositiveButton("Duplicate", (d, w) -> {
+				int count = 0;
+				for (int i = 0; i < flat.size(); i++) {
+					if (checked[i]) {
+						duplicateWidget(flat.get(i));
+						count++;
+					}
+				}
+				Toast.makeText(this, count + " duplicated", Toast.LENGTH_SHORT).show();
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	@SuppressWarnings("unchecked")
+	private void collectWidgetsForPicker(ViewGroup parent, List<View> out, List<String> labels, int depth) {
+		for (int i = 0; i < parent.getChildCount(); i++) {
+			View child = parent.getChildAt(i);
+			Object tagObj = child.getTag();
+			if (tagObj instanceof Map) {
+				Map<String, Object> tagData = (Map<String, Object>) tagObj;
+				String tag = tagData.containsKey("tag") ? tagData.get("tag").toString() : "view";
+				String id = "";
+				Map<String, Object> fn = (Map<String, Object>) tagData.get("function");
+				if (fn != null && fn.containsKey("id")) id = fn.get("id").toString();
+				StringBuilder pad = new StringBuilder();
+				for (int d = 0; d < depth; d++) pad.append("  ");
+				labels.add(pad + "<" + tag + ">" + (id.isEmpty() ? "" : " #" + id));
+				out.add(child);
+			}
+			if (child instanceof ViewGroup) {
+				collectWidgetsForPicker((ViewGroup) child, out, labels, depth + 1);
+			}
+		}
 	}
 
 	// ---- File Explorer ----
@@ -2309,6 +2382,77 @@ public class MainActivity extends AppCompatActivity {
 		container.addView(row);
 	}
 
+	// ---- Libraries Dialog (animations + icon CDNs) ----
+
+	/**
+	 * Surface for the {@link AnimationLibrary} (read-only catalog of bundled
+	 * keyframes) and {@link IconLibraryManager} (per-project list of enabled
+	 * icon CDN packs). Without this hook neither was reachable from the UI,
+	 * even though both already feed the export pipeline.
+	 */
+	private void showLibrariesDialog() {
+		String[] options = { "Icon Libraries…", "Animation Library…" };
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Project libraries")
+			.setItems(options, (d, which) -> {
+				if (which == 0) showIconLibrariesDialog();
+				else showAnimationLibraryDialog();
+			})
+			.setNegativeButton("Close", null)
+			.show();
+	}
+
+	private void showIconLibrariesDialog() {
+		IconLibraryManager mgr = new IconLibraryManager(this, projectId);
+		java.util.List<IconLibraryManager.Library> all = mgr.allLibraries();
+		String[] labels = new String[all.size()];
+		boolean[] checked = new boolean[all.size()];
+		for (int i = 0; i < all.size(); i++) {
+			labels[i] = all.get(i).displayName + "  ·  " + all.get(i).version;
+			checked[i] = mgr.isEnabled(all.get(i).id);
+		}
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Icon libraries")
+			.setMultiChoiceItems(labels, checked, (d, which, isChecked) -> {
+				if (isChecked) mgr.enable(all.get(which).id);
+				else mgr.disable(all.get(which).id);
+			})
+			.setPositiveButton("Done", (d, w) -> {
+				if (exportManager != null) exportManager.setIconLibraryManager(mgr);
+				if (codeGenerator != null) codeGenerator.setIconLibraryManager(mgr);
+				Toast.makeText(this, "Icon libraries updated", Toast.LENGTH_SHORT).show();
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	private void showAnimationLibraryDialog() {
+		// AnimationLibrary is a static registry – render its keyframe names so
+		// the user knows what `animation: <name>` references resolve to.
+		String[] names = AnimationLibrary.generateKeyframesCss("").split("\\n");
+		java.util.List<String> rows = new java.util.ArrayList<>();
+		for (String line : names) {
+			String t = line.trim();
+			if (t.startsWith("@keyframes ")) {
+				int brace = t.indexOf('{');
+				rows.add(brace > 0 ? t.substring(11, brace).trim() : t.substring(11));
+			}
+		}
+		java.util.Map<String, String> easings = AnimationLibrary.easingPresets();
+		StringBuilder summary = new StringBuilder();
+		summary.append("Keyframes:\n");
+		for (String r : rows) summary.append("• ").append(r).append('\n');
+		summary.append("\nEasing presets:\n");
+		for (java.util.Map.Entry<String, String> e : easings.entrySet()) {
+			summary.append("• ").append(e.getKey()).append('\n');
+		}
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Animation library")
+			.setMessage(summary.toString())
+			.setPositiveButton("OK", null)
+			.show();
+	}
+
 	// ---- Export Dialog ----
 
 	private void showExportDialog() {
@@ -2322,7 +2466,8 @@ public class MainActivity extends AppCompatActivity {
 		androidx.appcompat.app.AlertDialog dialog = builder.create();
 
 		dialogView.findViewById(R.id.cardExportHtml).setOnClickListener(v -> {
-			ExportManager.ExportResult result = exportManager.generateExportFiles(screen, projectName, logicBlockManager);
+			ExportManager.ExportResult result = exportManager.generateExportFiles(
+				screen, projectName, logicBlockManager, customBlockManager);
 			if (result.success) {
 				Toast.makeText(this, result.message, Toast.LENGTH_LONG).show();
 			} else {
@@ -2333,7 +2478,8 @@ public class MainActivity extends AppCompatActivity {
 
 		dialogView.findViewById(R.id.cardExportZip).setOnClickListener(v -> {
 			try {
-				File zipFile = exportManager.exportAsZip(screen, projectName, projectId, logicBlockManager);
+				File zipFile = exportManager.exportAsZip(
+					screen, projectName, projectId, logicBlockManager, customBlockManager);
 				Toast.makeText(this, "ZIP exported: " + zipFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
 			} catch (Exception e) {
 				Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -2344,7 +2490,7 @@ public class MainActivity extends AppCompatActivity {
 		dialogView.findViewById(R.id.cardExportPreview).setOnClickListener(v -> {
 			PageCodeGenerator gen = new PageCodeGenerator();
 			gen.setProjectInfo(projectName, getProjectLogoPath());
-			String html = gen.generateFullCode(screen, themeManager, logicBlockManager);
+			String html = gen.generateFullCode(screen, themeManager, logicBlockManager, customBlockManager);
 			ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
 			clipboard.setPrimaryClip(ClipData.newPlainText("html", html));
 			Toast.makeText(this, "HTML copied to clipboard", Toast.LENGTH_SHORT).show();

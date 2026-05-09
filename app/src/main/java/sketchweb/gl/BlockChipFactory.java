@@ -1,6 +1,5 @@
 package sketchweb.gl;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -8,14 +7,10 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.RoundRectShape;
-import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.PopupMenu;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -133,37 +128,19 @@ final class BlockChipFactory {
                                   OnChipValueChanged listener, List<String> options) {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "▼" : value + " ▼");
         chip.setOnClickListener(v -> {
-            List<String> opts = new ArrayList<>(options);
-            opts.add("Custom...");
-            
-            androidx.appcompat.widget.ListPopupWindow popup = new androidx.appcompat.widget.ListPopupWindow(context);
-            popup.setAnchorView(chip);
-            popup.setAdapter(new android.widget.ArrayAdapter<>(context, android.R.layout.simple_list_item_1, opts));
-            
-            // Rounded background for the popup
-            GradientDrawable gd = new GradientDrawable();
-            gd.setColor(Color.WHITE);
-            gd.setCornerRadius(dp(12));
-            gd.setStroke(dp(1), 0x33000000);
-            popup.setBackgroundDrawable(gd);
-            
-            popup.setOnItemClickListener((parent, view, position, id) -> {
-                String chosen = opts.get(position);
-                if ("Custom...".equals(chosen)) {
-                    new UniversalM3Dialog(context)
-                        .setTitle(input.id != null ? input.id : "Custom value")
-                        .setInitialValue(value)
-                        .showTextInput(nv -> {
-                            chip.setText(nv.isEmpty() ? "▼" : nv + " ▼");
-                            if (listener != null) listener.onChanged(input.id, nv);
-                        });
-                } else {
-                    chip.setText(chosen + " ▼");
+            // The previous ListPopupWindow anchored to the chip squeezed unit
+            // pickers (px / % / em / …) into a 40dp-wide column, rendering
+            // each character on its own line. The outlined-radio-with-custom
+            // dialog gives the row room to breathe and still keeps a custom
+            // input for free-form values.
+            new UniversalM3Dialog(context)
+                .setTitle(input.id != null ? input.id : "Choose")
+                .setHint(input.placeholder != null ? input.placeholder : "Custom value")
+                .setInitialValue(value)
+                .showRadioWithCustom(options, value, chosen -> {
+                    chip.setText(chosen.isEmpty() ? "▼" : chosen + " ▼");
                     if (listener != null) listener.onChanged(input.id, chosen);
-                }
-                popup.dismiss();
-            });
-            popup.show();
+                });
         });
         return chip;
     }
@@ -216,69 +193,19 @@ final class BlockChipFactory {
     }
 
     private void showSelectorPickerDialog(ChipInput input, String current, OnPicked picked) {
-        LinearLayout root = new LinearLayout(context);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(8), dp(16), 0);
-
-        final String[] modeRef = new String[]{ inferMode(current) };
-
-        final android.widget.AutoCompleteTextView ac = new android.widget.AutoCompleteTextView(context);
-        ac.setInputType(InputType.TYPE_CLASS_TEXT);
-        ac.setText(stripModePrefix(current));
-        ac.setHint("Selector name");
-        ac.setThreshold(1);
-
-        LinearLayout modeRow = new LinearLayout(context);
-        modeRow.setOrientation(LinearLayout.HORIZONTAL);
-        TextView[] pills = new TextView[3];
-        String[] modeIds = { "id", "class", "tag" };
-        String[] labels = { "# id", ". class", "tag" };
-        Runnable repaint = () -> {
-            for (int i = 0; i < pills.length; i++) {
-                pills[i].setAlpha(modeIds[i].equals(modeRef[0]) ? 1f : 0.45f);
-            }
-        };
-        for (int i = 0; i < 3; i++) {
-            final int idx = i;
-            TextView pill = baseChip(baseColorFor("css"), labels[i]);
-            pill.setOnClickListener(v -> {
-                modeRef[0] = modeIds[idx];
-                repaint.run();
-            });
-            pills[i] = pill;
-            modeRow.addView(pill, pillLp());
-        }
-        repaint.run();
-
-        java.util.List<String> suggestions = collectSelectorSuggestions();
-        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
-            context, android.R.layout.simple_dropdown_item_1line, suggestions);
-        ac.setAdapter(adapter);
-
-        TextView modeLabel = new TextView(context);
-        modeLabel.setText("Match by");
-        modeLabel.setTextSize(12);
-        modeLabel.setPadding(0, 0, 0, dp(4));
-
-        root.addView(modeLabel);
-        root.addView(modeRow);
-        TextView nameLabel = new TextView(context);
-        nameLabel.setText("Selector");
-        nameLabel.setTextSize(12);
-        nameLabel.setPadding(0, dp(12), 0, dp(4));
-        root.addView(nameLabel);
-        root.addView(ac);
-
-        new AlertDialog.Builder(context)
+        // %m.selector now goes through the universal outlined-radio dialog so
+        // the picker shares the same Done/Cancel layout as every other chip.
+        // Existing selectors gathered from BlockParamTypeManager show up as
+        // radio rows; the custom input row lets the user type a fresh one.
+        java.util.List<String> presets = collectSelectorSuggestions();
+        new UniversalM3Dialog(context)
             .setTitle(input.id != null ? "Pick selector · " + input.id : "Pick selector")
-            .setView(root)
-            .setPositiveButton(android.R.string.ok, (d, w) -> {
-                String name = ac.getText().toString().trim();
-                String composed = composeSelector(modeRef[0], name);
+            .setHint("e.g. #header, .btn, h1")
+            .setInitialValue(current)
+            .showRadioWithCustom(presets, current, chosen -> {
+                String composed = composeSelector(inferMode(chosen), chosen);
                 if (picked != null) picked.onPicked(composed);
-            })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show();
+            });
     }
 
     private java.util.List<String> collectSelectorSuggestions() {
@@ -314,24 +241,6 @@ final class BlockChipFactory {
         if (v.startsWith("#")) return "id";
         if (v.startsWith(".")) return "class";
         return "tag";
-    }
-
-    private static String stripModePrefix(String value) {
-        if (value == null) return "";
-        String v = value.trim();
-        if (v.startsWith("#") || v.startsWith(".")) return v.substring(1);
-        return v;
-    }
-
-    private LinearLayout.LayoutParams pillLp() {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        lp.setMargins(dp(2), 0, dp(2), 0);
-        return lp;
-    }
-
-    private int baseColorFor(String category) {
-        return BlockCategoryPalette.colorIntForCategory(category);
     }
 
     private void applyColorSwatch(TextView chip, String hex) {
@@ -371,13 +280,6 @@ final class BlockChipFactory {
 
     private float[] roundedCorners(int r) {
         return new float[]{ r,r, r,r, r,r, r,r };
-    }
-
-    private LinearLayout wrap(View v) {
-        LinearLayout ll = new LinearLayout(context);
-        ll.setPadding(dp(20), dp(8), dp(20), 0);
-        ll.addView(v, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        return ll;
     }
 
     private int dp(int px) {
