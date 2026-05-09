@@ -89,9 +89,13 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         List<TreeNode> oldList = new ArrayList<>(flatList);
 
         flatList.clear();
-        addNode(screen, 0, "body");
+        if (screen != null) {
+            addNode(screen, 0, "body");
+        }
 
-        // Diff old vs new and animate changes
+        // Diff old vs new and animate changes. Empty-tree edge cases (initial
+        // load with no widgets) still need dispatchUpdatesTo so the adapter
+        // notices itemCount went 0 -> N when widgets land later.
         DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(
                 new TreeDiffCallback(oldList, flatList, selectedWidgetView), true);
         diffResult.dispatchUpdatesTo(this);
