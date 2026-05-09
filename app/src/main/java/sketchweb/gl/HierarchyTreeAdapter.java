@@ -90,8 +90,8 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
         flatList.clear();
         
-        // Only add root node if screen exists and has children
-        if (screen != null && screen.getChildCount() > 0) {
+        // Always add root if screen exists - don't check for children
+        if (screen != null) {
             addNode(screen, 0, "body");
         }
 
