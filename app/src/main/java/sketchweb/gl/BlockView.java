@@ -85,14 +85,52 @@ class BlockView extends LinearLayout {
      */
     private void attachGroupExpandToggle() {
         if (headerRow == null || stackSlot == null) return;
+
+        // Apply initial state
+        stackSlot.setVisibility(block.collapsed ? GONE : VISIBLE);
+        if (dragHandle != null) dragHandle.setText(block.collapsed ? "▸" : "▾");
+
         headerRow.setOnClickListener(v -> {
-            boolean collapsed = stackSlot.getVisibility() == GONE;
-            stackSlot.setVisibility(collapsed ? VISIBLE : GONE);
+            block.collapsed = !block.collapsed;
+            stackSlot.setVisibility(block.collapsed ? GONE : VISIBLE);
             if (dragHandle != null) {
-                dragHandle.setText(collapsed ? "▾" : "▸");
+                dragHandle.setText(block.collapsed ? "▸" : "▾");
+            }
+            if (onChange != null) onChange.onBlockChanged(block);
+        });
+
+        // Drag-to-expand: if a block is dragged over the group header, expand it
+        // so the user can see the drop zone inside.
+        headerRow.setOnDragListener((v, event) -> {
+            switch (event.getAction()) {
+                case android.view.DragEvent.ACTION_DRAG_STARTED:
+                    return true;
+                case android.view.DragEvent.ACTION_DRAG_ENTERED:
+                    if (block.collapsed) {
+                        block.collapsed = false;
+                        stackSlot.setVisibility(VISIBLE);
+                        if (dragHandle != null) dragHandle.setText("▾");
+                        if (onChange != null) onChange.onBlockChanged(block);
+                    }
+                    return true;
+                case android.view.DragEvent.ACTION_DRAG_EXITED:
+                    // Only collapse back if we auto-expanded it and drag left the header
+                    // but NOT entering the stackSlot.
+                    // (Actually, usually better to keep it open once expanded for clarity,
+                    // so we do nothing here to keep it open.)
+                    return true;
+                case android.view.DragEvent.ACTION_DROP:
+                    // Stay expanded on drop; the workspace will handle the actual drop.
+                    if (block.collapsed) {
+                        block.collapsed = false;
+                        stackSlot.setVisibility(VISIBLE);
+                        if (dragHandle != null) dragHandle.setText("▾");
+                    }
+                    return false; // Let it bubble to the workspace for the actual drop logic
+                default:
+                    return false;
             }
         });
-        if (dragHandle != null) dragHandle.setText("▾");
     }
 
     LogicBlockManager.LogicBlock getBlock() {

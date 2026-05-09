@@ -15,11 +15,8 @@ import android.util.Log;
 import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.WebView;
-import android.webkit.WebSettings;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -45,10 +42,10 @@ import com.google.android.material.textfield.TextInputLayout;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import org.jspecify.annotations.NonNull;
-
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -94,25 +91,27 @@ public class MainActivity extends AppCompatActivity {
 	private LinearLayout assetsPanel;
 	private NestedScrollView vscroll2;
 	private Button button5, button4, delete, btnImportWidgets, btnImportImage, btnImportSvg;
-	private Button btnDrawer, btnBack, btnUndo, btnRedo, btnTheme, btnExport, btnViewStyles;
+	private Button btnDrawer, btnBack, btnUndo, btnRedo, btnTheme, btnExport;
 	private Button btnAddLogicBlock, btnViewAllBlocks;
 	private LinearLayout blockEditorContainer;
 	private Button btnLoadCustomWidgets, btnLoadCustomBlocks, btnNewFolder;
 	private Button btnCopyWidget, btnAddPage;
-	private TextView textview2, tvProjectTitle, tvAssetsPath;
+	private TextView textview2, tvAssetsPath;
 	private RecyclerView recyclerview3, recyclerview1, recyclerviewRightPanel, rvAssets;
 	private RecyclerView rvDrawerWidgets;
 	private android.widget.Spinner widgetSpinner, spnPageSelector;
 	private TabLayout tabLayout;
-	private Chip chipBasic, chipStyles, chipLayout, chipEvent;
+	private Chip chipBasic, chipLayout;
+	private ChipGroup chipGroupBottom;
 	private TextInputEditText etSearchWidget, etSearchHierarchy;
 	private ChipGroup chipGroupCategories;
 
 	private androidx.drawerlayout.widget.DrawerLayout drawerLayout;
 
 	private ActivityResultLauncher<android.content.Intent> importWidgetLauncher;
-	private ActivityResultLauncher<android.content.Intent> importImageLauncher;
+	private ActivityResultLauncher<android.content.Intent> importAssetLauncher;
 	private ActivityResultLauncher<android.content.Intent> importSvgLauncher;
+	private ActivityResultLauncher<android.content.Intent> importZipLauncher;
 
 	// Track if a dialog is currently showing to avoid duplicates
 	private boolean isDialogShowing = false;
@@ -202,51 +201,22 @@ public class MainActivity extends AppCompatActivity {
 			}
 		);
 
-		importImageLauncher = registerForActivityResult(
+		importAssetLauncher = registerForActivityResult(
 			new ActivityResultContracts.StartActivityForResult(),
 			result -> {
 				if (result.getResultCode() == RESULT_OK && result.getData() != null) {
 					android.net.Uri uri = result.getData().getData();
-					if (uri != null) {
-						try {
-							InputStream is = getContentResolver().openInputStream(uri);
-							java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
-							int nRead;
-							byte[] data = new byte[16384];
-							while ((nRead = is.read(data, 0, data.length)) != -1) {
-								buffer.write(data, 0, nRead);
-							}
-							buffer.flush();
-							byte[] imageBytes = buffer.toByteArray();
-							is.close();
-							String base64Image = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP);
-							String mimeType = getContentResolver().getType(uri);
-							if (mimeType == null) mimeType = "image/png";
+					if (uri != null) saveAssetFile(uri);
+				}
+			}
+		);
 
-							saveAssetToProject(projectId, uri, base64Image, mimeType);
-
-							if (fileExplorerAdapter != null) {
-								fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
-								updateAssetsPath();
-							}
-
-							if (mimeType.contains("image")) {
-								HashMap<String, Object> newImgWidget = new HashMap<>();
-								newImgWidget.put("tag", "img");
-								newImgWidget.put("name", "Imported Image");
-								newImgWidget.put("color", "#FFC107");
-								newImgWidget.put("category", "media");
-								HashMap<String, Object> function = new HashMap<>();
-								function.put("src", "data:" + mimeType + ";base64," + base64Image);
-								newImgWidget.put("function", function);
-								widgets.add(newImgWidget);
-								refreshWidgetList();
-							}
-							Toast.makeText(this, "File imported!", Toast.LENGTH_SHORT).show();
-						} catch (Exception e) {
-							Toast.makeText(this, "Failed to import file.", Toast.LENGTH_SHORT).show();
-						}
-					}
+		importZipLauncher = registerForActivityResult(
+			new ActivityResultContracts.StartActivityForResult(),
+			result -> {
+				if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+					android.net.Uri uri = result.getData().getData();
+					if (uri != null) importProjectBackup(uri);
 				}
 			}
 		);
@@ -263,7 +233,7 @@ public class MainActivity extends AppCompatActivity {
 							is.read(buffer);
 							is.close();
 							String svgContent = new String(buffer, "UTF-8");
-							widgetRegistry.importCustomWidgets(svgContent); // Logic for SVG import
+							widgetRegistry.importCustomWidgets(svgContent); 
 							refreshWidgetList();
 							Toast.makeText(this, "SVG imported!", Toast.LENGTH_SHORT).show();
 						} catch (Exception e) {
@@ -306,19 +276,15 @@ public class MainActivity extends AppCompatActivity {
 		btnRedo = findViewById(R.id.btnRedo);
 		btnTheme = findViewById(R.id.btnTheme);
 		btnExport = findViewById(R.id.btnExport);
-		btnViewStyles = findViewById(R.id.btnViewStyles);
 		btnAddLogicBlock = findViewById(R.id.btnAddLogicBlock);
-		btnViewAllBlocks = findViewById(R.id.btnViewAllBlocks);
 		btnLoadCustomWidgets = findViewById(R.id.btnLoadCustomWidgets);
 		btnLoadCustomBlocks = findViewById(R.id.btnLoadCustomBlocks);
 		btnCopyWidget = findViewById(R.id.btnCopyWidget);
-		tvProjectTitle = findViewById(R.id.tvProjectTitle);
 		tvAssetsPath = findViewById(R.id.tvAssetsPath);
 		tabLayout = findViewById(R.id.tabLayout);
 		chipBasic = findViewById(R.id.chipBasic);
-		chipStyles = findViewById(R.id.chipStyles);
 		chipLayout = findViewById(R.id.chipLayout);
-		chipEvent = findViewById(R.id.chipEvent);
+		chipGroupBottom = findViewById(R.id.chipGroupBottom);
 		etSearchWidget = findViewById(R.id.etSearchWidget);
 		etSearchHierarchy = findViewById(R.id.etSearchHierarchy);
 		chipGroupCategories = findViewById(R.id.chipGroupCategories);
@@ -334,7 +300,6 @@ public class MainActivity extends AppCompatActivity {
 		if (projectId.isEmpty() && !projectName.isEmpty()) {
 			projectId = projectName;
 		}
-		tvProjectTitle.setText(projectName);
 
 		// Drawer button - store reference as field for reliability
 		drawerLayout = findViewById(R.id._main);
@@ -372,18 +337,17 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 
-		btnViewStyles.setOnClickListener(v -> showViewStylesDialog());
 
 		// Copy/Duplicate widget button
 		if (btnCopyWidget != null) {
 			btnCopyWidget.setOnClickListener(v -> showCopyPasteMenu());
 		}
 
-		// Import Image Button
+		// Import Asset Button (Images, JS, CSS, etc.)
 		btnImportImage.setOnClickListener(v -> {
 			android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
 			intent.setType("*/*");
-			importImageLauncher.launch(intent);
+			importAssetLauncher.launch(intent);
 		});
 
 		// Import JSON Button
@@ -428,6 +392,14 @@ public class MainActivity extends AppCompatActivity {
 
 		btnTheme.setOnClickListener(v -> showThemeDialog());
 		btnExport.setOnClickListener(v -> showExportDialog());
+		btnNewFolder.setOnClickListener(v -> {
+			new UniversalM3Dialog(this)
+				.setTitle("New Folder")
+				.setHint("Folder name")
+				.showTextInput(name -> {
+					if (!name.isEmpty()) createFolder(name);
+				});
+		});
 
 		btnAddLogicBlock.setOnClickListener(v -> {
 			// Launch the dedicated Logic Block Activity
@@ -439,11 +411,11 @@ public class MainActivity extends AppCompatActivity {
 
 
 		setupTabLayout();
-		setupWidgetCategoryChips();
+
 		setupBottomChips();
 		setupWidgetSearch();
 		setupHierarchySearch();
-		setupDrawerCategoryChips();
+
 	}
 
 	private void initializeLogic() {
@@ -812,20 +784,6 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	private void deleteFileWithConfirm(File file) {
-		new MaterialAlertDialogBuilder(this)
-			.setTitle("Delete " + file.getName() + "?")
-			.setMessage("This cannot be undone.")
-			.setPositiveButton("Delete", (d, w) -> {
-				FileUtil.deleteFile(file.getAbsolutePath());
-				fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
-			})
-			.setNegativeButton("Cancel", null)
-			.show();
-	}
-
-	// ---- Page Management ----
-
 	private void setupPageSelector() {
 		if (spnPageSelector == null || pageManager == null) return;
 		updatePageSpinner();
@@ -889,23 +847,26 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void showAddPageDialog() {
-		showStyleDialog("New Page", "Page name (e.g. about)", value -> {
-			String pageName = value.trim().replaceAll("[^a-zA-Z0-9_-]", "");
-			if (pageName.isEmpty()) {
-				Toast.makeText(this, "Invalid page name", Toast.LENGTH_SHORT).show();
-				return;
-			}
-			saveCurrentPageLayout();
-			pageManager.addPage(pageName);
-			pageManager.setCurrentPage(pageName);
-			screen.removeAllViews();
-			ensureDefaultHeaderOnCanvas();
-			saveCurrentPageLayout();
-			saveUndoState();
-			refreshHierarchy();
-			updatePageSpinner();
-			Toast.makeText(this, "Page '" + pageName + "' created", Toast.LENGTH_SHORT).show();
-		});
+		new UniversalM3Dialog(this)
+			.setTitle("New Page")
+			.setHint("Page name (e.g. about)")
+			.showTextInput(value -> {
+				String pageName = value.trim().replaceAll("[^a-zA-Z0-9_-]", "");
+				if (pageName.isEmpty()) {
+					Toast.makeText(this, "Invalid page name", Toast.LENGTH_SHORT).show();
+					return;
+				}
+				saveCurrentPageLayout();
+				pageManager.addPage(pageName);
+				pageManager.setCurrentPage(pageName);
+				screen.removeAllViews();
+				ensureDefaultHeaderOnCanvas();
+				saveCurrentPageLayout();
+				saveUndoState();
+				refreshHierarchy();
+				updatePageSpinner();
+				Toast.makeText(this, "Page '" + pageName + "' created", Toast.LENGTH_SHORT).show();
+			});
 	}
 
 	private void saveCurrentPageLayout() {
@@ -1042,57 +1003,7 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	// ---- Widget Category Chips ----
 
-	private void setupWidgetCategoryChips() {
-		if (chipGroupCategories == null) return;
-		chipGroupCategories.setOnCheckedStateChangeListener((group, checkedIds) -> {
-			if (checkedIds.isEmpty()) {
-				filterWidgetsByCategory("all");
-				return;
-			}
-			int checkedId = checkedIds.get(0);
-			if (checkedId == R.id.chipCatAll) filterWidgetsByCategory("all");
-			else if (checkedId == R.id.chipCatLayout) filterWidgetsByCategory("layout");
-			else if (checkedId == R.id.chipCatBasic) filterWidgetsByCategory("basic");
-			else if (checkedId == R.id.chipCatForm) filterWidgetsByCategory("form");
-			else if (checkedId == R.id.chipCatMedia) filterWidgetsByCategory("media");
-			else if (checkedId == R.id.chipCatAdvanced) filterWidgetsByCategory("advanced");
-			else filterWidgetsByCategory("all");
-		});
-	}
-
-	private void setupDrawerCategoryChips() {
-		ChipGroup drawerChips = findViewById(R.id.chipGroupDrawerCategories);
-		if (drawerChips == null) return;
-		drawerChips.setOnCheckedStateChangeListener((group, checkedIds) -> {
-			if (checkedIds.isEmpty()) {
-				filterWidgetsByCategory("all");
-				return;
-			}
-			int checkedId = checkedIds.get(0);
-			if (checkedId == R.id.chipDrawerAll) filterWidgetsByCategory("all");
-			else if (checkedId == R.id.chipDrawerLayout) filterWidgetsByCategory("layout");
-			else if (checkedId == R.id.chipDrawerBasic) filterWidgetsByCategory("basic");
-			else if (checkedId == R.id.chipDrawerForm) filterWidgetsByCategory("form");
-			else filterWidgetsByCategory("all");
-		});
-	}
-
-	private void filterWidgetsByCategory(String category) {
-		filteredWidgets.clear();
-		if ("all".equals(category)) {
-			filteredWidgets.addAll(widgets);
-		} else {
-			for (HashMap<String, Object> widget : widgets) {
-				String cat = widget.containsKey("category") ? widget.get("category").toString() : "basic";
-				if (cat.equals(category)) {
-					filteredWidgets.add(widget);
-				}
-			}
-		}
-		notifyWidgetAdapters();
-	}
 
 	private void notifyWidgetAdapters() {
 		if (recyclerview1 != null && recyclerview1.getAdapter() != null) {
@@ -1104,40 +1015,16 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void setupBottomChips() {
-		chipBasic.setOnCheckedChangeListener((btn, checked) -> {
-			if (checked) {
-				chipStyles.setChecked(false);
-				chipLayout.setChecked(false);
-				if (chipEvent != null) chipEvent.setChecked(false);
+		if (chipGroupBottom == null) return;
+		chipGroupBottom.setOnCheckedStateChangeListener((group, checkedIds) -> {
+			if (checkedIds.isEmpty()) return;
+			int id = checkedIds.get(0);
+			if (id == R.id.chipBasic) {
 				buildDesignList();
-			}
-		});
-		chipStyles.setOnCheckedChangeListener((btn, checked) -> {
-			if (checked) {
-				chipBasic.setChecked(false);
-				chipLayout.setChecked(false);
-				if (chipEvent != null) chipEvent.setChecked(false);
-				buildAdvancedDesignList();
-			}
-		});
-		chipLayout.setOnCheckedChangeListener((btn, checked) -> {
-			if (checked) {
-				chipBasic.setChecked(false);
-				chipStyles.setChecked(false);
-				if (chipEvent != null) chipEvent.setChecked(false);
+			} else if (id == R.id.chipLayout) {
 				buildLayoutDesignList();
 			}
 		});
-		if (chipEvent != null) {
-			chipEvent.setOnCheckedChangeListener((btn, checked) -> {
-				if (checked) {
-					chipBasic.setChecked(false);
-					chipStyles.setChecked(false);
-					chipLayout.setChecked(false);
-					buildEventDesignList();
-				}
-			});
-		}
 	}
 
 	private void refreshWidgetList() {
@@ -1618,58 +1505,6 @@ public class MainActivity extends AppCompatActivity {
 		startActivity(previewIntent);
 	}
 
-	// ---- View Applied Styles Dialog ----
-
-	private void showViewStylesDialog() {
-		View selected = selector.getSelectedView();
-		if (selected == null) {
-			Toast.makeText(this, "Select a widget first", Toast.LENGTH_SHORT).show();
-			return;
-		}
-
-		Object tagObj = selected.getTag();
-		if (!(tagObj instanceof Map)) return;
-
-		Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
-		Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
-		Map<String, Object> style = function != null ? (Map<String, Object>) function.get("style") : null;
-
-		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_view_styles, null);
-		TextView tvContent = dialogView.findViewById(R.id.tvStyleContent);
-		TabLayout tabFormat = dialogView.findViewById(R.id.tabStyleFormat);
-
-		String jsonStr = style != null ? new Gson().toJson(style) : "{}";
-		String cssStr = generateCssFromStyle(widgetMap, style);
-
-		tvContent.setText(formatJson(jsonStr));
-
-		tabFormat.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-			@Override
-			public void onTabSelected(TabLayout.Tab tab) {
-				if (tab.getPosition() == 0) {
-					tvContent.setText(formatJson(jsonStr));
-				} else {
-					tvContent.setText(cssStr);
-				}
-			}
-			@Override
-			public void onTabUnselected(TabLayout.Tab tab) {}
-			@Override
-			public void onTabReselected(TabLayout.Tab tab) {}
-		});
-
-		new MaterialAlertDialogBuilder(this)
-			.setTitle("Applied Styles")
-			.setView(dialogView)
-			.setPositiveButton("Copy", (dialog, which) -> {
-				String content = tvContent.getText().toString();
-				ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-				clipboard.setPrimaryClip(ClipData.newPlainText("styles", content));
-				Toast.makeText(this, "Copied to clipboard", Toast.LENGTH_SHORT).show();
-			})
-			.setNegativeButton("Close", null)
-			.show();
-	}
 
 	private String generateCssFromStyle(Map<String, Object> widgetMap, Map<String, Object> style) {
 		StringBuilder css = new StringBuilder();
@@ -1698,30 +1533,33 @@ public class MainActivity extends AppCompatActivity {
 	// ---- New Folder Dialog ----
 
 	private void showNewFolderDialog() {
-		showStyleDialog("Create New Folder", "Folder name", value -> {
-			try {
-				File currentDir = fileExplorerAdapter != null ?
-					fileExplorerAdapter.getCurrentDir() : null;
-				String basePath;
-				if (currentDir != null) {
-					basePath = currentDir.getAbsolutePath() + "/" + value;
-				} else {
-					basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-						+ "/.dragweb/projects/" + projectId + "/assets/" + value;
-				}
-				File dir = new File(basePath);
-				if (dir.mkdirs()) {
-					Toast.makeText(this, "Folder created: " + value, Toast.LENGTH_SHORT).show();
-					if (fileExplorerAdapter != null) {
-						fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
+		new UniversalM3Dialog(this)
+			.setTitle("Create New Folder")
+			.setHint("Folder name")
+			.showTextInput(value -> {
+				try {
+					File currentDir = fileExplorerAdapter != null ?
+						fileExplorerAdapter.getCurrentDir() : null;
+					String basePath;
+					if (currentDir != null) {
+						basePath = currentDir.getAbsolutePath() + "/" + value;
+					} else {
+						basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+							+ "/.dragweb/projects/" + projectId + "/assets/" + value;
 					}
-				} else {
-					Toast.makeText(this, "Could not create folder", Toast.LENGTH_SHORT).show();
+					File dir = new File(basePath);
+					if (dir.mkdirs()) {
+						Toast.makeText(this, "Folder created: " + value, Toast.LENGTH_SHORT).show();
+						if (fileExplorerAdapter != null) {
+							fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
+						}
+					} else {
+						Toast.makeText(this, "Could not create folder", Toast.LENGTH_SHORT).show();
+					}
+				} catch (Exception e) {
+					Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 				}
-			} catch (Exception e) {
-				Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-			}
-		});
+			});
 	}
 
 	// ---- Custom JSON Support ----
@@ -1796,33 +1634,118 @@ public class MainActivity extends AppCompatActivity {
 
 	// ---- Assets Management ----
 
-	private void saveAssetToProject(String projectId, android.net.Uri uri, String base64, String mimeType) {
+	private void createFolder(String name) {
+		File current = fileExplorerAdapter != null ? fileExplorerAdapter.getCurrentDir() : null;
+		if (current == null) return;
+		File newFolder = new File(current, name);
+		if (newFolder.mkdirs()) {
+			if (fileExplorerAdapter != null) fileExplorerAdapter.navigateTo(current);
+			updateAssetsPath();
+		} else {
+			Toast.makeText(this, "Failed to create folder", Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	private void saveAssetFile(android.net.Uri uri) {
 		try {
-			File targetDir = fileExplorerAdapter != null ?
+			File targetDir = fileExplorerAdapter != null ? 
 				fileExplorerAdapter.getCurrentDir() : null;
 			if (targetDir == null) {
-				String basePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-					+ "/.dragweb/projects/" + projectId + "/assets";
-				targetDir = new File(basePath);
+				targetDir = new File(Environment.getExternalStorageDirectory(), "/.dragweb/projects/" + projectId + "/assets");
 			}
-			if (!targetDir.exists()) targetDir.mkdirs();
+			targetDir.mkdirs();
 
-			String fileName = "asset_" + System.currentTimeMillis();
-			if (mimeType.contains("png")) fileName += ".png";
-			else if (mimeType.contains("svg")) fileName += ".svg";
-			else if (mimeType.contains("jpeg") || mimeType.contains("jpg")) fileName += ".jpg";
-			else if (mimeType.contains("gif")) fileName += ".gif";
-			else if (mimeType.contains("webp")) fileName += ".webp";
-			else fileName += ".img";
-
-			File assetFile = new File(targetDir, fileName);
-			byte[] decoded = android.util.Base64.decode(base64, android.util.Base64.NO_WRAP);
-			java.io.FileOutputStream fos = new java.io.FileOutputStream(assetFile);
-			fos.write(decoded);
+			String name = getFileNameFromUri(uri);
+			if (name == null) name = "asset_" + System.currentTimeMillis();
+			
+			File dest = new File(targetDir, name);
+			InputStream is = getContentResolver().openInputStream(uri);
+			FileOutputStream fos = new FileOutputStream(dest);
+			byte[] buffer = new byte[8192];
+			int len;
+			while ((len = is.read(buffer)) > 0) fos.write(buffer, 0, len);
+			is.close();
 			fos.close();
+
+			if (fileExplorerAdapter != null) {
+				fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
+				updateAssetsPath();
+			}
+			Toast.makeText(this, "Imported: " + name, Toast.LENGTH_SHORT).show();
 		} catch (Exception e) {
-			Log.w("MainActivity", "Could not save asset: " + e.getMessage());
+			Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 		}
+	}
+
+	private String getFileNameFromUri(android.net.Uri uri) {
+		String name = null;
+		if ("content".equals(uri.getScheme())) {
+			android.database.Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+			if (cursor != null) {
+				if (cursor.moveToFirst()) {
+					int idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+					if (idx != -1) name = cursor.getString(idx);
+				}
+				cursor.close();
+			}
+		}
+		if (name == null) {
+			name = uri.getPath();
+			if (name != null) {
+				int cut = name.lastIndexOf('/');
+				if (cut != -1) name = name.substring(cut + 1);
+			}
+		}
+		return name;
+	}
+
+	private void importProjectBackup(android.net.Uri uri) {
+		try {
+			File tempZip = new File(getCacheDir(), "import.zip");
+			InputStream is = getContentResolver().openInputStream(uri);
+			FileOutputStream fos = new FileOutputStream(tempZip);
+			byte[] buffer = new byte[8192];
+			int len;
+			while ((len = is.read(buffer)) > 0) fos.write(buffer, 0, len);
+			is.close();
+			fos.close();
+
+			if (exportManager.restoreProjectFromZip(tempZip)) {
+				Toast.makeText(this, "Project restored! Please reopen the project.", Toast.LENGTH_LONG).show();
+			} else {
+				Toast.makeText(this, "Restore failed. Check ZIP structure.", Toast.LENGTH_SHORT).show();
+			}
+			tempZip.delete();
+		} catch (Exception e) {
+			Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	private void deleteFileWithConfirm(File file) {
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Delete " + (file.isDirectory() ? "Folder" : "File"))
+			.setMessage("Are you sure you want to delete " + file.getName() + "?")
+			.setPositiveButton("Delete", (d, w) -> {
+				if (recursiveDelete(file)) {
+					if (fileExplorerAdapter != null) 
+						fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
+					updateAssetsPath();
+				} else {
+					Toast.makeText(this, "Delete failed", Toast.LENGTH_SHORT).show();
+				}
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	private boolean recursiveDelete(File file) {
+		if (file.isDirectory()) {
+			File[] children = file.listFiles();
+			if (children != null) {
+				for (File child : children) recursiveDelete(child);
+			}
+		}
+		return file.delete();
 	}
 
 	// ---- Logic Blocks UI ----
@@ -1838,11 +1761,6 @@ public class MainActivity extends AppCompatActivity {
 		if (eventListContainer == null) return;
 		eventListContainer.removeAllViews();
 
-		// Update page name header
-		TextView tvEventPageName = findViewById(R.id.tvEventPageName);
-		if (tvEventPageName != null) {
-			tvEventPageName.setText("All Page Events");
-		}
 
 		List<String> allPages = pageManager != null ? pageManager.getPages() : new ArrayList<>();
 		if (allPages.isEmpty()) allPages.add("index");
@@ -2145,10 +2063,18 @@ public class MainActivity extends AppCompatActivity {
 			themeManager.fromJson(themeJson);
 		}
 
-		File logicFile = new File(dir, projectId + ".logic");
+		String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+		File logicFile = new File(dir, projectId + "_" + currentPageName + ".logic");
 		if (logicFile.exists()) {
 			String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
 			logicBlockManager.fromJson(logicJson);
+		} else {
+			// Fallback for older projects
+			File oldLogicFile = new File(dir, projectId + ".logic");
+			if (oldLogicFile.exists()) {
+				String logicJson = FileUtil.readFile(oldLogicFile.getAbsolutePath());
+				logicBlockManager.fromJson(logicJson);
+			}
 		}
 
 		// Save initial page layout so it's cached
@@ -2432,18 +2358,15 @@ public class MainActivity extends AppCompatActivity {
 
 	private void buildDesignList() {
 		design.clear();
-		String tag = getSelectedTag();
+		View selected = selector.getSelectedView();
+		Map<String, Object> currentStyle = getWidgetStyle(selected);
+		Map<String, Object> currentFunction = getWidgetFunction(selected);
 
 		List<String> items = new ArrayList<>();
 		items.add("Edittext");
 		items.add("SetId");
 		items.add("SetClass");
-		items.add("Color");
-		items.add("Background");
-		items.add("Width");
-		items.add("Height");
-		items.add("Padding");
-		items.add("Margin");
+		String tag = getSelectedTag();
 
 		if ("img".equals(tag)) {
 			items.add(1, "ImageSrc");
@@ -2462,11 +2385,15 @@ public class MainActivity extends AppCompatActivity {
 			items.add("SetPlaceholder");
 			items.add("SetType");
 		}
-		// HTML-only widget editors moved here from the logic-block editor.
-		// List widgets get an "items" editor accessible from the bottom chips.
 		if ("ul".equals(tag) || "ol".equals(tag) || "select".equals(tag)) {
-			items.add(1, "ListItems");
+			items.add("ListItems");
 		}
+		items.add("Color");
+		items.add("Background");
+		items.add("Width");
+		items.add("Height");
+		items.add("Padding");
+		items.add("Margin");
 		items.add("BorderRadius");
 		items.add("BorderWidth");
 		items.add("BorderColor");
@@ -2474,25 +2401,17 @@ public class MainActivity extends AppCompatActivity {
 		for (String item : items) {
 			HashMap<String, Object> map = new HashMap<>();
 			map.put("edit", item);
-			design.add(map);
-		}
-		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
-		recyclerview3.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-	}
-
-	private void buildAdvancedDesignList() {
-		design.clear();
-		String[] items = {
-			"Elevation", "Opacity", "Rotation",
-			"BoxShadow", "TextDecor", "LineHeight", "LetterSpace",
-			"ZIndex", "Overflow", "Cursor",
-			"BorderTop", "BorderRight", "BorderBottom", "BorderLeft",
-			"RadiusTL", "RadiusTR", "RadiusBL", "RadiusBR",
-			"Gradient", "CssVar", "CustomStyle"
-		};
-		for (String item : items) {
-			HashMap<String, Object> map = new HashMap<>();
-			map.put("edit", item);
+			String value = "";
+			if (item.equals("Edittext")) value = currentFunction.containsKey("text") ? currentFunction.get("text").toString() : "";
+			else if (item.equals("SetId")) value = currentFunction.containsKey("id") ? currentFunction.get("id").toString() : "";
+			else if (item.equals("SetClass")) value = currentFunction.containsKey("class") ? currentFunction.get("class").toString() : "";
+			else if (item.equals("SetHref")) value = currentFunction.containsKey("href") ? currentFunction.get("href").toString() : "";
+			else if (item.equals("SetPlaceholder")) value = currentFunction.containsKey("placeholder") ? currentFunction.get("placeholder").toString() : "";
+			else {
+				String cssKey = getCssKeyFromItem(item);
+				if (currentStyle.containsKey(cssKey)) value = currentStyle.get(cssKey).toString();
+			}
+			map.put("value", value);
 			design.add(map);
 		}
 		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
@@ -2501,6 +2420,9 @@ public class MainActivity extends AppCompatActivity {
 
 	private void buildLayoutDesignList() {
 		design.clear();
+		View selected = selector.getSelectedView();
+		Map<String, Object> currentStyle = getWidgetStyle(selected);
+
 		String[] items = {
 			"Display", "Position", "FlexDir", "FlexWrap",
 			"JustifyContent", "AlignItems", "AlignSelf", "AlignContent",
@@ -2514,18 +2436,111 @@ public class MainActivity extends AppCompatActivity {
 		for (String item : items) {
 			HashMap<String, Object> map = new HashMap<>();
 			map.put("edit", item);
+			String cssKey = getCssKeyFromItem(item);
+			String value = currentStyle.containsKey(cssKey) ? currentStyle.get(cssKey).toString() : "";
+			map.put("value", value);
 			design.add(map);
 		}
 		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
 		recyclerview3.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 	}
 
-	private void buildEventDesignList() {
-		design.clear();
-		// Event items now hidden from view section - use Event tab instead
-		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
-		recyclerview3.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+	private Map<String, Object> getWidgetStyle(View v) {
+		if (v == null) return new HashMap<>();
+		Object tag = v.getTag();
+		if (tag instanceof Map) {
+			Map<String, Object> wm = (Map<String, Object>) tag;
+			Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+			if (fn != null) {
+				Map<String, Object> st = (Map<String, Object>) fn.get("style");
+				if (st != null) return st;
+			}
+		}
+		return new HashMap<>();
 	}
+
+	private Map<String, Object> getWidgetFunction(View v) {
+		if (v == null) return new HashMap<>();
+		Object tag = v.getTag();
+		if (tag instanceof Map) {
+			Map<String, Object> wm = (Map<String, Object>) tag;
+			Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+			if (fn != null) return fn;
+		}
+		return new HashMap<>();
+	}
+
+	private String getCssKeyFromItem(String item) {
+		switch (item) {
+			case "TextSize": return "fontSize";
+			case "Color": return "color";
+			case "Font": return "fontWeight";
+			case "TextAlign": return "textAlign";
+			case "Background": return "backgroundColor";
+			case "BorderRadius": return "borderRadius";
+			case "BorderWidth": return "borderWidth";
+			case "BorderColor": return "borderColor";
+			case "Padding": return "padding";
+			case "Margin": return "margin";
+			case "Width": return "width";
+			case "Height": return "height";
+			case "Display": return "display";
+			case "Position": return "position";
+			case "FlexDir": return "flexDirection";
+			case "FlexWrap": return "flexWrap";
+			case "JustifyContent": return "justifyContent";
+			case "AlignItems": return "alignItems";
+			case "AlignSelf": return "alignSelf";
+			case "AlignContent": return "alignContent";
+			case "Gap": return "gap";
+			case "RowGap": return "rowGap";
+			case "ColGap": return "columnGap";
+			case "GridCols": return "gridTemplateColumns";
+			case "GridRows": return "gridTemplateRows";
+			case "GridGap": return "gridGap";
+			case "Float": return "float";
+			case "Clear": return "clear";
+			case "Top": return "top";
+			case "Right": return "right";
+			case "Bottom": return "bottom";
+			case "Left": return "left";
+			case "MinWidth": return "minWidth";
+			case "MaxWidth": return "maxWidth";
+			case "MinHeight": return "minHeight";
+			case "MaxHeight": return "maxHeight";
+			case "ObjectFit": return "objectFit";
+			case "AspectRatio": return "aspectRatio";
+			case "Edittext": return "text";
+			case "SetId": return "id";
+			case "SetClass": return "class";
+			case "SetHref": return "href";
+			case "SetTarget": return "target";
+			case "SetPlaceholder": return "placeholder";
+			case "SetType": return "type";
+			case "ImageSrc": return "src";
+			case "ListItems": return "items";
+			case "Elevation": return "elevation";
+			case "Opacity": return "opacity";
+			case "Rotation": return "rotation";
+			case "Overflow": return "overflow";
+			case "BoxShadow": return "boxShadow";
+			case "TextDecor": return "textDecoration";
+			case "LineHeight": return "lineHeight";
+			case "LetterSpace": return "letterSpacing";
+			case "ZIndex": return "zIndex";
+			case "BorderTop": return "borderTop";
+			case "BorderRight": return "borderRight";
+			case "BorderBottom": return "borderBottom";
+			case "BorderLeft": return "borderLeft";
+			case "RadiusTL": return "borderTopLeftRadius";
+			case "RadiusTR": return "borderTopRightRadius";
+			case "RadiusBL": return "borderBottomLeftRadius";
+			case "RadiusBR": return "borderBottomRightRadius";
+			default: return item.toLowerCase();
+		}
+	}
+
+
 
 	private String getSelectedTag() {
 		View selected = selector.getSelectedView();
@@ -2548,537 +2563,350 @@ public class MainActivity extends AppCompatActivity {
 		}
 
 		String editType = design.get(position).get("edit").toString();
+		String initialValue = design.get(position).containsKey("value") ? design.get(position).get("value").toString() : "";
+		UniversalM3Dialog dialog = new UniversalM3Dialog(this).setTitle(editType).setInitialValue(initialValue);
 
 		switch (editType) {
 			case "Edittext":
-				showStyleDialog("Set New Value", "New Value", value -> {
+				dialog.setHint("Text content").showTextInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("text", value);
 					widgetUpdater.updateWidget(selected, value, style);
 					saveUndoState();
+					buildDesignList();
 				});
 				break;
 			case "SetId":
-				showStyleDialog("Set Element ID", "my-element", value -> {
+				dialog.setHint("id-name").showTextInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("id", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 					refreshHierarchy();
+					buildDesignList();
 				});
 				break;
 			case "SetClass":
-				showStyleDialog("Set CSS Classes", "class1 class2", value -> {
+				dialog.setHint("class1 class2").showTextInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("class", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 					refreshHierarchy();
+					buildDesignList();
 				});
 				break;
 			case "SetHref":
-				showStyleDialog("Set Link URL", "https://example.com", value -> {
+				dialog.setHint("https://...").showTextInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("href", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildDesignList();
 				});
 				break;
 			case "SetTarget":
-				showChoiceDialog("Link Target", new String[]{"_self", "_blank", "_parent", "_top"}, value -> {
+				dialog.setOptions(new String[]{"_self", "_blank", "_parent", "_top"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("target", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildDesignList();
 				});
 				break;
 			case "SetPlaceholder":
-				showStyleDialog("Set Placeholder", "Enter text...", value -> {
+				dialog.setHint("Placeholder...").showTextInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("placeholder", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildDesignList();
 				});
 				break;
 			case "SetType":
-				showChoiceDialog("Input Type", new String[]{"text", "password", "email", "number", "tel", "url", "date", "time", "color", "range", "file", "checkbox", "radio", "submit", "reset", "hidden"}, value -> {
+				dialog.setOptions(new String[]{"text", "password", "email", "number", "tel", "url", "date", "time", "color", "range", "file", "checkbox", "radio", "submit", "reset", "hidden"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("type", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildDesignList();
 				});
 				break;
 			case "ImageSrc":
-				showStyleDialog("Set Image Source", "URL or base64 data", value -> {
+				dialog.setHint("URL or base64").showTextInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("src", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildDesignList();
 				});
 				break;
 			case "ListItems":
 				showListItemsDialog(selected);
 				break;
 			case "TextSize":
-				showStyleDialogWithUnits("Change Text Size", "16", "fontSize", selected);
+				dialog.setUnits(new String[]{"px", "rem", "em", "vh", "vw", "pt"}).showUnitInput("fontSize", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("fontSize", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildDesignList();
+				});
 				break;
 			case "Color":
-				showColorPickerDialog("Set Text Color", "color", selected);
+				dialog.showColorInput(value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("color", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildDesignList();
+				});
 				break;
 			case "Font":
-				showChoiceDialog("Font Weight", new String[]{"normal", "bold", "lighter", "100", "200", "300", "400", "500", "600", "700", "800", "900"}, value -> {
+				dialog.setOptions(new String[]{"normal", "bold", "lighter", "100", "200", "300", "400", "500", "600", "700", "800", "900"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("fontWeight", value);
 					widgetUpdater.updateWidget(selected, value, style);
 					saveUndoState();
+					buildDesignList();
 				});
 				break;
 			case "TextAlign":
-				showChoiceDialog("Text Align", new String[]{"left", "center", "right", "justify"}, value -> {
+				dialog.setOptions(new String[]{"left", "center", "right", "justify"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("textAlign", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildDesignList();
 				});
 				break;
 			case "Background":
-				showColorPickerDialog("Set Background Color", "backgroundColor", selected);
-				break;
-			case "BorderRadius":
-				showStyleDialogWithUnits("Set Border Radius", "12", "borderRadius", selected);
-				break;
-			case "BorderWidth":
-				showStyleDialogWithUnits("Set Border Width", "2", "borderWidth", selected);
-				break;
-			case "BorderColor":
-				showColorPickerDialog("Set Border Color", "borderColor", selected);
-				break;
-			case "Padding":
-				showStyleDialogWithUnits("Set Padding", "12", "padding", selected);
-				break;
-			case "Margin":
-				showStyleDialogWithUnits("Set Margin", "12", "margin", selected);
-				break;
-			case "Width":
-				showStyleDialogWithUnits("Set Width", "100", "width", selected);
-				break;
-			case "Height":
-				showStyleDialogWithUnits("Set Height", "100", "height", selected);
-				break;
-			case "Elevation":
-				showStyleDialog("Set Elevation", "4", value -> {
+				dialog.showColorInput(value -> {
 					Map<String, Object> style = new HashMap<>();
-					style.put("elevation", value);
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
-				break;
-			case "Opacity":
-				showStyleDialog("Set Opacity", "0.0 - 1.0", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("opacity", value);
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
-				break;
-			case "Rotation":
-				showStyleDialog("Set Rotation", "0 - 360", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("transform", "rotate(" + value + "deg)");
-					widgetUpdater.updateWidget(selected, value, style);
-					saveUndoState();
-				});
-				break;
-			case "Cursor":
-				showChoiceDialog("Cursor", new String[]{"default", "pointer", "text", "move", "not-allowed", "grab", "crosshair", "wait", "help"}, value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("cursor", value);
+					style.put("backgroundColor", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildDesignList();
+				});
+				break;
+			case "BorderRadius":
+				dialog.setUnits(new String[]{"px", "rem", "%", "em"}).showUnitInput("borderRadius", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("borderRadius", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildDesignList();
+				});
+				break;
+			case "BorderWidth":
+				dialog.setUnits(new String[]{"px", "rem", "em"}).showUnitInput("borderWidth", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("borderWidth", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildDesignList();
+				});
+				break;
+			case "BorderColor":
+				dialog.showColorInput(value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("borderColor", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildDesignList();
+				});
+				break;
+			case "Padding":
+				dialog.setUnits(new String[]{"px", "rem", "%", "em"}).showUnitInput("padding", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("padding", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildDesignList();
+				});
+				break;
+			case "Margin":
+				dialog.setUnits(new String[]{"px", "rem", "%", "em", "auto"}).showUnitInput("margin", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("margin", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildDesignList();
+				});
+				break;
+			case "Width":
+				dialog.setUnits(new String[]{"px", "rem", "%", "em", "vw", "auto"}).showUnitInput("width", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("width", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildDesignList();
+				});
+				break;
+			case "Height":
+				dialog.setUnits(new String[]{"px", "rem", "%", "em", "vh", "auto"}).showUnitInput("height", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("height", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildDesignList();
 				});
 				break;
 			case "Display":
-				showChoiceDialog("Display", new String[]{"block", "flex", "grid", "inline", "inline-block", "inline-flex", "none", "contents"}, value -> {
+				dialog.setOptions(new String[]{"block", "flex", "grid", "inline", "inline-block", "inline-flex", "none", "contents"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("display", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildLayoutDesignList();
 				});
 				break;
 			case "Position":
-				showChoiceDialog("Position", new String[]{"static", "relative", "absolute", "fixed", "sticky"}, value -> {
+				dialog.setOptions(new String[]{"static", "relative", "absolute", "fixed", "sticky"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("position", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildLayoutDesignList();
 				});
 				break;
 			case "FlexDir":
-				showChoiceDialog("Flex Direction", new String[]{"row", "column", "row-reverse", "column-reverse"}, value -> {
+				dialog.setOptions(new String[]{"row", "column", "row-reverse", "column-reverse"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("flexDirection", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildLayoutDesignList();
 				});
 				break;
 			case "FlexWrap":
-				showChoiceDialog("Flex Wrap", new String[]{"nowrap", "wrap", "wrap-reverse"}, value -> {
+				dialog.setOptions(new String[]{"nowrap", "wrap", "wrap-reverse"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("flexWrap", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildLayoutDesignList();
 				});
 				break;
 			case "JustifyContent":
-				showChoiceDialog("Justify Content", new String[]{"flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly"}, value -> {
+				dialog.setOptions(new String[]{"flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("justifyContent", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildLayoutDesignList();
 				});
 				break;
 			case "AlignItems":
-				showChoiceDialog("Align Items", new String[]{"flex-start", "center", "flex-end", "stretch", "baseline"}, value -> {
+				dialog.setOptions(new String[]{"flex-start", "center", "flex-end", "stretch", "baseline"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("alignItems", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildLayoutDesignList();
 				});
 				break;
 			case "AlignSelf":
-				showChoiceDialog("Align Self", new String[]{"auto", "flex-start", "center", "flex-end", "stretch", "baseline"}, value -> {
+				dialog.setOptions(new String[]{"auto", "flex-start", "center", "flex-end", "stretch", "baseline"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("alignSelf", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildLayoutDesignList();
 				});
 				break;
 			case "AlignContent":
-				showChoiceDialog("Align Content", new String[]{"flex-start", "center", "flex-end", "stretch", "space-between", "space-around"}, value -> {
+				dialog.setOptions(new String[]{"flex-start", "center", "flex-end", "stretch", "space-between", "space-around"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("alignContent", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildLayoutDesignList();
 				});
 				break;
 			case "Gap":
-				showStyleDialogWithUnits("Set Gap", "8", "gap", selected);
+				dialog.setUnits(new String[]{"px", "rem", "em"}).showUnitInput("gap", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("gap", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildLayoutDesignList();
+				});
 				break;
 			case "RowGap":
-				showStyleDialogWithUnits("Set Row Gap", "8", "rowGap", selected);
+				dialog.setUnits(new String[]{"px", "rem", "em"}).showUnitInput("rowGap", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("rowGap", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildLayoutDesignList();
+				});
 				break;
 			case "ColGap":
-				showStyleDialogWithUnits("Set Column Gap", "8", "columnGap", selected);
-				break;
-			case "GridCols":
-				showStyleDialog("Grid Template Columns", "repeat(3, 1fr)", value -> {
+				dialog.setUnits(new String[]{"px", "rem", "em"}).showUnitInput("columnGap", value -> {
 					Map<String, Object> style = new HashMap<>();
-					style.put("gridTemplateColumns", value);
+					style.put("columnGap", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-				});
-				break;
-			case "GridRows":
-				showStyleDialog("Grid Template Rows", "auto", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("gridTemplateRows", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "GridGap":
-				showStyleDialogWithUnits("Grid Gap", "16", "gridGap", selected);
-				break;
-			case "Float":
-				showChoiceDialog("Float", new String[]{"none", "left", "right"}, value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("float", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "Clear":
-				showChoiceDialog("Clear", new String[]{"none", "left", "right", "both"}, value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("clear", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
+					buildLayoutDesignList();
 				});
 				break;
 			case "Top":
-				showStyleDialogWithUnits("Top", "0", "top", selected);
+				dialog.setUnits(new String[]{"px", "%", "rem", "em"}).showUnitInput("top", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("top", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildLayoutDesignList();
+				});
 				break;
 			case "Right":
-				showStyleDialogWithUnits("Right", "0", "right", selected);
+				dialog.setUnits(new String[]{"px", "%", "rem", "em"}).showUnitInput("right", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("right", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildLayoutDesignList();
+				});
 				break;
 			case "Bottom":
-				showStyleDialogWithUnits("Bottom", "0", "bottom", selected);
+				dialog.setUnits(new String[]{"px", "%", "rem", "em"}).showUnitInput("bottom", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("bottom", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildLayoutDesignList();
+				});
 				break;
 			case "Left":
-				showStyleDialogWithUnits("Left", "0", "left", selected);
-				break;
-			case "MinWidth":
-				showStyleDialogWithUnits("Min Width", "0", "minWidth", selected);
-				break;
-			case "MaxWidth":
-				showStyleDialogWithUnits("Max Width", "100", "maxWidth", selected);
-				break;
-			case "MinHeight":
-				showStyleDialogWithUnits("Min Height", "0", "minHeight", selected);
-				break;
-			case "MaxHeight":
-				showStyleDialogWithUnits("Max Height", "100", "maxHeight", selected);
+				dialog.setUnits(new String[]{"px", "%", "rem", "em"}).showUnitInput("left", value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("left", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					buildLayoutDesignList();
+				});
 				break;
 			case "ObjectFit":
-				showChoiceDialog("Object Fit", new String[]{"fill", "contain", "cover", "none", "scale-down"}, value -> {
+				dialog.setOptions(new String[]{"fill", "contain", "cover", "none", "scale-down"}).showChoiceInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("objectFit", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
+					buildLayoutDesignList();
 				});
 				break;
 			case "AspectRatio":
-				showStyleDialog("Aspect Ratio", "16/9", value -> {
+				dialog.setHint("16/9").showTextInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("aspectRatio", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-				});
-				break;
-			case "Overflow":
-				showChoiceDialog("Overflow", new String[]{"visible", "hidden", "scroll", "auto"}, value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("overflow", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "BoxShadow":
-				showStyleDialog("Set Box Shadow", "0 2px 8px rgba(0,0,0,0.1)", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("boxShadow", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "TextDecor":
-				showChoiceDialog("Text Decoration", new String[]{"none", "underline", "line-through", "overline"}, value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("textDecoration", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "LineHeight":
-				showStyleDialog("Set Line Height", "1.6", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("lineHeight", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "LetterSpace":
-				showStyleDialogWithUnits("Set Letter Spacing", "1", "letterSpacing", selected);
-				break;
-			case "ZIndex":
-				showStyleDialog("Set Z-Index", "10", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("zIndex", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "BorderTop":
-				showStyleDialog("Border Top", "2px solid #000", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("borderTop", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "BorderRight":
-				showStyleDialog("Border Right", "2px solid #000", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("borderRight", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "BorderBottom":
-				showStyleDialog("Border Bottom", "2px solid #000", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("borderBottom", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "BorderLeft":
-				showStyleDialog("Border Left", "2px solid #000", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("borderLeft", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "RadiusTL":
-				showStyleDialogWithUnits("Top-Left Radius", "8", "borderTopLeftRadius", selected);
-				break;
-			case "RadiusTR":
-				showStyleDialogWithUnits("Top-Right Radius", "8", "borderTopRightRadius", selected);
-				break;
-			case "RadiusBL":
-				showStyleDialogWithUnits("Bottom-Left Radius", "8", "borderBottomLeftRadius", selected);
-				break;
-			case "RadiusBR":
-				showStyleDialogWithUnits("Bottom-Right Radius", "8", "borderBottomRightRadius", selected);
-				break;
-			case "Gradient":
-				showStyleDialog("Set Gradient", "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("background", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-				});
-				break;
-			case "CssVar":
-				showCssVariableDialog(selected);
-				break;
-			case "CustomStyle":
-				showStyleDialog("Custom CSS Property", "property:value", value -> {
-					String[] parts = value.split(":", 2);
-					if (parts.length == 2) {
-						Map<String, Object> style = new HashMap<>();
-						style.put(parts[0].trim(), parts[1].trim());
-						widgetUpdater.updateWidget(selected, "", style);
-						saveUndoState();
-					}
+					buildLayoutDesignList();
 				});
 				break;
 		}
 	}
-
-	// ---- Style Dialog with Unit Chips ----
-
-	private void showStyleDialogWithUnits(String title, String defaultValue, String cssProperty, View targetView) {
-		LinearLayout layout = new LinearLayout(this);
-		layout.setOrientation(LinearLayout.VERTICAL);
-		layout.setPadding(48, 24, 48, 0);
-
-		TextInputLayout inputLayout = new TextInputLayout(this, null,
-			com.google.android.material.R.attr.textInputOutlinedStyle);
-		inputLayout.setHint("Value");
-		TextInputEditText inputField = new TextInputEditText(inputLayout.getContext());
-		inputField.setText(defaultValue);
-		inputField.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
-		inputLayout.addView(inputField);
-		layout.addView(inputLayout);
-
-		LinearLayout chipRow = new LinearLayout(this);
-		chipRow.setOrientation(LinearLayout.HORIZONTAL);
-		chipRow.setPadding(0, 8, 0, 8);
-
-		final String[] selectedUnit = {"px"};
-		String[] units = {"px", "rem", "%", "em", "vh", "vw", "auto"};
-		for (String unit : units) {
-			Chip chip = new Chip(this);
-			chip.setText(unit);
-			chip.setTextSize(11);
-			chip.setCheckable(true);
-			chip.setChecked("px".equals(unit));
-			chip.setOnClickListener(v -> {
-				selectedUnit[0] = unit;
-				for (int i = 0; i < chipRow.getChildCount(); i++) {
-					View child = chipRow.getChildAt(i);
-					if (child instanceof Chip) {
-						((Chip) child).setChecked(child == chip);
-					}
-				}
-			});
-			chipRow.addView(chip);
-		}
-		layout.addView(chipRow);
-
-		new MaterialAlertDialogBuilder(this)
-			.setTitle(title)
-			.setView(layout)
-			.setPositiveButton("Apply", (dialog, which) -> {
-				String value = inputField.getText().toString().trim();
-				if (value.isEmpty()) return;
-				String finalValue = "auto".equals(selectedUnit[0]) ? "auto" : value + selectedUnit[0];
-				Map<String, Object> style = new HashMap<>();
-				style.put(cssProperty, finalValue);
-				widgetUpdater.updateWidget(targetView, "", style);
-				saveUndoState();
-			})
-			.setNegativeButton("Cancel", null)
-			.show();
-	}
-
-	// ---- Color Picker Dialog ----
-
-	private void showColorPickerDialog(String title, String cssProperty, View targetView) {
-		LinearLayout layout = new LinearLayout(this);
-		layout.setOrientation(LinearLayout.VERTICAL);
-		layout.setPadding(48, 24, 48, 0);
-
-		TextInputLayout inputLayout = new TextInputLayout(this, null,
-			com.google.android.material.R.attr.textInputOutlinedStyle);
-		inputLayout.setHint("Color value (#hex, rgb, var())");
-		TextInputEditText inputField = new TextInputEditText(inputLayout.getContext());
-		inputField.setText("#333333");
-		inputLayout.addView(inputField);
-		layout.addView(inputLayout);
-
-		LinearLayout colorRow1 = new LinearLayout(this);
-		colorRow1.setOrientation(LinearLayout.HORIZONTAL);
-		colorRow1.setPadding(0, 12, 0, 4);
-		LinearLayout colorRow2 = new LinearLayout(this);
-		colorRow2.setOrientation(LinearLayout.HORIZONTAL);
-		colorRow2.setPadding(0, 4, 0, 12);
-
-		String[] presetColors1 = {"#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#2196F3"};
-		String[] presetColors2 = {"#4CAF50", "#FF9800", "#795548", "#607D8B", "#000000", "#FFFFFF"};
-
-		for (String color : presetColors1) addColorSwatch(colorRow1, color, inputField);
-		for (String color : presetColors2) addColorSwatch(colorRow2, color, inputField);
-		layout.addView(colorRow1);
-		layout.addView(colorRow2);
-
-		TextView cssVarHint = new TextView(this);
-		cssVarHint.setText("CSS Variables: var(--primary-color), var(--accent-color)");
-		cssVarHint.setTextSize(11);
-		cssVarHint.setPadding(0, 0, 0, 12);
-		layout.addView(cssVarHint);
-
-		new MaterialAlertDialogBuilder(this)
-			.setTitle(title)
-			.setView(layout)
-			.setPositiveButton("Apply", (dialog, which) -> {
-				String value = inputField.getText().toString().trim();
-				if (value.isEmpty()) return;
-				Map<String, Object> style = new HashMap<>();
-				style.put(cssProperty, value);
-				widgetUpdater.updateWidget(targetView, value, style);
-				saveUndoState();
-			})
-			.setNegativeButton("Cancel", null)
-			.show();
-	}
-
-	private void addColorSwatch(LinearLayout row, String color, TextInputEditText inputField) {
-		View swatch = new View(this);
-		LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(48, 48);
-		params.setMargins(4, 4, 4, 4);
-		swatch.setLayoutParams(params);
-		try {
-			swatch.setBackgroundColor(Color.parseColor(color));
-		} catch (Exception e) {
-			swatch.setBackgroundColor(Color.GRAY);
-		}
-		swatch.setOnClickListener(v -> inputField.setText(color));
-		row.addView(swatch);
-	}
-
 	// ---- CSS Variable Dialog ----
 
 	private void showCssVariableDialog(View targetView) {
@@ -3118,39 +2946,6 @@ public class MainActivity extends AppCompatActivity {
 			})
 			.setNegativeButton("Cancel", null)
 			.show();
-	}
-
-	private void showChoiceDialog(String title, String[] options, OnStyleConfirmed callback) {
-		new MaterialAlertDialogBuilder(this)
-			.setTitle(title)
-			.setItems(options, (dialog, which) -> {
-				callback.onConfirmed(options[which]);
-			})
-			.show();
-	}
-
-	private void showStyleDialog(String title, String hint, OnStyleConfirmed callback) {
-		View alertLayout = getLayoutInflater().inflate(R.layout.dial, null);
-		MaterialAlertDialogBuilder m = new MaterialAlertDialogBuilder(this);
-		m.setView(alertLayout);
-
-		TextInputLayout inputLayout = alertLayout.findViewById(R.id.UserNameEditText);
-		TextInputEditText inputField = alertLayout.findViewById(R.id.UserNameValue);
-		inputLayout.setHint(hint);
-		m.setTitle(title);
-
-		m.setPositiveButton("Apply", (dialog, which) -> {
-			String value = inputField.getText().toString().trim();
-			if (value.isEmpty()) {
-				Toast.makeText(this, "Please enter a value.", Toast.LENGTH_SHORT).show();
-				return;
-			}
-			callback.onConfirmed(value);
-		});
-
-		m.setNegativeButton("Cancel", null);
-		m.setCancelable(true);
-		m.show();
 	}
 
 	interface OnStyleConfirmed {
@@ -3279,7 +3074,8 @@ public class MainActivity extends AppCompatActivity {
 			TextView textview1 = view.findViewById(R.id.textview1);
 
 			String editType = design.get(position).get("edit").toString();
-			textview1.setText(editType);
+			String value = design.get(position).containsKey("value") ? design.get(position).get("value").toString() : "";
+			textview1.setText(editType + (value.isEmpty() ? "" : ": " + value));
 			int iconRes = getDesignIcon(editType);
 			imageview1.setImageResource(iconRes);
 			cardview1.setOnClickListener(v -> handleDesignItemClick(position));

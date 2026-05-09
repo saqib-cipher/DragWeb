@@ -156,13 +156,7 @@ public class PageCodeGenerator {
 
         // Animation keyframes used by the CSS animation blocks.
         htmlBuilder.append("    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }\n");
-        htmlBuilder.append("    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }\n");
-        htmlBuilder.append("    @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }\n");
-        htmlBuilder.append("    @keyframes slideOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-20px); opacity: 0; } }\n");
-        htmlBuilder.append("    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }\n");
-        htmlBuilder.append("    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }\n");
-        htmlBuilder.append("    @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }\n");
-        htmlBuilder.append("    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }\n");
+        htmlBuilder.append("    @keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }\n");
         for (String styleRule : styleRules) {
             htmlBuilder.append(styleRule);
         }
@@ -187,42 +181,37 @@ public class PageCodeGenerator {
     private void appendHtmlFooter(StringBuilder htmlBuilder,
                                   LogicBlockManager logicBlockManager,
                                   CustomBlockManager customBlockManager) {
-        // Emit static CSS rules (CSS blocks scheduled at page-load) and
-        // pseudo-class rules (hover/focus/active) as inline stylesheets.
-        if (logicBlockManager != null) {
-            String baseCss = logicBlockManager.generateBaseCssRules();
-            if (baseCss != null && !baseCss.trim().isEmpty()) {
-                htmlBuilder.append("\n  <style>\n  /* Logic block styles */\n");
-                htmlBuilder.append(baseCss);
-                htmlBuilder.append("  </style>\n");
+        // Emit static CSS rules, pseudo-class rules, custom block styles, and ASD CSS source
+        // into a single consolidated <style> block.
+        if (logicBlockManager != null || customBlockManager != null) {
+            StringBuilder consolidatedCss = new StringBuilder();
+            
+            if (logicBlockManager != null) {
+                String baseCss = logicBlockManager.generateBaseCssRules();
+                if (baseCss != null && !baseCss.trim().isEmpty()) {
+                    consolidatedCss.append("  /* Logic block styles */\n").append(baseCss).append("\n");
+                }
+
+                String pseudoCss = logicBlockManager.generateCssPseudoRules();
+                if (pseudoCss != null && !pseudoCss.trim().isEmpty()) {
+                    consolidatedCss.append("  /* CSS interaction rules */\n").append(pseudoCss).append("\n");
+                }
+                
+                String asdCss = logicBlockManager.generateAsdSource("css");
+                if (asdCss != null && !asdCss.trim().isEmpty()) {
+                    consolidatedCss.append("  /* ASD CSS source */\n").append(asdCss).append("\n");
+                }
             }
 
-            String cssRules = logicBlockManager.generateCssPseudoRules();
-            if (cssRules != null && !cssRules.trim().isEmpty()) {
-                htmlBuilder.append("\n  <style>\n  /* CSS interaction rules */\n");
-                htmlBuilder.append(cssRules);
-                htmlBuilder.append("  </style>\n");
+            if (customBlockManager != null) {
+                String customCss = customBlockManager.renderAllCss();
+                if (customCss != null && !customCss.trim().isEmpty()) {
+                    consolidatedCss.append("  /* Custom block styles */\n").append(customCss).append("\n");
+                }
             }
-        }
 
-        // Custom-block CSS instances are emitted as a normal stylesheet so
-        // template-based blocks like ".menu{color:red;}" land in the page.
-        if (customBlockManager != null) {
-            String customCss = customBlockManager.renderAllCss();
-            if (customCss != null && !customCss.trim().isEmpty()) {
-                htmlBuilder.append("\n  <style>\n  /* Custom block styles */\n  ");
-                htmlBuilder.append(customCss.replace("\n", "\n  "));
-                htmlBuilder.append("\n  </style>\n");
-            }
-        }
-
-        // ASD raw-CSS source.
-        if (logicBlockManager != null) {
-            String asdCss = logicBlockManager.generateAsdSource("css");
-            if (asdCss != null && !asdCss.trim().isEmpty()) {
-                htmlBuilder.append("\n  <style>\n  /* ASD CSS source */\n  ");
-                htmlBuilder.append(asdCss.replace("\n", "\n  "));
-                htmlBuilder.append("\n  </style>\n");
+            if (consolidatedCss.length() > 0) {
+                htmlBuilder.append("\n  <style>\n").append(consolidatedCss).append("  </style>\n");
             }
         }
 
@@ -284,7 +273,7 @@ public class PageCodeGenerator {
             html.append(" class=\"").append(escapeAttr(classes.toString())).append("\"");
         }
 
-        html.append(" data-widget=\"").append(tag).append("\"");
+
 
         // Tag-specific attributes
         if ("img".equals(tag) && function.containsKey("src")) {
@@ -387,8 +376,7 @@ public class PageCodeGenerator {
             html.append(" class=\"").append(escapeAttr(classes.toString())).append("\"");
         }
 
-        // Data attribute for logic targeting (fallback selector)
-        html.append(" data-widget=\"").append(tag).append("\"");
+
 
         // Tag-specific attributes
         if ("img".equals(tag) && function.containsKey("src")) {

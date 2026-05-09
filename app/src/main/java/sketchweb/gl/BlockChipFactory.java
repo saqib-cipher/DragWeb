@@ -112,26 +112,19 @@ final class BlockChipFactory {
         chip.setLayoutParams(lp);
         return chip;
     }
-
     private TextView textChip(ChipInput input, String value, int baseColor,
                               OnChipValueChanged listener, boolean numeric) {
         String display = value.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : value;
         TextView chip = baseChip(baseColor, display);
         chip.setOnClickListener(v -> {
-            EditText edit = new EditText(context);
-            edit.setText(value);
-            edit.setSelection(edit.getText().length());
-            edit.setInputType(numeric ? (InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED) : InputType.TYPE_CLASS_TEXT);
-            new AlertDialog.Builder(context)
+            new UniversalM3Dialog(context)
                 .setTitle(input.id != null ? input.id : "Edit")
-                .setView(wrap(edit))
-                .setPositiveButton(android.R.string.ok, (d, w) -> {
-                    String nv = edit.getText().toString();
+                .setHint(input.placeholder != null ? input.placeholder : "Value")
+                .setInitialValue(value)
+                .showTextInput(nv -> {
                     chip.setText(nv.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : nv);
                     if (listener != null) listener.onChanged(input.id, nv);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                });
         });
         return chip;
     }
@@ -140,33 +133,37 @@ final class BlockChipFactory {
                                   OnChipValueChanged listener, List<String> options) {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "▼" : value + " ▼");
         chip.setOnClickListener(v -> {
-            PopupMenu pm = new PopupMenu(context, chip);
-            int order = 0;
-            for (String opt : options) pm.getMenu().add(0, order, order++, opt);
-            // Always allow free-form entry as the last item.
-            pm.getMenu().add(0, options.size(), order, "Custom...");
-            pm.setOnMenuItemClickListener(item -> {
-                if (item.getItemId() == options.size()) {
-                    EditText edit = new EditText(context);
-                    edit.setText(value);
-                    new AlertDialog.Builder(context)
+            List<String> opts = new ArrayList<>(options);
+            opts.add("Custom...");
+            
+            androidx.appcompat.widget.ListPopupWindow popup = new androidx.appcompat.widget.ListPopupWindow(context);
+            popup.setAnchorView(chip);
+            popup.setAdapter(new android.widget.ArrayAdapter<>(context, android.R.layout.simple_list_item_1, opts));
+            
+            // Rounded background for the popup
+            GradientDrawable gd = new GradientDrawable();
+            gd.setColor(Color.WHITE);
+            gd.setCornerRadius(dp(12));
+            gd.setStroke(dp(1), 0x33000000);
+            popup.setBackgroundDrawable(gd);
+            
+            popup.setOnItemClickListener((parent, view, position, id) -> {
+                String chosen = opts.get(position);
+                if ("Custom...".equals(chosen)) {
+                    new UniversalM3Dialog(context)
                         .setTitle(input.id != null ? input.id : "Custom value")
-                        .setView(wrap(edit))
-                        .setPositiveButton(android.R.string.ok, (d, w) -> {
-                            String nv = edit.getText().toString();
+                        .setInitialValue(value)
+                        .showTextInput(nv -> {
                             chip.setText(nv.isEmpty() ? "▼" : nv + " ▼");
                             if (listener != null) listener.onChanged(input.id, nv);
-                        })
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show();
-                    return true;
+                        });
+                } else {
+                    chip.setText(chosen + " ▼");
+                    if (listener != null) listener.onChanged(input.id, chosen);
                 }
-                String chosen = options.get(item.getItemId());
-                chip.setText(chosen + " ▼");
-                if (listener != null) listener.onChanged(input.id, chosen);
-                return true;
+                popup.dismiss();
             });
-            pm.show();
+            popup.show();
         });
         return chip;
     }
@@ -187,95 +184,17 @@ final class BlockChipFactory {
                                OnChipValueChanged listener) {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "#FFFFFF" : value);
         applyColorSwatch(chip, value);
-        chip.setOnClickListener(v -> showColorPickerDialog(input.id, value, picked -> {
-            chip.setText(picked);
-            applyColorSwatch(chip, picked);
-            if (listener != null) listener.onChanged(input.id, picked);
-        }));
-        return chip;
-    }
-
-    /**
-     * Unified color picker dialog. Top row contains the color preset swatches
-     * (tap to commit). Below: live preview swatch + advanced #RRGGBB input.
-     */
-    private void showColorPickerDialog(String chipId, String current, OnPicked picked) {
-        LinearLayout root = new LinearLayout(context);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(8), dp(16), dp(0));
-
-        // Live preview / advanced hex field
-        EditText hexInput = new EditText(context);
-        hexInput.setInputType(InputType.TYPE_CLASS_TEXT);
-        hexInput.setText(current == null || current.isEmpty() ? "#" : current);
-
-        TextView preview = new TextView(context);
-        preview.setHeight(dp(36));
-        preview.setMinWidth(dp(64));
-        applyColorSwatch(preview, current);
-        LinearLayout previewRow = new LinearLayout(context);
-        previewRow.setOrientation(LinearLayout.HORIZONTAL);
-        previewRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams pwLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        pwLp.setMargins(0, 0, dp(10), 0);
-        previewRow.addView(preview, pwLp);
-        previewRow.addView(hexInput, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 3f));
-
-        // Preset palette grid
-        LinearLayout palette = new LinearLayout(context);
-        palette.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout currentRow = null;
-        int columns = 5;
-        for (int i = 0; i < COLOR_PRESETS.length; i++) {
-            if (i % columns == 0) {
-                currentRow = new LinearLayout(context);
-                currentRow.setOrientation(LinearLayout.HORIZONTAL);
-                palette.addView(currentRow, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            }
-            String hex = COLOR_PRESETS[i];
-            TextView swatch = new TextView(context);
-            swatch.setHeight(dp(36));
-            swatch.setText(" ");
-            applyColorSwatch(swatch, hex);
-            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            slp.setMargins(dp(2), dp(2), dp(2), dp(2));
-            swatch.setLayoutParams(slp);
-            swatch.setOnClickListener(v -> {
-                hexInput.setText(hex);
-                applyColorSwatch(preview, hex);
-            });
-            currentRow.addView(swatch);
-        }
-
-        hexInput.addTextChangedListener(new android.text.TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void afterTextChanged(android.text.Editable e) {
-                String t = e.toString().trim();
-                if (!t.isEmpty()) applyColorSwatch(preview, t);
-            }
+        chip.setOnClickListener(v -> {
+            new UniversalM3Dialog(context)
+                .setTitle(input.id != null ? "Color · " + input.id : "Color")
+                .setInitialValue(value)
+                .showColorInput(picked -> {
+                    chip.setText(picked);
+                    applyColorSwatch(chip, picked);
+                    if (listener != null) listener.onChanged(input.id, picked);
+                });
         });
-
-        TextView paletteLabel = new TextView(context);
-        paletteLabel.setText("Presets");
-        paletteLabel.setTextSize(12);
-        paletteLabel.setPadding(0, dp(12), 0, dp(4));
-
-        root.addView(previewRow);
-        root.addView(paletteLabel);
-        root.addView(palette);
-
-        new AlertDialog.Builder(context)
-            .setTitle(chipId != null ? "Color · " + chipId : "Color")
-            .setView(root)
-            .setPositiveButton(android.R.string.ok, (d, w) -> {
-                String nv = hexInput.getText().toString().trim();
-                if (!nv.startsWith("#")) nv = "#" + nv;
-                if (picked != null) picked.onPicked(nv);
-            })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show();
+        return chip;
     }
 
     private interface OnPicked { void onPicked(String value); }

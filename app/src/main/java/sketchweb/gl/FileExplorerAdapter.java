@@ -116,9 +116,10 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         LinearLayout layout = new LinearLayout(context);
         layout.setOrientation(LinearLayout.HORIZONTAL);
         layout.setGravity(Gravity.CENTER_VERTICAL);
-        layout.setPadding(16, 12, 16, 12);
+        layout.setPadding(dp(16), dp(12), dp(16), dp(12));
         layout.setLayoutParams(new RecyclerView.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        layout.setBackgroundResource(android.R.drawable.list_selector_background);
         return new ViewHolder(layout);
     }
 
@@ -129,14 +130,24 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
 
         File file = files.get(position);
 
-        // Icon
-        TextView icon = new TextView(context);
-        icon.setTextSize(20);
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
-            40, ViewGroup.LayoutParams.WRAP_CONTENT);
-        iconParams.setMargins(0, 0, 12, 0);
-        icon.setLayoutParams(iconParams);
-        icon.setGravity(Gravity.CENTER);
+        // Icon Container
+        LinearLayout iconContainer = new LinearLayout(context);
+        iconContainer.setGravity(Gravity.CENTER);
+        int iconSize = dp(40);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(iconSize, iconSize);
+        iconParams.setMargins(0, 0, dp(16), 0);
+        iconContainer.setLayoutParams(iconParams);
+
+        GradientDrawable iconBg = new GradientDrawable();
+        iconBg.setCornerRadius(dp(8));
+        iconBg.setColor(Color.parseColor("#1A73E8")); // Default Blue
+        iconContainer.setBackground(iconBg);
+
+        TextView iconText = new TextView(context);
+        iconText.setTextSize(18);
+        iconText.setTextColor(Color.WHITE);
+        iconText.setGravity(Gravity.CENTER);
+        iconContainer.addView(iconText);
 
         // Info column
         LinearLayout infoCol = new LinearLayout(context);
@@ -146,34 +157,35 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         infoCol.setLayoutParams(infoParams);
 
         TextView nameView = new TextView(context);
-        nameView.setTextSize(14);
+        nameView.setTextSize(15);
         nameView.setSingleLine(true);
         nameView.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+        nameView.setTextColor(Color.parseColor("#E8EAED"));
+
+        TextView detailView = new TextView(context);
+        detailView.setTextSize(12);
+        detailView.setTextColor(Color.parseColor("#9AA0A6"));
 
         if (file == null) {
             // Go up entry
-            icon.setText("\uD83D\uDCC1");
+            iconBg.setColor(Color.parseColor("#5F6368"));
+            iconText.setText("↑");
             nameView.setText(".. (Go up)");
-            nameView.setTextColor(Color.parseColor("#90A4AE"));
             nameView.setTypeface(null, Typeface.ITALIC);
             infoCol.addView(nameView);
-
             layout.setOnClickListener(v -> goUp());
         } else if (file.isDirectory()) {
-            icon.setText("\uD83D\uDCC1");
+            iconBg.setColor(Color.parseColor("#1A73E8"));
+            iconText.setText("\uD83D\uDCC1");
             nameView.setText(file.getName());
-            nameView.setTextColor(Color.parseColor("#42A5F5"));
             nameView.setTypeface(null, Typeface.BOLD);
-            infoCol.addView(nameView);
-
-            // File count
+            
             File[] children = file.listFiles();
             int count = children != null ? children.length : 0;
-            TextView countView = new TextView(context);
-            countView.setText(count + " items");
-            countView.setTextSize(11);
-            countView.setTextColor(Color.parseColor("#78909C"));
-            infoCol.addView(countView);
+            detailView.setText(count + " items");
+            
+            infoCol.addView(nameView);
+            infoCol.addView(detailView);
 
             layout.setOnClickListener(v -> {
                 navigateTo(file);
@@ -181,18 +193,15 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             });
         } else {
             // File
-            icon.setText(getFileIcon(file.getName()));
+            iconBg.setColor(getFileColor(file.getName()));
+            iconText.setText(getFileIcon(file.getName()));
             nameView.setText(file.getName());
-            nameView.setTextColor(Color.parseColor("#CFD8DC"));
-            infoCol.addView(nameView);
-
-            // File size and date
-            TextView detailView = new TextView(context);
+            
             String size = formatFileSize(file.length());
             String date = dateFormat.format(new Date(file.lastModified()));
-            detailView.setText(size + " \u2022 " + date);
-            detailView.setTextSize(11);
-            detailView.setTextColor(Color.parseColor("#78909C"));
+            detailView.setText(size + " • " + date);
+            
+            infoCol.addView(nameView);
             infoCol.addView(detailView);
 
             layout.setOnClickListener(v -> {
@@ -210,8 +219,22 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             });
         }
 
-        layout.addView(icon);
+        layout.addView(iconContainer);
         layout.addView(infoCol);
+    }
+
+    private int getFileColor(String name) {
+        String lower = name.toLowerCase();
+        if (lower.endsWith(".html") || lower.endsWith(".htm")) return Color.parseColor("#E44D26");
+        if (lower.endsWith(".css")) return Color.parseColor("#264DE4");
+        if (lower.endsWith(".js")) return Color.parseColor("#F7DF1E");
+        if (lower.endsWith(".json")) return Color.parseColor("#8BC34A");
+        if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".webp")) return Color.parseColor("#9C27B0");
+        return Color.parseColor("#78909C");
+    }
+
+    private int dp(int px) {
+        return (int) (px * context.getResources().getDisplayMetrics().density);
     }
 
     @Override

@@ -41,7 +41,7 @@ public class PreviewActivity extends AppCompatActivity {
     private TextView tvPreviewTitle, tvDeviceInfo, tvPageCount;
     private ChipGroup chipGroupResponsive, chipGroupPages;
     private Chip chipMobile, chipTablet, chipDesktop, chipFullWidth;
-    private Button btnClose, btnCopy, btnSave, btnViewSource;
+    private Button btnClose, btnViewSource;
 
     private List<String> pageNames = new ArrayList<>();
     private List<String> pageCodes = new ArrayList<>();
@@ -75,19 +75,13 @@ public class PreviewActivity extends AppCompatActivity {
         loadCurrentPage();
 
         final View topBar = findViewById(R.id.topBar);
-        final View bottomBar = findViewById(R.id.bottomBar);
         final int topBarInitialTop = topBar != null ? topBar.getPaddingTop() : 0;
-        final int bottomBarInitialBottom = bottomBar != null ? bottomBar.getPaddingBottom() : 0;
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             
             if (topBar != null) {
                 topBar.setPadding(topBar.getPaddingLeft(), topBarInitialTop + systemBars.top, topBar.getPaddingRight(), topBar.getPaddingBottom());
-            }
-            
-            if (bottomBar != null) {
-                bottomBar.setPadding(bottomBar.getPaddingLeft(), bottomBar.getPaddingTop(), bottomBar.getPaddingRight(), bottomBarInitialBottom + systemBars.bottom);
             }
 
             // Apply left/right insets to the main root view
@@ -109,8 +103,6 @@ public class PreviewActivity extends AppCompatActivity {
         chipDesktop        = findViewById(R.id.chipDesktop);
         chipFullWidth      = findViewById(R.id.chipFullWidth);
         btnClose           = findViewById(R.id.btnClose);
-        btnCopy            = findViewById(R.id.btnCopy);
-        btnSave            = findViewById(R.id.btnSave);
         btnViewSource      = findViewById(R.id.btnViewSource);
     }
 
@@ -525,18 +517,6 @@ public class PreviewActivity extends AppCompatActivity {
 
     private void setupButtons() {
         btnClose.setOnClickListener(v -> finish());
-
-        btnCopy.setOnClickListener(v -> {
-            String code = getCurrentCode();
-            if (code != null && !code.isEmpty()) {
-                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                clipboard.setPrimaryClip(ClipData.newPlainText("html", code));
-                Toast.makeText(this, "HTML copied to clipboard", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        btnSave.setOnClickListener(v ->
-            Toast.makeText(this, "Use Export from the main editor", Toast.LENGTH_SHORT).show());
 
         btnViewSource.setOnClickListener(v -> showSourceDialog());
     }

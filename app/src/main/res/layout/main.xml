@@ -33,21 +33,9 @@
 				android:id="@+id/btnBack"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:text="&#8249;"
+				app:icon="@drawable/icon_arrow_back_round"
 				android:textSize="18sp"
 				style="?attr/materialIconButtonStyle" />
-			<TextView
-				android:id="@+id/tvProjectTitle"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_weight="1"
-				android:text="DragWeb"
-				android:textSize="14sp"
-				android:textStyle="bold"
-				android:textColor="?attr/colorOnSurface"
-				android:singleLine="true"
-				android:ellipsize="end"
-				android:paddingLeft="4dp" />
 
 			<!-- Page selector spinner -->
 			<Spinner
@@ -61,16 +49,10 @@
 				android:id="@+id/btnAddPage"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:text="+"
+				app:icon="@drawable/ic_add"
 				android:textSize="14sp"
 				style="?attr/materialIconButtonStyle" />
 
-			<Button
-				android:id="@+id/button4"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				style="?attr/materialIconButtonFilledStyle"
-				app:icon="@drawable/icon_save_round" />
 			<Button
 				android:id="@+id/btnUndo"
 				android:layout_width="wrap_content"
@@ -162,32 +144,6 @@
 						android:visibility="gone"
 						android:background="?attr/colorSurface">
 
-						<!-- Header row with page name -->
-						<LinearLayout
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:orientation="horizontal"
-							android:gravity="center_vertical"
-							android:padding="10dp"
-							android:background="?attr/colorSurfaceContainerHigh">
-							<TextView
-								android:id="@+id/tvEventPageName"
-								android:layout_width="0dp"
-								android:layout_height="wrap_content"
-								android:layout_weight="1"
-								android:text="Page Events"
-								android:textSize="16sp"
-								android:textStyle="bold"
-								android:textColor="?attr/colorOnSurface" />
-							<Button
-								android:id="@+id/btnViewAllBlocks"
-								android:layout_width="wrap_content"
-								android:layout_height="wrap_content"
-								android:text="View JS"
-								android:textSize="11sp"
-								style="?attr/materialButtonOutlinedStyle" />
-						</LinearLayout>
-
 						<!-- Page events list (Sketchware-style event list) -->
 						<androidx.core.widget.NestedScrollView
 							android:layout_width="match_parent"
@@ -251,17 +207,17 @@
 								android:id="@+id/btnImportImage"
 								android:layout_width="wrap_content"
 								android:layout_height="wrap_content"
-								android:text="Import"
+								app:icon="@drawable/file_open_24px"
 								android:textSize="12sp"
-								style="?attr/materialButtonOutlinedStyle" />
+								style="?attr/materialIconButtonStyle" />
 							<Button
 								android:id="@+id/btnNewFolder"
 								android:layout_width="wrap_content"
 								android:layout_height="wrap_content"
-								android:text="New Folder"
+								app:icon="@drawable/create_new_folder_24px"
 								android:textSize="12sp"
 								android:layout_marginStart="4dp"
-								style="?attr/materialButtonOutlinedStyle" />
+								style="?attr/materialIconButtonStyle" />
 						</LinearLayout>
 
 						<!-- Current path breadcrumb -->
@@ -357,54 +313,70 @@
 						android:clipToPadding="false" />
 
 					<!-- Hidden widget palette elements (moved to drawer only) -->
-					<com.google.android.material.chip.ChipGroup
-						android:id="@+id/chipGroupCategories"
-						android:layout_width="0dp"
-						android:layout_height="0dp"
-						android:visibility="gone">
-						<com.google.android.material.chip.Chip
-							android:id="@+id/chipCatAll"
+
+
+						<LinearLayout
 							android:layout_width="wrap_content"
-							android:layout_height="wrap_content"
-							android:text="All"
-							android:visibility="gone"
-							style="@style/Widget.Material3.Chip.Filter" />
-						<com.google.android.material.chip.Chip
-							android:id="@+id/chipCatLayout"
-							android:layout_width="wrap_content"
-							android:layout_height="wrap_content"
-							android:text="Layout"
-							android:visibility="gone"
-							style="@style/Widget.Material3.Chip.Filter" />
-						<com.google.android.material.chip.Chip
-							android:id="@+id/chipCatBasic"
-							android:layout_width="wrap_content"
-							android:layout_height="wrap_content"
-							android:text="Basic"
-							android:visibility="gone"
-							style="@style/Widget.Material3.Chip.Filter" />
-						<com.google.android.material.chip.Chip
-							android:id="@+id/chipCatForm"
-							android:layout_width="wrap_content"
-							android:layout_height="wrap_content"
-							android:text="Form"
-							android:visibility="gone"
-							style="@style/Widget.Material3.Chip.Filter" />
-						<com.google.android.material.chip.Chip
-							android:id="@+id/chipCatMedia"
-							android:layout_width="wrap_content"
-							android:layout_height="wrap_content"
-							android:text="Media"
-							android:visibility="gone"
-							style="@style/Widget.Material3.Chip.Filter" />
-						<com.google.android.material.chip.Chip
-							android:id="@+id/chipCatAdvanced"
-							android:layout_width="wrap_content"
-							android:layout_height="wrap_content"
-							android:text="Adv"
-							android:visibility="gone"
-							style="@style/Widget.Material3.Chip.Filter" />
-					</com.google.android.material.chip.ChipGroup>
+							android:layout_height="match_parent"
+							android:orientation="horizontal">
+
+							<com.google.android.material.chip.ChipGroup
+								android:id="@+id/chipGroupCategories"
+								android:layout_width="0dp"
+								android:layout_height="0dp"
+								android:visibility="gone">
+
+								<com.google.android.material.chip.Chip
+									android:id="@+id/chipCatAll"
+									style="@style/Widget.Material3.Chip.Filter"
+									android:layout_width="wrap_content"
+									android:layout_height="wrap_content"
+									android:text="All"
+									android:visibility="gone" />
+
+								<com.google.android.material.chip.Chip
+									android:id="@+id/chipCatLayout"
+									style="@style/Widget.Material3.Chip.Filter"
+									android:layout_width="wrap_content"
+									android:layout_height="wrap_content"
+									android:text="Layout"
+									android:visibility="gone" />
+
+								<com.google.android.material.chip.Chip
+									android:id="@+id/chipCatBasic"
+									style="@style/Widget.Material3.Chip.Filter"
+									android:layout_width="wrap_content"
+									android:layout_height="wrap_content"
+									android:text="Basic"
+									android:visibility="gone" />
+
+								<com.google.android.material.chip.Chip
+									android:id="@+id/chipCatForm"
+									style="@style/Widget.Material3.Chip.Filter"
+									android:layout_width="wrap_content"
+									android:layout_height="wrap_content"
+									android:text="Form"
+									android:visibility="gone" />
+
+								<com.google.android.material.chip.Chip
+									android:id="@+id/chipCatMedia"
+									style="@style/Widget.Material3.Chip.Filter"
+									android:layout_width="wrap_content"
+									android:layout_height="wrap_content"
+									android:text="Media"
+									android:visibility="gone" />
+
+								<com.google.android.material.chip.Chip
+									android:id="@+id/chipCatAdvanced"
+									style="@style/Widget.Material3.Chip.Filter"
+									android:layout_width="wrap_content"
+									android:layout_height="wrap_content"
+									android:text="Adv"
+									android:visibility="gone" />
+
+							</com.google.android.material.chip.ChipGroup>
+						</LinearLayout>
+
 					<androidx.recyclerview.widget.RecyclerView
 						android:id="@+id/recyclerview1"
 						android:layout_width="0dp"
@@ -442,10 +414,12 @@
 			</HorizontalScrollView>
 
 			<!-- Tabs: Basic / Styles / Layout -->
-			<LinearLayout
+			<com.google.android.material.chip.ChipGroup
+				android:id="@+id/chipGroupBottom"
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
-				android:orientation="horizontal"
+				app:singleSelection="true"
+				app:selectionRequired="true"
 				android:layout_marginTop="4dp"
 				android:layout_marginBottom="4dp">
 				<com.google.android.material.chip.Chip
@@ -457,29 +431,13 @@
 					style="@style/Widget.Material3.Chip.Filter"
 					android:checked="true" />
 				<com.google.android.material.chip.Chip
-					android:id="@+id/chipStyles"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Styles"
-					android:textSize="11sp"
-					android:visibility="gone"
-					style="@style/Widget.Material3.Chip.Filter" />
-				<com.google.android.material.chip.Chip
 					android:id="@+id/chipLayout"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="Layout"
 					android:textSize="11sp"
 					style="@style/Widget.Material3.Chip.Filter" />
-				<com.google.android.material.chip.Chip
-					android:id="@+id/chipEvent"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:text="Event"
-					android:textSize="11sp"
-					android:visibility="gone"
-					style="@style/Widget.Material3.Chip.Filter" />
-			</LinearLayout>
+			</com.google.android.material.chip.ChipGroup>
 
 			<!-- Bottom row: Selected widget & actions -->
 			<LinearLayout
@@ -520,6 +478,13 @@
 					app:icon="@drawable/icon_delete_round" />
 
 				<Button
+					android:id="@+id/button4"
+					style="?attr/materialIconButtonFilledStyle"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					app:icon="@drawable/icon_save_round" />
+
+				<Button
 					android:id="@+id/button5"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
@@ -533,12 +498,6 @@
 					style="?attr/materialIconButtonFilledStyle"
 					app:icon="@drawable/icon_export_round" />
 
-				<Button
-					android:id="@+id/btnViewStyles"
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					style="?attr/materialIconButtonStyle"
-					app:icon="@drawable/icon_design_services_round" />
 			</LinearLayout>
 		</LinearLayout>
 	</LinearLayout>

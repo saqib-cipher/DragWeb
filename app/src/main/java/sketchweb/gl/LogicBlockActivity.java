@@ -551,6 +551,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
             File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
             FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
         } catch (Exception ignored) {}
+        setResult(RESULT_OK);
         finish();
     }
 

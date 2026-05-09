@@ -386,7 +386,149 @@ public class ExportManager {
         zos.closeEntry();
     }
 
+    public boolean importZipBackup(File zipFile) {
+        if (zipFile == null || !zipFile.exists()) return false;
+        
+        File projectDir = new File(context.getFilesDir(), "projects");
+        if (!projectDir.exists()) projectDir.mkdirs();
+        
+        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(new FileInputStream(zipFile))) {
+            ZipEntry entry;
+            byte[] buffer = new byte[4096];
+            while ((entry = zis.getNextEntry()) != null) {
+                String name = entry.getName();
+                
+                if (name.startsWith("data/")) {
+                    String fileName = name.substring(5);
+                    File target = new File(projectDir, fileName);
+                    try (FileOutputStream fos = new FileOutputStream(target)) {
+                        int len;
+                        while ((len = zis.read(buffer)) > 0) fos.write(buffer, 0, len);
+                    }
+                } else if (name.startsWith("assets/")) {
+                    // Extract to external storage assets path
+                    // We need the projectId from the filename if possible, but the ZIP itself 
+                    // should ideally contain it in a meta file or we infer it.
+                    // For now, let's assume we find a .json file in data/ first or just extract assets
+                    // to a temporary location then move them once we know the projectId.
+                    // Or better: the zip structure is assets/projectId/...
+                    
+                    // Actually, let's look for any .json file in data/ to find the projectId
+                    // This is tricky during streaming.
+                    
+                    // Simple approach: Extract everything to a temp dir, then find the .json file, then move.
+                }
+                zis.closeEntry();
+            }
+            return true;
+        } catch (IOException e) {
+            Log.e("ExportManager", "Import failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // Better import logic: extract all to temp, then move to right places
+    public boolean restoreProjectFromZip(File zipFile) {
+        File tempDir = new File(context.getCacheDir(), "import_temp_" + System.currentTimeMillis());
+        tempDir.mkdirs();
+        
+        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(new FileInputStream(zipFile))) {
+            ZipEntry entry;
+            byte[] buffer = new byte[4096];
+            while ((entry = zis.getNextEntry()) != null) {
+                File file = new File(tempDir, entry.getName());
+                if (entry.isDirectory()) {
+                    file.mkdirs();
+                } else {
+                    file.getParentFile().mkdirs();
+                    try (FileOutputStream fos = new FileOutputStream(file)) {
+                        int len;
+                        while ((len = zis.read(buffer)) > 0) fos.write(buffer, 0, len);
+                    }
+                }
+                zis.closeEntry();
+            }
+            
+            // Now move from temp to actual locations
+            File dataDir = new File(tempDir, "data");
+            String foundProjectId = null;
+            if (dataDir.exists()) {
+                File[] files = dataDir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        if (f.getName().endsWith(".json") && !f.getName().contains("_")) {
+                            foundProjectId = f.getName().replace(".json", "");
+                            break;
+                        }
+                    }
+                    
+                    if (foundProjectId != null) {
+                        // Move data files
+                        File targetDataDir = new File(context.getFilesDir(), "projects");
+                        targetDataDir.mkdirs();
+                        for (File f : files) {
+                            f.renameTo(new File(targetDataDir, f.getName()));
+                        }
+                        
+                        // Move assets
+                        File assetsDir = new File(tempDir, "assets");
+                        if (assetsDir.exists()) {
+                            String targetAssetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                                + "/.dragweb/projects/" + foundProjectId + "/assets";
+                            File targetAssetsDir = new File(targetAssetsPath);
+                            targetAssetsDir.mkdirs();
+                            copyDirectory(assetsDir, targetAssetsDir);
+                        }
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e("ExportManager", "Restore failed: " + e.getMessage());
+        } finally {
+            deleteDirectory(tempDir);
+        }
+        return false;
+    }
+
+    private void copyDirectory(File sourceLocation, File targetLocation) throws IOException {
+        if (sourceLocation.isDirectory()) {
+            if (!targetLocation.exists() && !targetLocation.mkdirs()) {
+                throw new IOException("Cannot create dir " + targetLocation.getAbsolutePath());
+            }
+            String[] children = sourceLocation.list();
+            for (int i = 0; i < children.length; i++) {
+                copyDirectory(new File(sourceLocation, children[i]),
+                        new File(targetLocation, children[i]));
+            }
+        } else {
+            java.io.InputStream in = new FileInputStream(sourceLocation);
+            java.io.OutputStream out = new FileOutputStream(targetLocation);
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
+            }
+            in.close();
+            out.close();
+        }
+    }
+
+    private void deleteDirectory(File path) {
+        if (path.exists()) {
+            File[] files = path.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isDirectory()) deleteDirectory(file);
+                    else file.delete();
+                }
+            }
+            path.delete();
+        }
+    }
+
     private String escapeHtml(String text) {
+        if (text == null) return "";
         return text.replace("&", "&amp;")
                    .replace("<", "&lt;")
                    .replace(">", "&gt;")
@@ -394,10 +536,12 @@ public class ExportManager {
     }
 
     private String camelToKebab(String str) {
+        if (str == null) return "";
         return str.replaceAll("([A-Z])", "-$1").toLowerCase();
     }
 
     private String sanitizeFileName(String name) {
+        if (name == null) return "project";
         return name.replaceAll("[^a-zA-Z0-9._-]", "_");
     }
 

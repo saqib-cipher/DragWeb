@@ -232,38 +232,63 @@ public class LogicBlockManager {
      */
     public String generateBaseCssRules() {
         StringBuilder css = new StringBuilder();
-        // Template-driven path: walk top-level CSS / animation / meta blocks
-        // and emit each block's `spec` template with `paramValues` substituted
-        // in. Container blocks (those that include the {@code %m.space} token)
-        // get their children inlined. This is the primary path used by every
-        // block authored against the modern blocks.json schema.
+        java.util.LinkedHashMap<String, java.util.LinkedHashMap<String, String>> bySelector =
+            new java.util.LinkedHashMap<>();
+
+        // 1. Process modern blocks (from spec templates)
         for (LogicBlock b : blocks) {
             if (b.parentBlockId != null && !b.parentBlockId.isEmpty()) continue;
             if (!isCssEmitting(b)) continue;
-            emitCssBlock(css, b, 0);
+            
+            // If it's a direct style block (like cssSelector { %m.space }), try to group it
+            String rendered = applyChipTemplate(b);
+            if (rendered != null && rendered.contains("{")) {
+                int openBrace = rendered.indexOf('{');
+                int closeBrace = rendered.lastIndexOf('}');
+                if (openBrace > 0 && closeBrace > openBrace) {
+                    String selector = rendered.substring(0, openBrace).trim();
+                    String body = rendered.substring(openBrace + 1, closeBrace).trim();
+                    
+                    java.util.LinkedHashMap<String, String> rules = bySelector.get(selector);
+                    if (rules == null) {
+                        rules = new java.util.LinkedHashMap<>();
+                        bySelector.put(selector, rules);
+                    }
+                    
+                    // Parse simple rules: "key: val;"
+                    String[] ruleLines = body.split(";");
+                    for (String line : ruleLines) {
+                        String[] pair = line.split(":", 2);
+                        if (pair.length == 2) {
+                            rules.put(pair[0].trim(), pair[1].trim());
+                        }
+                    }
+                } else {
+                    // Fallback for complex templates
+                    css.append(rendered).append("\n");
+                }
+            }
         }
 
-        // Legacy path: support {@code changeStyle} blocks whose params contain
-        // a single "property: value" pair. Older saved projects rely on this
-        // to emit CSS without a JS event handler.
-        java.util.LinkedHashMap<String, java.util.LinkedHashMap<String, String>> bySelector =
-            new java.util.LinkedHashMap<>();
+        // 2. Process legacy changeStyle blocks
         for (LogicBlock block : blocks) {
             if (!isStaticChangeStyleBlock(block)) continue;
             if (block.params == null) continue;
             String[] parts = block.params.split(":", 2);
-            if (parts.length != 2) continue;
-            String property = camelToKebab(parts[0].trim());
-            String value = parts[1].trim();
-            if (property.isEmpty() || value.isEmpty()) continue;
-            String selector = buildSelector(block);
-            java.util.LinkedHashMap<String, String> rules = bySelector.get(selector);
-            if (rules == null) {
-                rules = new java.util.LinkedHashMap<>();
-                bySelector.put(selector, rules);
+            if (parts.length == 2) {
+                String property = camelToKebab(parts[0].trim());
+                String value = parts[1].trim();
+                String selector = buildSelector(block);
+                java.util.LinkedHashMap<String, String> rules = bySelector.get(selector);
+                if (rules == null) {
+                    rules = new java.util.LinkedHashMap<>();
+                    bySelector.put(selector, rules);
+                }
+                rules.put(property, value);
             }
-            rules.put(property, value);
         }
+
+        // 3. Emit consolidated rules
         for (Map.Entry<String, java.util.LinkedHashMap<String, String>> entry : bySelector.entrySet()) {
             css.append("  ").append(entry.getKey()).append(" {\n");
             for (Map.Entry<String, String> rule : entry.getValue().entrySet()) {
@@ -920,6 +945,7 @@ public class LogicBlockManager {
         public String subStackId;  // ID of the first block inside a C-shape
         public String id; // Unique ID for referencing
         public List<String> paramValues = new ArrayList<>(); // Values for tokens in spec
+        public boolean collapsed;
     }
 
     public interface OnBlockAddedListener {
