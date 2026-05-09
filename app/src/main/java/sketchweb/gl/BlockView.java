@@ -71,66 +71,154 @@ class BlockView extends LinearLayout {
         applyShape();
         buildHeader();
         if (def != null && def.isContainer()) buildStackSlot();
-        if (isGroupBlock()) attachGroupExpandToggle();
+        if (isGroupBlock()) {
+            // Group blocks get tap-to-collapse and drag-over auto-expand —
+            // they're the only block whose header has no editable chips, so
+            // it's safe to swallow taps for the toggle.
+            attachGroupExpandToggle();
+        } else if (isCollapsibleContainer()) {
+            // Other containers (loops / conditions / cblocks) only get the
+            // drag-over auto-expand. Their headers have chips users tap to
+            // edit, so we don't bind a tap-to-collapse there.
+            attachContainerDragExpandOnly();
+        }
     }
 
     private boolean isGroupBlock() {
         return block != null && "groupBlock".equals(block.action) && stackSlot != null;
     }
 
+    private boolean isCollapsibleContainer() {
+        return stackSlot != null && def != null && def.isContainer();
+    }
+
     /**
-     * Make the group block header tap-to-toggle the visibility of its inner
-     * stack so a finished {@code <navbar>} group collapses to a single line.
-     * The first chip ({@code dragHandle}) shows ▾/▸ to indicate state.
+     * Drag-only expand/collapse for container blocks that aren't groups.
+     * No tap-to-toggle so chip editing in the header keeps working.
+     */
+    private void attachContainerDragExpandOnly() {
+        if (headerRow == null || stackSlot == null) return;
+        applyCollapsedState(block.collapsed, false);
+        headerRow.setOnDragListener(new android.view.View.OnDragListener() {
+            boolean autoExpanded = false;
+            @Override
+            public boolean onDrag(android.view.View v, android.view.DragEvent event) {
+                switch (event.getAction()) {
+                    case android.view.DragEvent.ACTION_DRAG_STARTED: return true;
+                    case android.view.DragEvent.ACTION_DRAG_ENTERED:
+                        if (block.collapsed) {
+                            block.collapsed = false;
+                            applyCollapsedState(false, true);
+                            autoExpanded = true;
+                            if (onChange != null) onChange.onBlockChanged(block);
+                        }
+                        setHeaderHighlight(true);
+                        return true;
+                    case android.view.DragEvent.ACTION_DRAG_EXITED:
+                        setHeaderHighlight(false);
+                        return true;
+                    case android.view.DragEvent.ACTION_DRAG_ENDED:
+                        if (autoExpanded && !event.getResult()) {
+                            block.collapsed = true;
+                            applyCollapsedState(true, true);
+                            if (onChange != null) onChange.onBlockChanged(block);
+                        }
+                        autoExpanded = false;
+                        setHeaderHighlight(false);
+                        return true;
+                    case android.view.DragEvent.ACTION_DROP:
+                        autoExpanded = false;
+                        setHeaderHighlight(false);
+                        return false;
+                    default: return false;
+                }
+            }
+        });
+    }
+
+    /**
+     * Tap-to-toggle and drag-over auto-expand for any container block.
+     *
+     * <p>The drag-over flow is conservative: if the user enters this header
+     * while dragging, expand the slot so a drop target is visible. If the
+     * user then drops outside the container <i>and</i> we were the one who
+     * just opened it, collapse back so the workspace doesn't end up with
+     * every container popped open after a single drag.
      */
     private void attachGroupExpandToggle() {
         if (headerRow == null || stackSlot == null) return;
 
-        // Apply initial state
-        stackSlot.setVisibility(block.collapsed ? GONE : VISIBLE);
-        if (dragHandle != null) dragHandle.setText(block.collapsed ? "▸" : "▾");
+        applyCollapsedState(block.collapsed, false);
 
         headerRow.setOnClickListener(v -> {
             block.collapsed = !block.collapsed;
-            stackSlot.setVisibility(block.collapsed ? GONE : VISIBLE);
-            if (dragHandle != null) {
-                dragHandle.setText(block.collapsed ? "▸" : "▾");
-            }
+            applyCollapsedState(block.collapsed, true);
             if (onChange != null) onChange.onBlockChanged(block);
         });
 
-        // Drag-to-expand: if a block is dragged over the group header, expand it
-        // so the user can see the drop zone inside.
-        headerRow.setOnDragListener((v, event) -> {
-            switch (event.getAction()) {
-                case android.view.DragEvent.ACTION_DRAG_STARTED:
-                    return true;
-                case android.view.DragEvent.ACTION_DRAG_ENTERED:
-                    if (block.collapsed) {
-                        block.collapsed = false;
-                        stackSlot.setVisibility(VISIBLE);
-                        if (dragHandle != null) dragHandle.setText("▾");
-                        if (onChange != null) onChange.onBlockChanged(block);
-                    }
-                    return true;
-                case android.view.DragEvent.ACTION_DRAG_EXITED:
-                    // Only collapse back if we auto-expanded it and drag left the header
-                    // but NOT entering the stackSlot.
-                    // (Actually, usually better to keep it open once expanded for clarity,
-                    // so we do nothing here to keep it open.)
-                    return true;
-                case android.view.DragEvent.ACTION_DROP:
-                    // Stay expanded on drop; the workspace will handle the actual drop.
-                    if (block.collapsed) {
-                        block.collapsed = false;
-                        stackSlot.setVisibility(VISIBLE);
-                        if (dragHandle != null) dragHandle.setText("▾");
-                    }
-                    return false; // Let it bubble to the workspace for the actual drop logic
-                default:
-                    return false;
+        headerRow.setOnDragListener(new android.view.View.OnDragListener() {
+            boolean autoExpanded = false;
+            @Override
+            public boolean onDrag(android.view.View v, android.view.DragEvent event) {
+                switch (event.getAction()) {
+                    case android.view.DragEvent.ACTION_DRAG_STARTED:
+                        return true;
+                    case android.view.DragEvent.ACTION_DRAG_ENTERED:
+                        if (block.collapsed) {
+                            block.collapsed = false;
+                            applyCollapsedState(false, true);
+                            autoExpanded = true;
+                            if (onChange != null) onChange.onBlockChanged(block);
+                        }
+                        setHeaderHighlight(true);
+                        return true;
+                    case android.view.DragEvent.ACTION_DRAG_EXITED:
+                        setHeaderHighlight(false);
+                        return true;
+                    case android.view.DragEvent.ACTION_DRAG_ENDED:
+                        // If we auto-expanded but the drop landed somewhere
+                        // else, collapse back so the workspace stays tidy.
+                        boolean dropped = event.getResult();
+                        if (autoExpanded && !dropped) {
+                            block.collapsed = true;
+                            applyCollapsedState(true, true);
+                            if (onChange != null) onChange.onBlockChanged(block);
+                        }
+                        autoExpanded = false;
+                        setHeaderHighlight(false);
+                        return true;
+                    case android.view.DragEvent.ACTION_DROP:
+                        autoExpanded = false; // success, keep it open
+                        setHeaderHighlight(false);
+                        return false; // bubble to workspace for actual drop logic
+                    default:
+                        return false;
+                }
             }
         });
+    }
+
+    /** Animate the show/hide transition so the workspace doesn't snap. */
+    private void applyCollapsedState(boolean collapsed, boolean animate) {
+        if (stackSlot == null) return;
+        if (animate && stackSlot.getVisibility() == (collapsed ? VISIBLE : GONE)) {
+            stackSlot.setAlpha(collapsed ? 1f : 0f);
+            stackSlot.setVisibility(VISIBLE);
+            stackSlot.animate()
+                .alpha(collapsed ? 0f : 1f)
+                .setDuration(140)
+                .withEndAction(() -> stackSlot.setVisibility(collapsed ? GONE : VISIBLE))
+                .start();
+        } else {
+            stackSlot.setVisibility(collapsed ? GONE : VISIBLE);
+            stackSlot.setAlpha(1f);
+        }
+        if (dragHandle != null) dragHandle.setText(collapsed ? "▸" : "▾");
+    }
+
+    private void setHeaderHighlight(boolean on) {
+        if (headerRow == null) return;
+        headerRow.setAlpha(on ? 0.85f : 1f);
     }
 
     LogicBlockManager.LogicBlock getBlock() {

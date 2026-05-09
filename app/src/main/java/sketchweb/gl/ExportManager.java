@@ -20,10 +20,16 @@ public class ExportManager {
 
     private Context context;
     private ThemeManager themeManager;
+    private IconLibraryManager iconLibraryManager;
 
     public ExportManager(Context context, ThemeManager themeManager) {
         this.context = context;
         this.themeManager = themeManager;
+    }
+
+    /** Optional icon library configuration for the active project. */
+    public void setIconLibraryManager(IconLibraryManager m) {
+        this.iconLibraryManager = m;
     }
 
     public static class ExportResult {
@@ -53,15 +59,24 @@ public class ExportManager {
         result.jsContent = jsContent;
 
         File exportDir = new File(context.getFilesDir(), "exports/" + sanitizeFileName(projectName));
-        if (!exportDir.exists()) {
-            exportDir.mkdirs();
+        if (!exportDir.exists()) exportDir.mkdirs();
+        File cssDir = new File(exportDir, "css");
+        File jsDir = new File(exportDir, "js");
+        File pagesDir = new File(exportDir, "pages");
+        File componentsDir = new File(exportDir, "components");
+        File fontsDir = new File(exportDir, "fonts");
+        File assetsDir = new File(exportDir, "assets");
+        for (File d : new File[]{cssDir, jsDir, pagesDir, componentsDir, fontsDir, assetsDir}) {
+            if (!d.exists()) d.mkdirs();
         }
         result.exportDir = exportDir;
 
         try {
             writeFile(new File(exportDir, "index.html"), htmlContent);
-            writeFile(new File(exportDir, "style.css"), cssContent);
-            writeFile(new File(exportDir, "script.js"), jsContent);
+            writeFile(new File(cssDir, "style.css"), cssContent);
+            writeFile(new File(jsDir, "script.js"), jsContent);
+            writeFile(new File(exportDir, "project.json"),
+                generateProjectManifest(projectName));
             result.success = true;
             result.message = "Exported to: " + exportDir.getAbsolutePath();
         } catch (IOException e) {
@@ -70,6 +85,40 @@ public class ExportManager {
         }
 
         return result;
+    }
+
+    /**
+     * Build a small project manifest describing the export. Keeps the export
+     * tree self-describing so a future re-import can pick the project up
+     * cleanly without inspecting the HTML.
+     */
+    private String generateProjectManifest(String projectName) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\n");
+        sb.append("  \"name\": \"").append(escapeJsonString(projectName)).append("\",\n");
+        sb.append("  \"generator\": \"DragWeb\",\n");
+        sb.append("  \"version\": 1,\n");
+        sb.append("  \"entry\": \"index.html\",\n");
+        sb.append("  \"styles\": [\"css/style.css\"],\n");
+        sb.append("  \"scripts\": [\"js/script.js\"],\n");
+        if (iconLibraryManager != null && !iconLibraryManager.enabledIds().isEmpty()) {
+            sb.append("  \"iconLibraries\": [");
+            boolean first = true;
+            for (String id : iconLibraryManager.enabledIds()) {
+                if (!first) sb.append(", ");
+                sb.append("\"").append(escapeJsonString(id)).append("\"");
+                first = false;
+            }
+            sb.append("],\n");
+        }
+        sb.append("  \"exportedAt\": ").append(System.currentTimeMillis()).append("\n");
+        sb.append("}\n");
+        return sb.toString();
+    }
+
+    private String escapeJsonString(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 
     public File exportAsZip(View screen, String projectName, String projectId, LogicBlockManager logicBlockManager) throws IOException {
@@ -107,8 +156,15 @@ public class ExportManager {
 
         try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(zipFile)))) {
             addToZip(zos, "index.html", result.htmlContent);
-            addToZip(zos, "style.css", result.cssContent);
-            addToZip(zos, "script.js", result.jsContent);
+            addToZip(zos, "css/style.css", result.cssContent);
+            addToZip(zos, "js/script.js", result.jsContent);
+            addToZip(zos, "project.json", generateProjectManifest(projectName));
+
+            // Empty placeholder folders so a zero-asset export still has the
+            // canonical project shape on disk after extraction.
+            addToZip(zos, "pages/.keep", "");
+            addToZip(zos, "components/.keep", "");
+            addToZip(zos, "fonts/.keep", "");
 
             // Include project data files for full backup
             includeProjectData(zos, projectId);
@@ -121,27 +177,39 @@ public class ExportManager {
 
     /**
      * Include all project data files in the ZIP export:
-     * layout JSON, theme, logic blocks, page layouts, metadata.
+     * layout JSON, theme, logic blocks, page layouts, metadata, icon-library
+     * config, custom components, and animation presets.
      */
     private void includeProjectData(ZipOutputStream zos, String projectId) {
         File dir = new File(context.getFilesDir(), "projects");
         if (!dir.exists()) return;
 
-        // Include all project-related files
         File[] files = dir.listFiles();
         if (files == null) return;
 
         for (File file : files) {
             if (!file.isFile()) continue;
             String name = file.getName();
-            // Include files belonging to this project: projectId.json, projectId.meta,
-            // projectId.theme, projectId_pageName.logic, projectId_pageName.json
             if (name.startsWith(projectId + ".") || name.startsWith(projectId + "_")) {
                 try {
                     addFileToZip(zos, "data/" + name, file);
                 } catch (IOException e) {
                     Log.w("ExportManager", "Could not add " + name + " to zip: " + e.getMessage());
                 }
+            }
+        }
+
+        // Workspace-shared files that aren't keyed by projectId. They live in
+        // the same folder so they round-trip with the rest of the project.
+        for (String shared : new String[]{
+                projectId + ".icons",
+                projectId + ".components.json",
+                projectId + ".animations.json",
+                projectId + ".breakpoints.json"}) {
+            File f = new File(dir, shared);
+            if (f.exists()) {
+                try { addFileToZip(zos, "data/" + shared, f); }
+                catch (IOException e) { /* best-effort */ }
             }
         }
     }
@@ -193,8 +261,15 @@ public class ExportManager {
         html.append("<head>\n");
         html.append("  <meta charset=\"UTF-8\">\n");
         html.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
+        html.append("  <meta name=\"description\" content=\"")
+            .append(escapeHtml(projectName)).append("\">\n");
+        html.append("  <meta name=\"generator\" content=\"DragWeb\">\n");
         html.append("  <title>").append(escapeHtml(projectName)).append("</title>\n");
-        html.append("  <link rel=\"stylesheet\" href=\"style.css\">\n");
+        if (iconLibraryManager != null) {
+            String includes = iconLibraryManager.generateHtmlIncludes();
+            if (includes != null && !includes.isEmpty()) html.append(includes);
+        }
+        html.append("  <link rel=\"stylesheet\" href=\"css/style.css\">\n");
         html.append("</head>\n");
         html.append("<body>\n");
 
@@ -215,7 +290,7 @@ public class ExportManager {
             }
         }
 
-        html.append("\n  <script src=\"script.js\"></script>\n");
+        html.append("\n  <script src=\"js/script.js\" defer></script>\n");
         html.append("</body>\n");
         html.append("</html>\n");
         return html.toString();
@@ -313,10 +388,8 @@ public class ExportManager {
         css.append("/* Generated by DragWeb */\n\n");
         css.append(themeManager.generateGlobalCss());
         css.append("\n/* Animation Keyframes */\n");
-        css.append("@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }\n");
-        css.append("@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }\n");
-        css.append("@keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }\n");
-        css.append("@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }\n\n");
+        css.append(AnimationLibrary.generateKeyframesCss(""));
+        css.append("\n");
 
         // CSS pseudo-class interaction rules (hover, focus, active – no JS needed)
         if (logicBlockManager != null) {
@@ -350,26 +423,30 @@ public class ExportManager {
 
     private String generateJs(LogicBlockManager logicBlockManager) {
         StringBuilder js = new StringBuilder();
-        js.append("// Generated by DragWeb\n\n");
-        js.append("document.addEventListener('DOMContentLoaded', function() {\n");
-        js.append("  console.log('Page loaded successfully!');\n\n");
-        js.append("  // Add click handlers for buttons\n");
-        js.append("  var buttons = document.querySelectorAll('button');\n");
-        js.append("  buttons.forEach(function(btn) {\n");
-        js.append("    btn.addEventListener('click', function() {\n");
-        js.append("      console.log('Button clicked: ' + this.textContent);\n");
-        js.append("    });\n");
-        js.append("  });\n");
-        js.append("});\n\n");
+        js.append("/* ==========================================================\n");
+        js.append(" * DragWeb generated runtime — DO NOT edit by hand.\n");
+        js.append(" * Sections: state, init, events, api, animations.\n");
+        js.append(" * ========================================================== */\n\n");
+        js.append("'use strict';\n\n");
 
-        // Logic blocks JS
-        if (logicBlockManager != null) {
-            String logicJs = logicBlockManager.generateJavaScript();
-            if (logicJs != null && !logicJs.isEmpty()) {
-                js.append(logicJs);
-            }
+        // ----- state -----
+        js.append("/* ----- state ----- */\n");
+        js.append("var DW = window.DW = window.DW || { state: {}, components: {} };\n\n");
+
+        // ----- logic blocks JS (already structured by LogicBlockManager) -----
+        String logicJs = logicBlockManager != null ? logicBlockManager.generateJavaScript() : "";
+        if (logicJs != null && !logicJs.isEmpty()) {
+            js.append("/* ----- logic blocks ----- */\n");
+            js.append(logicJs).append("\n");
         }
 
+        // ----- init -----
+        js.append("/* ----- init ----- */\n");
+        js.append("document.addEventListener('DOMContentLoaded', function() {\n");
+        js.append("  // Re-initialise icon libraries (no-op if not loaded).\n");
+        js.append("  if (window.feather) try { feather.replace(); } catch (e) {}\n");
+        js.append("  if (window.lucide)  try { lucide.createIcons(); } catch (e) {}\n");
+        js.append("});\n");
         return js.toString();
     }
 
