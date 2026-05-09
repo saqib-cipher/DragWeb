@@ -231,58 +231,31 @@ public class LogicBlockManager {
      * Output is suitable for embedding in a {@code <style>} block.
      */
     public String generateBaseCssRules() {
-        // Group "property: value" lines by selector while preserving insertion order.
+        StringBuilder css = new StringBuilder();
+        // Template-driven path: walk top-level CSS / animation / meta blocks
+        // and emit each block's `spec` template with `paramValues` substituted
+        // in. Container blocks (those that include the {@code %m.space} token)
+        // get their children inlined. This is the primary path used by every
+        // block authored against the modern blocks.json schema.
+        for (LogicBlock b : blocks) {
+            if (b.parentBlockId != null && !b.parentBlockId.isEmpty()) continue;
+            if (!isCssEmitting(b)) continue;
+            emitCssBlock(css, b, 0);
+        }
+
+        // Legacy path: support {@code changeStyle} blocks whose params contain
+        // a single "property: value" pair. Older saved projects rely on this
+        // to emit CSS without a JS event handler.
         java.util.LinkedHashMap<String, java.util.LinkedHashMap<String, String>> bySelector =
             new java.util.LinkedHashMap<>();
-        StringBuilder css = new StringBuilder();
-
         for (LogicBlock block : blocks) {
-            if (!isStaticCssBlock(block)) continue;
-            
-            if (block.action != null && block.action.startsWith("css")) {
-                String selector = buildSelector(block);
-                String content = "";
-                String fullSel = selector;
-                
-                if ("cssSelector".equals(block.action)) {
-                    String[] innerParts = block.params.split("\\|", 3);
-                    if (innerParts.length >= 3) {
-                        String type = innerParts[0];
-                        String sel = innerParts[1];
-                        content = innerParts[2];
-                        fullSel = "id".equals(type) ? "#" + sel : ("class".equals(type) ? "." + sel : sel);
-                    }
-                } else if (block.action.startsWith("css")) {
-                    // pseudo-classes/elements: action name like 'cssHover' -> ':hover'
-                    String pseudo = getPseudoSuffixFromAction(block.action);
-                    if (!pseudo.isEmpty()) {
-                        if (pseudo.contains("%n")) {
-                            String[] innerParts = block.params.split("\\|", 2);
-                            if (innerParts.length >= 2) {
-                                fullSel = selector + pseudo.replace("%n", innerParts[0]);
-                                content = innerParts[1];
-                            }
-                        } else {
-                            fullSel = selector + pseudo;
-                            content = block.params; // For these, params is just the inner code
-                        }
-                    }
-                }
-                
-                if (!content.isEmpty()) {
-                    css.append("  ").append(fullSel).append(" {\n    ")
-                       .append(content.trim().replace("\n", "\n    "))
-                       .append("\n  }\n");
-                }
-                continue;
-            }
-
+            if (!isStaticChangeStyleBlock(block)) continue;
+            if (block.params == null) continue;
             String[] parts = block.params.split(":", 2);
             if (parts.length != 2) continue;
             String property = camelToKebab(parts[0].trim());
             String value = parts[1].trim();
             if (property.isEmpty() || value.isEmpty()) continue;
-
             String selector = buildSelector(block);
             java.util.LinkedHashMap<String, String> rules = bySelector.get(selector);
             if (rules == null) {
@@ -291,7 +264,6 @@ public class LogicBlockManager {
             }
             rules.put(property, value);
         }
-
         for (Map.Entry<String, java.util.LinkedHashMap<String, String>> entry : bySelector.entrySet()) {
             css.append("  ").append(entry.getKey()).append(" {\n");
             for (Map.Entry<String, String> rule : entry.getValue().entrySet()) {
@@ -300,6 +272,126 @@ public class LogicBlockManager {
             css.append("  }\n");
         }
         return css.toString();
+    }
+
+    /**
+     * Categories whose blocks are written as CSS rules, not JavaScript. Used
+     * by the template-driven code generator to decide which top-level blocks
+     * contribute to the page stylesheet.
+     */
+    private boolean isCssEmitting(LogicBlock b) {
+        if (b == null) return false;
+        if ("css".equals(b.category)) return true;
+        if ("animation".equals(b.category)) return true;
+        // Group / comment blocks are passthroughs that wrap their children's
+        // CSS output – they only contribute when their first child does.
+        if ("groupBlock".equals(b.action) || "commentBlock".equals(b.action)) return true;
+        return false;
+    }
+
+    private boolean isStaticChangeStyleBlock(LogicBlock b) {
+        if (b == null || b.action == null) return false;
+        if (!ACTION_CHANGE_STYLE.equals(b.action)) return false;
+        String ev = b.event;
+        return ev == null || ev.isEmpty()
+            || "immediate".equals(ev) || EVENT_LOAD.equals(ev) || EVENT_PAGE_LOAD.equals(ev);
+    }
+
+    /**
+     * Recursively emit one block (and any nested children) as CSS. Container
+     * blocks rendered with {@code %m.space} have their child blocks inlined
+     * inside the braces. Group blocks add a {@code &lt;name&gt;} comment ribbon
+     * around their children so generated CSS preserves the user's grouping.
+     */
+    private void emitCssBlock(StringBuilder out, LogicBlock b, int depth) {
+        if (b == null) return;
+        String indent = repeatStr("  ", depth);
+
+        if ("groupBlock".equals(b.action)) {
+            String name = paramAt(b, 0);
+            if (name == null || name.isEmpty()) name = "group";
+            out.append(indent).append("/* <").append(name).append("> */\n");
+            for (LogicBlock c : blocks) {
+                if (b.id != null && b.id.equals(c.parentBlockId)) {
+                    emitCssBlock(out, c, depth);
+                }
+            }
+            out.append(indent).append("/* </").append(name).append("> */\n\n");
+            return;
+        }
+        if ("commentBlock".equals(b.action)) {
+            String comment = paramAt(b, 0);
+            if (comment != null && !comment.isEmpty()) {
+                out.append(indent).append("/* ").append(comment).append(" */\n");
+            }
+            return;
+        }
+
+        String rendered = applyChipTemplate(b);
+        if (rendered == null || rendered.isEmpty()) return;
+
+        if (rendered.contains("@@CHILDREN@@")) {
+            StringBuilder children = new StringBuilder();
+            for (LogicBlock c : blocks) {
+                if (b.id != null && b.id.equals(c.parentBlockId)) {
+                    emitCssBlock(children, c, depth + 1);
+                }
+            }
+            String childIndent = repeatStr("  ", depth);
+            String filled = rendered.replace("@@CHILDREN@@",
+                "\n" + children.toString() + childIndent);
+            out.append(indent).append(filled).append("\n");
+        } else {
+            out.append(indent).append(rendered).append("\n");
+        }
+    }
+
+    /**
+     * Substitute {@code %n}, {@code %s}, {@code %b} and {@code %m.<kind>}
+     * tokens in a block's {@code spec} template with the chip values held in
+     * {@code paramValues}. {@code %m.space} is preserved as the marker
+     * {@code @@CHILDREN@@} so the caller knows where to splice nested code.
+     */
+    String applyChipTemplate(LogicBlock b) {
+        if (b == null) return "";
+        String tmpl = b.spec;
+        if (tmpl == null || tmpl.isEmpty()) return "";
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+            "%(?:m\\.([a-zA-Z_]+)|([nsbd]))");
+        java.util.regex.Matcher m = p.matcher(tmpl);
+        StringBuilder sb = new StringBuilder();
+        int last = 0;
+        int idx = 0;
+        while (m.find()) {
+            sb.append(tmpl, last, m.start());
+            String selectorKind = m.group(1);
+            if ("space".equals(selectorKind)) {
+                sb.append("@@CHILDREN@@");
+            } else if (selectorKind != null && "selector".equals(selectorKind)) {
+                String value = paramAt(b, idx);
+                sb.append(value != null ? value : "");
+                idx++;
+            } else {
+                String value = paramAt(b, idx);
+                sb.append(value != null ? value : "");
+                idx++;
+            }
+            last = m.end();
+        }
+        sb.append(tmpl.substring(last));
+        return sb.toString();
+    }
+
+    private static String paramAt(LogicBlock b, int idx) {
+        if (b == null || b.paramValues == null || idx < 0 || idx >= b.paramValues.size()) return "";
+        String v = b.paramValues.get(idx);
+        return v != null ? v : "";
+    }
+
+    private static String repeatStr(String s, int n) {
+        StringBuilder sb = new StringBuilder(s.length() * Math.max(n, 0));
+        for (int i = 0; i < n; i++) sb.append(s);
+        return sb.toString();
     }
 
     private String camelToKebab(String name) {
@@ -389,6 +481,13 @@ public class LogicBlockManager {
             // Skip blocks that are emitted as static CSS rules (changeStyle on
             // page-load / immediate). Those are output by generateBaseCssRules().
             if (isStaticCssBlock(block)) continue;
+            // Skip new-schema CSS/animation/meta/asd blocks – the template
+            // codegen handled them already.
+            if ("css".equals(block.category) || "animation".equals(block.category)
+                || "meta".equals(block.category) || "asd".equals(block.category)) continue;
+            if ("groupBlock".equals(block.action) || "commentBlock".equals(block.action)) continue;
+            // Skip nested children – they're emitted by their parent container.
+            if (block.parentBlockId != null && !block.parentBlockId.isEmpty()) continue;
 
             emittedAny = true;
             js.append("  // ").append(eventName != null ? eventName : "immediate")
@@ -475,9 +574,20 @@ public class LogicBlockManager {
             + spec.substring(1).toLowerCase();
         StringBuilder out = new StringBuilder();
         for (LogicBlock block : blocks) {
-            if (!"asd".equals(block.event)) continue;
             if (!wantId.equals(block.action)) continue;
-            String body = block.params != null ? block.params.trim() : "";
+            // Accept both legacy ({@code event=="asd"}) and modern ({@code
+            // category=="asd"}, {@code event=="immediate"}) ASD blocks.
+            boolean isAsd = "asd".equals(block.event) || "asd".equals(block.category);
+            if (!isAsd) continue;
+            String body = "";
+            // Modern blocks store the source in {@code paramValues[0]}; legacy
+            // ones still keep it in {@code params}.
+            if (block.paramValues != null && !block.paramValues.isEmpty()) {
+                String v = block.paramValues.get(0);
+                if (v != null) body = v;
+            }
+            if (body.isEmpty() && block.params != null) body = block.params;
+            body = body.trim();
             if (body.isEmpty()) continue;
             if (out.length() > 0) out.append("\n\n");
             out.append(body);

@@ -21,7 +21,7 @@
             android:layout_height="wrap_content"
             android:background="?attr/colorSurfaceContainerHigh"
             app:title="Logic Blocks"
-            app:subtitle="Page Event"
+            app:subtitle="Vertical Stack"
             app:titleTextColor="?attr/colorOnSurface"
             app:subtitleTextColor="?attr/colorOnSurfaceVariant"
             app:navigationIcon="@drawable/icon_arrow_back_round"
@@ -47,7 +47,7 @@
                 android:text="Source" />
         </com.google.android.material.tabs.TabLayout>
 
-        <!-- ===== Block count / quick-actions strip ===== -->
+        <!-- ===== Block count strip ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -70,7 +70,7 @@
                 android:id="@+id/btnSaveAllToCollection"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Save All"
+                android:text="Save"
                 android:textSize="11sp"
                 android:layout_marginEnd="4dp"
                 style="?attr/materialButtonOutlinedStyle"
@@ -81,44 +81,50 @@
                 android:id="@+id/btnBlockDuplicate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:contentDescription="Drop here to duplicate"
+                android:contentDescription="@string/app_name"
                 style="?attr/materialIconButtonStyle"
                 app:icon="@drawable/icon_copy_all_round"
                 app:iconTint="?attr/colorPrimary" />
-
-            <Button
-                android:id="@+id/btnBlockDelete"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:contentDescription="Drop here to delete"
-                style="?attr/materialIconButtonStyle"
-                app:icon="@drawable/icon_delete_round"
-                app:iconTint="?attr/colorError" />
         </LinearLayout>
 
-        <!-- ===== Workspace ===== -->
+        <!-- ===== Workspace + bottom delete bar ===== -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <FrameLayout
+            <sketchweb.gl.WorkspaceView
+                android:id="@+id/workspaceView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@drawable/bg_block_canvas">
-                
-                <sketchweb.gl.WorkspaceView
-                    android:id="@+id/workspaceView"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
-            </FrameLayout>
+                android:background="@drawable/bg_block_canvas" />
+
+            <!-- Delete bar floats at the bottom of the workspace; release a
+                 dragged block on it to remove. -->
+            <LinearLayout
+                android:id="@+id/btnBlockDelete"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_gravity="bottom"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:background="@drawable/bg_drop_target_delete">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="✖  Drop here to delete"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabBlockPalette"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_gravity="bottom|end"
-                android:layout_margin="12dp"
+                android:layout_margin="72dp"
                 android:contentDescription="Toggle palette"
                 app:srcCompat="@drawable/icon_widgets_round"
                 app:fabCustomSize="40dp"
@@ -135,7 +141,6 @@
             android:background="?attr/colorSurfaceContainer"
             android:elevation="6dp">
 
-            <!-- Left: scrollable blocks -->
             <androidx.core.widget.NestedScrollView
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
@@ -156,7 +161,6 @@
                 android:layout_height="match_parent"
                 android:background="?attr/colorOutlineVariant" />
 
-            <!-- Right: vertical category buttons -->
             <androidx.core.widget.NestedScrollView
                 android:layout_width="96dp"
                 android:layout_height="match_parent"
@@ -174,7 +178,7 @@
 
     </LinearLayout>
 
-    <!-- ===== Right-side collection drawer ===== -->
+    <!-- ===== Right-side collection drawer (kept for back-compat) ===== -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="300dp"
         android:layout_height="match_parent"
@@ -198,7 +202,6 @@
                 android:padding="14dp"
                 android:background="?attr/colorSurfaceContainerHigh" />
 
-            <!-- Drop targets (save / delete / duplicate) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -247,30 +250,12 @@
                     android:layout_height="48dp"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:layout_marginBottom="6dp"
                     android:background="@drawable/bg_drop_target_duplicate">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="⧉  Duplicate Block"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:textColor="#FFFFFF" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/dropDeleteCollection"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:background="@drawable/bg_drop_target_delete">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="✖  Delete Block"
                         android:textSize="12sp"
                         android:textStyle="bold"
                         android:textColor="#FFFFFF" />
