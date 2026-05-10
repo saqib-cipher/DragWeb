@@ -1,39 +1,27 @@
 package sketchweb.gl;
 
 import android.content.Context;
-import android.graphics.drawable.GradientDrawable;
-import android.text.InputType;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
-
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.textfield.MaterialAutoCompleteTextView;
-import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 import android.widget.ArrayAdapter;
 import android.widget.ScrollView;
 
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.android.material.textfield.TextInputLayout;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * Chained-builder facade over {@link UniversalDialog}. Lets callers compose a
- * dialog with a fluent API:
- *
- * <pre>{@code
- * new UniversalM3Dialog(ctx)
- *     .setTitle("Padding")
- *     .setUnits(new String[]{"px", "rem"})
- *     .showUnitInput("padding", v -> ...);
- * }</pre>
- *
- * <p>Adds an outlined radio + custom-input variant ({@link #showRadioWithCustom})
- * used by selector pickers and other choose-from-presets-or-type-your-own flows.
- * The custom outlined input sits on the left, "Done" / "Apply" on the right.
+ * Modern Material 3 Dialog facade. 
+ * Every dialog uses a unified layout: Horizontal scrolling chips on top, 
+ * followed by a custom outlined text input. No toggles or radio buttons.
  */
 public final class UniversalM3Dialog {
 
@@ -58,18 +46,16 @@ public final class UniversalM3Dialog {
     public UniversalM3Dialog setUnits(String[] units) { this.units = units; return this; }
 
     public void showTextInput(OnText cb) {
-        UniversalDialog.textInput(context, title, hint == null ? "Value" : hint, initial,
-            v -> { if (cb != null) cb.onText(v); });
+        showCoreDialog(null, initial, hint != null ? hint : "Value", cb);
     }
 
     public void showChoiceInput(OnText cb) {
-        if (options == null || options.length == 0) {
-            showTextInput(cb);
-            return;
+        List<String> combined = new ArrayList<>();
+        if (options != null) combined.addAll(Arrays.asList(options));
+        if (units != null) {
+            for (String u : units) if (!combined.contains(u)) combined.add(u);
         }
-        showRadioWithCustom(Arrays.asList(options), initial, v -> {
-            if (cb != null) cb.onText(v);
-        });
+        showCoreDialog(combined, initial, hint != null ? hint : "Custom value", cb);
     }
 
     public void showColorInput(OnText cb) {
@@ -77,214 +63,220 @@ public final class UniversalM3Dialog {
             hex -> { if (cb != null) cb.onText(hex); });
     }
 
-    /**
-     * Show a numeric value + unit dialog. {@code prop} is unused by the underlying
-     * dialog but kept in the signature so call sites keep their semantics.
-     */
     public void showUnitInput(String prop, OnUnit cb) {
-        float v = parseFloatSafe(initial);
-        String u = parseUnit(initial, units);
-        UniversalDialog.numberWithUnit(context, title, v, u, (value, unit) -> {
-            String composed = trimTrailingZero(value) + (unit == null ? "" : unit);
-            if (cb != null) cb.onUnit(composed);
+        List<String> chipValues = new ArrayList<>();
+        if (options != null) chipValues.addAll(Arrays.asList(options));
+        if (units != null) {
+            for (String u : units) if (!chipValues.contains(u)) chipValues.add(u);
+        }
+        showCoreDialog(chipValues, initial, hint != null ? hint : "Custom value", val -> {
+            if (cb != null) cb.onUnit(val);
         });
     }
 
+    public void showAutocompleteChoice(List<String> suggestions, String initialValue, OnText cb) {
+        showCoreDialog(suggestions, initialValue, hint != null ? hint : "Custom value", cb);
+    }
+
     /**
-     * Outlined radio list with a "Custom..." inline input. The whole row is
-     * inside a TextInputLayout-style outlined card; the custom outlined input
-     * is on the left of its row and the "Done"/"Apply" button sits on the
-     * right of the dialog footer.
+     * Internal unified builder. 
+     * Renders a HorizontalScrollView with ChipGroup, then a TextInputLayout.
      */
-    public void showRadioWithCustom(List<String> presets, String currentValue, OnText cb) {
+    private void showCoreDialog(List<String> presets, String currentValue, String inputHint, OnText cb) {
         int pad = dp(24);
         ScrollView scroll = new ScrollView(context);
         LinearLayout root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(pad, dp(8), pad, dp(12));
+        root.setPadding(pad, dp(12), pad, dp(20));
         scroll.addView(root);
 
-        // 1. Presets Container
-        RadioGroup group = new RadioGroup(context);
-        group.setOrientation(RadioGroup.VERTICAL);
-        group.setPadding(0, 0, 0, dp(8));
-
-        boolean matched = false;
-        if (presets != null) {
-            for (String p : presets) {
-                RadioButton rb = new RadioButton(context);
-                rb.setText(p);
-                rb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-                group.addView(rb);
-                if (p.equals(currentValue)) {
-                    rb.setChecked(true);
-                    matched = true;
-                }
-            }
-        }
-        root.addView(group);
-
-        // 2. Custom Input Container (using theme style)
-        TextInputLayout til = new TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
-        til.setHint(hint == null ? "Value" : hint);
-        til.setBoxCornerRadii(dp(16), dp(16), dp(16), dp(16));
-
-        MaterialAutoCompleteTextView edit = new MaterialAutoCompleteTextView(til.getContext());
-        edit.setSingleLine(true);
-        if (presets != null) {
-            edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, presets));
-        }
+        // 1. Custom Input
+        TextInputLayout til = createTextInputLayout(inputHint);
+        final MaterialAutoCompleteTextView edit = createEditor(til, currentValue, presets);
         til.addView(edit);
-        root.addView(til);
 
-        // --- Synchronization Logic ---
-        // Radio -> Input
-        group.setOnCheckedChangeListener((g, id) -> {
-            if (id != -1) {
-                RadioButton rb = g.findViewById(id);
-                String val = rb.getText().toString();
-                if (!edit.getText().toString().equals(val)) {
-                    edit.setText(val);
-                    edit.setSelection(val.length());
+        // 2. Chips
+        if (presets != null && !presets.isEmpty()) {
+            android.widget.HorizontalScrollView chipScroll = createChipScroll();
+            final ChipGroup chips = createChipGroup();
+            
+            final boolean[] isSelfChange = {false};
+
+            for (String val : presets) {
+                Chip chip = createPresetChip(val);
+                if (isMatch(currentValue, val)) {
+                    isSelfChange[0] = true;
+                    chip.setChecked(true);
+                    isSelfChange[0] = false;
                 }
+                chips.addView(chip);
             }
-        });
+            chipScroll.addView(chips);
+            root.addView(chipScroll);
 
-        // Input -> Radio (Matches Preset)
-        edit.addTextChangedListener(new android.text.TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
-            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
-            @Override public void afterTextChanged(android.text.Editable s) {
-                String val = s.toString().trim();
-                boolean found = false;
-                for (int i = 0; i < group.getChildCount(); i++) {
-                    View v = group.getChildAt(i);
-                    if (v instanceof RadioButton) {
-                        RadioButton rb = (RadioButton) v;
-                        if (rb.getText().toString().equals(val)) {
-                            if (!rb.isChecked()) group.check(rb.getId());
-                            found = true;
+            // Chip -> Input sync
+            chips.setOnCheckedStateChangeListener((group, checkedIds) -> {
+                if (isSelfChange[0]) return;
+                if (checkedIds.isEmpty()) return;
+                Chip selected = group.findViewById(checkedIds.get(0));
+                if (selected != null) {
+                    String t = selected.getText().toString();
+                    if (!t.equalsIgnoreCase(edit.getText().toString())) {
+                        isSelfChange[0] = true;
+                        edit.setText(t);
+                        edit.setSelection(t.length());
+                        isSelfChange[0] = false;
+                    }
+                }
+            });
+
+            // Input -> Chip sync
+            edit.addTextChangedListener(new android.text.TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+                @Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
+                @Override public void afterTextChanged(android.text.Editable s) {
+                    if (isSelfChange[0]) return;
+                    String text = s.toString();
+                    isSelfChange[0] = true;
+                    boolean matchFound = false;
+                    for (int i = 0; i < chips.getChildCount(); i++) {
+                        Chip c = (Chip) chips.getChildAt(i);
+                        if (isMatch(text, c.getText().toString())) {
+                            if (!c.isChecked()) chips.check(c.getId());
+                            matchFound = true;
                             break;
                         }
                     }
-                }
-                if (!found) group.clearCheck();
-            }
-        });
-        
-        // Initial visibility
-        boolean startCustom = !matched && currentValue != null && !currentValue.isEmpty();
-        if (startCustom) {
-            edit.setText(currentValue);
-            group.setVisibility(View.GONE);
-            til.setVisibility(View.VISIBLE);
-        } else {
-            group.setVisibility(View.VISIBLE);
-            til.setVisibility(View.GONE);
-        }
-
-        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(context)
-            .setTitle(title)
-            .setView(scroll)
-            .setPositiveButton("Done", (d, w) -> {
-                String result;
-                if (til.getVisibility() == View.VISIBLE) {
-                    result = edit.getText().toString().trim();
-                } else {
-                    int checkedId = group.getCheckedRadioButtonId();
-                    if (checkedId != -1) {
-                        RadioButton rb = group.findViewById(checkedId);
-                        result = rb.getText().toString();
-                    } else {
-                        result = "";
-                    }
-                }
-                if (cb != null) cb.onText(result);
-            })
-            .setNegativeButton("Cancel", null)
-            .setNeutralButton(startCustom ? "Presets" : "Custom", null)
-            .create();
-
-        dialog.setOnShowListener(d -> {
-            android.widget.Button neutral = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL);
-            neutral.setOnClickListener(v -> {
-                if (til.getVisibility() == View.VISIBLE) {
-                    // Switch to Presets
-                    til.setVisibility(View.GONE);
-                    group.setVisibility(View.VISIBLE);
-                    neutral.setText("Custom");
-                } else {
-                    // Switch to Custom
-                    group.setVisibility(View.GONE);
-                    til.setVisibility(View.VISIBLE);
-                    neutral.setText("Presets");
-                    edit.requestFocus();
+                    if (!matchFound) chips.clearCheck();
+                    isSelfChange[0] = false;
                 }
             });
-        });
-
-        dialog.show();
-    }
-
-    public void showFourValueInput(String prop, OnText cb) {
-        int pad = dp(24);
-        ScrollView scroll = new ScrollView(context);
-        LinearLayout root = new LinearLayout(context);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(pad, dp(16), pad, dp(12));
-        scroll.addView(root);
-
-        String[] parts = (initial == null ? "" : initial).split("\\s+");
-        String vT = parts.length > 0 ? parts[0] : "0px";
-        String vR = parts.length > 1 ? parts[1] : (parts.length > 0 ? parts[0] : "0px");
-        String vB = parts.length > 2 ? parts[2] : (parts.length > 0 ? parts[0] : "0px");
-        String vL = parts.length > 3 ? parts[3] : (parts.length > 1 ? parts[1] : (parts.length > 0 ? parts[0] : "0px"));
-
-        String[] labels = {"Top", "Right", "Bottom", "Left"};
-        String[] vals = {vT, vR, vB, vL};
-        MaterialAutoCompleteTextView[] edits = new MaterialAutoCompleteTextView[4];
-
-        for (int i = 0; i < 4; i++) {
-            TextInputLayout til = new TextInputLayout(context);
-            til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-            til.setHint(labels[i]);
-            til.setBoxCornerRadii(dp(12), dp(12), dp(12), dp(12));
-            
-            edits[i] = new MaterialAutoCompleteTextView(til.getContext());
-            edits[i].setText(vals[i]);
-            edits[i].setSingleLine(true);
-            if (units != null) {
-                edits[i].setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, units));
-            }
-            til.addView(edits[i]);
-            
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.bottomMargin = dp(12);
-            root.addView(til, lp);
         }
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(8);
+        root.addView(til, lp);
 
         new MaterialAlertDialogBuilder(context)
             .setTitle(title)
             .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
-                String res = edits[0].getText().toString().trim() + " " +
-                             edits[1].getText().toString().trim() + " " +
-                             edits[2].getText().toString().trim() + " " +
-                             edits[3].getText().toString().trim();
-                if (cb != null) cb.onText(res);
+                if (cb != null) cb.onText(edit.getText().toString().trim());
             })
             .setNegativeButton("Cancel", null)
             .show();
     }
 
-    public void showAutocompleteChoice(List<String> suggestions, String initialValue, OnText cb) {
-        showRadioWithCustom(suggestions, initialValue, cb);
+    private static String lastSelectedIconLib = "Tabler";
+
+    public void showIconPicker(OnText cb) {
+        final String[] selectedLibPrefix = {""};
+        final String[] selectedLibSuffix = {""};
+
+        int pad = dp(24);
+        ScrollView scroll = new ScrollView(context);
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, dp(12), pad, dp(20));
+        scroll.addView(root);
+
+        // 1. Search/Type Input
+        TextInputLayout til = createTextInputLayout("Type or select icon name");
+        final MaterialAutoCompleteTextView edit = createEditor(til, "", null);
+        til.addView(edit);
+        root.addView(til);
+
+        // 2. Results Container
+        final LinearLayout results = new LinearLayout(context);
+        results.setOrientation(LinearLayout.VERTICAL);
+        root.addView(results);
+
+        // 3. Library Selection (Required)
+        android.widget.TextView label = new android.widget.TextView(context);
+        label.setText("Step 2: Select Library (Required)");
+        label.setPadding(0, dp(16), 0, dp(8));
+        label.setTypeface(null, android.graphics.Typeface.BOLD);
+        root.addView(label);
+
+        android.widget.HorizontalScrollView libScroll = createChipScroll();
+        final ChipGroup libGroup = createChipGroup();
+        libGroup.setSingleSelection(true);
+        libGroup.setSelectionRequired(true);
+
+        String[][] libs = {
+            {"Tabler", "ti ti-", ""},
+            {"Phosphor", "ph ph-", ""},
+            {"FontAwesome", "fa-solid fa-", ""},
+            {"Material", "material-icons mi-", ""},
+            {"Bootstrap", "bi bi-", ""},
+            {"Remix", "ri-", "-line"}
+        };
+
+        for (final String[] lib : libs) {
+            Chip c = createPresetChip(lib[0]);
+            c.setCheckable(true);
+            if (lib[0].equals(lastSelectedIconLib)) {
+                c.setChecked(true);
+                selectedLibPrefix[0] = lib[1];
+                selectedLibSuffix[0] = lib[2];
+            }
+            c.setOnClickListener(v -> {
+                lastSelectedIconLib = lib[0];
+                selectedLibPrefix[0] = lib[1];
+                selectedLibSuffix[0] = lib[2];
+            });
+            libGroup.addView(c);
+        }
+        libScroll.addView(libGroup);
+        root.addView(libScroll);
+
+        final com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+            .setTitle(title.isEmpty() ? "Pick an Icon" : title)
+            .setView(scroll)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Select", (d, w) -> {
+                String name = edit.getText().toString().trim();
+                if (cb != null && !name.isEmpty() && !selectedLibPrefix[0].isEmpty()) {
+                    cb.onText(selectedLibPrefix[0] + name + selectedLibSuffix[0]);
+                }
+            });
+
+        final android.app.Dialog dialog = builder.create();
+
+        edit.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                String q = s.toString().trim();
+                results.removeAllViews();
+                if (q.length() >= 1) {
+                    List<String> matches = IconSearchProvider.search(q);
+                    for (int i = 0; i < Math.min(matches.size(), 10); i++) {
+                        final String name = matches.get(i);
+                        android.widget.TextView tv = new android.widget.TextView(context);
+                        tv.setText(name);
+                        tv.setPadding(dp(16), dp(8), dp(16), dp(8));
+                        tv.setClickable(true);
+                        tv.setFocusable(true);
+                        
+                        android.util.TypedValue outValue = new android.util.TypedValue();
+                        context.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
+                        tv.setBackgroundResource(outValue.resourceId);
+
+                        tv.setOnClickListener(v -> {
+                            edit.setText(name);
+                            edit.setSelection(name.length());
+                            results.removeAllViews();
+                        });
+                        results.addView(tv);
+                    }
+                }
+            }
+        });
+
+        dialog.show();
     }
 
-    /**
-     * A smart selector dialog that handles ID (#), Class (.), and Tag (none).
-     * Automatically swaps autocomplete suggestions based on the selected prefix.
-     */
     public void showSelectorInput(List<String> idSuggestions, 
                                  List<String> classSuggestions, 
                                  List<String> tagSuggestions, 
@@ -293,121 +285,225 @@ public final class UniversalM3Dialog {
         ScrollView scroll = new ScrollView(context);
         LinearLayout root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(pad, dp(16), pad, dp(12));
+        root.setPadding(pad, dp(12), pad, dp(20));
         scroll.addView(root);
 
-        // Prefix selector (horizontal radio pills)
-        RadioGroup group = new RadioGroup(context);
-        group.setOrientation(RadioGroup.HORIZONTAL);
-        group.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
-        group.setPadding(0, 0, 0, dp(16));
+        // 1. Mode selection chips
+        ChipGroup modeGroup = createChipGroup();
+        final int idId = View.generateViewId(), classId = View.generateViewId(), tagId = View.generateViewId();
+        modeGroup.addView(createModeChip("ID (#)", idId));
+        modeGroup.addView(createModeChip("Class (.)", classId));
+        modeGroup.addView(createModeChip("Tag", tagId));
+        root.addView(modeGroup);
 
-        String[] prefixes = {"ID (#)", "Class (.)", "Tag"};
-        for (int i = 0; i < 3; i++) {
-            RadioButton rb = new RadioButton(context);
-            rb.setId(100 + i);
-            rb.setText(prefixes[i]);
-            rb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-            group.addView(rb);
-        }
-        root.addView(group);
+        // 2. Suggestion chips (dynamic)
+        android.widget.HorizontalScrollView suggestionScroll = createChipScroll();
+        final ChipGroup suggestionChips = createChipGroup();
+        suggestionScroll.addView(suggestionChips);
+        root.addView(suggestionScroll);
 
-        TextInputLayout til = new TextInputLayout(context);
-        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        til.setHint("Name");
-        til.setBoxCornerRadii(dp(14), dp(14), dp(14), dp(14));
-        til.setEndIconMode(TextInputLayout.END_ICON_CLEAR_TEXT);
-       
-
-        MaterialAutoCompleteTextView edit = new MaterialAutoCompleteTextView(til.getContext());
-        edit.setSingleLine(true);
+        // 3. Input
+        TextInputLayout til = createTextInputLayout("Name");
+        final MaterialAutoCompleteTextView edit = createEditor(til, "", null);
         til.addView(edit);
         root.addView(til);
 
-        // Initial parsing
-        String val = initial == null ? "" : initial.trim();
-        if (val.startsWith("#")) {
-            ((RadioButton)group.getChildAt(0)).setChecked(true);
-            edit.setText(val.substring(1));
-        } else if (val.startsWith(".")) {
-            ((RadioButton)group.getChildAt(1)).setChecked(true);
-            edit.setText(val.substring(1));
-        } else {
-            ((RadioButton)group.getChildAt(2)).setChecked(true);
-            edit.setText(val);
-        }
+        final boolean[] isInternal = {false};
 
-        group.setOnCheckedChangeListener((g, id) -> {
-            List<String> active = (id == 100) ? idSuggestions : (id == 101 ? classSuggestions : tagSuggestions);
+        // Logic to update suggestions and match state
+        Runnable updateSuggestions = () -> {
+            suggestionChips.removeAllViews();
+            int selId = modeGroup.getCheckedChipId();
+            List<String> active = (selId == idId) ? idSuggestions : (selId == classId ? classSuggestions : tagSuggestions);
+            String current = edit.getText().toString();
             if (active != null) {
+                isInternal[0] = true;
+                for (String s : active) {
+                    Chip chip = createPresetChip(s);
+                    if (s.equalsIgnoreCase(current)) chip.setChecked(true);
+                    suggestionChips.addView(chip);
+                }
                 edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, active));
-                if (!edit.getText().toString().isEmpty()) edit.showDropDown();
-            } else {
-                edit.setAdapter(null);
+                isInternal[0] = false;
+            }
+        };
+
+        modeGroup.setOnCheckedStateChangeListener((g, checkedIds) -> {
+            if (!checkedIds.isEmpty()) updateSuggestions.run();
+        });
+
+        suggestionChips.setOnCheckedStateChangeListener((g, checkedIds) -> {
+            if (isInternal[0] || checkedIds.isEmpty()) return;
+            Chip selected = g.findViewById(checkedIds.get(0));
+            if (selected != null) {
+                String t = selected.getText().toString();
+                isInternal[0] = true;
+                edit.setText(t);
+                edit.setSelection(t.length());
+                isInternal[0] = false;
             }
         });
-        
-        // Trigger initial adapter
-        int initialId = group.getCheckedRadioButtonId();
-        List<String> initActive = (initialId == 100) ? idSuggestions : (initialId == 101 ? classSuggestions : tagSuggestions);
-        if (initActive != null) edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, initActive));
+
+        edit.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                if (isInternal[0]) return;
+                String text = s.toString();
+                isInternal[0] = true;
+                boolean found = false;
+                for (int i = 0; i < suggestionChips.getChildCount(); i++) {
+                    Chip c = (Chip) suggestionChips.getChildAt(i);
+                    if (c.getText().toString().equalsIgnoreCase(text)) {
+                        suggestionChips.check(c.getId());
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) suggestionChips.clearCheck();
+                isInternal[0] = false;
+            }
+        });
+
+        // Initial state
+        String val = initial == null ? "" : initial.trim();
+        if (val.startsWith("#")) { modeGroup.check(idId); edit.setText(val.substring(1)); }
+        else if (val.startsWith(".")) { modeGroup.check(classId); edit.setText(val.substring(1)); }
+        else { modeGroup.check(tagId); edit.setText(val); }
+        updateSuggestions.run();
 
         new MaterialAlertDialogBuilder(context)
             .setTitle(title)
             .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
-                String name = edit.getText().toString().trim();
-                int checked = group.getCheckedRadioButtonId();
-                String prefix = (checked == 100) ? "#" : (checked == 101 ? "." : "");
-                
-                // Clean up name
-                name = name.replaceFirst("^[#.]", "");
-                if (cb != null) cb.onText(prefix + name);
+                String raw = edit.getText().toString().trim();
+                int checked = modeGroup.getCheckedChipId();
+                String prefix = (checked == idId) ? "#" : (checked == classId ? "." : "");
+                if (cb != null) cb.onText(prefix + raw.replaceFirst("^[#.]", ""));
             })
             .setNegativeButton("Cancel", null)
             .show();
     }
 
-    // -------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------
+    public void showFourValueInput(String prop, OnText cb) {
+        int pad = dp(24);
+        ScrollView scroll = new ScrollView(context);
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, dp(12), pad, dp(20));
+        scroll.addView(root);
 
-    private static float parseFloatSafe(String s) {
-        if (s == null) return 0f;
-        StringBuilder num = new StringBuilder();
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if ((c >= '0' && c <= '9') || c == '.' || (i == 0 && c == '-')) num.append(c);
-            else if (num.length() > 0) break;
-        }
-        try { return num.length() == 0 ? 0f : Float.parseFloat(num.toString()); }
-        catch (Exception e) { return 0f; }
-    }
+        final MaterialAutoCompleteTextView[] edits = new MaterialAutoCompleteTextView[4];
 
-    private static String parseUnit(String value, String[] units) {
-        if (value == null) return units != null && units.length > 0 ? units[0] : "px";
-        String trimmed = value.trim();
-        if (units != null) {
+        // 1. Unit Chips
+        if (units != null && units.length > 0) {
+            android.widget.HorizontalScrollView cs = createChipScroll();
+            ChipGroup cg = createChipGroup();
             for (String u : units) {
-                if (trimmed.endsWith(u)) return u;
+                Chip chip = createPresetChip(u);
+                chip.setOnClickListener(v -> {
+                    for (MaterialAutoCompleteTextView e : edits) {
+                        String t = e.getText().toString().replaceAll("[^0-9.-]", "");
+                        if (t.isEmpty()) t = "0";
+                        e.setText(t + u);
+                    }
+                });
+                cg.addView(chip);
             }
+            cs.addView(cg);
+            root.addView(cs);
         }
-        StringBuilder unit = new StringBuilder();
-        for (int i = trimmed.length() - 1; i >= 0; i--) {
-            char c = trimmed.charAt(i);
-            if (Character.isLetter(c) || c == '%') unit.insert(0, c);
-            else break;
+
+        String[] parts = (initial == null ? "" : initial).split("\\s+");
+        String[] labels = {"Top", "Right", "Bottom", "Left"};
+        for (int k = 0; k < 4; k++) {
+            TextInputLayout til = createTextInputLayout(labels[k]);
+            String val = parts.length > k ? parts[k] : (parts.length > 0 ? parts[0] : "0px");
+            edits[k] = createEditor(til, val, units != null ? Arrays.asList(units) : null);
+            til.addView(edits[k]);
+            root.addView(til, new LinearLayout.LayoutParams(-1, -2) {{ bottomMargin = dp(12); }});
         }
-        if (unit.length() == 0) return units != null && units.length > 0 ? units[0] : "px";
-        return unit.toString();
+
+        new MaterialAlertDialogBuilder(context).setTitle(title).setView(scroll)
+            .setPositiveButton("Done", (d, w) -> {
+                if (cb != null) cb.onText(edits[0].getText().toString().trim() + " " + edits[1].getText().toString().trim() + " " + edits[2].getText().toString().trim() + " " + edits[3].getText().toString().trim());
+            }).setNegativeButton("Cancel", null).show();
     }
 
-    private static String trimTrailingZero(float v) {
-        if (v == (int) v) return String.valueOf((int) v);
-        return String.valueOf(v);
+    // --- Helpers ---
+
+    private android.widget.HorizontalScrollView createChipScroll() {
+        android.widget.HorizontalScrollView s = new android.widget.HorizontalScrollView(context);
+        s.setHorizontalScrollBarEnabled(false);
+        s.setClipToPadding(false);
+        return s;
     }
 
-    private int dp(int v) {
-        return (int) (v * context.getResources().getDisplayMetrics().density);
+    private ChipGroup createChipGroup() {
+        ChipGroup g = new ChipGroup(context);
+        g.setSingleLine(true);
+        g.setSingleSelection(true);
+        g.setChipSpacingHorizontal(dp(8));
+        g.setPadding(0, 0, 0, dp(16));
+        return g;
     }
+
+    private Chip createPresetChip(String text) {
+        Chip c = new Chip(context);
+        c.setId(View.generateViewId());
+        c.setText(text);
+        c.setCheckable(true);
+        c.setClickable(true);
+        c.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        return c;
+    }
+
+    private Chip createModeChip(String text, int id) {
+        Chip c = createPresetChip(text);
+        c.setId(id);
+        return c;
+    }
+
+    private TextInputLayout createTextInputLayout(String hint) {
+        TextInputLayout til = new TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+        til.setHint(hint);
+        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        til.setBoxCornerRadii(dp(12), dp(12), dp(12), dp(12));
+        til.setEndIconMode(TextInputLayout.END_ICON_CLEAR_TEXT);
+        return til;
+    }
+
+    private MaterialAutoCompleteTextView createEditor(TextInputLayout til, String value, List<String> presets) {
+        MaterialAutoCompleteTextView edit = new MaterialAutoCompleteTextView(til.getContext());
+        edit.setSingleLine(true);
+        edit.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        edit.setText(value);
+        edit.setThreshold(1);
+        edit.setMinimumHeight(dp(56));
+        int hp = dp(16), vp = dp(12);
+        edit.setPadding(hp, vp, hp, vp);
+        if (presets != null) edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, presets));
+        return edit;
+    }
+
+    private boolean isMatch(String currentValue, String preset) {
+        if (currentValue == null || preset == null) return false;
+        String cv = currentValue.trim().toLowerCase();
+        String pv = preset.trim().toLowerCase();
+        if (pv.equals(cv)) return true;
+
+        // CSS specific synonyms
+        if (pv.equals("bold") && cv.equals("700")) return true;
+        if (pv.equals("700") && cv.equals("bold")) return true;
+        if (pv.equals("normal") && cv.equals("400")) return true;
+        if (pv.equals("400") && cv.equals("normal")) return true;
+
+        if (!cv.isEmpty() && cv.endsWith(pv)) {
+            String prefix = cv.substring(0, cv.length() - pv.length());
+            return prefix.isEmpty() || prefix.matches("-?\\d*\\.?\\d*");
+        }
+        return false;
+    }
+
+    private int dp(int v) { return (int) (v * context.getResources().getDisplayMetrics().density); }
 }

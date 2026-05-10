@@ -1,5 +1,7 @@
 package sketchweb.gl;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.util.List;
 
 /**
@@ -15,6 +17,7 @@ public class ChipInput {
     /** text | number | dropdown | boolean | color | variable | selector | container */
     public String type;
     /** Fallback value used the first time a chip is rendered. */
+    @SerializedName("default")
     public String defaultValue;
     /** Static option list for {@code dropdown} chips. */
     public List<String> options;

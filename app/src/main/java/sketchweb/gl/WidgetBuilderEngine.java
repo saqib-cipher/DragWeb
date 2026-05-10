@@ -31,12 +31,11 @@ public class WidgetBuilderEngine {
             case "h4":
             case "h5":
             case "h6":
-            case "a":
             case "span":
             case "label":
             case "pre":
             case "blockquote":
-            case "li":
+            case "i":
                 view = new TextView(context);
                 break;
             case "button":
@@ -64,6 +63,10 @@ public class WidgetBuilderEngine {
             case "article":
             case "aside":
             case "form":
+            case "ul":
+            case "ol":
+            case "li":
+            case "a":
                 LinearLayout layoutView = new LinearLayout(context);
                 layoutView.setOrientation(LinearLayout.VERTICAL);
                 layoutView.setMinimumHeight(60);
@@ -71,11 +74,7 @@ public class WidgetBuilderEngine {
                 layoutView.setPadding(8, 8, 8, 8);
                 view = layoutView;
                 break;
-            case "ul":
-            case "ol":
-                view = new LinearLayout(context);
-                ((LinearLayout) view).setOrientation(LinearLayout.VERTICAL);
-                break;
+
             case "hr":
                 view = new View(context);
                 view.setBackgroundColor(Color.parseColor("#CCCCCC"));
@@ -165,6 +164,8 @@ public class WidgetBuilderEngine {
             TextView tv = (TextView) view;
             if (function.containsKey("text")) {
                 tv.setText(function.get("text").toString());
+            } else if ("i".equals(widgetMap.get("tag")) && function.containsKey("class")) {
+                tv.setText("[" + function.get("class").toString() + "]");
             }
         }
 
@@ -478,7 +479,7 @@ public class WidgetBuilderEngine {
         switch (tag) {
             case "div": case "section": case "nav": case "header": case "footer":
             case "main": case "article": case "aside": case "form":
-            case "ul": case "ol": case "table":
+            case "ul": case "ol": case "li": case "a": case "table":
                 return true;
             default:
                 return false;

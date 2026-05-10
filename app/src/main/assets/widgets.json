@@ -3,7 +3,6 @@
     "name": "Text",
     "tag": "p",
     "color": "#333333",
-    "icon": "cursor_text",
     "category": "basic",
     "function": {
       "text": "Hello, world!",
@@ -17,7 +16,6 @@
     "name": "Heading 1",
     "tag": "h1",
     "color": "#000000",
-    "icon": "textsize",
     "category": "basic",
     "function": {
       "text": "Page Title",
@@ -32,7 +30,6 @@
     "name": "Heading 2",
     "tag": "h2",
     "color": "#222222",
-    "icon": "textsize",
     "category": "basic",
     "function": {
       "text": "Section Title",
@@ -46,7 +43,6 @@
     "name": "Heading 3",
     "tag": "h3",
     "color": "#444444",
-    "icon": "textsize",
     "category": "basic",
     "function": {
       "text": "Sub Section",
@@ -60,7 +56,6 @@
     "name": "Button",
     "tag": "button",
     "color": "#FFBB33",
-    "icon": "emphasis",
     "category": "basic",
     "function": {
       "text": "Click Me",
@@ -78,7 +73,6 @@
     "name": "Image",
     "tag": "img",
     "color": "#CCCCCC",
-    "icon": "default_image",
     "category": "basic",
     "function": {
       "src": "https://via.placeholder.com/300x200",
@@ -92,7 +86,6 @@
     "name": "Link",
     "tag": "a",
     "color": "#2196F3",
-    "icon": "icon_web_round",
     "category": "basic",
     "function": {
       "text": "Visit Link",
@@ -105,16 +98,16 @@
     }
   },
   {
-    "name": "Icon",
-    "tag": "span",
+    "name": "Icon (Library)",
+    "tag": "i",
     "color": "#607D8B",
-    "icon": "emphasis",
     "category": "basic",
     "function": {
-      "text": "★",
+      "class": "ti ti-pointer-2",
       "style": {
         "fontSize": "24px",
-        "color": "#FF9800"
+        "color": "#333333",
+        "display": "inline-block"
       }
     }
   },
@@ -122,7 +115,6 @@
     "name": "Input",
     "tag": "input",
     "color": "#E8EAF6",
-    "icon": "cursor_text",
     "category": "form",
     "function": {
       "type": "text",
@@ -140,7 +132,6 @@
     "name": "TextArea",
     "tag": "textarea",
     "color": "#E8EAF6",
-    "icon": "cursor_text",
     "category": "form",
     "function": {
       "placeholder": "Enter your message...",
@@ -159,7 +150,6 @@
     "name": "Form",
     "tag": "form",
     "color": "#E1F5FE",
-    "icon": "box_padding",
     "category": "form",
     "function": {
       "style": {
@@ -174,7 +164,6 @@
     "name": "Label",
     "tag": "label",
     "color": "#455A64",
-    "icon": "cursor_text",
     "category": "form",
     "function": {
       "text": "Label:",
@@ -189,7 +178,6 @@
     "name": "Checkbox",
     "tag": "input",
     "color": "#C8E6C9",
-    "icon": "emphasis",
     "category": "form",
     "function": {
       "type": "checkbox",
@@ -203,7 +191,6 @@
     "name": "Div",
     "tag": "div",
     "color": "#F5F5F5",
-    "icon": "box_padding",
     "category": "layout",
     "function": {
       "style": {
@@ -216,7 +203,6 @@
     "name": "Section",
     "tag": "section",
     "color": "#E8F5E9",
-    "icon": "box_padding",
     "category": "layout",
     "function": {
       "style": {
@@ -229,7 +215,6 @@
     "name": "Header",
     "tag": "header",
     "color": "#E3F2FD",
-    "icon": "box_padding",
     "category": "layout",
     "function": {
       "style": {
@@ -243,7 +228,6 @@
     "name": "Footer",
     "tag": "footer",
     "color": "#ECEFF1",
-    "icon": "box_padding",
     "category": "layout",
     "function": {
       "style": {
@@ -258,7 +242,6 @@
     "name": "Row (Flex)",
     "tag": "div",
     "color": "#E3F2FD",
-    "icon": "freezerowcolumn",
     "category": "layout",
     "function": {
       "style": {
@@ -274,7 +257,6 @@
     "name": "Column (Flex)",
     "tag": "div",
     "color": "#F3E5F5",
-    "icon": "freezerowcolumn",
     "category": "layout",
     "function": {
       "style": {
@@ -289,7 +271,6 @@
     "name": "Grid",
     "tag": "div",
     "color": "#FFF3E0",
-    "icon": "freezerowcolumn",
     "category": "layout",
     "function": {
       "style": {
@@ -304,7 +285,6 @@
     "name": "Card",
     "tag": "div",
     "color": "#FFFFFF",
-    "icon": "border_radius",
     "category": "layout",
     "function": {
       "style": {
@@ -319,7 +299,6 @@
     "name": "Navbar",
     "tag": "nav",
     "color": "#1565C0",
-    "icon": "box_padding",
     "category": "layout",
     "function": {
       "style": {
@@ -337,10 +316,8 @@
     "name": "List (UL)",
     "tag": "ul",
     "color": "#444444",
-    "icon": "freezerowcolumn",
     "category": "basic",
     "function": {
-      "items": ["Item 1", "Item 2", "Item 3"],
       "style": {
         "paddingLeft": "20px"
       }
@@ -350,12 +327,22 @@
     "name": "List (OL)",
     "tag": "ol",
     "color": "#555555",
-    "icon": "freezerowcolumn",
     "category": "basic",
     "function": {
-      "items": ["First", "Second", "Third"],
       "style": {
         "paddingLeft": "20px"
+      }
+    }
+  },
+  {
+    "name": "ListItem",
+    "tag": "li",
+    "color": "#666666",
+    "category": "basic",
+    "function": {
+      "text": "List Item",
+      "style": {
+        "marginBottom": "4px"
       }
     }
   },
@@ -363,7 +350,6 @@
     "name": "Divider",
     "tag": "hr",
     "color": "#CCCCCC",
-    "icon": "border_sides",
     "category": "basic",
     "function": {
       "style": {
@@ -376,7 +362,6 @@
     "name": "Spacer",
     "tag": "div",
     "color": "#F0F0F0",
-    "icon": "resize",
     "category": "layout",
     "function": {
       "style": {
@@ -388,7 +373,6 @@
     "name": "Video",
     "tag": "video",
     "color": "#CE93D8",
-    "icon": "icon_web_round",
     "category": "media",
     "function": {
       "src": "https://www.w3schools.com/html/mov_bbb.mp4",
@@ -403,7 +387,6 @@
     "name": "Audio",
     "tag": "audio",
     "color": "#80CBC4",
-    "icon": "icon_web_round",
     "category": "media",
     "function": {
       "src": "",
@@ -417,7 +400,6 @@
     "name": "Canvas",
     "tag": "canvas",
     "color": "#FFE0B2",
-    "icon": "icon_design_services_round",
     "category": "media",
     "function": {
       "style": {
@@ -432,7 +414,6 @@
     "name": "SVG",
     "tag": "svg",
     "color": "#B2DFDB",
-    "icon": "icon_design_services_round",
     "category": "media",
     "function": {
       "style": {
@@ -445,7 +426,6 @@
     "name": "IFrame",
     "tag": "iframe",
     "color": "#D1C4E9",
-    "icon": "icon_web_round",
     "category": "advanced",
     "function": {
       "src": "https://example.com",
@@ -461,7 +441,6 @@
     "name": "Code Block",
     "tag": "pre",
     "color": "#263238",
-    "icon": "cursor_text",
     "category": "advanced",
     "function": {
       "text": "console.log('Hello');",
@@ -480,7 +459,6 @@
     "name": "Blockquote",
     "tag": "blockquote",
     "color": "#E8EAF6",
-    "icon": "emphasis",
     "category": "advanced",
     "function": {
       "text": "This is a quote.",
@@ -497,7 +475,6 @@
     "name": "Table",
     "tag": "table",
     "color": "#CFD8DC",
-    "icon": "freezerowcolumn",
     "category": "advanced",
     "function": {
       "style": {
@@ -511,7 +488,6 @@
     "name": "Progress Bar",
     "tag": "div",
     "color": "#4CAF50",
-    "icon": "emphasis",
     "category": "advanced",
     "function": {
       "style": {

@@ -545,6 +545,19 @@ public class MainActivity extends AppCompatActivity {
 			if (hierarchyAdapter != null) {
 				hierarchyAdapter.setSelectedView(selector.getSelectedView());
 			}
+			
+			// Only build the list for the currently selected chip
+			if (chipGroupBottom != null) {
+				int checkedId = chipGroupBottom.getCheckedChipId();
+				if (checkedId == R.id.chipLayout) {
+					buildLayoutDesignList();
+				} else {
+					// Default to Basic
+					buildDesignList();
+				}
+			} else {
+				buildDesignList();
+			}
 		});
 		selector.attachTo(screen);
 
@@ -997,7 +1010,6 @@ public class MainActivity extends AppCompatActivity {
 				pageManager.addPage(pageName);
 				pageManager.setCurrentPage(pageName);
 				screen.removeAllViews();
-				ensureDefaultHeaderOnCanvas();
 				saveCurrentPageLayout();
 				saveUndoState();
 				refreshHierarchy();
@@ -1026,7 +1038,6 @@ public class MainActivity extends AppCompatActivity {
 		} catch (Exception e) {
 			Log.w("MainActivity", "Could not load page layout: " + e.getMessage());
 		}
-		ensureDefaultHeaderOnCanvas();
 		saveCurrentPageLayout();
 		selector.clearSelection();
 		selector.attachTo(screen);
@@ -1497,69 +1508,6 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}
 		return false;
-	}
-
-	private void ensureDefaultHeaderOnCanvas() {
-		if (hasDefaultHeaderWidget()) return;
-		Map<String, Object> headerNode = buildDefaultHeaderNode();
-		rebuildViewAt(headerNode, screen, 0);
-	}
-
-	private Map<String, Object> buildDefaultHeaderNode() {
-		Map<String, Object> headerNode = new HashMap<>();
-		headerNode.put("tag", "header");
-
-		Map<String, Object> headerFunction = new HashMap<>();
-		headerFunction.put("id", "dragweb-default-header");
-		headerFunction.put("class", "dragweb-default-header");
-		Map<String, Object> headerStyle = new HashMap<>();
-		headerStyle.put("width", "100%");
-		headerStyle.put("padding", "12");
-		headerStyle.put("margin", "0");
-		headerStyle.put("backgroundColor", "#ffffff");
-		headerStyle.put("borderColor", "#e5e7eb");
-		headerStyle.put("borderWidth", "1");
-		headerStyle.put("borderRadius", "0");
-		headerStyle.put("flexDirection", "row");
-		headerStyle.put("alignItems", "center");
-		headerFunction.put("style", headerStyle);
-		headerNode.put("function", headerFunction);
-
-		List<Map<String, Object>> children = new ArrayList<>();
-
-		String logoAbsPath = getProjectLogoPath();
-		if (!logoAbsPath.isEmpty()) {
-			Map<String, Object> logoNode = new HashMap<>();
-			logoNode.put("tag", "img");
-			Map<String, Object> logoFn = new HashMap<>();
-			logoFn.put("src", logoAbsPath);
-			logoFn.put("alt", "Logo");
-			logoFn.put("class", "dragweb-default-logo");
-			Map<String, Object> logoStyle = new HashMap<>();
-			logoStyle.put("width", "40");
-			logoStyle.put("height", "40");
-			logoStyle.put("margin", "0");
-			logoFn.put("style", logoStyle);
-			logoNode.put("function", logoFn);
-			children.add(logoNode);
-		}
-
-		Map<String, Object> titleNode = new HashMap<>();
-		titleNode.put("tag", "span");
-		Map<String, Object> titleFn = new HashMap<>();
-		titleFn.put("text", projectName != null && !projectName.isEmpty() ? projectName : "DragWeb Project");
-		titleFn.put("class", "dragweb-default-title");
-		Map<String, Object> titleStyle = new HashMap<>();
-		titleStyle.put("fontSize", "20");
-		titleStyle.put("fontWeight", "bold");
-		titleStyle.put("color", "#1f2937");
-		titleStyle.put("margin", "0");
-		titleFn.put("style", titleStyle);
-		titleNode.put("function", titleFn);
-		children.add(titleNode);
-
-		headerNode.put("children", children);
-		return headerNode;
 	}
 
 	private View findViewByHash(ViewGroup parent, int hash) {
@@ -2192,7 +2140,7 @@ public class MainActivity extends AppCompatActivity {
 			projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager);
 		}
 
-		ensureDefaultHeaderOnCanvas();
+
 
 		// Register all loaded widgets for reorder drag
 		registerAllWidgetsForDrag(screen);
@@ -2585,19 +2533,14 @@ public class MainActivity extends AppCompatActivity {
 		Map<String, Object> currentFunction = getWidgetFunction(selected);
 
 		List<String> items = new ArrayList<>();
-		items.add("Edittext");
-		items.add("SetId");
-		items.add("SetClass");
 		String tag = getSelectedTag();
+		if ("p".equals(tag) || "h1".equals(tag) || "h2".equals(tag) || "h3".equals(tag) || "h4".equals(tag) || "h5".equals(tag) || "h6".equals(tag)
+			|| "span".equals(tag) || "label".equals(tag) || "a".equals(tag) || "button".equals(tag) || "li".equals(tag)) {
+			items.add(0, "Edittext");
+		}
 
 		if ("img".equals(tag)) {
-			items.add(1, "ImageSrc");
-		}
-		if ("p".equals(tag) || "h1".equals(tag) || "h2".equals(tag) || "h3".equals(tag)
-			|| "span".equals(tag) || "label".equals(tag) || "a".equals(tag) || "button".equals(tag)) {
-			items.add("TextSize");
-			items.add("Font");
-			items.add("TextAlign");
+			items.add("ImageSrc");
 		}
 		if ("a".equals(tag)) {
 			items.add("SetHref");
@@ -2607,18 +2550,17 @@ public class MainActivity extends AppCompatActivity {
 			items.add("SetPlaceholder");
 			items.add("SetType");
 		}
-		if ("ul".equals(tag) || "ol".equals(tag) || "select".equals(tag)) {
+		if ("select".equals(tag)) {
 			items.add("ListItems");
 		}
+		if ("i".equals(tag)) {
+			items.add("PickIcon");
+		}
+		
+		items.add("SetId");
+		items.add("SetClass");
 		items.add("Color");
 		items.add("Background");
-		items.add("Width");
-		items.add("Height");
-		items.add("Padding");
-		items.add("Margin");
-		items.add("BorderRadius");
-		items.add("BorderWidth");
-		items.add("BorderColor");
 
 		for (String item : items) {
 			HashMap<String, Object> map = new HashMap<>();
@@ -2856,22 +2798,31 @@ public class MainActivity extends AppCompatActivity {
 				});
 				break;
 			case "SetId":
-			case "SetClass":
-				dialog.showSelectorInput(harvestIds(), harvestClasses(), harvestTags(), value -> {
+				dialog.setHint("my-element-id").showTextInput(value -> {
 					Map<String, Object> style = new HashMap<>();
-					if (value.startsWith("#")) {
-						style.put("id", value.substring(1));
-					} else if (value.startsWith(".")) {
-						style.put("class", value.substring(1));
-					} else {
-						// It's a tag? Or just raw?
-						// For SetId/SetClass we probably want to update the respective field
-						if (editType.equals("SetId")) style.put("id", value.replaceFirst("^[#.]", ""));
-						else style.put("class", value.replaceFirst("^[#.]", ""));
-					}
+					style.put("id", value.replaceFirst("^#", ""));
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 					refreshHierarchy();
+					buildDesignList();
+				});
+				break;
+			case "SetClass":
+				dialog.setHint("class1 class2").showTextInput(value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("class", value.replaceFirst("^\\.", ""));
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					refreshHierarchy();
+					buildDesignList();
+				});
+				break;
+			case "PickIcon":
+				dialog.showIconPicker(value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put("class", value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
 					buildDesignList();
 				});
 				break;
@@ -3377,6 +3328,7 @@ public class MainActivity extends AppCompatActivity {
 			case "SetHref": case "SetTarget": return R.drawable.icon_web_round;
 			case "SetPlaceholder": case "SetType": return R.drawable.cursor_text;
 			case "ImageSrc": return R.drawable.default_image;
+			case "PickIcon": return R.drawable.emphasis;
 			case "TextSize": return R.drawable.textsize;
 			case "TextAlign": return R.drawable.focus_centered;
 			case "Color": return R.drawable.textcolor;

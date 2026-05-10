@@ -59,9 +59,9 @@ public final class IconLibraryManager {
             "material-icons",
             "Material Icons",
             "latest",
-            "https://fonts.googleapis.com/icon?family=Material+Icons",
+            "https://cdn.jsdelivr.net/npm/@material-icons/font@latest/css/all.css",
             true, null,
-            "<span class=\"material-icons\">home</span>"));
+            "<i class=\"material-icons mi-home\"></i>"));
         m.put("material-symbols", new Library(
             "material-symbols",
             "Material Symbols (Outlined)",
@@ -122,7 +122,7 @@ public final class IconLibraryManager {
             "tabler-icons",
             "Tabler Icons",
             "3.5.0",
-            "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/tabler-icons.min.css",
+                "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css",
             true, null,
             "<i class=\"ti ti-rocket\"></i>"));
         return Collections.unmodifiableMap(m);

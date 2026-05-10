@@ -13,9 +13,6 @@ public class PageCodeGenerator {
     // Project info for default header
     private String projectName = "";
     private String projectLogoPath = "";
-    private final Map<String, String> styleClassMap = new HashMap<>();
-    private final List<String> styleRules = new ArrayList<>();
-    private int styleClassCounter = 1;
     private IconLibraryManager iconLibraryManager;
     private AnimationLibraryManager animationLibraryManager;
 
@@ -81,7 +78,7 @@ public class PageCodeGenerator {
         StringBuilder htmlBuilder = new StringBuilder();
         appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager);
         htmlBuilder.append(bodyBuilder);
-        appendHtmlFooter(htmlBuilder, logicBlockManager, customBlockManager);
+        appendHtmlFooter(htmlBuilder, themeManager, logicBlockManager, customBlockManager);
         return htmlBuilder.toString();
     }
 
@@ -127,7 +124,7 @@ public class PageCodeGenerator {
         StringBuilder htmlBuilder = new StringBuilder();
         appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager);
         htmlBuilder.append(bodyBuilder);
-        appendHtmlFooter(htmlBuilder, logicBlockManager, customBlockManager);
+        appendHtmlFooter(htmlBuilder, themeManager, logicBlockManager, customBlockManager);
         return htmlBuilder.toString();
     }
 
@@ -151,32 +148,6 @@ public class PageCodeGenerator {
             }
         }
 
-        htmlBuilder.append("  <style>\n");
-
-        // Theme CSS variables
-        if (themeManager != null) {
-            htmlBuilder.append(themeManager.generateGlobalCss());
-        } else {
-            htmlBuilder.append("    * { margin: 0; padding: 0; box-sizing: border-box; }\n");
-            htmlBuilder.append("    body { font-family: sans-serif; line-height: 1.6; }\n");
-        }
-
-        htmlBuilder.append("    button { cursor: pointer; font-family: inherit; }\n");
-        htmlBuilder.append("    input, textarea { font-family: inherit; }\n");
-        htmlBuilder.append("    img { max-width: 100%; height: auto; }\n");
-
-        // Full keyframe library used by the animation blocks.
-        if (animationLibraryManager != null) {
-            htmlBuilder.append(animationLibraryManager.generateLocalKeyframesCss("    "));
-        } else {
-            htmlBuilder.append(AnimationLibrary.generateKeyframesCss("    "));
-        }
-        for (String styleRule : styleRules) {
-            htmlBuilder.append(styleRule);
-        }
-
-        htmlBuilder.append("  </style>\n");
-
         // External icon-library CDN includes (Font Awesome, Material Icons, …).
         if (iconLibraryManager != null) {
             String includes = iconLibraryManager.generateHtmlIncludes();
@@ -198,46 +169,74 @@ public class PageCodeGenerator {
         htmlBuilder.append("</head>\n<body>\n");
     }
 
-    private void appendHtmlFooter(StringBuilder htmlBuilder, LogicBlockManager logicBlockManager) {
-        appendHtmlFooter(htmlBuilder, logicBlockManager, null);
-    }
-
     private void appendHtmlFooter(StringBuilder htmlBuilder,
                                   LogicBlockManager logicBlockManager,
                                   CustomBlockManager customBlockManager) {
-        // Emit static CSS rules, pseudo-class rules, custom block styles, and ASD CSS source
-        // into a single consolidated <style> block.
-        if (logicBlockManager != null || customBlockManager != null) {
-            StringBuilder consolidatedCss = new StringBuilder();
+        appendHtmlFooter(htmlBuilder, null, logicBlockManager, customBlockManager);
+    }
+
+    private void appendHtmlFooter(StringBuilder htmlBuilder,
+                                  ThemeManager themeManager,
+                                  LogicBlockManager logicBlockManager,
+                                  CustomBlockManager customBlockManager) {
+        // Consolidated <style> block at the end of body as requested.
+        htmlBuilder.append("\n  <style>\n");
+
+        // Theme CSS variables
+        if (themeManager != null) {
+            htmlBuilder.append(themeManager.generateGlobalCss());
+        }
+
+        // Resets and Utilities
+        htmlBuilder.append("    * { margin: 0; padding: 0; box-sizing: border-box; }\n");
+        htmlBuilder.append("    body { font-family: sans-serif; line-height: 1.6; }\n");
+        htmlBuilder.append("    .hidden { display: none !important; }\n");
+        htmlBuilder.append("    .flex { display: flex; }\n");
+        htmlBuilder.append("    .flex-col { flex-direction: column; }\n");
+        htmlBuilder.append("    .flex-row { flex-direction: row; }\n");
+        htmlBuilder.append("    .items-center { align-items: center; }\n");
+        htmlBuilder.append("    .justify-center { justify-content: center; }\n");
+        htmlBuilder.append("    .justify-between { justify-content: space-between; }\n");
+        htmlBuilder.append("    .text-center { text-align: center; }\n");
+        htmlBuilder.append("    .w-full { width: 100%; }\n");
+        htmlBuilder.append("    .h-full { height: 100%; }\n");
+        htmlBuilder.append("    button { cursor: pointer; font-family: inherit; }\n");
+        htmlBuilder.append("    input, textarea { font-family: inherit; }\n");
+        htmlBuilder.append("    img { max-width: 100%; height: auto; }\n");
+
+        // Keyframe library
+        if (animationLibraryManager != null) {
+            htmlBuilder.append(animationLibraryManager.generateLocalKeyframesCss("    "));
+        } else {
+            htmlBuilder.append(AnimationLibrary.generateKeyframesCss("    "));
+        }
+
+        // Logic blocks and user CSS
+        if (logicBlockManager != null) {
+            String baseCss = logicBlockManager.generateBaseCssRules();
+            if (baseCss != null && !baseCss.trim().isEmpty()) {
+                htmlBuilder.append("\n    /* Logic block styles */\n").append(baseCss).append("\n");
+            }
+
+            String pseudoCss = logicBlockManager.generateCssPseudoRules();
+            if (pseudoCss != null && !pseudoCss.trim().isEmpty()) {
+                htmlBuilder.append("\n    /* CSS interaction rules */\n").append(pseudoCss).append("\n");
+            }
             
-            if (logicBlockManager != null) {
-                String baseCss = logicBlockManager.generateBaseCssRules();
-                if (baseCss != null && !baseCss.trim().isEmpty()) {
-                    consolidatedCss.append("  /* Logic block styles */\n").append(baseCss).append("\n");
-                }
-
-                String pseudoCss = logicBlockManager.generateCssPseudoRules();
-                if (pseudoCss != null && !pseudoCss.trim().isEmpty()) {
-                    consolidatedCss.append("  /* CSS interaction rules */\n").append(pseudoCss).append("\n");
-                }
-                
-                String asdCss = logicBlockManager.generateAsdSource("css");
-                if (asdCss != null && !asdCss.trim().isEmpty()) {
-                    consolidatedCss.append("  /* ASD CSS source */\n").append(asdCss).append("\n");
-                }
-            }
-
-            if (customBlockManager != null) {
-                String customCss = customBlockManager.renderAllCss();
-                if (customCss != null && !customCss.trim().isEmpty()) {
-                    consolidatedCss.append("  /* Custom block styles */\n").append(customCss).append("\n");
-                }
-            }
-
-            if (consolidatedCss.length() > 0) {
-                htmlBuilder.append("\n  <style>\n").append(consolidatedCss).append("  </style>\n");
+            String asdCss = logicBlockManager.generateAsdSource("css");
+            if (asdCss != null && !asdCss.trim().isEmpty()) {
+                htmlBuilder.append("\n    /* ASD CSS source */\n").append(asdCss).append("\n");
             }
         }
+
+        if (customBlockManager != null) {
+            String customCss = customBlockManager.renderAllCss();
+            if (customCss != null && !customCss.trim().isEmpty()) {
+                htmlBuilder.append("\n    /* Custom block styles */\n").append(customCss).append("\n");
+            }
+        }
+
+        htmlBuilder.append("  </style>\n");
 
         String logicJs = logicBlockManager != null ? logicBlockManager.generateJavaScript() : "";
         String asdJs = logicBlockManager != null ? logicBlockManager.generateAsdSource("js") : "";
@@ -285,22 +284,22 @@ public class PageCodeGenerator {
             }
         }
 
-        // Class attribute
+        // Inline style attribute (replaces dw-s classes for better readability)
         Map<String, Object> style = function.containsKey("style") ? (Map<String, Object>) function.get("style") : null;
-        String styleClass = classForStyle(style);
-        StringBuilder classes = new StringBuilder();
+        if (style != null && !style.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String, Object> entry : style.entrySet()) {
+                sb.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
+            }
+            html.append(" style=\"").append(escapeAttr(sb.toString().trim())).append("\"");
+        }
+
+        // Class attribute
         if (function.containsKey("class") && function.get("class") != null) {
             String classVal = function.get("class").toString().trim();
             if (!classVal.isEmpty()) {
-                classes.append(classVal);
+                html.append(" class=\"").append(escapeAttr(classVal)).append("\"");
             }
-        }
-        if (!styleClass.isEmpty()) {
-            if (classes.length() > 0) classes.append(" ");
-            classes.append(styleClass);
-        }
-        if (classes.length() > 0) {
-            html.append(" class=\"").append(escapeAttr(classes.toString())).append("\"");
         }
 
 
@@ -388,22 +387,22 @@ public class PageCodeGenerator {
             }
         }
 
-        // Class attribute for logic targeting
+        // Inline style attribute (replaces dw-s classes for better readability)
         Map<String, Object> style = (Map<String, Object>) function.get("style");
-        String styleClass = classForStyle(style);
-        StringBuilder classes = new StringBuilder();
+        if (style != null && !style.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String, Object> entry : style.entrySet()) {
+                sb.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
+            }
+            html.append(" style=\"").append(escapeAttr(sb.toString().trim())).append("\"");
+        }
+
+        // Class attribute for logic targeting
         if (function.containsKey("class") && function.get("class") != null) {
             String classVal = function.get("class").toString().trim();
             if (!classVal.isEmpty()) {
-                classes.append(classVal);
+                html.append(" class=\"").append(escapeAttr(classVal)).append("\"");
             }
-        }
-        if (!styleClass.isEmpty()) {
-            if (classes.length() > 0) classes.append(" ");
-            classes.append(styleClass);
-        }
-        if (classes.length() > 0) {
-            html.append(" class=\"").append(escapeAttr(classes.toString())).append("\"");
         }
 
 
@@ -489,33 +488,7 @@ public class PageCodeGenerator {
     }
 
     private void resetStyleCache() {
-        styleClassMap.clear();
-        styleRules.clear();
-        styleClassCounter = 1;
-    }
-
-    private String classForStyle(Map<String, Object> style) {
-        if (style == null || style.isEmpty()) return "";
-        TreeMap<String, Object> sorted = new TreeMap<>(style);
-        StringBuilder key = new StringBuilder();
-        for (Map.Entry<String, Object> entry : sorted.entrySet()) {
-            key.append(entry.getKey()).append("=").append(String.valueOf(entry.getValue())).append(";");
-        }
-        String styleKey = key.toString();
-        if (styleClassMap.containsKey(styleKey)) {
-            return styleClassMap.get(styleKey);
-        }
-
-        String className = "dw-s" + styleClassCounter++;
-        styleClassMap.put(styleKey, className);
-        StringBuilder rule = new StringBuilder();
-        rule.append("    .").append(className).append(" { ");
-        for (Map.Entry<String, Object> entry : sorted.entrySet()) {
-            rule.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
-        }
-        rule.append("}\n");
-        styleRules.add(rule.toString());
-        return className;
+        // Obsolete (using inline styles now)
     }
 
     private String resolveAssetPath(String rawSrc) {
