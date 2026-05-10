@@ -37,6 +37,8 @@ final class BlockDragDropManager {
         BlockChipFactory getChipFactory();
         BlockView.OnBlockChanged getBlockChangedListener();
         void onWorkspaceMutated();
+        void saveBlockToCollection(String blockId);
+        void duplicateBlock(String blockId);
     }
 
     private static final String DRAG_LABEL = "sketchweb.block";
@@ -206,30 +208,67 @@ final class BlockDragDropManager {
 
     /** Wire the delete bar. */
     void attachDeleteBar(View deleteBar) {
-        deleteBar.setOnDragListener((v, event) -> {
+        attachActionTarget(deleteBar, id -> {
+            host.getWorkspace().deleteBlockChainById(id);
+            host.onWorkspaceMutated();
+        });
+    }
+
+    /** Wire the save bar. */
+    void attachSaveBar(View saveBar) {
+        attachActionTarget(saveBar, id -> {
+            host.saveBlockToCollection(id);
+        });
+    }
+
+
+
+    /** Wire the duplicate bar. */
+    void attachDuplicateBar(View duplicateBar) {
+        attachActionTarget(duplicateBar, id -> {
+            host.duplicateBlock(id);
+            host.onWorkspaceMutated();
+        });
+    }
+
+    private void attachActionTarget(View target, OnAction action) {
+        target.setOnDragListener((v, event) -> {
             switch (event.getAction()) {
                 case DragEvent.ACTION_DRAG_STARTED:
                     return descriptionMatches(event);
                 case DragEvent.ACTION_DRAG_ENTERED:
-                    deleteBar.setAlpha(0.7f);
+                    target.setAlpha(0.6f);
+                    target.setScaleX(1.05f);
+                    target.setScaleY(1.05f);
                     return true;
                 case DragEvent.ACTION_DRAG_EXITED:
+                    target.setAlpha(1f);
+                    target.setScaleX(1f);
+                    target.setScaleY(1f);
+                    return true;
                 case DragEvent.ACTION_DRAG_ENDED:
-                    deleteBar.setAlpha(1f);
+                    target.setAlpha(1f);
+                    target.setScaleX(1f);
+                    target.setScaleY(1f);
                     return true;
                 case DragEvent.ACTION_DROP:
-                    deleteBar.setAlpha(1f);
+                    target.setAlpha(1f);
+                    target.setScaleX(1f);
+                    target.setScaleY(1f);
                     String payload = readPayload(event);
                     if (payload != null && payload.startsWith(SOURCE_WORKSPACE)) {
                         String id = payload.substring(SOURCE_WORKSPACE.length());
-                        host.getWorkspace().deleteBlockChainById(id);
-                        host.onWorkspaceMutated();
+                        action.onAction(id);
                     }
                     return true;
                 default:
                     return true;
             }
         });
+    }
+
+    private interface OnAction {
+        void onAction(String blockId);
     }
 
     // -------------------------------------------------------------------

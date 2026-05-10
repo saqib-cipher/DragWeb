@@ -10,6 +10,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -32,8 +33,10 @@ import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -73,9 +76,8 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
     private WorkspaceView workspaceView;
     private FloatingActionButton fabBlockPalette;
     private View btnBlockDelete;
-    private Button btnBlockDuplicate, btnSaveAllToCollection;
-    private LinearLayout dropSaveCollection, dropDuplicateCollection;
-    private LinearLayout dropSaveAllCollection;
+    private LinearLayout btnBlockDuplicate;
+    private LinearLayout btnSaveToCollection;
     private LinearLayout collectionList;
     private TextView tvBlockCount;
 
@@ -109,13 +111,15 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
 
         initViews();
         setupToolbar();
-        setupQuickActionButtons();
         setupFab();
         setupCollectionDrawer();
 
         workspaceView.configure(logicBlockManager, allBlockDefs, chipFactory, dragDropManager);
         workspaceView.setOnBlockInteractionListener(() -> { saveUndoState(); refreshHud(); });
+        
         dragDropManager.attachDeleteBar(btnBlockDelete);
+        if (btnBlockDuplicate != null) dragDropManager.attachDuplicateBar(btnBlockDuplicate);
+        if (btnSaveToCollection != null) dragDropManager.attachSaveBar(btnSaveToCollection);
 
         setupCategoryButtons();
         showCategory(CAT_CSS);
@@ -166,11 +170,8 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         workspaceView = findViewById(R.id.workspaceView);
         fabBlockPalette = findViewById(R.id.fabBlockPalette);
         btnBlockDelete = findViewById(R.id.btnBlockDelete);
-        btnBlockDuplicate = findViewById(R.id.btnBlockDuplicate);
-        btnSaveAllToCollection = findViewById(R.id.btnSaveAllToCollection);
-        dropSaveCollection = findViewById(R.id.dropSaveCollection);
-        dropSaveAllCollection = findViewById(R.id.dropSaveAllCollection);
-        dropDuplicateCollection = findViewById(R.id.dropDuplicateCollection);
+        btnBlockDuplicate = (LinearLayout) findViewById(R.id.btnBlockDuplicate);
+        btnSaveToCollection = (LinearLayout) findViewById(R.id.btnSaveToCollection);
         collectionList = findViewById(R.id.collectionList);
         tvBlockCount = findViewById(R.id.tvBlockCount);
 
@@ -272,26 +273,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         }
     }
 
-    private void setupQuickActionButtons() {
-        if (btnSaveAllToCollection != null) {
-            btnSaveAllToCollection.setOnClickListener(v -> saveAllBlocksToCollection());
-        }
-        if (btnBlockDuplicate != null) {
-            btnBlockDuplicate.setOnClickListener(v -> duplicateLastBlock());
-        }
-    }
 
-    private void duplicateLastBlock() {
-        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
-        if (blocks.isEmpty()) return;
-        LogicBlockManager.LogicBlock orig = blocks.get(blocks.size() - 1);
-        LogicBlockManager.LogicBlock copy = cloneBlock(orig);
-        copy.id = "blk_" + System.currentTimeMillis();
-        saveUndoState();
-        blocks.add(copy);
-        workspaceView.rebuild();
-        refreshHud();
-    }
 
     private LogicBlockManager.LogicBlock cloneBlock(LogicBlockManager.LogicBlock orig) {
         LogicBlockManager.LogicBlock copy = new LogicBlockManager.LogicBlock();
@@ -303,7 +285,12 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         copy.params = orig.params;
         copy.shape = orig.shape;
         copy.spec = orig.spec;
-        copy.parentBlockId = null;
+        copy.x = orig.x;
+        copy.y = orig.y;
+        copy.nextBlockId = orig.nextBlockId;
+        copy.parentBlockId = orig.parentBlockId;
+        copy.subStackId = orig.subStackId;
+        copy.id = orig.id; // Keep old ID temporarily for remapping
         if (orig.paramValues != null) copy.paramValues = new ArrayList<>(orig.paramValues);
         return copy;
     }
@@ -393,6 +380,90 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         refreshHud();
     }
 
+    @Override
+    public void saveBlockToCollection(String blockId) {
+        LogicBlockManager.LogicBlock root = logicBlockManager.findBlockById(blockId);
+        if (root == null) return;
+        List<LogicBlockManager.LogicBlock> chain = collectChain(root);
+        List<LogicBlockManager.LogicBlock> clones = new ArrayList<>();
+        for (LogicBlockManager.LogicBlock b : chain) clones.add(cloneBlock(b));
+        // Remap IDs in the cloned chain
+        remapChainIds(clones);
+        showSaveCollectionDialog(clones);
+    }
+
+    @Override
+    public void duplicateBlock(String blockId) {
+        LogicBlockManager.LogicBlock root = logicBlockManager.findBlockById(blockId);
+        if (root == null) return;
+        List<LogicBlockManager.LogicBlock> chain = collectChain(root);
+        List<LogicBlockManager.LogicBlock> clones = new ArrayList<>();
+        for (LogicBlockManager.LogicBlock b : chain) clones.add(cloneBlock(b));
+        remapChainIds(clones);
+        
+        // Insert clones into manager
+        for (LogicBlockManager.LogicBlock cb : clones) {
+            logicBlockManager.addBlock(cb);
+        }
+        
+        // Snap the new root to the bottom of the workspace for visibility
+        LogicBlockManager.LogicBlock newRoot = clones.get(0);
+        newRoot.parentBlockId = null;
+        newRoot.y += 100; // Offset slightly
+        
+        workspaceView.rebuild();
+        onWorkspaceMutated();
+    }
+
+    private List<LogicBlockManager.LogicBlock> collectChain(LogicBlockManager.LogicBlock root) {
+        List<LogicBlockManager.LogicBlock> out = new ArrayList<>();
+        out.add(root);
+        // Standard subtree collection: find all blocks that have a parent in our 'out' list
+        for (int i = 0; i < out.size(); i++) {
+            String pid = out.get(i).id;
+            if (pid == null) continue;
+            for (LogicBlockManager.LogicBlock b : logicBlockManager.getBlocks()) {
+                if (pid.equals(b.parentBlockId) && !out.contains(b)) {
+                    out.add(b);
+                }
+            }
+        }
+        return out;
+    }
+
+    private void remapChainIds(List<LogicBlockManager.LogicBlock> chain) {
+        Map<String, String> idMap = new HashMap<>();
+        long timestamp = System.currentTimeMillis();
+        int counter = 0;
+        
+        // First pass: generate new unique IDs and store mapping
+        for (LogicBlockManager.LogicBlock b : chain) {
+            String oldId = b.id;
+            String newId = "blk_" + timestamp + "_" + (counter++) + "_" + (int)(Math.random() * 1000);
+            idMap.put(oldId, newId);
+            b.id = newId;
+        }
+        
+        // Second pass: update all structural pointers using the map
+        for (LogicBlockManager.LogicBlock b : chain) {
+            if (b.nextBlockId != null) {
+                String remapped = idMap.get(b.nextBlockId);
+                if (remapped != null) b.nextBlockId = remapped;
+                else b.nextBlockId = null; // Break link to blocks outside the chain
+            }
+            if (b.parentBlockId != null) {
+                String remapped = idMap.get(b.parentBlockId);
+                if (remapped != null) b.parentBlockId = remapped;
+                else b.parentBlockId = null; // Dragged root becomes independent
+            }
+            if (b.subStackId != null) {
+                String remapped = idMap.get(b.subStackId);
+                if (remapped != null) b.subStackId = remapped;
+                else b.subStackId = null; // Should not happen if collectChain is complete
+            }
+        }
+    }
+
     // ------------------------------------------------------------------
     // Collection drawer
     // ------------------------------------------------------------------
@@ -403,31 +474,12 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         return dir;
     }
 
-    private void saveAllBlocksToCollection() {
-        List<LogicBlockManager.LogicBlock> blocks = logicBlockManager.getBlocks();
-        if (blocks.isEmpty()) return;
-        List<LogicBlockManager.LogicBlock> chain = new ArrayList<>();
-        for (LogicBlockManager.LogicBlock b : blocks) chain.add(cloneBlock(b));
-        showSaveCollectionDialog(chain);
-    }
+
 
     private void setupCollectionDrawer() {
-        if (dropSaveAllCollection != null) {
-            dropSaveAllCollection.setOnClickListener(v -> saveAllBlocksToCollection());
-            dropSaveAllCollection.setOnDragListener((v, event) -> {
-                if (event.getAction() == DragEvent.ACTION_DROP) {
-                    saveAllBlocksToCollection();
-                    return true;
-                }
-                return true;
-            });
-        }
-        if (dropSaveCollection != null) {
-            dropSaveCollection.setOnClickListener(v -> saveAllBlocksToCollection());
-        }
-        if (dropDuplicateCollection != null) {
-            dropDuplicateCollection.setOnClickListener(v -> duplicateLastBlock());
-        }
+        // No manual listeners needed here anymore. 
+        // dragDropManager.attachSaveBar and dragDropManager.attachDuplicateBar 
+        // handle everything in a unified way.
     }
 
     private void showSaveCollectionDialog(List<LogicBlockManager.LogicBlock> chain) {
@@ -467,14 +519,35 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(10), dp(8), dp(10), dp(8));
+        row.setPadding(dp(12), dp(10), dp(12), dp(10));
+        
         TextView name = new TextView(this);
         name.setText(file.getName().replace(".json", ""));
         name.setTextColor(Color.parseColor("#0D47A1"));
-        name.setTextSize(13);
-        name.setTypeface(null, Typeface.BOLD);
+        name.setTextSize(14);
+        name.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+        name.setOnClickListener(v -> loadCollection(file));
         row.addView(name);
-        row.setOnClickListener(v -> loadCollection(file));
+
+        ImageView deleteBtn = new ImageView(this);
+        deleteBtn.setImageResource(R.drawable.icon_delete_round);
+        int iconSize = dp(24);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(iconSize, iconSize);
+        deleteBtn.setLayoutParams(dlp);
+        deleteBtn.setPadding(dp(4), dp(4), dp(4), dp(4));
+        deleteBtn.setImageTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#C62828")));
+        deleteBtn.setOnClickListener(v -> {
+            new MaterialAlertDialogBuilder(this)
+                .setTitle("Delete Collection")
+                .setMessage("Are you sure you want to delete '" + name.getText() + "'?")
+                .setPositiveButton("Delete", (d, w) -> {
+                    if (file.delete()) refreshCollectionList();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+        });
+        row.addView(deleteBtn);
+        
         return row;
     }
 
@@ -483,11 +556,19 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
             String json = FileUtil.readFile(file.getAbsolutePath());
             java.lang.reflect.Type type = new TypeToken<List<LogicBlockManager.LogicBlock>>(){}.getType();
             List<LogicBlockManager.LogicBlock> chain = new Gson().fromJson(json, type);
+            if (chain == null || chain.isEmpty()) return;
+
             saveUndoState();
+            // Remap IDs so they are unique in the current session
+            remapChainIds(chain);
+            
+            // Position the loaded chain
+            LogicBlockManager.LogicBlock root = chain.get(0);
+            root.parentBlockId = null;
+            root.y += 100;
+
             for (LogicBlockManager.LogicBlock b : chain) {
-                LogicBlockManager.LogicBlock copy = cloneBlock(b);
-                copy.id = "blk_" + System.currentTimeMillis() + "_" + logicBlockManager.getBlocks().size();
-                logicBlockManager.addBlock(copy);
+                logicBlockManager.addBlock(b);
             }
             workspaceView.rebuild();
             refreshHud();

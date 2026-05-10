@@ -66,25 +66,65 @@
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:paddingStart="6dp" />
 
-            <Button
-                android:id="@+id/btnSaveAllToCollection"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Save"
-                android:textSize="11sp"
-                android:layout_marginEnd="4dp"
-                style="?attr/materialButtonOutlinedStyle"
-                app:icon="@drawable/icon_save_round"
-                app:iconSize="16dp" />
 
-            <Button
+
+            <LinearLayout
+                android:id="@+id/btnSaveToCollection"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_drop_target_save"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:elevation="1dp">
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/icon_save_round"
+                    app:tint="#FFFFFF" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/btnBlockDuplicate"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:contentDescription="@string/app_name"
-                style="?attr/materialIconButtonStyle"
-                app:icon="@drawable/icon_copy_all_round"
-                app:iconTint="?attr/colorPrimary" />
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_drop_target_duplicate"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:elevation="1dp">
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/icon_copy_all_round"
+                    app:tint="#FFFFFF" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btnBlockDelete"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_drop_target_delete"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:elevation="2dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginEnd="8dp"
+                    android:src="@drawable/icon_delete_round"
+                    app:tint="#FFFFFF" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Drop to Delete"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- ===== Workspace + bottom delete bar ===== -->
@@ -101,23 +141,6 @@
 
             <!-- Delete bar floats at the bottom of the workspace; release a
                  dragged block on it to remove. -->
-            <LinearLayout
-                android:id="@+id/btnBlockDelete"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:layout_gravity="bottom"
-                android:orientation="horizontal"
-                android:gravity="center"
-                android:background="@drawable/bg_drop_target_delete">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="✖  Drop here to delete"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF" />
-            </LinearLayout>
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabBlockPalette"
@@ -209,58 +232,7 @@
                 android:orientation="vertical"
                 android:padding="10dp">
 
-                <LinearLayout
-                    android:id="@+id/dropSaveCollection"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:layout_marginBottom="6dp"
-                    android:background="@drawable/bg_drop_target_save">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="⬇  Save Chain"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:textColor="#FFFFFF" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/dropSaveAllCollection"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:layout_marginBottom="6dp"
-                    android:background="@drawable/bg_drop_target_save_all">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="⬇⬇  Add ALL to Collection"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:textColor="#FFFFFF" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/dropDuplicateCollection"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:background="@drawable/bg_drop_target_duplicate">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="⧉  Duplicate Block"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:textColor="#FFFFFF" />
-                </LinearLayout>
+                <!-- Drawer drop targets removed as per user request -->
             </LinearLayout>
 
             <View

@@ -277,9 +277,8 @@ public final class UniversalM3Dialog {
         til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
         til.setHint("Name");
         til.setBoxCornerRadii(dp(14), dp(14), dp(14), dp(14));
-        til.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);
-        // We'll use a standard search icon if possible, but for now just clear icon
-        til.setEndIconDrawable(android.R.drawable.ic_menu_search);
+        til.setEndIconMode(TextInputLayout.END_ICON_CLEAR_TEXT);
+       
 
         MaterialAutoCompleteTextView edit = new MaterialAutoCompleteTextView(til.getContext());
         edit.setSingleLine(true);

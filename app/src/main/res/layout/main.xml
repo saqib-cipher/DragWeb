@@ -144,6 +144,27 @@
 						android:visibility="gone"
 						android:background="?attr/colorSurface">
 
+						<LinearLayout
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:orientation="horizontal"
+							android:padding="8dp"
+							android:gravity="center_vertical">
+							<TextView
+								android:layout_width="0dp"
+								android:layout_height="wrap_content"
+								android:layout_weight="1"
+								android:text="Page Events"
+								android:textStyle="bold" />
+							<Button
+								android:id="@+id/btnResetLogic"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Reset Logic"
+								style="@style/Widget.Material3.Button.TextButton"
+								app:icon="@drawable/icon_delete_round" />
+						</LinearLayout>
+
 						<!-- Page events list (Sketchware-style event list) -->
 						<androidx.core.widget.NestedScrollView
 							android:layout_width="match_parent"

@@ -103,6 +103,18 @@ public class LogicBlockManager {
         blocks.add(block);
     }
 
+    public void clear() {
+        blocks.clear();
+    }
+
+    public LogicBlock findBlockById(String id) {
+        if (id == null) return null;
+        for (LogicBlock b : blocks) {
+            if (id.equals(b.id)) return b;
+        }
+        return null;
+    }
+
     public void removeBlock(int index) {
         if (index >= 0 && index < blocks.size()) {
             blocks.remove(index);

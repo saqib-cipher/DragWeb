@@ -11,6 +11,8 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import android.os.Handler;
+import android.os.Looper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -37,10 +39,14 @@ class BlockView extends LinearLayout {
     private final BlockChipFactory chipFactory;
     private final OnBlockChanged onChange;
     private final BlockDragDropManager dragDropManager;
+    private boolean autoExpanded = false;
+    private boolean dropReceived = false;
 
     private LinearLayout headerRow;
     private LinearLayout stackSlot;
     private TextView dragHandle;
+    private final Handler collapseHandler = new Handler(Looper.getMainLooper());
+    private final Runnable collapseRunnable;
 
     interface OnBlockChanged {
         void onBlockChanged(LogicBlockManager.LogicBlock block);
@@ -58,6 +64,14 @@ class BlockView extends LinearLayout {
         this.chipFactory = chipFactory;
         this.dragDropManager = dragDropManager;
         this.onChange = onChange;
+        this.collapseRunnable = () -> {
+            if (autoExpanded) {
+                autoExpanded = false;
+                this.block.collapsed = true;
+                applyCollapsedState(true, true);
+                if (this.onChange != null) this.onChange.onBlockChanged(this.block);
+            }
+        };
 
         setOrientation(VERTICAL);
         setTag(TAG_BLOCK_VIEW, this);
@@ -70,42 +84,42 @@ class BlockView extends LinearLayout {
 
         applyShape();
         buildHeader();
-        if (def != null && def.isContainer()) buildStackSlot();
-        if (isGroupBlock()) {
-            // Group blocks get tap-to-collapse and drag-over auto-expand —
-            // they're the only block whose header has no editable chips, so
-            // it's safe to swallow taps for the toggle.
-            attachGroupExpandToggle();
-        } else if (isCollapsibleContainer()) {
-            // Other containers (loops / conditions / cblocks) only get the
-            // drag-over auto-expand. Their headers have chips users tap to
-            // edit, so we don't bind a tap-to-collapse there.
-            attachContainerDragExpandOnly();
+        if (def != null && def.isContainer()) {
+            buildStackSlot();
+            // All container blocks (groups, loops, conditions) get the unified
+            // toggle + drag-expand logic.
+            attachContainerExpandBehavior();
+            applyCollapsedState(block.collapsed, false);
         }
     }
 
-    private boolean isGroupBlock() {
-        return block != null && "groupBlock".equals(block.action) && stackSlot != null;
-    }
-
-    private boolean isCollapsibleContainer() {
-        return stackSlot != null && def != null && def.isContainer();
-    }
-
     /**
-     * Drag-only expand/collapse for container blocks that aren't groups.
-     * No tap-to-toggle so chip editing in the header keeps working.
+     * Unified expand/collapse behavior for any container block.
+     * Click the drag handle to toggle, or hover over while dragging to auto-expand.
      */
-    private void attachContainerDragExpandOnly() {
+    private void attachContainerExpandBehavior() {
         if (headerRow == null || stackSlot == null) return;
+
         applyCollapsedState(block.collapsed, false);
+
+        // Tap the drag handle (the icon on the left) to toggle expansion.
+        // This avoids conflicts with chip editing in the rest of the header.
+        if (dragHandle != null) {
+            dragHandle.setOnClickListener(v -> {
+                block.collapsed = !block.collapsed;
+                applyCollapsedState(block.collapsed, true);
+                if (onChange != null) onChange.onBlockChanged(block);
+            });
+            dragHandle.setText(block.collapsed ? "▸" : "▾");
+        }
+
         headerRow.setOnDragListener(new android.view.View.OnDragListener() {
-            boolean autoExpanded = false;
             @Override
             public boolean onDrag(android.view.View v, android.view.DragEvent event) {
                 switch (event.getAction()) {
                     case android.view.DragEvent.ACTION_DRAG_STARTED: return true;
                     case android.view.DragEvent.ACTION_DRAG_ENTERED:
+                        collapseHandler.removeCallbacks(collapseRunnable);
                         if (block.collapsed) {
                             block.collapsed = false;
                             applyCollapsedState(false, true);
@@ -116,24 +130,65 @@ class BlockView extends LinearLayout {
                         return true;
                     case android.view.DragEvent.ACTION_DRAG_EXITED:
                         setHeaderHighlight(false);
+                        if (autoExpanded) {
+                            collapseHandler.postDelayed(collapseRunnable, 500);
+                        }
                         return true;
                     case android.view.DragEvent.ACTION_DRAG_ENDED:
-                        if (autoExpanded && !event.getResult()) {
+                        collapseHandler.removeCallbacks(collapseRunnable);
+                        if (autoExpanded && !dropReceived) {
+                            autoExpanded = false;
                             block.collapsed = true;
                             applyCollapsedState(true, true);
                             if (onChange != null) onChange.onBlockChanged(block);
                         }
                         autoExpanded = false;
+                        dropReceived = false;
                         setHeaderHighlight(false);
                         return true;
                     case android.view.DragEvent.ACTION_DROP:
-                        autoExpanded = false;
+                        collapseHandler.removeCallbacks(collapseRunnable);
+                        dropReceived = true;
+                        autoExpanded = false; 
                         setHeaderHighlight(false);
                         return false;
                     default: return false;
                 }
             }
         });
+
+        if (stackSlot != null) {
+            stackSlot.setOnDragListener(new android.view.View.OnDragListener() {
+                @Override
+                public boolean onDrag(android.view.View v, android.view.DragEvent event) {
+                    switch (event.getAction()) {
+                        case android.view.DragEvent.ACTION_DRAG_STARTED:
+                            return true;
+                        case android.view.DragEvent.ACTION_DRAG_ENTERED:
+                            collapseHandler.removeCallbacks(collapseRunnable);
+                            return true;
+                        case android.view.DragEvent.ACTION_DRAG_EXITED:
+                            if (autoExpanded) {
+                                collapseHandler.postDelayed(collapseRunnable, 500);
+                            }
+                            return true;
+                        case android.view.DragEvent.ACTION_DROP:
+                            collapseHandler.removeCallbacks(collapseRunnable);
+                            dropReceived = true;
+                            autoExpanded = false;
+                            return false;
+                        case android.view.DragEvent.ACTION_DRAG_ENDED:
+                            collapseHandler.removeCallbacks(collapseRunnable);
+                            return true;
+                    }
+                    return false;
+                }
+            });
+        }
+    }
+
+    private void attachContainerDragExpandOnly() {
+        // Obsolete, merged into attachContainerExpandBehavior
     }
 
     /**
@@ -145,58 +200,7 @@ class BlockView extends LinearLayout {
      * just opened it, collapse back so the workspace doesn't end up with
      * every container popped open after a single drag.
      */
-    private void attachGroupExpandToggle() {
-        if (headerRow == null || stackSlot == null) return;
 
-        applyCollapsedState(block.collapsed, false);
-
-        headerRow.setOnClickListener(v -> {
-            block.collapsed = !block.collapsed;
-            applyCollapsedState(block.collapsed, true);
-            if (onChange != null) onChange.onBlockChanged(block);
-        });
-
-        headerRow.setOnDragListener(new android.view.View.OnDragListener() {
-            boolean autoExpanded = false;
-            @Override
-            public boolean onDrag(android.view.View v, android.view.DragEvent event) {
-                switch (event.getAction()) {
-                    case android.view.DragEvent.ACTION_DRAG_STARTED:
-                        return true;
-                    case android.view.DragEvent.ACTION_DRAG_ENTERED:
-                        if (block.collapsed) {
-                            block.collapsed = false;
-                            applyCollapsedState(false, true);
-                            autoExpanded = true;
-                            if (onChange != null) onChange.onBlockChanged(block);
-                        }
-                        setHeaderHighlight(true);
-                        return true;
-                    case android.view.DragEvent.ACTION_DRAG_EXITED:
-                        setHeaderHighlight(false);
-                        return true;
-                    case android.view.DragEvent.ACTION_DRAG_ENDED:
-                        // If we auto-expanded but the drop landed somewhere
-                        // else, collapse back so the workspace stays tidy.
-                        boolean dropped = event.getResult();
-                        if (autoExpanded && !dropped) {
-                            block.collapsed = true;
-                            applyCollapsedState(true, true);
-                            if (onChange != null) onChange.onBlockChanged(block);
-                        }
-                        autoExpanded = false;
-                        setHeaderHighlight(false);
-                        return true;
-                    case android.view.DragEvent.ACTION_DROP:
-                        autoExpanded = false; // success, keep it open
-                        setHeaderHighlight(false);
-                        return false; // bubble to workspace for actual drop logic
-                    default:
-                        return false;
-                }
-            }
-        });
-    }
 
     /** Animate the show/hide transition so the workspace doesn't snap. */
     private void applyCollapsedState(boolean collapsed, boolean animate) {
@@ -283,12 +287,12 @@ class BlockView extends LinearLayout {
     }
 
     private void buildHeaderRowContents() {
-        // Drag handle on the left – long-press to drag, short-press passthrough.
+        // Drag handle on the left – long-press to drag, short-press to toggle expansion if container.
         dragHandle = new TextView(getContext());
-        dragHandle.setText("☰");
-        dragHandle.setTextColor(0x66FFFFFF);
-        dragHandle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        dragHandle.setPadding(dp(2), 0, dp(8), 0);
+        dragHandle.setText(def != null && def.isContainer() ? (block.collapsed ? "▶" : "▼") : "☰");
+        dragHandle.setTextColor(0x99FFFFFF);
+        dragHandle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        dragHandle.setPadding(dp(4), 0, dp(10), 0);
         headerRow.addView(dragHandle);
 
         renderTemplate(headerRow);

@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
 	private NestedScrollView vscroll2;
 	private Button button5, button4, delete, btnImportWidgets, btnImportImage, btnImportSvg;
 	private Button btnDrawer, btnBack, btnUndo, btnRedo, btnTheme, btnExport;
-	private Button btnAddLogicBlock, btnViewAllBlocks;
+	private Button btnAddLogicBlock, btnViewAllBlocks, btnResetLogic;
 	private LinearLayout blockEditorContainer;
 	private Button btnLoadCustomWidgets, btnLoadCustomBlocks, btnNewFolder;
 	private Button btnCopyWidget, btnAddPage;
@@ -266,6 +266,7 @@ public class MainActivity extends AppCompatActivity {
 		recyclerview1 = findViewById(R.id.recyclerview1);
 		recyclerviewRightPanel = findViewById(R.id.recyclerviewRightPanel);
 		rvAssets = findViewById(R.id.rvAssets);
+		btnResetLogic = findViewById(R.id.btnResetLogic);
 		rvDrawerWidgets = findViewById(R.id.rvDrawerWidgets);
 		widgetSpinner = findViewById(R.id.widgetSpinner);
 		spnPageSelector = findViewById(R.id.spnPageSelector);
@@ -425,6 +426,34 @@ public class MainActivity extends AppCompatActivity {
 			intent.putExtra("page_name", pageManager != null ? pageManager.getCurrentPage() : "index");
 			logicBlockLauncher.launch(intent);
 		});
+
+		if (btnResetLogic != null) {
+			btnResetLogic.setOnClickListener(v -> {
+				new MaterialAlertDialogBuilder(this)
+					.setTitle("Reset Logic")
+					.setMessage("Are you sure you want to delete all logic blocks for this page? This cannot be undone.")
+					.setPositiveButton("Reset", (d, w) -> {
+						try {
+							String page = pageManager != null ? pageManager.getCurrentPage() : "index";
+							File dir = new File(getFilesDir(), "projects");
+							File logicFile = new File(dir, projectId + "_" + page + ".logic");
+							if (logicFile.exists()) {
+								if (logicFile.delete()) {
+									if (page.equals(pageManager != null ? pageManager.getCurrentPage() : "index")) {
+										logicBlockManager.clear();
+									}
+									populateEventList();
+									Toast.makeText(this, "Logic reset successfully", Toast.LENGTH_SHORT).show();
+								}
+							}
+						} catch (Exception e) {
+							Toast.makeText(this, "Reset failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+						}
+					})
+					.setNegativeButton("Cancel", null)
+					.show();
+			});
+		}
 
 
 		setupTabLayout();
