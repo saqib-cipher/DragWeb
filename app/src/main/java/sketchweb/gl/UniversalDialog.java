@@ -217,8 +217,8 @@ public final class UniversalDialog {
 
         LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(ctx, 16);
-        root.setPadding(pad, pad, pad, 0);
+        int pad = dp(ctx, 24);
+        root.setPadding(pad, pad, pad, dp(ctx, 12));
 
         // Live swatch
         View swatch = new View(ctx);
@@ -293,10 +293,9 @@ public final class UniversalDialog {
     // -------------------------------------------------------------------
 
     private static TextInputLayout makeInputLayout(Context ctx, String hint) {
-        TextInputLayout til = new TextInputLayout(ctx);
-        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        TextInputLayout til = new TextInputLayout(ctx, null, com.google.android.material.R.attr.textInputOutlinedStyle);
         til.setHint(hint);
-        til.setBoxCornerRadii(dp(ctx, 14), dp(ctx, 14), dp(ctx, 14), dp(ctx, 14));
+        til.setBoxCornerRadii(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 16));
         return til;
     }
 
@@ -327,8 +326,8 @@ public final class UniversalDialog {
     private static FrameWrap wrap(Context ctx, String message, View body) {
         LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(ctx, 16);
-        root.setPadding(pad, pad, pad, 0);
+        int pad = dp(ctx, 24);
+        root.setPadding(pad, pad, pad, dp(ctx, 12));
 
         if (message != null && !message.isEmpty()) {
             TextView msg = new TextView(ctx);
