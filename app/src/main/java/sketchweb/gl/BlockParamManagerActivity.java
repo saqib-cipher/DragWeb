@@ -59,22 +59,16 @@ public class BlockParamManagerActivity extends AppCompatActivity {
     }
 
     private void showAddTypeDialog() {
-        EditText input = new EditText(this);
-        input.setHint("Type name (e.g. position)");
-        
-        new MaterialAlertDialogBuilder(this)
+        new UniversalM3Dialog(this)
             .setTitle("Add Parameter Type")
-            .setView(input)
-            .setPositiveButton("Add", (d, w) -> {
-                String name = input.getText().toString().trim();
+            .setHint("Type name (e.g. position)")
+            .showTextInput(name -> {
                 if (!name.isEmpty()) {
                     manager.addOption(name, ""); // Initialize type
                     manager.removeOption(name, ""); // Clean up placeholder
                     refreshList();
                 }
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
+            });
     }
 
     private void showEditOptionsDialog(String typeName) {
@@ -97,21 +91,15 @@ public class BlockParamManagerActivity extends AppCompatActivity {
     }
 
     private void showAddOptionDialog(String typeName) {
-        EditText input = new EditText(this);
-        input.setHint("Option value (e.g. relative)");
-
-        new MaterialAlertDialogBuilder(this)
+        new UniversalM3Dialog(this)
             .setTitle("Add Option to " + typeName)
-            .setView(input)
-            .setPositiveButton("Add", (d, w) -> {
-                String val = input.getText().toString().trim();
+            .setHint("Option value (e.g. relative)")
+            .showTextInput(val -> {
                 if (!val.isEmpty()) {
                     manager.addOption(typeName, val);
                     showEditOptionsDialog(typeName); // Re-open edit dialog
                 }
-            })
-            .setNegativeButton("Cancel", (d, w) -> showEditOptionsDialog(typeName))
-            .show();
+            });
     }
 
     private class ParamTypeAdapter extends RecyclerView.Adapter<ParamTypeAdapter.VH> {
@@ -186,20 +174,15 @@ public class BlockParamManagerActivity extends AppCompatActivity {
             String opt = options.get(position);
             holder.text.setText(opt);
             holder.itemView.setOnClickListener(v -> {
-                EditText input = new EditText(BlockParamManagerActivity.this);
-                input.setText(opt);
-                new MaterialAlertDialogBuilder(BlockParamManagerActivity.this)
+                new UniversalM3Dialog(BlockParamManagerActivity.this)
                     .setTitle("Edit Option")
-                    .setView(input)
-                    .setPositiveButton("Save", (d, w) -> {
-                        options.set(position, input.getText().toString().trim());
-                        notifyDataSetChanged();
-                    })
-                    .setNegativeButton("Delete", (d, w) -> {
-                        options.remove(position);
-                        notifyDataSetChanged();
-                    })
-                    .show();
+                    .setInitialValue(opt)
+                    .showTextInput(newVal -> {
+                        if (!newVal.isEmpty()) {
+                            options.set(position, newVal);
+                            notifyDataSetChanged();
+                        }
+                    });
             });
         }
 

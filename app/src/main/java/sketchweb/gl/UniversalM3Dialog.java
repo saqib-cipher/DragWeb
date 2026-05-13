@@ -34,6 +34,7 @@ public final class UniversalM3Dialog {
     private String initial = "";
     private String[] options;
     private String[] units;
+    private List<String> suggestions;
 
     public UniversalM3Dialog(Context context) {
         this.context = context;
@@ -44,6 +45,7 @@ public final class UniversalM3Dialog {
     public UniversalM3Dialog setInitialValue(String value) { this.initial = value == null ? "" : value; return this; }
     public UniversalM3Dialog setOptions(String[] options) { this.options = options; return this; }
     public UniversalM3Dialog setUnits(String[] units) { this.units = units; return this; }
+    public UniversalM3Dialog setSuggestions(List<String> suggestions) { this.suggestions = suggestions; return this; }
 
     public void showTextInput(OnText cb) {
         showCoreDialog(null, initial, hint != null ? hint : "Value", cb);
@@ -59,7 +61,7 @@ public final class UniversalM3Dialog {
     }
 
     public void showColorInput(OnText cb) {
-        UniversalDialog.colorPicker(context, title, initial,
+        UniversalDialog.colorPicker(context, title, initial, suggestions,
             hex -> { if (cb != null) cb.onText(hex); });
     }
 

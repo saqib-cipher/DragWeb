@@ -212,7 +212,7 @@ public final class UniversalDialog {
      * works wherever this class is dropped.
      */
     public static void colorPicker(Context ctx, String title, String initialHex,
-                                   OnColorResult onResult) {
+                                   List<String> suggestions, OnColorResult onResult) {
         int[] rgb = parseColor(initialHex);
 
         LinearLayout root = new LinearLayout(ctx);
@@ -220,7 +220,29 @@ public final class UniversalDialog {
         int pad = dp(ctx, 24);
         root.setPadding(pad, pad, pad, dp(ctx, 12));
 
-        // Live swatch
+        // 1. Suggestions Chips
+        if (suggestions != null && !suggestions.isEmpty()) {
+            android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(ctx);
+            scroll.setHorizontalScrollBarEnabled(false);
+            com.google.android.material.chip.ChipGroup group = new com.google.android.material.chip.ChipGroup(ctx);
+            group.setSingleLine(true);
+            group.setChipSpacingHorizontal(dp(ctx, 8));
+            group.setPadding(0, 0, 0, dp(ctx, 12));
+
+            for (String s : suggestions) {
+                com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(ctx);
+                chip.setText(s);
+                chip.setTextSize(12);
+                chip.setOnClickListener(v -> {
+                    if (onResult != null) onResult.onColor(s);
+                });
+                group.addView(chip);
+            }
+            scroll.addView(group);
+            root.addView(scroll);
+        }
+
+        // 2. Live swatch
         View swatch = new View(ctx);
         GradientDrawable sw = new GradientDrawable();
         sw.setCornerRadius(dp(ctx, 12));
@@ -278,9 +300,7 @@ public final class UniversalDialog {
             .setTitle(title)
             .setView(root)
             .setPositiveButton("OK", (d, w) -> {
-                if (onResult != null) onResult.onColor(formatHex(new int[]{
-                    rBar.getProgress(), gBar.getProgress(), bBar.getProgress()
-                }));
+                if (onResult != null) onResult.onColor(hexEdit.getText().toString().trim());
             })
             .setNegativeButton("Cancel", null)
             .setBackgroundInsetStart(dp(ctx, 24))

@@ -255,7 +255,7 @@ public class ThemeManager {
         }
     }
 
-    private String camelToKebab(String str) {
+    public static String camelToKebab(String str) {
         return str.replaceAll("([A-Z])", "-$1").toLowerCase();
     }
 }

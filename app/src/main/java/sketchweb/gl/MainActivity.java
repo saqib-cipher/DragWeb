@@ -934,6 +934,21 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
+	private List<String> getColorSuggestions() {
+		List<String> list = new ArrayList<>();
+		if (themeManager != null) {
+			for (String key : themeManager.getAllStyles().keySet()) {
+				if (key.toLowerCase().contains("color") || key.toLowerCase().contains("background")) {
+					list.add("var(--" + ThemeManager.camelToKebab(key) + ")");
+				}
+			}
+			for (String key : themeManager.getCustomCssVars().keySet()) {
+				list.add("var(--" + (key.startsWith("--") ? key.substring(2) : key) + ")");
+			}
+		}
+		return list;
+	}
+
 	private void setupPageSelector() {
 		if (spnPageSelector == null || pageManager == null) return;
 		updatePageSpinner();
@@ -2884,7 +2899,7 @@ public class MainActivity extends AppCompatActivity {
 				});
 				break;
 			case "Color":
-				dialog.showColorInput(value -> {
+				dialog.setSuggestions(getColorSuggestions()).showColorInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("color", value);
 					widgetUpdater.updateWidget(selected, "", style);
@@ -2911,7 +2926,7 @@ public class MainActivity extends AppCompatActivity {
 				});
 				break;
 			case "Background":
-				dialog.showColorInput(value -> {
+				dialog.setSuggestions(getColorSuggestions()).showColorInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("backgroundColor", value);
 					widgetUpdater.updateWidget(selected, "", style);
@@ -2938,7 +2953,7 @@ public class MainActivity extends AppCompatActivity {
 				});
 				break;
 			case "BorderColor":
-				dialog.showColorInput(value -> {
+				dialog.setSuggestions(getColorSuggestions()).showColorInput(value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("borderColor", value);
 					widgetUpdater.updateWidget(selected, "", style);

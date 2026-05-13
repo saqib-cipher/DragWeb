@@ -45,6 +45,7 @@ public class ProjectDataManager {
     private static final String ZIP_COMPONENTS  = "components/";
     private static final String ZIP_ANIMATIONS  = "animations/";
     private static final String ZIP_ICONS       = "icons/";
+    private static final String ZIP_CUSTOM      = "custom/";
     private static final String ZIP_BREAKPOINTS = "breakpoints/";
 
     private Context context;
@@ -125,6 +126,8 @@ public class ProjectDataManager {
                 + "/.dragweb/projects/" + projectId + "/assets";
         String extCustomWidgetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
                 + "/.dragweb/custom/widgets.json";
+        String extCustomParamsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/custom/params.json";
 
         try (OutputStream fos = context.getContentResolver().openOutputStream(outputUri);
              ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
@@ -164,7 +167,7 @@ public class ProjectDataManager {
                             // Reusable components → components/
                             addFileToZip(zos, ZIP_COMPONENTS + name, file);
 
-                        } else if (name.equals(projectId + ".animations.json")) {
+                        } else if (name.equals(projectId + ".animations")) {
                             // Custom animation presets → animations/
                             addFileToZip(zos, ZIP_ANIMATIONS + name, file);
 
@@ -187,6 +190,12 @@ public class ProjectDataManager {
             File customWidgets = new File(extCustomWidgetsPath);
             if (customWidgets.exists()) {
                 addFileToZip(zos, ZIP_WIDGETS + "custom.json", customWidgets);
+            }
+
+            // Custom params (shared) → custom/
+            File customParams = new File(extCustomParamsPath);
+            if (customParams.exists()) {
+                addFileToZip(zos, ZIP_CUSTOM + "params.json", customParams);
             }
 
             return true;
@@ -256,7 +265,7 @@ public class ProjectDataManager {
     private String classifyInternalFile(String name) {
         if (name.endsWith(".icons")) return ZIP_ICONS + name;
         if (name.endsWith(".components.json")) return ZIP_COMPONENTS + name;
-        if (name.endsWith(".animations.json")) return ZIP_ANIMATIONS + name;
+        if (name.endsWith(".animations")) return ZIP_ANIMATIONS + name;
         if (name.endsWith(".breakpoints.json")) return ZIP_BREAKPOINTS + name;
         if (name.endsWith(".json")) return ZIP_PAGES + name;
         if (name.endsWith(".theme")) return ZIP_STYLES + name;
@@ -361,6 +370,14 @@ public class ProjectDataManager {
                 } else if (entryName.startsWith(ZIP_WIDGETS)) {
                     // widgets/custom.json → external /.dragweb/custom/
                     String relative = entryName.substring(ZIP_WIDGETS.length());
+                    File customDir = new File(extBase + "/custom");
+                    if (!customDir.exists()) customDir.mkdirs();
+                    outFile = new File(customDir, relative);
+                    safeBase = extDragwebBase;
+
+                } else if (entryName.startsWith(ZIP_CUSTOM)) {
+                    // custom/params.json → external /.dragweb/custom/
+                    String relative = entryName.substring(ZIP_CUSTOM.length());
                     File customDir = new File(extBase + "/custom");
                     if (!customDir.exists()) customDir.mkdirs();
                     outFile = new File(customDir, relative);
