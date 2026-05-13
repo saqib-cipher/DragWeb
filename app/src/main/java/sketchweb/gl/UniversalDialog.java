@@ -220,28 +220,6 @@ public final class UniversalDialog {
         int pad = dp(ctx, 24);
         root.setPadding(pad, pad, pad, dp(ctx, 12));
 
-        // 1. Suggestions Chips
-        if (suggestions != null && !suggestions.isEmpty()) {
-            android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(ctx);
-            scroll.setHorizontalScrollBarEnabled(false);
-            com.google.android.material.chip.ChipGroup group = new com.google.android.material.chip.ChipGroup(ctx);
-            group.setSingleLine(true);
-            group.setChipSpacingHorizontal(dp(ctx, 8));
-            group.setPadding(0, 0, 0, dp(ctx, 12));
-
-            for (String s : suggestions) {
-                com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(ctx);
-                chip.setText(s);
-                chip.setTextSize(12);
-                chip.setOnClickListener(v -> {
-                    if (onResult != null) onResult.onColor(s);
-                });
-                group.addView(chip);
-            }
-            scroll.addView(group);
-            root.addView(scroll);
-        }
-
         // 2. Live swatch
         View swatch = new View(ctx);
         GradientDrawable sw = new GradientDrawable();
@@ -252,18 +230,63 @@ public final class UniversalDialog {
         LinearLayout.LayoutParams swLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, dp(ctx, 64));
         swLp.bottomMargin = dp(ctx, 12);
-        root.addView(swatch, swLp);
 
         TextInputLayout hexTil = makeInputLayout(ctx, "Hex (#RRGGBB)");
         TextInputEditText hexEdit = new TextInputEditText(hexTil.getContext());
         hexEdit.setSingleLine(true);
         hexEdit.setText(formatHex(rgb));
         hexTil.addView(hexEdit);
-        root.addView(hexTil);
 
         SeekBar rBar = newColorSlider(ctx, rgb[0]);
         SeekBar gBar = newColorSlider(ctx, rgb[1]);
         SeekBar bBar = newColorSlider(ctx, rgb[2]);
+
+        // 1. Suggestions Chips
+        if (suggestions != null && !suggestions.isEmpty()) {
+            android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(ctx);
+            scroll.setHorizontalScrollBarEnabled(false);
+            com.google.android.material.chip.ChipGroup group = new com.google.android.material.chip.ChipGroup(ctx);
+            group.setSingleLine(true);
+            group.setSingleSelection(true);
+            group.setChipSpacingHorizontal(dp(ctx, 8));
+            group.setPadding(0, 0, 0, dp(ctx, 12));
+
+            for (String s : suggestions) {
+                com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(ctx);
+                chip.setText(s);
+                chip.setTextSize(12);
+                chip.setCheckable(true);
+                if (s.equalsIgnoreCase(initialHex)) chip.setChecked(true);
+                chip.setOnClickListener(v -> {
+                    hexEdit.setText(s);
+                    int[] parsed = parseColor(s);
+                    rBar.setProgress(parsed[0]);
+                    gBar.setProgress(parsed[1]);
+                    bBar.setProgress(parsed[2]);
+                    sw.setColor(Color.rgb(parsed[0], parsed[1], parsed[2]));
+                    swatch.setBackground(sw);
+                });
+                group.addView(chip);
+            }
+            scroll.addView(group);
+            root.addView(scroll);
+
+            hexEdit.addTextChangedListener(new android.text.TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+                @Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
+                @Override public void afterTextChanged(android.text.Editable s) {
+                    String text = s.toString();
+                    for (int i = 0; i < group.getChildCount(); i++) {
+                        com.google.android.material.chip.Chip c = (com.google.android.material.chip.Chip) group.getChildAt(i);
+                        c.setChecked(c.getText().toString().equalsIgnoreCase(text));
+                    }
+                }
+            });
+        }
+
+        root.addView(swatch, swLp);
+        root.addView(hexTil);
+
         root.addView(labeledSlider(ctx, "R", rBar));
         root.addView(labeledSlider(ctx, "G", gBar));
         root.addView(labeledSlider(ctx, "B", bBar));

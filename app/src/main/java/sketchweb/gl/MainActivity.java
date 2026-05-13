@@ -7,6 +7,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Environment;
 import android.text.Editable;
@@ -18,6 +19,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -2284,6 +2286,14 @@ public class MainActivity extends AppCompatActivity {
 		// Track which theme is being edited in dialog
 		final String[] editingTheme = { themeManager.getCurrentTheme() };
 
+		setupColorInputField(etPrimary);
+		setupColorInputField(etSecondary);
+		setupColorInputField(etAccent);
+		setupColorInputField(etBackground);
+		setupColorInputField(etBodyColor);
+		setupColorInputField(etLinkColor);
+		setupColorInputField(etBorderColor);
+
 		// Helper to populate fields from a theme
 		Runnable populateFields = () -> {
 			String t = editingTheme[0];
@@ -2377,38 +2387,83 @@ public class MainActivity extends AppCompatActivity {
 			.show();
 	}
 
+	private void setupColorInputField(TextInputEditText et) {
+		et.setFocusable(false);
+		et.setCursorVisible(false);
+		et.setOnClickListener(v -> {
+			String current = et.getText().toString();
+			UniversalDialog.colorPicker(this, "Select Color", current, getColorSuggestions(), hex -> {
+				et.setText(hex);
+			});
+		});
+
+		et.addTextChangedListener(new android.text.TextWatcher() {
+			@Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+			@Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
+			@Override public void afterTextChanged(android.text.Editable s) {
+				String color = s.toString();
+				try {
+					int parsed = Color.parseColor(color.startsWith("#") ? color : "#000000");
+					GradientDrawable gd = new GradientDrawable();
+					gd.setShape(GradientDrawable.OVAL);
+					gd.setColor(parsed);
+					gd.setStroke((int)(1 * getResources().getDisplayMetrics().density), Color.LTGRAY);
+					int size = (int)(20 * getResources().getDisplayMetrics().density);
+					gd.setSize(size, size);
+					et.setCompoundDrawablesWithIntrinsicBounds(gd, null, null, null);
+					et.setCompoundDrawablePadding((int)(8 * getResources().getDisplayMetrics().density));
+				} catch (Exception e) {}
+			}
+		});
+		// Refresh swatch
+		if (et.getText().length() > 0) {
+			et.setText(et.getText());
+		}
+	}
+
 	private void addCssVarRow(LinearLayout container, String name, String value) {
 		LinearLayout row = new LinearLayout(this);
 		row.setOrientation(LinearLayout.HORIZONTAL);
-		row.setPadding(0, 4, 0, 4);
+		row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+		row.setPadding(0, 8, 0, 8);
 
-		TextInputEditText etName = new TextInputEditText(this);
-		etName.setHint("--var-name");
+		// Name field
+		TextInputLayout tilName = new TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+		tilName.setHint("Variable");
+		tilName.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+		LinearLayout.LayoutParams lpName = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.2f);
+		lpName.setMarginEnd(8);
+		tilName.setLayoutParams(lpName);
+		
+		TextInputEditText etName = new TextInputEditText(tilName.getContext());
 		etName.setText(name);
-		etName.setTextSize(12);
+		etName.setTextSize(14);
 		etName.setTag("varName");
-		LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-		nameParams.setMarginEnd(4);
-		etName.setLayoutParams(nameParams);
+		tilName.addView(etName);
 
-		TextInputEditText etValue = new TextInputEditText(this);
-		etValue.setHint("value");
+		// Value field
+		TextInputLayout tilValue = new TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+		tilValue.setHint("Value");
+		tilValue.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+		LinearLayout.LayoutParams lpValue = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+		tilValue.setLayoutParams(lpValue);
+
+		TextInputEditText etValue = new TextInputEditText(tilValue.getContext());
 		etValue.setText(value);
-		etValue.setTextSize(12);
+		etValue.setTextSize(14);
 		etValue.setTag("varValue");
-		LinearLayout.LayoutParams valueParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-		etValue.setLayoutParams(valueParams);
+		tilValue.addView(etValue);
+		
+		setupColorInputField(etValue);
 
-		Button btnRemove = new Button(this);
-		btnRemove.setText("X");
-		btnRemove.setTextSize(10);
+		// Remove button
+		ImageButton btnRemove = new ImageButton(this, null, com.google.android.material.R.attr.materialIconButtonStyle);
+		// Simple delete icon
+		btnRemove.setImageResource(android.R.drawable.ic_menu_delete);
 		btnRemove.setOnClickListener(v -> container.removeView(row));
-		LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
-			ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-		btnRemove.setLayoutParams(btnParams);
 
-		row.addView(etName);
-		row.addView(etValue);
+		row.addView(tilName);
+		row.addView(tilValue);
 		row.addView(btnRemove);
 		container.addView(row);
 	}
