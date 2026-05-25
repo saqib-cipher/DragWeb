@@ -162,10 +162,38 @@ final class BlockChipFactory {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "#FFFFFF" : value);
         applyColorSwatch(chip, value);
         chip.setOnClickListener(v -> {
-            new UniversalM3Dialog(context)
-                .setTitle(input.id != null ? "Color · " + input.id : "Color")
-                .setInitialValue(value)
-                .showColorInput(picked -> {
+            // Build a fresh suggestions list every time so the picker mirrors
+            // the same look & feel (preset chips + sliders + hex + live swatch)
+            // used by the custom theme customisation dialog.
+            List<String> suggestions = new ArrayList<>();
+            // 1. Theme CSS variables (var(--primary-color) etc.) – matches the
+            //    behaviour of MainActivity.getColorSuggestions().
+            try {
+                sketchweb.gl.ThemeManager tm = ProjectAssetManager.getInstance().getThemeManager();
+                if (tm != null) {
+                    for (String key : tm.getAllStyles().keySet()) {
+                        String k = key.toLowerCase();
+                        if (k.contains("color") || k.contains("background")) {
+                            suggestions.add("var(--" + sketchweb.gl.ThemeManager.camelToKebab(key) + ")");
+                        }
+                    }
+                    for (String key : tm.getCustomCssVars().keySet()) {
+                        suggestions.add("var(--" + (key.startsWith("--") ? key.substring(2) : key) + ")");
+                    }
+                }
+            } catch (Throwable ignored) { /* theme not yet wired */ }
+            // 2. Standard color presets so the picker is useful even when the
+            //    project has not registered any custom theme yet.
+            for (String preset : COLOR_PRESETS) suggestions.add(preset);
+
+            // Delegate straight to the shared picker implementation so the
+            // dialog is identical to the one used in the theme settings.
+            UniversalDialog.colorPicker(
+                context,
+                input.id != null ? "Color · " + input.id : "Color",
+                value,
+                suggestions,
+                picked -> {
                     chip.setText(picked);
                     applyColorSwatch(chip, picked);
                     if (listener != null) listener.onChanged(input.id, picked);

@@ -198,5 +198,38 @@
 			android:text="+ Add Custom Variable"
 			android:layout_marginTop="8dp"
 			style="?attr/materialButtonOutlinedStyle" />
+
+		<!-- HTML output settings -->
+		<View
+			android:layout_width="match_parent"
+			android:layout_height="1dp"
+			android:background="?attr/colorOutlineVariant"
+			android:layout_marginTop="16dp"
+			android:layout_marginBottom="12dp" />
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="HTML Output"
+			android:textSize="14sp"
+			android:textStyle="bold"
+			android:textColor="?attr/colorOnSurface"
+			android:layout_marginBottom="4dp" />
+
+		<com.google.android.material.materialswitch.MaterialSwitch
+			android:id="@+id/swInlineStyles"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Use inline style=&quot;...&quot; on elements"
+			android:checked="true"
+			android:layout_marginTop="4dp" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="When off, per-widget styles go into an external stylesheet instead of inline attributes."
+			android:textSize="12sp"
+			android:textColor="?attr/colorOnSurfaceVariant"
+			android:paddingTop="4dp" />
 	</LinearLayout>
 </ScrollView>

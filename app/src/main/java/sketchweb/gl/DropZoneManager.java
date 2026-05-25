@@ -64,18 +64,25 @@ public class DropZoneManager {
             return;
         }
 
-        // Layout widgets get larger minimum size for easier dropping
+        // Layout widgets get larger minimum size for easier dropping. The
+        // previous implementation passed raw integers to setMinimumHeight /
+        // setPadding which are interpreted as pixels, so on a hi-DPI device
+        // an "80" turned into roughly 25dp – too small to hit reliably.
+        // Convert to actual pixels using the display density.
         if (isLayoutWidget(view)) {
-            view.setMinimumHeight(80);
+            float density = view.getResources().getDisplayMetrics().density;
+            int minHeightPx = (int) (80 * density + 0.5f);
+            view.setMinimumHeight(minHeightPx);
             if (view instanceof LinearLayout) {
                 LinearLayout ll = (LinearLayout) view;
-                // Ensure layout widgets have at least some padding for drop targets
-                if (ll.getPaddingTop() < 8 && ll.getPaddingBottom() < 8) {
+                int padHPx = (int) (8 * density + 0.5f);
+                int padVPx = (int) (12 * density + 0.5f);
+                if (ll.getPaddingTop() < padVPx && ll.getPaddingBottom() < padVPx) {
                     ll.setPadding(
-                        Math.max(ll.getPaddingLeft(), 8),
-                        Math.max(ll.getPaddingTop(), 12),
-                        Math.max(ll.getPaddingRight(), 8),
-                        Math.max(ll.getPaddingBottom(), 12)
+                        Math.max(ll.getPaddingLeft(), padHPx),
+                        Math.max(ll.getPaddingTop(), padVPx),
+                        Math.max(ll.getPaddingRight(), padHPx),
+                        Math.max(ll.getPaddingBottom(), padVPx)
                     );
                 }
             }
@@ -86,8 +93,13 @@ public class DropZoneManager {
             public boolean onDrag(View v, DragEvent event) {
                 int action = event.getAction();
                 switch (action) {
-                    case DragEvent.ACTION_DRAG_STARTED:
-                        return event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
+                    case DragEvent.ACTION_DRAG_STARTED: {
+                        // Some Android versions may deliver a started event
+                        // with a null ClipDescription; treat it as a non-drop.
+                        ClipDescription desc = event.getClipDescription();
+                        if (desc == null) return false;
+                        return desc.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
+                    }
 
                     case DragEvent.ACTION_DRAG_ENTERED:
                         highlightDropZone(v, true);
@@ -117,7 +129,7 @@ public class DropZoneManager {
                                         }
                                         ViewGroup oldParent = (ViewGroup) draggedView.getParent();
                                         oldParent.removeView(draggedView);
-                                        int targetIdx = findDropIndex(container, event.getY());
+                                        int targetIdx = findDropIndex(container, event.getX(), event.getY());
                                         container.addView(draggedView, Math.min(targetIdx, container.getChildCount()));
                                         if (treeChangedListener != null) {
                                             treeChangedListener.onTreeChanged();
@@ -165,8 +177,9 @@ public class DropZoneManager {
 
                                     ViewGroup container = (ViewGroup) v;
 
-                                    // Accurate child insertion based on drop Y position
-                                    int targetIndex = findDropIndex(container, event.getY());
+                                    // Accurate child insertion based on drop position. For
+                                    // horizontal containers the helper compares against X.
+                                    int targetIndex = findDropIndex(container, event.getX(), event.getY());
                                     container.addView(newWidgetView, Math.min(targetIndex, container.getChildCount()));
 
                                     selector.registerView(newWidgetView);
@@ -202,11 +215,28 @@ public class DropZoneManager {
     }
 
     private int findDropIndex(ViewGroup parent, float dropY) {
+        return findDropIndex(parent, 0f, dropY);
+    }
+
+    /**
+     * Locate the insertion index, taking the parent's layout orientation
+     * into account. For horizontal LinearLayouts we compare against the
+     * pointer's X coordinate so a drop onto a flex-row container places the
+     * widget at the spatially correct position instead of always at one end.
+     */
+    private int findDropIndex(ViewGroup parent, float dropX, float dropY) {
+        boolean horizontal = false;
+        if (parent instanceof LinearLayout) {
+            horizontal = ((LinearLayout) parent).getOrientation() == LinearLayout.HORIZONTAL;
+        }
         for (int i = 0; i < parent.getChildCount(); i++) {
             View child = parent.getChildAt(i);
-            float centerY = child.getY() + (child.getHeight() / 2f);
-            if (dropY < centerY) {
-                return i;
+            if (horizontal) {
+                float centerX = child.getX() + (child.getWidth() / 2f);
+                if (dropX < centerX) return i;
+            } else {
+                float centerY = child.getY() + (child.getHeight() / 2f);
+                if (dropY < centerY) return i;
             }
         }
         return parent.getChildCount();

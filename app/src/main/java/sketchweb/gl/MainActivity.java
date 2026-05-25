@@ -496,6 +496,9 @@ public class MainActivity extends AppCompatActivity {
 		codeGenerator.setProjectInfo(projectName, getProjectLogoPath());
 		projectDataManager = new ProjectDataManager(this);
 		themeManager = new ThemeManager();
+		// Share the theme manager with the singleton so BlockChipFactory's color
+		// chip can reuse the same suggestions as the theme customization dialog.
+		ProjectAssetManager.getInstance().setThemeManager(themeManager);
 		exportManager = new ExportManager(this, themeManager);
 		exportManager.setProjectId(projectId);
 		// Wire the persisted IconLibraryManager so generated HTML and ZIP
@@ -1303,19 +1306,30 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void setupCanvasDragListener() {
+		// Cache the original themed background so we can restore it after the
+		// drag finishes (the previous implementation overwrote it with a
+		// hard-coded light-gray which then leaked into the rest of the UI).
+		final android.graphics.drawable.Drawable[] originalBg = { screen.getBackground() };
+
 		screen.setOnDragListener((v, event) -> {
 			int action = event.getAction();
 			switch (action) {
-				case DragEvent.ACTION_DRAG_STARTED:
-					return event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
+				case DragEvent.ACTION_DRAG_STARTED: {
+					// getClipDescription() can legitimately be null on some
+					// Android versions and shadow-only drags – treat that as
+					// "not a drop we should accept" instead of crashing.
+					ClipDescription desc = event.getClipDescription();
+					if (desc == null) return false;
+					return desc.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
+				}
 				case DragEvent.ACTION_DRAG_ENTERED:
-					v.setBackgroundColor(Color.parseColor("#90A4AE"));
+					v.setBackground(makeDropHighlightDrawable());
 					return true;
 				case DragEvent.ACTION_DRAG_EXITED:
-					v.setBackgroundColor(Color.parseColor("#B0BEC5"));
+					restoreCanvasBackground(v, originalBg[0]);
 					return true;
 				case DragEvent.ACTION_DROP:
-					v.setBackgroundColor(Color.parseColor("#B0BEC5"));
+					restoreCanvasBackground(v, originalBg[0]);
 					ClipData data = event.getClipData();
 					if (data != null && data.getItemCount() > 0) {
 						try {
@@ -1330,7 +1344,7 @@ public class MainActivity extends AppCompatActivity {
 							View newWidgetView = engine.createWidget(widgetDefinition.get("tag").toString());
 							if (newWidgetView != null) {
 								applyWidgetDefaults(newWidgetView, widgetDefinition);
-								int targetIndex = findDropIndex(screen, event.getY());
+								int targetIndex = findDropIndex(screen, event.getX(), event.getY());
 								if (targetIndex >= 0 && targetIndex <= screen.getChildCount()) {
 									screen.addView(newWidgetView, targetIndex);
 								} else {
@@ -1353,14 +1367,79 @@ public class MainActivity extends AppCompatActivity {
 					}
 					return true;
 				case DragEvent.ACTION_DRAG_ENDED:
-					v.setBackgroundColor(Color.parseColor("#B0BEC5"));
+					restoreCanvasBackground(v, originalBg[0]);
 					return true;
 				case DragEvent.ACTION_DRAG_LOCATION:
+					// Auto-scroll the surrounding NestedScrollView when the
+					// pointer approaches the visible edges, so widgets can be
+					// dropped below the current viewport on long pages.
+					autoScrollWhileDragging(event);
 					return true;
 				default:
 					return false;
 			}
 		});
+	}
+
+	/** Build a subtle drop-highlight drawable that adapts to the active theme. */
+	private android.graphics.drawable.Drawable makeDropHighlightDrawable() {
+		GradientDrawable gd = new GradientDrawable();
+		// Use the Material primary container colour so the highlight follows
+		// the user's chosen theme instead of hard-coding a light-gray.
+		int accent;
+		try {
+			android.util.TypedValue tv = new android.util.TypedValue();
+			getTheme().resolveAttribute(
+				com.google.android.material.R.attr.colorPrimaryContainer, tv, true);
+			accent = tv.data != 0 ? tv.data : Color.parseColor("#E3F2FD");
+		} catch (Exception e) {
+			accent = Color.parseColor("#E3F2FD");
+		}
+		gd.setColor(accent);
+		gd.setStroke(dpToPx(2), Color.parseColor("#2196F3"));
+		gd.setCornerRadius(dpToPx(6));
+		return gd;
+	}
+
+	private void restoreCanvasBackground(View v, android.graphics.drawable.Drawable original) {
+		if (original != null) {
+			v.setBackground(original);
+		} else {
+			// Fall back to the themed surface attribute defined in main.xml.
+			android.util.TypedValue tv = new android.util.TypedValue();
+			getTheme().resolveAttribute(
+				com.google.android.material.R.attr.colorSurface, tv, true);
+			v.setBackgroundColor(tv.data);
+		}
+	}
+
+	/** Convert a dp value to pixels using the current display metrics. */
+	private int dpToPx(int dp) {
+		return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
+	}
+
+	/** Tracks the last auto-scroll timestamp so we don't run on every event. */
+	private long lastAutoScrollMs = 0L;
+
+	private void autoScrollWhileDragging(DragEvent event) {
+		if (vscroll2 == null) return;
+		long now = android.os.SystemClock.uptimeMillis();
+		if (now - lastAutoScrollMs < 16) return; // throttle to ~60fps
+		lastAutoScrollMs = now;
+
+		// event.getY() is in the receiving view's coordinate space (screen).
+		// Convert to vscroll2's coordinate space by accounting for scrollY.
+		int scrollY = vscroll2.getScrollY();
+		int viewportTop = scrollY;
+		int viewportBottom = scrollY + vscroll2.getHeight();
+		float dropAbsY = event.getY();
+		int edge = dpToPx(48);
+
+		if (dropAbsY < viewportTop + edge) {
+			vscroll2.smoothScrollBy(0, -dpToPx(24));
+		} else if (dropAbsY > viewportBottom - edge) {
+			vscroll2.smoothScrollBy(0, dpToPx(24));
+		}
 	}
 
 	private void applyWidgetDefaults(View newWidgetView, Map<String, Object> widgetDefinition) {
@@ -1393,11 +1472,28 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private int findDropIndex(ViewGroup parent, float dropY) {
+		return findDropIndex(parent, 0f, dropY);
+	}
+
+	/**
+	 * Locate the index at which a child should be inserted, considering the
+	 * parent's orientation. For horizontal LinearLayouts the comparison runs
+	 * along the X axis instead of Y, so dropping a widget onto a flex-row
+	 * container respects the user's intended position.
+	 */
+	private int findDropIndex(ViewGroup parent, float dropX, float dropY) {
+		boolean horizontal = false;
+		if (parent instanceof LinearLayout) {
+			horizontal = ((LinearLayout) parent).getOrientation() == LinearLayout.HORIZONTAL;
+		}
 		for (int i = 0; i < parent.getChildCount(); i++) {
 			View child = parent.getChildAt(i);
-			float centerY = child.getY() + (child.getHeight() / 2f);
-			if (dropY < centerY) {
-				return i;
+			if (horizontal) {
+				float centerX = child.getX() + (child.getWidth() / 2f);
+				if (dropX < centerX) return i;
+			} else {
+				float centerY = child.getY() + (child.getHeight() / 2f);
+				if (dropY < centerY) return i;
 			}
 		}
 		return parent.getChildCount();
@@ -1428,7 +1524,7 @@ public class MainActivity extends AppCompatActivity {
 		if (draggedView != null && draggedView.getParent() instanceof ViewGroup) {
 			ViewGroup oldParent = (ViewGroup) draggedView.getParent();
 			oldParent.removeView(draggedView);
-			int newIndex = findDropIndex(screen, event.getY());
+			int newIndex = findDropIndex(screen, event.getX(), event.getY());
 			screen.addView(draggedView, Math.min(newIndex, screen.getChildCount()));
 			// Re-register for reorder drag and nested drop zones
 			setupWidgetReorderDrag(draggedView);
@@ -2282,6 +2378,11 @@ public class MainActivity extends AppCompatActivity {
 		TextInputEditText etBorderColor = dialogView.findViewById(R.id.etBorderColor);
 		LinearLayout customVarsContainer = dialogView.findViewById(R.id.customVarsContainer);
 		Button btnAddCssVar = dialogView.findViewById(R.id.btnAddCssVar);
+		com.google.android.material.materialswitch.MaterialSwitch swInlineStyles =
+			dialogView.findViewById(R.id.swInlineStyles);
+		if (swInlineStyles != null) {
+			swInlineStyles.setChecked(themeManager.isUseInlineStyles());
+		}
 
 		// Track which theme is being edited in dialog
 		final String[] editingTheme = { themeManager.getCurrentTheme() };
@@ -2380,6 +2481,10 @@ public class MainActivity extends AppCompatActivity {
 					}
 				}
 				themeManager.setCustomCssVars(newVars);
+
+				if (swInlineStyles != null) {
+					themeManager.setUseInlineStyles(swInlineStyles.isChecked());
+				}
 
 				Toast.makeText(this, "Theme updated (light + dark)", Toast.LENGTH_SHORT).show();
 			})
@@ -2878,14 +2983,22 @@ public class MainActivity extends AppCompatActivity {
 				});
 				break;
 			case "SetClass":
-				dialog.setHint("class1 class2").showTextInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("class", value.replaceFirst("^\\.", ""));
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshHierarchy();
-					buildDesignList();
-				});
+				// Refresh the project class list right before showing the
+				// dialog so the chips reflect the latest state of every
+				// widget in the tree (realtime sync).
+				syncProjectAssets();
+				dialog.setHint("class1 class2")
+					.showClassChipsInput(harvestClasses(), value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put("class", value.replaceFirst("^\\.", ""));
+						widgetUpdater.updateWidget(selected, "", style);
+						// Push the updated class list into the shared singleton
+						// so any other open class chip dialog refreshes.
+						syncProjectAssets();
+						saveUndoState();
+						refreshHierarchy();
+						buildDesignList();
+					});
 				break;
 			case "PickIcon":
 				dialog.showIconPicker(value -> {
