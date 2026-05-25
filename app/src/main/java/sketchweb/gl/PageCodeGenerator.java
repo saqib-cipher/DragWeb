@@ -32,6 +32,8 @@ public class PageCodeGenerator {
         this.animationLibraryManager = m;
     }
 
+    private View activeScreen;
+
     public String generateAllCode(View screen) {
         return generateFullCode(screen, null, null, null);
     }
@@ -44,6 +46,7 @@ public class PageCodeGenerator {
                                    LogicBlockManager logicBlockManager,
                                    CustomBlockManager customBlockManager) {
         resetStyleCache();
+        activeScreen = screen;
         StringBuilder bodyBuilder = new StringBuilder();
 
         if (screen instanceof ViewGroup) {
@@ -182,27 +185,14 @@ public class PageCodeGenerator {
         // Consolidated <style> block at the end of body as requested.
         htmlBuilder.append("\n  <style>\n");
 
-        // Theme CSS variables
+        // Theme CSS variables + resets + only-the-used utility rules. The
+        // theme manager scans the active screen so dead utilities like .flex
+        // or a:hover don't leak in for projects that don't use them.
         if (themeManager != null) {
-            htmlBuilder.append(themeManager.generateGlobalCss());
+            String global = themeManager.generateGlobalCss(activeScreen);
+            htmlBuilder.append(indentBlock(global, "    "));
+            if (!global.endsWith("\n")) htmlBuilder.append("\n");
         }
-
-        // Resets and Utilities
-        htmlBuilder.append("    * { margin: 0; padding: 0; box-sizing: border-box; }\n");
-        htmlBuilder.append("    body { font-family: sans-serif; line-height: 1.6; }\n");
-        htmlBuilder.append("    .hidden { display: none !important; }\n");
-        htmlBuilder.append("    .flex { display: flex; }\n");
-        htmlBuilder.append("    .flex-col { flex-direction: column; }\n");
-        htmlBuilder.append("    .flex-row { flex-direction: row; }\n");
-        htmlBuilder.append("    .items-center { align-items: center; }\n");
-        htmlBuilder.append("    .justify-center { justify-content: center; }\n");
-        htmlBuilder.append("    .justify-between { justify-content: space-between; }\n");
-        htmlBuilder.append("    .text-center { text-align: center; }\n");
-        htmlBuilder.append("    .w-full { width: 100%; }\n");
-        htmlBuilder.append("    .h-full { height: 100%; }\n");
-        htmlBuilder.append("    button { cursor: pointer; font-family: inherit; }\n");
-        htmlBuilder.append("    input, textarea { font-family: inherit; }\n");
-        htmlBuilder.append("    img { max-width: 100%; height: auto; }\n");
 
         // Keyframe library
         if (animationLibraryManager != null) {
@@ -483,6 +473,24 @@ public class PageCodeGenerator {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < count; i++) {
             sb.append(str);
+        }
+        return sb.toString();
+    }
+
+    /** Prefix every non-empty line of {@code block} with {@code indent}. */
+    private String indentBlock(String block, String indent) {
+        if (block == null || block.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (String line : block.split("\n", -1)) {
+            if (line.isEmpty()) {
+                sb.append('\n');
+            } else {
+                sb.append(indent).append(line).append('\n');
+            }
+        }
+        // Trim trailing newline we always added.
+        if (sb.length() > 0 && sb.charAt(sb.length() - 1) == '\n') {
+            sb.setLength(sb.length() - 1);
         }
         return sb.toString();
     }

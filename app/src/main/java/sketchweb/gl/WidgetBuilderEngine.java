@@ -141,7 +141,7 @@ public class WidgetBuilderEngine {
                     ViewGroup.LayoutParams.WRAP_CONTENT);
                 defaultParams.setMargins(0, 4, 0, 4);
                 // Set minimum height for layout containers so they can receive drops
-                view.setMinimumHeight(60);
+                view.setMinimumHeight(80);
             } else {
                 defaultParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -210,8 +210,12 @@ public class WidgetBuilderEngine {
             }
         }
 
-        // Apply styles
+        // Apply styles. Even when no style map is present we still want layout
+        // containers to render a designer outline, so synthesize an empty map.
         Map<String, Object> style = (Map<String, Object>) function.get("style");
+        if (style == null && view instanceof ViewGroup) {
+            style = new HashMap<>();
+        }
         if (style != null) {
             applyStyles(view, style);
         }
@@ -265,15 +269,28 @@ public class WidgetBuilderEngine {
         shape.setCornerRadius(4);
 
         // Background color
+        boolean hasBackground = false;
         if (style.containsKey("backgroundColor")) {
             try {
                 String bgColor = style.get("backgroundColor").toString();
                 if (!bgColor.startsWith("var(")) {
                     shape.setColor(Color.parseColor(bgColor));
+                    hasBackground = true;
                 }
             } catch (Exception e) {
                 // ignore invalid color
             }
+        }
+
+        // Designer-only outline for empty layout containers so they are visible
+        // on the canvas when they have no background. Uses a dashed stroke that
+        // disappears once the user adds a real backgroundColor.
+        boolean isEmptyContainer = (view instanceof ViewGroup)
+                && ((ViewGroup) view).getChildCount() == 0
+                && !hasBackground;
+        if (isEmptyContainer) {
+            shape.setStroke(3, Color.parseColor("#7F90A4AE"), 12f, 8f);
+            shape.setColor(Color.parseColor("#14000000"));
         }
 
         // Border radius
@@ -293,23 +310,27 @@ public class WidgetBuilderEngine {
             shape.setCornerRadii(new float[]{tl, tl, tr, tr, br, br, bl, bl});
         }
 
-        // Border width and color
-        int borderWidth = 1;
-        int borderColor = Color.parseColor("#B0BEC5");
-        if (style.containsKey("borderWidth")) {
-            borderWidth = parseDimension(style.get("borderWidth").toString());
-        }
-        if (style.containsKey("borderColor")) {
-            try {
-                String bc = style.get("borderColor").toString();
-                if (!bc.startsWith("var(")) {
-                    borderColor = Color.parseColor(bc);
-                }
-            } catch (Exception e) {
-                // ignore
+        // Border width and color. Skip the default stroke for empty containers
+        // so the dashed designer outline above is preserved.
+        boolean userBorder = style.containsKey("borderWidth") || style.containsKey("borderColor");
+        if (userBorder || !isEmptyContainer) {
+            int borderWidth = 1;
+            int borderColor = Color.parseColor("#B0BEC5");
+            if (style.containsKey("borderWidth")) {
+                borderWidth = parseDimension(style.get("borderWidth").toString());
             }
+            if (style.containsKey("borderColor")) {
+                try {
+                    String bc = style.get("borderColor").toString();
+                    if (!bc.startsWith("var(")) {
+                        borderColor = Color.parseColor(bc);
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
+            shape.setStroke(borderWidth, borderColor);
         }
-        shape.setStroke(borderWidth, borderColor);
 
         view.setBackground(shape);
 

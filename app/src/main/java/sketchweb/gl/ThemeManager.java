@@ -1,9 +1,13 @@
 package sketchweb.gl;
 
+import android.view.View;
+import android.view.ViewGroup;
 import com.google.gson.Gson;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class ThemeManager {
 
@@ -172,30 +176,111 @@ public class ThemeManager {
     }
 
     public String generateGlobalCss() {
+        return generateGlobalCss(null);
+    }
+
+    /**
+     * Generate the page's foundational CSS. When {@code screen} is non-null,
+     * tag selectors (a, button, input…) and utility classes (.flex, .hidden…)
+     * are only emitted if the widget tree actually uses them. Avoids the
+     * stale boilerplate that used to ship in every export.
+     */
+    public String generateGlobalCss(View screen) {
+        Set<String> usedTags = new HashSet<>();
+        Set<String> usedClasses = new HashSet<>();
+        if (screen != null) {
+            collectUsage(screen, usedTags, usedClasses);
+        }
+
         StringBuilder css = new StringBuilder();
         css.append(generateCssVariables());
+
         css.append("\n* {\n  margin: 0;\n  padding: 0;\n  box-sizing: border-box;\n}\n\n");
         css.append("body {\n");
         css.append("  background-color: var(--body-background);\n");
         css.append("  color: var(--body-color);\n");
         css.append("  font-family: var(--font-family);\n");
         css.append("  line-height: 1.6;\n");
-        css.append("}\n\n");
-        css.append("a {\n  color: var(--link-color);\n  text-decoration: none;\n}\n\n");
-        css.append("a:hover {\n  text-decoration: underline;\n}\n\n");
-        css.append("button {\n  cursor: pointer;\n  font-family: inherit;\n}\n\n");
-        css.append("input, textarea, select {\n  font-family: inherit;\n}\n\n");
-        css.append(".hidden { display: none !important; }\n");
-        css.append(".flex { display: flex; }\n");
-        css.append(".flex-col { flex-direction: column; }\n");
-        css.append(".flex-row { flex-direction: row; }\n");
-        css.append(".items-center { align-items: center; }\n");
-        css.append(".justify-center { justify-content: center; }\n");
-        css.append(".justify-between { justify-content: space-between; }\n");
-        css.append(".text-center { text-align: center; }\n");
-        css.append(".w-full { width: 100%; }\n");
-        css.append(".h-full { height: 100%; }\n");
+        css.append("}\n");
+
+        boolean emitAll = (screen == null);
+
+        if (emitAll || usedTags.contains("a")) {
+            css.append("\na {\n  color: var(--link-color);\n  text-decoration: none;\n}\n");
+            css.append("a:hover {\n  text-decoration: underline;\n}\n");
+        }
+        if (emitAll || usedTags.contains("button")) {
+            css.append("\nbutton {\n  cursor: pointer;\n  font-family: inherit;\n}\n");
+        }
+        boolean hasInputs = usedTags.contains("input")
+                || usedTags.contains("textarea")
+                || usedTags.contains("select");
+        if (emitAll || hasInputs) {
+            StringBuilder sel = new StringBuilder();
+            if (emitAll || usedTags.contains("input")) appendSel(sel, "input");
+            if (emitAll || usedTags.contains("textarea")) appendSel(sel, "textarea");
+            if (emitAll || usedTags.contains("select")) appendSel(sel, "select");
+            css.append("\n").append(sel).append(" {\n  font-family: inherit;\n}\n");
+        }
+        if (emitAll || usedTags.contains("img")) {
+            css.append("\nimg {\n  max-width: 100%;\n  height: auto;\n}\n");
+        }
+
+        // Utility classes — only emit when at least one element references them.
+        StringBuilder utils = new StringBuilder();
+        appendUtilIf(utils, emitAll, usedClasses, "hidden", "display: none !important;");
+        appendUtilIf(utils, emitAll, usedClasses, "flex", "display: flex;");
+        appendUtilIf(utils, emitAll, usedClasses, "flex-col", "flex-direction: column;");
+        appendUtilIf(utils, emitAll, usedClasses, "flex-row", "flex-direction: row;");
+        appendUtilIf(utils, emitAll, usedClasses, "items-center", "align-items: center;");
+        appendUtilIf(utils, emitAll, usedClasses, "justify-center", "justify-content: center;");
+        appendUtilIf(utils, emitAll, usedClasses, "justify-between", "justify-content: space-between;");
+        appendUtilIf(utils, emitAll, usedClasses, "text-center", "text-align: center;");
+        appendUtilIf(utils, emitAll, usedClasses, "w-full", "width: 100%;");
+        appendUtilIf(utils, emitAll, usedClasses, "h-full", "height: 100%;");
+        if (utils.length() > 0) {
+            css.append("\n/* Utilities */\n").append(utils);
+        }
+
         return css.toString();
+    }
+
+    private static void appendSel(StringBuilder sb, String tag) {
+        if (sb.length() > 0) sb.append(", ");
+        sb.append(tag);
+    }
+
+    private static void appendUtilIf(StringBuilder sb, boolean emitAll, Set<String> used,
+                                     String cls, String body) {
+        if (emitAll || used.contains(cls)) {
+            sb.append('.').append(cls).append(" { ").append(body).append(" }\n");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void collectUsage(View view, Set<String> tags, Set<String> classes) {
+        if (view == null) return;
+        Object tagObj = view.getTag();
+        if (tagObj instanceof Map) {
+            Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
+            Object tagVal = widgetMap.get("tag");
+            if (tagVal != null) tags.add(tagVal.toString());
+            Object fn = widgetMap.get("function");
+            if (fn instanceof Map) {
+                Object cls = ((Map<String, Object>) fn).get("class");
+                if (cls != null) {
+                    for (String token : cls.toString().split("\\s+")) {
+                        if (!token.isEmpty()) classes.add(token);
+                    }
+                }
+            }
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                collectUsage(vg.getChildAt(i), tags, classes);
+            }
+        }
     }
 
     public String toJson() {
