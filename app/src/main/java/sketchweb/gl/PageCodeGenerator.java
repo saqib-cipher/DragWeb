@@ -16,6 +16,22 @@ public class PageCodeGenerator {
     private IconLibraryManager iconLibraryManager;
     private AnimationLibraryManager animationLibraryManager;
 
+    /**
+     * Controls whether per-widget styles are emitted as inline
+     * style="..." attributes on each element. Defaults to true to keep
+     * existing behaviour; toggled via the theme settings dialog
+     * ({@link ThemeManager#isUseInlineStyles()}).
+     */
+    private boolean useInlineStyles = true;
+
+    /**
+     * Accumulates per-element CSS rules emitted while
+     * {@link #useInlineStyles} is false. Flushed into the final &lt;style&gt;
+     * block by {@link #appendHtmlFooter}.
+     */
+    private final StringBuilder externalElementCss = new StringBuilder();
+    private int externalElementCounter = 0;
+
     public PageCodeGenerator() {}
 
     public void setProjectInfo(String name, String logoPath) {
@@ -98,6 +114,7 @@ public class PageCodeGenerator {
                                            LogicBlockManager logicBlockManager,
                                            CustomBlockManager customBlockManager) {
         resetStyleCache();
+        this.useInlineStyles = themeManager == null || themeManager.isUseInlineStyles();
         StringBuilder bodyBuilder = new StringBuilder();
 
         if (widgetTree != null) {
@@ -226,6 +243,12 @@ public class PageCodeGenerator {
             }
         }
 
+        // Per-element CSS collected while inline-styles were disabled.
+        if (externalElementCss.length() > 0) {
+            htmlBuilder.append("\n    /* Per-element styles (inline disabled) */\n");
+            htmlBuilder.append(externalElementCss);
+        }
+
         htmlBuilder.append("  </style>\n");
 
         String logicJs = logicBlockManager != null ? logicBlockManager.generateJavaScript() : "";
@@ -274,21 +297,33 @@ public class PageCodeGenerator {
             }
         }
 
-        // Inline style attribute (replaces dw-s classes for better readability)
+        // Per-element style emission. When inline styles are enabled (the
+        // default) we keep the historical style="..." attribute. When the
+        // toggle is off we hoist the rule into the page-level <style> block
+        // under a generated class so the markup stays clean.
         Map<String, Object> style = function.containsKey("style") ? (Map<String, Object>) function.get("style") : null;
-        if (style != null && !style.isEmpty()) {
-            StringBuilder sb = new StringBuilder();
-            for (Map.Entry<String, Object> entry : style.entrySet()) {
-                sb.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
+        String userClass = function.containsKey("class") && function.get("class") != null
+            ? function.get("class").toString().trim() : "";
+        if (useInlineStyles) {
+            if (style != null && !style.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (Map.Entry<String, Object> entry : style.entrySet()) {
+                    sb.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
+                }
+                html.append(" style=\"").append(escapeAttr(sb.toString().trim())).append("\"");
             }
-            html.append(" style=\"").append(escapeAttr(sb.toString().trim())).append("\"");
-        }
-
-        // Class attribute
-        if (function.containsKey("class") && function.get("class") != null) {
-            String classVal = function.get("class").toString().trim();
-            if (!classVal.isEmpty()) {
-                html.append(" class=\"").append(escapeAttr(classVal)).append("\"");
+            if (!userClass.isEmpty()) {
+                html.append(" class=\"").append(escapeAttr(userClass)).append("\"");
+            }
+        } else {
+            StringBuilder classAttr = new StringBuilder();
+            if (style != null && !style.isEmpty()) classAttr.append(externalizeStyle(style));
+            if (!userClass.isEmpty()) {
+                if (classAttr.length() > 0) classAttr.append(' ');
+                classAttr.append(userClass);
+            }
+            if (classAttr.length() > 0) {
+                html.append(" class=\"").append(escapeAttr(classAttr.toString())).append("\"");
             }
         }
 
@@ -377,21 +412,32 @@ public class PageCodeGenerator {
             }
         }
 
-        // Inline style attribute (replaces dw-s classes for better readability)
+        // Style attribute emission honours the inline-styles toggle (see
+        // ThemeManager.isUseInlineStyles). When disabled, the per-element
+        // rule is pushed into the page <style> block under a generated class.
         Map<String, Object> style = (Map<String, Object>) function.get("style");
-        if (style != null && !style.isEmpty()) {
-            StringBuilder sb = new StringBuilder();
-            for (Map.Entry<String, Object> entry : style.entrySet()) {
-                sb.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
+        String userClass = function.containsKey("class") && function.get("class") != null
+            ? function.get("class").toString().trim() : "";
+        if (useInlineStyles) {
+            if (style != null && !style.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (Map.Entry<String, Object> entry : style.entrySet()) {
+                    sb.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
+                }
+                html.append(" style=\"").append(escapeAttr(sb.toString().trim())).append("\"");
             }
-            html.append(" style=\"").append(escapeAttr(sb.toString().trim())).append("\"");
-        }
-
-        // Class attribute for logic targeting
-        if (function.containsKey("class") && function.get("class") != null) {
-            String classVal = function.get("class").toString().trim();
-            if (!classVal.isEmpty()) {
-                html.append(" class=\"").append(escapeAttr(classVal)).append("\"");
+            if (!userClass.isEmpty()) {
+                html.append(" class=\"").append(escapeAttr(userClass)).append("\"");
+            }
+        } else {
+            StringBuilder classAttr = new StringBuilder();
+            if (style != null && !style.isEmpty()) classAttr.append(externalizeStyle(style));
+            if (!userClass.isEmpty()) {
+                if (classAttr.length() > 0) classAttr.append(' ');
+                classAttr.append(userClass);
+            }
+            if (classAttr.length() > 0) {
+                html.append(" class=\"").append(escapeAttr(classAttr.toString())).append("\"");
             }
         }
 
@@ -496,7 +542,25 @@ public class PageCodeGenerator {
     }
 
     private void resetStyleCache() {
-        // Obsolete (using inline styles now)
+        externalElementCss.setLength(0);
+        externalElementCounter = 0;
+    }
+
+    /**
+     * Allocates a generated CSS class for a per-widget style map, appends the
+     * rule to {@link #externalElementCss}, and returns the class name. Used
+     * when {@link #useInlineStyles} is false.
+     */
+    private String externalizeStyle(Map<String, Object> style) {
+        String generated = "dw-el-" + (++externalElementCounter);
+        externalElementCss.append("    .").append(generated).append(" {\n");
+        for (Map.Entry<String, Object> entry : style.entrySet()) {
+            externalElementCss.append("      ")
+                .append(camelToKebab(entry.getKey())).append(": ")
+                .append(String.valueOf(entry.getValue())).append(";\n");
+        }
+        externalElementCss.append("    }\n");
+        return generated;
     }
 
     private String resolveAssetPath(String rawSrc) {

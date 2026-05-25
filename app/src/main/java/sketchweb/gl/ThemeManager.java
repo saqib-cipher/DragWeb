@@ -20,6 +20,14 @@ public class ThemeManager {
     private Map<String, String> customCssVars = new LinkedHashMap<>();
     private String currentTheme = THEME_LIGHT;
 
+    /**
+     * When true the HTML generator (both preview and export) emits
+     * style="..." attributes inline on every element. When false, per-widget
+     * styles are externalised into a generated stylesheet so the markup stays
+     * clean. Default is true to preserve historic behaviour.
+     */
+    private boolean useInlineStyles = true;
+
     public ThemeManager() {
         initLightDefaults();
         initDarkDefaults();
@@ -123,6 +131,15 @@ public class ThemeManager {
         if (vars != null) {
             customCssVars.putAll(vars);
         }
+    }
+
+    /** True when the HTML generator should emit inline style="..." attributes. */
+    public boolean isUseInlineStyles() {
+        return useInlineStyles;
+    }
+
+    public void setUseInlineStyles(boolean use) {
+        this.useInlineStyles = use;
     }
 
     private String generateVarsBlock(Map<String, String> styles) {
@@ -289,6 +306,7 @@ public class ThemeManager {
         data.put("lightStyles", lightStyles);
         data.put("darkStyles", darkStyles);
         data.put("customVars", customCssVars);
+        data.put("useInlineStyles", useInlineStyles);
         // Backwards compat: also write "styles" as active theme
         data.put("styles", getActiveStyles());
         return new Gson().toJson(data);
@@ -333,6 +351,11 @@ public class ThemeManager {
                 if (vars != null) {
                     customCssVars.putAll(vars);
                 }
+            }
+            if (data.containsKey("useInlineStyles")) {
+                Object v = data.get("useInlineStyles");
+                if (v instanceof Boolean) useInlineStyles = (Boolean) v;
+                else if (v != null) useInlineStyles = Boolean.parseBoolean(v.toString());
             }
         } catch (Exception e) {
             initLightDefaults();

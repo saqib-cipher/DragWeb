@@ -325,19 +325,30 @@ public class ExportManager {
             if (!elId.isEmpty()) html.append(" id=\"").append(escapeHtml(elId)).append("\"");
         }
 
-        // Per-element styles are emitted into the shared CSS buffer instead of
-        // an inline style="" attribute so the final output keeps every rule
-        // together in css/style.css. The exception is empty style maps, which
-        // we just skip.
+        // Style emission. When the project's "inline HTML styles" toggle is
+        // enabled (ThemeManager.isUseInlineStyles, default = true) we emit
+        // a style="..." attribute on the element. When disabled, we keep the
+        // historic behaviour of pushing the rule into css/style.css under the
+        // element's generated class.
         Map<String, Object> style = (Map<String, Object>) function.get("style");
+        boolean inlineStyles = themeManager != null && themeManager.isUseInlineStyles();
         if (style != null && !style.isEmpty()) {
-            elementCssBuffer.append('.').append(generatedClass).append(" {\n");
-            for (Map.Entry<String, Object> entry : style.entrySet()) {
-                String cssKey = camelToKebab(entry.getKey());
-                elementCssBuffer.append("  ").append(cssKey).append(": ")
-                    .append(entry.getValue()).append(";\n");
+            if (inlineStyles) {
+                StringBuilder sb = new StringBuilder();
+                for (Map.Entry<String, Object> entry : style.entrySet()) {
+                    sb.append(camelToKebab(entry.getKey())).append(": ")
+                      .append(entry.getValue()).append("; ");
+                }
+                html.append(" style=\"").append(escapeHtml(sb.toString().trim())).append("\"");
+            } else {
+                elementCssBuffer.append('.').append(generatedClass).append(" {\n");
+                for (Map.Entry<String, Object> entry : style.entrySet()) {
+                    String cssKey = camelToKebab(entry.getKey());
+                    elementCssBuffer.append("  ").append(cssKey).append(": ")
+                        .append(entry.getValue()).append(";\n");
+                }
+                elementCssBuffer.append("}\n");
             }
-            elementCssBuffer.append("}\n");
         }
 
         // Tag-specific attributes
