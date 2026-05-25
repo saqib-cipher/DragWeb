@@ -83,15 +83,15 @@ public class ExportManager {
         result.cssContent = cssContent;
         result.jsContent = jsContent;
 
+        // Clean website-source layout: index.html, css/, js/, assets/.
+        // No project.json / pages / components / fonts / data — those are
+        // editor-internal and don't belong in a published source backup.
         File exportDir = new File(context.getFilesDir(), "exports/" + sanitizeFileName(projectName));
         if (!exportDir.exists()) exportDir.mkdirs();
         File cssDir = new File(exportDir, "css");
         File jsDir = new File(exportDir, "js");
-        File pagesDir = new File(exportDir, "pages");
-        File componentsDir = new File(exportDir, "components");
-        File fontsDir = new File(exportDir, "fonts");
         File assetsDir = new File(exportDir, "assets");
-        for (File d : new File[]{cssDir, jsDir, pagesDir, componentsDir, fontsDir, assetsDir}) {
+        for (File d : new File[]{cssDir, jsDir, assetsDir}) {
             if (!d.exists()) d.mkdirs();
         }
         result.exportDir = exportDir;
@@ -100,10 +100,6 @@ public class ExportManager {
             writeFile(new File(exportDir, "index.html"), htmlContent);
             writeFile(new File(cssDir, "style.css"), cssContent);
             writeFile(new File(jsDir, "script.js"), jsContent);
-            writeFile(new File(exportDir, "project.json"),
-                generateProjectManifest(projectName));
-            // Mirror the assets panel into the HTML export so a plain-folder
-            // export ships images/fonts/etc. alongside the generated HTML.
             copyAssetsPanel(assetsDir);
             result.success = true;
             result.message = "Exported to: " + exportDir.getAbsolutePath();
@@ -132,40 +128,6 @@ public class ExportManager {
         } catch (Exception e) {
             Log.w("ExportManager", "Could not mirror assets panel: " + e.getMessage());
         }
-    }
-
-    /**
-     * Build a small project manifest describing the export. Keeps the export
-     * tree self-describing so a future re-import can pick the project up
-     * cleanly without inspecting the HTML.
-     */
-    private String generateProjectManifest(String projectName) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{\n");
-        sb.append("  \"name\": \"").append(escapeJsonString(projectName)).append("\",\n");
-        sb.append("  \"generator\": \"DragWeb\",\n");
-        sb.append("  \"version\": 1,\n");
-        sb.append("  \"entry\": \"index.html\",\n");
-        sb.append("  \"styles\": [\"css/style.css\"],\n");
-        sb.append("  \"scripts\": [\"js/script.js\"],\n");
-        if (iconLibraryManager != null && !iconLibraryManager.enabledIds().isEmpty()) {
-            sb.append("  \"iconLibraries\": [");
-            boolean first = true;
-            for (String id : iconLibraryManager.enabledIds()) {
-                if (!first) sb.append(", ");
-                sb.append("\"").append(escapeJsonString(id)).append("\"");
-                first = false;
-            }
-            sb.append("],\n");
-        }
-        sb.append("  \"exportedAt\": ").append(System.currentTimeMillis()).append("\n");
-        sb.append("}\n");
-        return sb.toString();
-    }
-
-    private String escapeJsonString(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 
     public File exportAsZip(View screen, String projectName, String projectId, LogicBlockManager logicBlockManager) throws IOException {
@@ -201,64 +163,17 @@ public class ExportManager {
             zipFile = new File(internalDir, zipFileName);
         }
 
+        // Clean website-source zip: HTML, CSS, JS, and assets only. Editor
+        // internals (project.json, data/, components/, pages/, fonts/) used
+        // to ship here too, but that confused users importing the zip as a
+        // plain website backup — now omitted.
         try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(zipFile)))) {
             addToZip(zos, "index.html", result.htmlContent);
             addToZip(zos, "css/style.css", result.cssContent);
             addToZip(zos, "js/script.js", result.jsContent);
-            addToZip(zos, "project.json", generateProjectManifest(projectName));
-
-            // Empty placeholder folders so a zero-asset export still has the
-            // canonical project shape on disk after extraction.
-            addToZip(zos, "pages/.keep", "");
-            addToZip(zos, "components/.keep", "");
-            addToZip(zos, "fonts/.keep", "");
-
-            // Include project data files for full backup
-            includeProjectData(zos, projectId);
-
-            // Include assets
             includeAssets(zos, projectId);
         }
         return zipFile;
-    }
-
-    /**
-     * Include all project data files in the ZIP export:
-     * layout JSON, theme, logic blocks, page layouts, metadata, icon-library
-     * config, custom components, and animation presets.
-     */
-    private void includeProjectData(ZipOutputStream zos, String projectId) {
-        File dir = new File(context.getFilesDir(), "projects");
-        if (!dir.exists()) return;
-
-        File[] files = dir.listFiles();
-        if (files == null) return;
-
-        for (File file : files) {
-            if (!file.isFile()) continue;
-            String name = file.getName();
-            if (name.startsWith(projectId + ".") || name.startsWith(projectId + "_")) {
-                try {
-                    addFileToZip(zos, "data/" + name, file);
-                } catch (IOException e) {
-                    Log.w("ExportManager", "Could not add " + name + " to zip: " + e.getMessage());
-                }
-            }
-        }
-
-        // Workspace-shared files that aren't keyed by projectId. They live in
-        // the same folder so they round-trip with the rest of the project.
-        for (String shared : new String[]{
-                projectId + ".icons",
-                projectId + ".components.json",
-                projectId + ".animations.json",
-                projectId + ".breakpoints.json"}) {
-            File f = new File(dir, shared);
-            if (f.exists()) {
-                try { addFileToZip(zos, "data/" + shared, f); }
-                catch (IOException e) { /* best-effort */ }
-            }
-        }
     }
 
     /**
@@ -493,7 +408,7 @@ public class ExportManager {
                                CustomBlockManager customBlockManager) {
         StringBuilder css = new StringBuilder();
         css.append("/* Generated by DragWeb */\n\n");
-        css.append(themeManager.generateGlobalCss());
+        css.append(themeManager.generateGlobalCss(screen));
         css.append("\n/* Animation Keyframes */\n");
         if (animationLibraryManager != null) {
             css.append(animationLibraryManager.generateLocalKeyframesCss(""));
@@ -594,48 +509,9 @@ public class ExportManager {
         zos.closeEntry();
     }
 
-    public boolean importZipBackup(File zipFile) {
-        if (zipFile == null || !zipFile.exists()) return false;
-        
-        File projectDir = new File(context.getFilesDir(), "projects");
-        if (!projectDir.exists()) projectDir.mkdirs();
-        
-        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(new FileInputStream(zipFile))) {
-            ZipEntry entry;
-            byte[] buffer = new byte[4096];
-            while ((entry = zis.getNextEntry()) != null) {
-                String name = entry.getName();
-                
-                if (name.startsWith("data/")) {
-                    String fileName = name.substring(5);
-                    File target = new File(projectDir, fileName);
-                    try (FileOutputStream fos = new FileOutputStream(target)) {
-                        int len;
-                        while ((len = zis.read(buffer)) > 0) fos.write(buffer, 0, len);
-                    }
-                } else if (name.startsWith("assets/")) {
-                    // Extract to external storage assets path
-                    // We need the projectId from the filename if possible, but the ZIP itself 
-                    // should ideally contain it in a meta file or we infer it.
-                    // For now, let's assume we find a .json file in data/ first or just extract assets
-                    // to a temporary location then move them once we know the projectId.
-                    // Or better: the zip structure is assets/projectId/...
-                    
-                    // Actually, let's look for any .json file in data/ to find the projectId
-                    // This is tricky during streaming.
-                    
-                    // Simple approach: Extract everything to a temp dir, then find the .json file, then move.
-                }
-                zis.closeEntry();
-            }
-            return true;
-        } catch (IOException e) {
-            Log.e("ExportManager", "Import failed: " + e.getMessage());
-            return false;
-        }
-    }
-
-    // Better import logic: extract all to temp, then move to right places
+    // Backwards-compat import: extracts a legacy backup zip (which used to
+    // ship data/, assets/, and project.json) into the editor's project store.
+    // New exports no longer write data/, but old zips still round-trip here.
     public boolean restoreProjectFromZip(File zipFile) {
         File tempDir = new File(context.getCacheDir(), "import_temp_" + System.currentTimeMillis());
         tempDir.mkdirs();
