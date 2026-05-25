@@ -81,6 +81,180 @@ public final class UniversalM3Dialog {
     }
 
     /**
+     * Specialised dialog for editing a space-separated list of tokens such as
+     * CSS class names. Renders:
+     *   1. A horizontal chip row showing every token already on the widget
+     *      (tap to remove).
+     *   2. A horizontal chip row of suggested tokens harvested from the rest
+     *      of the project (tap to add).
+     *   3. A free-form text field for typing new tokens; chips and text stay
+     *      in real-time sync (typing updates chips; tapping chips updates the
+     *      text).
+     *
+     * <p>Importantly, every call builds a fresh local state — no static field
+     * holds the previous input — so closing & re-opening the dialog on a
+     * different widget never reuses the prior widget's class list. The dialog
+     * is seeded only with the widget value passed in via setInitialValue.</p>
+     *
+     * @param suggestions live list of class names harvested from the project
+     * @param cb          callback fired with the new space-separated class list
+     */
+    public void showClassChipsInput(List<String> suggestions, OnText cb) {
+        int pad = dp(24);
+        ScrollView scroll = new ScrollView(context);
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, dp(12), pad, dp(20));
+        scroll.addView(root);
+
+        // ------------------------------------------------------------------
+        // Local state — kept inside the closure so reopening the dialog NEVER
+        // leaks a prior widget's value or a prior session's chip selection.
+        // ------------------------------------------------------------------
+        final java.util.LinkedHashSet<String> selected = new java.util.LinkedHashSet<>();
+        if (initial != null && !initial.trim().isEmpty()) {
+            for (String tok : initial.trim().split("\\s+")) {
+                String t = tok.replaceFirst("^\\.", "").trim();
+                if (!t.isEmpty()) selected.add(t);
+            }
+        }
+
+        // 1. Header for "Current classes" + chips row
+        android.widget.TextView lblCurrent = new android.widget.TextView(context);
+        lblCurrent.setText("Current classes (tap to remove)");
+        lblCurrent.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        lblCurrent.setPadding(0, 0, 0, dp(6));
+        root.addView(lblCurrent);
+
+        android.widget.HorizontalScrollView currentScroll = createChipScroll();
+        final ChipGroup currentChips = createChipGroup();
+        currentChips.setSingleSelection(false);
+        currentScroll.addView(currentChips);
+        root.addView(currentScroll);
+
+        // 2. Suggestions section
+        android.widget.TextView lblSugg = new android.widget.TextView(context);
+        lblSugg.setText("Project classes (tap to add)");
+        lblSugg.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        lblSugg.setPadding(0, dp(4), 0, dp(6));
+        root.addView(lblSugg);
+
+        android.widget.HorizontalScrollView suggScroll = createChipScroll();
+        final ChipGroup suggChips = createChipGroup();
+        suggChips.setSingleSelection(false);
+        suggScroll.addView(suggChips);
+        root.addView(suggScroll);
+
+        // 3. Free-form text input
+        TextInputLayout til = createTextInputLayout(hint != null ? hint : "class1 class2");
+        final MaterialAutoCompleteTextView edit = createEditor(til, joinSpace(selected), suggestions);
+        til.addView(edit);
+        LinearLayout.LayoutParams editLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        editLp.topMargin = dp(8);
+        root.addView(til, editLp);
+
+        // Internal re-entrancy guard so chip->text and text->chip updates
+        // don't bounce off each other.
+        final boolean[] internal = {false};
+
+        // Render helpers
+        final Runnable renderCurrent = new Runnable() {
+            @Override public void run() {
+                currentChips.removeAllViews();
+                for (final String cls : new ArrayList<>(selected)) {
+                    Chip chip = new Chip(context);
+                    chip.setId(View.generateViewId());
+                    chip.setText(cls);
+                    chip.setCloseIconVisible(true);
+                    chip.setCheckable(false);
+                    chip.setOnCloseIconClickListener(v -> {
+                        selected.remove(cls);
+                        // Realtime sync: update text + suggestion chip state.
+                        internal[0] = true;
+                        edit.setText(joinSpace(selected));
+                        edit.setSelection(edit.getText().length());
+                        internal[0] = false;
+                        run();
+                        syncSuggestionState(suggChips, selected);
+                    });
+                    currentChips.addView(chip);
+                }
+            }
+        };
+
+        // Build suggestion chips (tap to add)
+        if (suggestions != null) {
+            for (final String s : suggestions) {
+                if (s == null || s.trim().isEmpty()) continue;
+                final String cls = s.trim().replaceFirst("^\\.", "");
+                Chip c = createPresetChip(cls);
+                c.setCheckable(true);
+                c.setChecked(selected.contains(cls));
+                c.setOnClickListener(v -> {
+                    if (selected.contains(cls)) {
+                        selected.remove(cls);
+                        c.setChecked(false);
+                    } else {
+                        selected.add(cls);
+                        c.setChecked(true);
+                    }
+                    internal[0] = true;
+                    edit.setText(joinSpace(selected));
+                    edit.setSelection(edit.getText().length());
+                    internal[0] = false;
+                    renderCurrent.run();
+                });
+                suggChips.addView(c);
+            }
+        }
+
+        // Realtime sync: typing in the text field rebuilds chips.
+        edit.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                if (internal[0]) return;
+                selected.clear();
+                for (String tok : s.toString().trim().split("\\s+")) {
+                    String t = tok.replaceFirst("^\\.", "").trim();
+                    if (!t.isEmpty()) selected.add(t);
+                }
+                renderCurrent.run();
+                syncSuggestionState(suggChips, selected);
+            }
+        });
+
+        renderCurrent.run();
+
+        new MaterialAlertDialogBuilder(context)
+            .setTitle(title)
+            .setView(scroll)
+            .setPositiveButton("Done", (d, w) -> {
+                if (cb != null) cb.onText(joinSpace(selected));
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    private static String joinSpace(java.util.LinkedHashSet<String> set) {
+        StringBuilder b = new StringBuilder();
+        for (String s : set) {
+            if (b.length() > 0) b.append(' ');
+            b.append(s);
+        }
+        return b.toString();
+    }
+
+    private static void syncSuggestionState(ChipGroup suggChips, java.util.Set<String> selected) {
+        for (int i = 0; i < suggChips.getChildCount(); i++) {
+            Chip c = (Chip) suggChips.getChildAt(i);
+            boolean checked = selected.contains(c.getText().toString());
+            if (c.isChecked() != checked) c.setChecked(checked);
+        }
+    }
+
+    /**
      * Internal unified builder. 
      * Renders a HorizontalScrollView with ChipGroup, then a TextInputLayout.
      */
