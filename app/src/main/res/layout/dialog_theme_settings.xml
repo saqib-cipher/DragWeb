@@ -85,20 +85,6 @@
 				android:text="#4CAF50" />
 		</com.google.android.material.textfield.TextInputLayout>
 
-		<com.google.android.material.textfield.TextInputLayout
-			android:id="@+id/tilFontFamily"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="12dp"
-			android:hint="Font Family"
-			style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
-			<com.google.android.material.textfield.TextInputEditText
-				android:id="@+id/etFontFamily"
-				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:inputType="text"
-				android:text="sans-serif" />
-		</com.google.android.material.textfield.TextInputLayout>
 
 		<com.google.android.material.textfield.TextInputLayout
 			android:id="@+id/tilBodyBackground"
@@ -197,6 +183,50 @@
 			android:layout_height="wrap_content"
 			android:text="+ Add Custom Variable"
 			android:layout_marginTop="8dp"
+			style="?attr/materialButtonOutlinedStyle" />
+
+		<!-- Inline Styles Toggle -->
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:gravity="center_vertical"
+			android:layout_marginTop="16dp"
+			android:layout_marginBottom="8dp">
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:orientation="vertical">
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Inline Styling"
+					android:textSize="14sp"
+					android:textStyle="bold"
+					android:textColor="?attr/colorOnSurface" />
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Export styling inside HTML tags instead of external CSS class definitions"
+					android:textSize="12sp"
+					android:textColor="?attr/colorOnSurfaceVariant" />
+			</LinearLayout>
+			<com.google.android.material.switchmaterial.SwitchMaterial
+				android:id="@+id/switchInlineStyles"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:checked="true" />
+		</LinearLayout>
+
+		<Button
+			android:id="@+id/btnResetTheme"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Reset Theme to Defaults"
+			android:textColor="?attr/colorError"
+			app:strokeColor="?attr/colorError"
+			android:layout_marginTop="16dp"
 			style="?attr/materialButtonOutlinedStyle" />
 	</LinearLayout>
 </ScrollView>

@@ -64,12 +64,9 @@ public class HomeActivity extends AppCompatActivity {
 	private ActivityResultLauncher<String> backupLauncher;
 	private ActivityResultLauncher<String[]> importZipLauncher;
 	private ActivityResultLauncher<String> backupSingleLauncher;
-	private ActivityResultLauncher<String[]> projectLogoLauncher;
 	private ActivityResultLauncher<String[]> htmlFileLauncher;
 	private ActivityResultLauncher<String[]> cssFileLauncher;
 	private String pendingBackupProject = null;
-	private Uri pendingProjectLogoUri = null;
-	private TextView pendingProjectLogoLabel = null;
 
 	// HTML/CSS import state
 	private Uri pendingHtmlUri = null;
@@ -195,17 +192,7 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		);
 
-		projectLogoLauncher = registerForActivityResult(
-			new ActivityResultContracts.OpenDocument(),
-			uri -> {
-				if (uri != null) {
-					pendingProjectLogoUri = uri;
-					if (pendingProjectLogoLabel != null) {
-						pendingProjectLogoLabel.setText("Logo selected");
-					}
-				}
-			}
-		);
+
 
 		htmlFileLauncher = registerForActivityResult(
 			new ActivityResultContracts.OpenDocument(),
@@ -278,9 +265,33 @@ public class HomeActivity extends AppCompatActivity {
 		}
 	}
 
-	/** Generate a short unique project ID */
+	/** Generate a short unique project ID using a numeric system */
 	private String generateProjectId() {
-		return UUID.randomUUID().toString().substring(0, 8);
+		File dir = new File(getFilesDir(), "projects");
+		int maxNumber = 0;
+		if (dir.exists() && dir.isDirectory()) {
+			File[] files = dir.listFiles();
+			if (files != null) {
+				for (File file : files) {
+					if (file.getName().endsWith(".json")) {
+						String fileId = file.getName().replace(".json", "");
+						if (fileId.startsWith("project_")) {
+							try {
+								String numStr = fileId.substring("project_".length());
+								int num = Integer.parseInt(numStr);
+								if (num > maxNumber) {
+									maxNumber = num;
+								}
+							} catch (NumberFormatException e) {
+								// ignore
+							}
+						}
+					}
+				}
+			}
+		}
+		int nextNumber = maxNumber + 1;
+		return String.format(Locale.US, "project_%02d", nextNumber);
 	}
 
 	private void backupAllProjects() {
@@ -370,7 +381,10 @@ public class HomeActivity extends AppCompatActivity {
 					if (file.getName().endsWith(".json")) {
 						String fileId = file.getName().replace(".json", "");
 						if (fileId.contains("_")) {
-							continue;
+							File metaFile = new File(dir, fileId + ".meta");
+							if (!metaFile.exists()) {
+								continue;
+							}
 						}
 						Map<String, String> project = new HashMap<>();
 						project.put("id", fileId);
@@ -458,19 +472,9 @@ public class HomeActivity extends AppCompatActivity {
 		TextInputEditText etName = dialogView.findViewById(R.id.etProjectName);
 		TextInputEditText etDesc = dialogView.findViewById(R.id.etProjectDescription);
 		TextView tvId = dialogView.findViewById(R.id.tvProjectId);
-		TextView tvLogoPath = dialogView.findViewById(R.id.tvLogoPath);
-		View btnSelectLogo = dialogView.findViewById(R.id.btnSelectLogo);
 
 		String newId = generateProjectId();
 		tvId.setText("ID: " + newId);
-		pendingProjectLogoUri = null;
-		pendingProjectLogoLabel = tvLogoPath;
-		if (tvLogoPath != null) {
-			tvLogoPath.setText("No logo selected");
-		}
-		if (btnSelectLogo != null) {
-			btnSelectLogo.setOnClickListener(v -> projectLogoLauncher.launch(new String[]{"image/*"}));
-		}
 
 		new MaterialAlertDialogBuilder(this)
 			.setTitle("New Project")
@@ -484,18 +488,13 @@ public class HomeActivity extends AppCompatActivity {
 					return;
 				}
 
-				createProject(newId, name, desc, pendingProjectLogoUri);
-				pendingProjectLogoUri = null;
-				pendingProjectLogoLabel = null;
+				createProject(newId, name, desc);
 			})
-			.setNegativeButton("Cancel", (dialog, which) -> {
-				pendingProjectLogoUri = null;
-				pendingProjectLogoLabel = null;
-			})
+			.setNegativeButton("Cancel", null)
 			.show();
 	}
 
-	private void createProject(String projectId, String name, String description, Uri logoUri) {
+	private void createProject(String projectId, String name, String description) {
 		File dir = new File(getFilesDir(), "projects");
 		if (!dir.exists()) dir.mkdirs();
 
@@ -517,13 +516,6 @@ public class HomeActivity extends AppCompatActivity {
 			new File(extPath).mkdirs();
 			File assetsDir = new File(extPath + "/assets");
 			assetsDir.mkdirs();
-			if (logoUri != null) {
-				String fileName = resolveLogoFileName(logoUri);
-				File logoFile = new File(assetsDir, fileName);
-				if (copyUriToFile(logoUri, logoFile)) {
-					logoRelPath = "assets/" + fileName;
-				}
-			}
 
 			File configFile = new File(extPath, "project.config.json");
 			Map<String, String> config = new HashMap<>();
@@ -542,9 +534,9 @@ public class HomeActivity extends AppCompatActivity {
 	}
 
 	/**
-	 * Create a project from an imported HTML/CSS widget tree.
+	 * Create a project from an imported HTML/CSS widget tree and logic blocks.
 	 */
-	private void createProjectFromImport(String name, List<Map<String, Object>> widgetTree) {
+	private void createProjectFromImport(String name, List<Map<String, Object>> widgetTree, List<Map<String, Object>> logicBlocks) {
 		String projectId = generateProjectId();
 		File dir = new File(getFilesDir(), "projects");
 		if (!dir.exists()) dir.mkdirs();
@@ -552,6 +544,12 @@ public class HomeActivity extends AppCompatActivity {
 		// Save widget tree as project JSON
 		File projectFile = new File(dir, projectId + ".json");
 		FileUtil.writeFile(projectFile.getAbsolutePath(), new Gson().toJson(widgetTree));
+
+		// Save logic blocks if any
+		if (logicBlocks != null && !logicBlocks.isEmpty()) {
+			File logicFile = new File(dir, projectId + "_index.logic");
+			FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(logicBlocks));
+		}
 
 		// Save metadata
 		File metaFile = new File(dir, projectId + ".meta");
@@ -733,26 +731,10 @@ public class HomeActivity extends AppCompatActivity {
 		TextInputEditText etName = dialogView.findViewById(R.id.etProjectName);
 		TextInputEditText etDesc = dialogView.findViewById(R.id.etProjectDescription);
 		TextView tvId = dialogView.findViewById(R.id.tvProjectId);
-		View btnSelectLogo = dialogView.findViewById(R.id.btnSelectLogo);
-		TextView tvLogoPath = dialogView.findViewById(R.id.tvLogoPath);
 
 		// Pre-fill with current values
 		etName.setText(currentName);
 		tvId.setText("ID: " + projectId);
-
-		// Find current description
-		String currentDesc = "";
-		for (Map<String, String> p : projectList) {
-			if (projectId.equals(p.get("id"))) {
-				currentDesc = p.getOrDefault("description", "");
-				break;
-			}
-		}
-		etDesc.setText(currentDesc);
-
-		// Hide logo selection for rename
-		if (btnSelectLogo != null) btnSelectLogo.setVisibility(View.GONE);
-		if (tvLogoPath != null) tvLogoPath.setVisibility(View.GONE);
 
 		new MaterialAlertDialogBuilder(this)
 			.setTitle("Rename Project")
@@ -915,7 +897,7 @@ public class HomeActivity extends AppCompatActivity {
 		}
 
 		Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show();
-		createProjectFromImport(projectName, result.widgetTree);
+		createProjectFromImport(projectName, result.widgetTree, result.logicBlocks);
 	}
 
 
@@ -957,8 +939,8 @@ private void showAboutDialog() {
 		@Override
 		public void onBindViewHolder(VH holder, int position) {
 			Map<String, String> project = projectList.get(position);
-			String projectId = project.getOrDefault("id", "");
-			String projectName = project.getOrDefault("name", projectId);
+			String projectId = project.get("id");
+			String projectName = project.get("name");
 
 			holder.tvName.setText(projectName);
 			holder.tvId.setText(projectId);

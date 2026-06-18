@@ -530,12 +530,23 @@ public class ProjectDataManager {
     private void captureProjectIdFromInternalFile(String fileName, Set<String> projectIds) {
         if (fileName == null || fileName.isEmpty()) return;
         String id;
-        if (fileName.contains("_")) {
-            id = fileName.substring(0, fileName.indexOf('_'));
-        } else if (fileName.contains(".")) {
-            id = fileName.substring(0, fileName.indexOf('.'));
+        int dotIdx = fileName.lastIndexOf('.');
+        String baseName = dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;
+        
+        if (baseName.startsWith("project_")) {
+            int secondUnderscore = baseName.indexOf('_', 8);
+            if (secondUnderscore > 0) {
+                id = baseName.substring(0, secondUnderscore);
+            } else {
+                id = baseName;
+            }
         } else {
-            return;
+            int firstUnderscore = baseName.indexOf('_');
+            if (firstUnderscore > 0) {
+                id = baseName.substring(0, firstUnderscore);
+            } else {
+                id = baseName;
+            }
         }
         if (!id.isEmpty()) projectIds.add(id);
     }

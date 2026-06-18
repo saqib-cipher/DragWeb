@@ -395,11 +395,14 @@ public class MainActivity extends AppCompatActivity {
 		btnTheme.setOnClickListener(v -> {
 			android.widget.PopupMenu popup = new android.widget.PopupMenu(this, v);
 			popup.getMenu().add("Themes");
+			popup.getMenu().add("Font Settings");
 			popup.getMenu().add("Icon Libraries");
 			popup.getMenu().add("Animation Library");
 			popup.setOnMenuItemClickListener(item -> {
 				if (item.getTitle().equals("Themes")) {
 					showThemeDialog();
+				} else if (item.getTitle().equals("Font Settings")) {
+					showFontSettingsDialog();
 				} else if (item.getTitle().equals("Icon Libraries")) {
 					showIconLibrariesDialog();
 				} else if (item.getTitle().equals("Animation Library")) {
@@ -2275,13 +2278,18 @@ public class MainActivity extends AppCompatActivity {
 		TextInputEditText etPrimary = dialogView.findViewById(R.id.etPrimaryColor);
 		TextInputEditText etSecondary = dialogView.findViewById(R.id.etSecondaryColor);
 		TextInputEditText etAccent = dialogView.findViewById(R.id.etAccentColor);
-		TextInputEditText etFont = dialogView.findViewById(R.id.etFontFamily);
 		TextInputEditText etBackground = dialogView.findViewById(R.id.etBodyBackground);
 		TextInputEditText etBodyColor = dialogView.findViewById(R.id.etBodyColor);
 		TextInputEditText etLinkColor = dialogView.findViewById(R.id.etLinkColor);
 		TextInputEditText etBorderColor = dialogView.findViewById(R.id.etBorderColor);
 		LinearLayout customVarsContainer = dialogView.findViewById(R.id.customVarsContainer);
 		Button btnAddCssVar = dialogView.findViewById(R.id.btnAddCssVar);
+		com.google.android.material.switchmaterial.SwitchMaterial switchInlineStyles = dialogView.findViewById(R.id.switchInlineStyles);
+		Button btnResetTheme = dialogView.findViewById(R.id.btnResetTheme);
+
+		if (switchInlineStyles != null) {
+			switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
+		}
 
 		// Track which theme is being edited in dialog
 		final String[] editingTheme = { themeManager.getCurrentTheme() };
@@ -2300,7 +2308,6 @@ public class MainActivity extends AppCompatActivity {
 			etPrimary.setText(themeManager.getStyleForTheme(t, "primaryColor"));
 			etSecondary.setText(themeManager.getStyleForTheme(t, "secondaryColor"));
 			etAccent.setText(themeManager.getStyleForTheme(t, "accentColor"));
-			etFont.setText(themeManager.getStyleForTheme(t, "fontFamily"));
 			etBackground.setText(themeManager.getStyleForTheme(t, "bodyBackground"));
 			etBodyColor.setText(themeManager.getStyleForTheme(t, "bodyColor"));
 			etLinkColor.setText(themeManager.getStyleForTheme(t, "linkColor"));
@@ -2313,7 +2320,6 @@ public class MainActivity extends AppCompatActivity {
 			String primary = etPrimary.getText().toString().trim();
 			String secondary = etSecondary.getText().toString().trim();
 			String accent = etAccent.getText().toString().trim();
-			String font = etFont.getText().toString().trim();
 			String bg = etBackground.getText().toString().trim();
 			String bodyColor = etBodyColor.getText().toString().trim();
 			String linkColor = etLinkColor.getText().toString().trim();
@@ -2321,7 +2327,6 @@ public class MainActivity extends AppCompatActivity {
 			if (!primary.isEmpty()) themeManager.setStyleForTheme(t, "primaryColor", primary);
 			if (!secondary.isEmpty()) themeManager.setStyleForTheme(t, "secondaryColor", secondary);
 			if (!accent.isEmpty()) themeManager.setStyleForTheme(t, "accentColor", accent);
-			if (!font.isEmpty()) themeManager.setStyleForTheme(t, "fontFamily", font);
 			if (!bg.isEmpty()) themeManager.setStyleForTheme(t, "bodyBackground", bg);
 			if (!bodyColor.isEmpty()) themeManager.setStyleForTheme(t, "bodyColor", bodyColor);
 			if (!linkColor.isEmpty()) themeManager.setStyleForTheme(t, "linkColor", linkColor);
@@ -2359,12 +2364,44 @@ public class MainActivity extends AppCompatActivity {
 			btnAddCssVar.setOnClickListener(v -> addCssVarRow(customVarsContainer, "", ""));
 		}
 
+		if (btnResetTheme != null) {
+			btnResetTheme.setOnClickListener(v -> {
+				new MaterialAlertDialogBuilder(this)
+					.setTitle("Reset Theme")
+					.setMessage("Are you sure you want to reset theme settings to defaults?")
+					.setPositiveButton("Reset", (d, w) -> {
+						themeManager.resetToDefaults();
+						populateFields.run();
+						if (switchInlineStyles != null) {
+							switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
+						}
+						customVarsContainer.removeAllViews();
+						Map<String, String> cv = themeManager.getCustomCssVars();
+						for (Map.Entry<String, String> entry : cv.entrySet()) {
+							addCssVarRow(customVarsContainer, entry.getKey(), entry.getValue());
+						}
+						if (ThemeManager.THEME_DARK.equals(themeManager.getCurrentTheme())) {
+							btnDark.performClick();
+						} else {
+							btnLight.performClick();
+						}
+						Toast.makeText(this, "Theme reset to defaults", Toast.LENGTH_SHORT).show();
+					})
+					.setNegativeButton("Cancel", null)
+					.show();
+			});
+		}
+
 		new MaterialAlertDialogBuilder(this)
 			.setTitle("Theme Settings")
 			.setView(dialogView)
 			.setPositiveButton("Apply", (dialog, which) -> {
 				// Save final edits
 				saveFieldsToTheme.run();
+
+				if (switchInlineStyles != null) {
+					themeManager.setUseInlineStyles(switchInlineStyles.isChecked());
+				}
 
 				Map<String, String> newVars = new LinkedHashMap<>();
 				for (int i = 0; i < customVarsContainer.getChildCount(); i++) {
@@ -2385,6 +2422,26 @@ public class MainActivity extends AppCompatActivity {
 			})
 			.setNegativeButton("Cancel", null)
 			.show();
+	}
+
+	private void showFontSettingsDialog() {
+		String currentFont = themeManager.getStyleForTheme(themeManager.getCurrentTheme(), "fontFamily");
+		if (currentFont == null || currentFont.isEmpty()) {
+			currentFont = "sans-serif";
+		}
+
+		java.util.List<String> fontSuggestions = java.util.Arrays.asList(
+			"sans-serif", "serif", "monospace", "system-ui",
+			"Inter", "Outfit", "Roboto", "Poppins", "Montserrat", "Playfair Display"
+		);
+
+		UniversalDialog.autocompleteInput(this, "Font Settings", "Font Family", currentFont, fontSuggestions, font -> {
+			if (!font.isEmpty()) {
+				themeManager.setStyleForTheme(ThemeManager.THEME_LIGHT, "fontFamily", font);
+				themeManager.setStyleForTheme(ThemeManager.THEME_DARK, "fontFamily", font);
+				Toast.makeText(this, "Font family updated", Toast.LENGTH_SHORT).show();
+			}
+		});
 	}
 
 	private void setupColorInputField(TextInputEditText et) {

@@ -198,12 +198,31 @@ public class ThemeManager {
         return css.toString();
     }
 
+    private boolean useInlineStyles = true;
+
+    public boolean isUseInlineStyles() {
+        return useInlineStyles;
+    }
+
+    public void setUseInlineStyles(boolean useInlineStyles) {
+        this.useInlineStyles = useInlineStyles;
+    }
+
+    public void resetToDefaults() {
+        initLightDefaults();
+        initDarkDefaults();
+        customCssVars.clear();
+        useInlineStyles = true;
+        currentTheme = THEME_LIGHT;
+    }
+
     public String toJson() {
         Map<String, Object> data = new HashMap<>();
         data.put("theme", currentTheme);
         data.put("lightStyles", lightStyles);
         data.put("darkStyles", darkStyles);
         data.put("customVars", customCssVars);
+        data.put("useInlineStyles", useInlineStyles);
         // Backwards compat: also write "styles" as active theme
         data.put("styles", getActiveStyles());
         return new Gson().toJson(data);
@@ -214,6 +233,18 @@ public class ThemeManager {
             Map<String, Object> data = new Gson().fromJson(json, Map.class);
             if (data.containsKey("theme")) {
                 currentTheme = data.get("theme").toString();
+            }
+            if (data.containsKey("useInlineStyles")) {
+                Object val = data.get("useInlineStyles");
+                if (val instanceof Boolean) {
+                    useInlineStyles = (Boolean) val;
+                } else if (val instanceof String) {
+                    useInlineStyles = Boolean.parseBoolean((String) val);
+                } else if (val instanceof Number) {
+                    useInlineStyles = ((Number) val).intValue() != 0;
+                }
+            } else {
+                useInlineStyles = true;
             }
             // Load separate light/dark styles if available
             if (data.containsKey("lightStyles")) {
@@ -250,8 +281,7 @@ public class ThemeManager {
                 }
             }
         } catch (Exception e) {
-            initLightDefaults();
-            initDarkDefaults();
+            resetToDefaults();
         }
     }
 

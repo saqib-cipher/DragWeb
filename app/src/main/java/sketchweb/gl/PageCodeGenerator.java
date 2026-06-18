@@ -15,6 +15,7 @@ public class PageCodeGenerator {
     private String projectLogoPath = "";
     private IconLibraryManager iconLibraryManager;
     private AnimationLibraryManager animationLibraryManager;
+    private ThemeManager themeManager;
 
     public PageCodeGenerator() {}
 
@@ -43,6 +44,7 @@ public class PageCodeGenerator {
     public String generateFullCode(View screen, ThemeManager themeManager,
                                    LogicBlockManager logicBlockManager,
                                    CustomBlockManager customBlockManager) {
+        this.themeManager = themeManager;
         resetStyleCache();
         StringBuilder bodyBuilder = new StringBuilder();
 
@@ -94,6 +96,7 @@ public class PageCodeGenerator {
                                            ThemeManager themeManager,
                                            LogicBlockManager logicBlockManager,
                                            CustomBlockManager customBlockManager) {
+        this.themeManager = themeManager;
         resetStyleCache();
         StringBuilder bodyBuilder = new StringBuilder();
 
@@ -286,7 +289,7 @@ public class PageCodeGenerator {
 
         // Inline style attribute (replaces dw-s classes for better readability)
         Map<String, Object> style = function.containsKey("style") ? (Map<String, Object>) function.get("style") : null;
-        if (style != null && !style.isEmpty()) {
+        if (style != null && !style.isEmpty() && (themeManager == null || themeManager.isUseInlineStyles())) {
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, Object> entry : style.entrySet()) {
                 sb.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
@@ -389,7 +392,7 @@ public class PageCodeGenerator {
 
         // Inline style attribute (replaces dw-s classes for better readability)
         Map<String, Object> style = (Map<String, Object>) function.get("style");
-        if (style != null && !style.isEmpty()) {
+        if (style != null && !style.isEmpty() && (themeManager == null || themeManager.isUseInlineStyles())) {
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, Object> entry : style.entrySet()) {
                 sb.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");

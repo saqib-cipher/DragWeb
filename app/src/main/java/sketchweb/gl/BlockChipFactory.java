@@ -27,6 +27,8 @@ import java.util.List;
  */
 final class BlockChipFactory {
 
+    private static final java.util.Map<String, String> lastValueMap = new java.util.HashMap<>();
+
     interface OnChipValueChanged {
         void onChanged(String chipId, String newValue);
     }
@@ -112,12 +114,17 @@ final class BlockChipFactory {
         String display = value.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : value;
         TextView chip = baseChip(baseColor, display);
         chip.setOnClickListener(v -> {
+            String cached = lastValueMap.get(input.id);
+            String initialVal = value.isEmpty() && cached != null ? cached : value;
             new UniversalM3Dialog(context)
                 .setTitle(input.id != null ? input.id : "Edit")
                 .setHint(input.placeholder != null ? input.placeholder : "Value")
-                .setInitialValue(value)
+                .setInitialValue(initialVal)
                 .showTextInput(nv -> {
                     chip.setText(nv.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : nv);
+                    if (nv != null && !nv.isEmpty()) {
+                        lastValueMap.put(input.id, nv);
+                    }
                     if (listener != null) listener.onChanged(input.id, nv);
                 });
         });
@@ -128,17 +135,17 @@ final class BlockChipFactory {
                                   OnChipValueChanged listener, List<String> options) {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "▼" : value + " ▼");
         chip.setOnClickListener(v -> {
-            // The previous ListPopupWindow anchored to the chip squeezed unit
-            // pickers (px / % / em / …) into a 40dp-wide column, rendering
-            // each character on its own line. The outlined-radio-with-custom
-            // dialog gives the row room to breathe and still keeps a custom
-            // input for free-form values.
+            String cached = lastValueMap.get(input.id);
+            String initialVal = value.isEmpty() && cached != null ? cached : value;
             new UniversalM3Dialog(context)
                 .setTitle(input.id != null ? input.id : "Choose")
                 .setHint(input.placeholder != null ? input.placeholder : "Custom value")
-                .setInitialValue(value)
-                .showAutocompleteChoice(options, value, chosen -> {
+                .setInitialValue(initialVal)
+                .showAutocompleteChoice(options, initialVal, chosen -> {
                     chip.setText(chosen.isEmpty() ? "▼" : chosen + " ▼");
+                    if (chosen != null && !chosen.isEmpty()) {
+                        lastValueMap.put(input.id, chosen);
+                    }
                     if (listener != null) listener.onChanged(input.id, chosen);
                 });
         });
@@ -162,12 +169,17 @@ final class BlockChipFactory {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "#FFFFFF" : value);
         applyColorSwatch(chip, value);
         chip.setOnClickListener(v -> {
+            String cached = lastValueMap.get(input.id);
+            String initialVal = value.isEmpty() && cached != null ? cached : value;
             new UniversalM3Dialog(context)
                 .setTitle(input.id != null ? "Color · " + input.id : "Color")
-                .setInitialValue(value)
+                .setInitialValue(initialVal)
                 .showColorInput(picked -> {
                     chip.setText(picked);
                     applyColorSwatch(chip, picked);
+                    if (picked != null && !picked.isEmpty()) {
+                        lastValueMap.put(input.id, picked);
+                    }
                     if (listener != null) listener.onChanged(input.id, picked);
                 });
         });
@@ -176,19 +188,20 @@ final class BlockChipFactory {
 
     private interface OnPicked { void onPicked(String value); }
 
-    /**
-     * Selector chip dialog: 3 horizontal mode pills (#id / .class / tag) plus
-     * an autocomplete input for fast searching of saved selectors. The chosen
-     * mode prefix is auto-applied so the chip value is always a complete CSS
-     * selector ready to splice into a generated rule.
-     */
     private TextView selectorChip(ChipInput input, String value, int baseColor,
                                   OnChipValueChanged listener) {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "▼" : value);
-        chip.setOnClickListener(v -> showSelectorPickerDialog(input, value, picked -> {
-            chip.setText(picked.isEmpty() ? "▼" : picked);
-            if (listener != null) listener.onChanged(input.id, picked);
-        }));
+        chip.setOnClickListener(v -> {
+            String cached = lastValueMap.get(input.id);
+            String initialVal = value.isEmpty() && cached != null ? cached : value;
+            showSelectorPickerDialog(input, initialVal, picked -> {
+                chip.setText(picked.isEmpty() ? "▼" : picked);
+                if (picked != null && !picked.isEmpty()) {
+                    lastValueMap.put(input.id, picked);
+                }
+                if (listener != null) listener.onChanged(input.id, picked);
+            });
+        });
         return chip;
     }
 

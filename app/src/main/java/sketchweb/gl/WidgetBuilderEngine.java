@@ -134,14 +134,16 @@ public class WidgetBuilderEngine {
                 defaultParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, 2);
                 defaultParams.setMargins(0, 12, 0, 12);
-            } else if (isLayoutTag(tag)) {
-                // Layout containers get full width by default
+            } else if (isBlockTag(tag)) {
                 defaultParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-                defaultParams.setMargins(0, 4, 0, 4);
-                // Set minimum height for layout containers so they can receive drops
-                view.setMinimumHeight(60);
+                if (isLayoutTag(tag)) {
+                    defaultParams.setMargins(0, 4, 0, 4);
+                    view.setMinimumHeight(60);
+                } else {
+                    defaultParams.setMargins(0, 2, 0, 2);
+                }
             } else {
                 defaultParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -151,6 +153,37 @@ public class WidgetBuilderEngine {
         }
 
         return view;
+    }
+
+    private boolean isBlockTag(String tag) {
+        switch (tag) {
+            case "p":
+            case "h1":
+            case "h2":
+            case "h3":
+            case "h4":
+            case "h5":
+            case "h6":
+            case "div":
+            case "section":
+            case "nav":
+            case "header":
+            case "footer":
+            case "main":
+            case "article":
+            case "aside":
+            case "form":
+            case "ul":
+            case "ol":
+            case "li":
+            case "blockquote":
+            case "pre":
+            case "hr":
+            case "table":
+                return true;
+            default:
+                return false;
+        }
     }
 
     public void applyPropertiesToView(View view, Map<String, Object> widgetMap) {
@@ -260,42 +293,67 @@ public class WidgetBuilderEngine {
 
         // Build GradientDrawable for background with border and radius
         GradientDrawable shape = new GradientDrawable();
-        shape.setColor(Color.TRANSPARENT);
-        shape.setStroke(1, Color.parseColor("#B0BEC5"));
-        shape.setCornerRadius(4);
+
+        // Extract widget tag
+        String tag = "";
+        if (view.getTag() instanceof Map) {
+            Map<?, ?> tagData = (Map<?, ?>) view.getTag();
+            if (tagData.containsKey("tag")) {
+                tag = tagData.get("tag").toString();
+            }
+        }
+
+        int defaultBgColor = Color.TRANSPARENT;
+        int defaultBorderWidth = 0;
+        int defaultBorderColor = Color.TRANSPARENT;
+        float defaultCornerRadius = 0;
+
+        if ("button".equals(tag)) {
+            defaultBgColor = Color.parseColor("#EFEFEF");
+            defaultBorderWidth = 1;
+            defaultBorderColor = Color.parseColor("#B0BEC5");
+            defaultCornerRadius = 4;
+        } else if ("input".equals(tag) || "textarea".equals(tag)) {
+            defaultBgColor = Color.parseColor("#FFFFFF");
+            defaultBorderWidth = 1;
+            defaultBorderColor = Color.parseColor("#B0BEC5");
+            defaultCornerRadius = 4;
+        }
 
         // Background color
+        int bgColor = defaultBgColor;
         if (style.containsKey("backgroundColor")) {
             try {
-                String bgColor = style.get("backgroundColor").toString();
-                if (!bgColor.startsWith("var(")) {
-                    shape.setColor(Color.parseColor(bgColor));
+                String bgStr = style.get("backgroundColor").toString();
+                if (!bgStr.startsWith("var(")) {
+                    bgColor = Color.parseColor(bgStr);
                 }
             } catch (Exception e) {
                 // ignore invalid color
             }
         }
+        shape.setColor(bgColor);
 
         // Border radius
+        float radius = defaultCornerRadius;
         if (style.containsKey("borderRadius")) {
-            float radius = parseDimension(style.get("borderRadius").toString());
-            shape.setCornerRadius(radius);
+            radius = parseDimension(style.get("borderRadius").toString());
         }
+        shape.setCornerRadius(radius);
 
         // Per-corner radius
-        float[] radii = null;
         if (style.containsKey("borderTopLeftRadius") || style.containsKey("borderTopRightRadius")
             || style.containsKey("borderBottomLeftRadius") || style.containsKey("borderBottomRightRadius")) {
-            float tl = style.containsKey("borderTopLeftRadius") ? parseDimension(style.get("borderTopLeftRadius").toString()) : 4;
-            float tr = style.containsKey("borderTopRightRadius") ? parseDimension(style.get("borderTopRightRadius").toString()) : 4;
-            float br = style.containsKey("borderBottomRightRadius") ? parseDimension(style.get("borderBottomRightRadius").toString()) : 4;
-            float bl = style.containsKey("borderBottomLeftRadius") ? parseDimension(style.get("borderBottomLeftRadius").toString()) : 4;
+            float tl = style.containsKey("borderTopLeftRadius") ? parseDimension(style.get("borderTopLeftRadius").toString()) : radius;
+            float tr = style.containsKey("borderTopRightRadius") ? parseDimension(style.get("borderTopRightRadius").toString()) : radius;
+            float br = style.containsKey("borderBottomRightRadius") ? parseDimension(style.get("borderBottomRightRadius").toString()) : radius;
+            float bl = style.containsKey("borderBottomLeftRadius") ? parseDimension(style.get("borderBottomLeftRadius").toString()) : radius;
             shape.setCornerRadii(new float[]{tl, tl, tr, tr, br, br, bl, bl});
         }
 
         // Border width and color
-        int borderWidth = 1;
-        int borderColor = Color.parseColor("#B0BEC5");
+        int borderWidth = defaultBorderWidth;
+        int borderColor = defaultBorderColor;
         if (style.containsKey("borderWidth")) {
             borderWidth = parseDimension(style.get("borderWidth").toString());
         }

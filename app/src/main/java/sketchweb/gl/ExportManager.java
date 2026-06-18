@@ -395,34 +395,45 @@ public class ExportManager {
         // Data attribute for logic
         html.append(" data-widget=\"").append(tag).append("\"");
 
-        // Generated class name. Any user-authored class lives alongside it so
-        // pseudo/state rules from the logic block manager still match.
-        String generatedClass = "el-" + tag + "-" + Math.abs(view.hashCode() % 10000);
-        StringBuilder classAttr = new StringBuilder(generatedClass);
+        // Generated class name and user class check.
+        boolean useInline = (themeManager == null || themeManager.isUseInlineStyles());
+        String generatedClass = "";
+        StringBuilder classAttr = new StringBuilder();
+
+        if (useInline) {
+            generatedClass = "el-" + tag + "-" + Math.abs(view.hashCode() % 10000);
+            classAttr.append(generatedClass);
+        }
+
         if (function.containsKey("class")) {
             String userClass = String.valueOf(function.get("class")).trim();
-            if (!userClass.isEmpty()) classAttr.append(' ').append(userClass);
+            if (!userClass.isEmpty()) {
+                if (classAttr.length() > 0) classAttr.append(' ');
+                classAttr.append(userClass);
+            }
         }
-        html.append(" class=\"").append(escapeHtml(classAttr.toString())).append("\"");
+
+        if (classAttr.length() > 0) {
+            html.append(" class=\"").append(escapeHtml(classAttr.toString())).append("\"");
+        }
 
         if (function.containsKey("id")) {
             String elId = String.valueOf(function.get("id")).trim();
             if (!elId.isEmpty()) html.append(" id=\"").append(escapeHtml(elId)).append("\"");
         }
 
-        // Per-element styles are emitted into the shared CSS buffer instead of
-        // an inline style="" attribute so the final output keeps every rule
-        // together in css/style.css. The exception is empty style maps, which
-        // we just skip.
-        Map<String, Object> style = (Map<String, Object>) function.get("style");
-        if (style != null && !style.isEmpty()) {
-            elementCssBuffer.append('.').append(generatedClass).append(" {\n");
-            for (Map.Entry<String, Object> entry : style.entrySet()) {
-                String cssKey = camelToKebab(entry.getKey());
-                elementCssBuffer.append("  ").append(cssKey).append(": ")
-                    .append(entry.getValue()).append(";\n");
+        // Output element styles to CSS only if inline styles are enabled
+        if (useInline) {
+            Map<String, Object> style = (Map<String, Object>) function.get("style");
+            if (style != null && !style.isEmpty()) {
+                elementCssBuffer.append('.').append(generatedClass).append(" {\n");
+                for (Map.Entry<String, Object> entry : style.entrySet()) {
+                    String cssKey = camelToKebab(entry.getKey());
+                    elementCssBuffer.append("  ").append(cssKey).append(": ")
+                        .append(entry.getValue()).append(";\n");
+                }
+                elementCssBuffer.append("}\n");
             }
-            elementCssBuffer.append("}\n");
         }
 
         // Tag-specific attributes
@@ -653,9 +664,13 @@ public class ExportManager {
                 File[] files = dataDir.listFiles();
                 if (files != null) {
                     for (File f : files) {
-                        if (f.getName().endsWith(".json") && !f.getName().contains("_")) {
-                            foundProjectId = f.getName().replace(".json", "");
-                            break;
+                        if (f.getName().endsWith(".json")) {
+                            String possibleId = f.getName().replace(".json", "");
+                            File metaFile = new File(dataDir, possibleId + ".meta");
+                            if (metaFile.exists()) {
+                                foundProjectId = possibleId;
+                                break;
+                            }
                         }
                     }
                     

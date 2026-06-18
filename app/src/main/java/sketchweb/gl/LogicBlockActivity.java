@@ -600,10 +600,51 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         return (int) (px * getResources().getDisplayMetrics().density);
     }
 
+    private void updateUndoRedoMenuState() {
+        if (toolbar == null) return;
+        android.view.Menu menu = toolbar.getMenu();
+        if (menu == null) return;
+        android.view.MenuItem undoItem = menu.findItem(R.id.action_undo);
+        android.view.MenuItem redoItem = menu.findItem(R.id.action_redo);
+
+        boolean canUndo = undoStack.size() > 1;
+        boolean canRedo = !redoStack.isEmpty();
+
+        int colorOnSurface = 0xFF000000;
+        android.util.TypedValue typedValue = new android.util.TypedValue();
+        if (getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)) {
+            colorOnSurface = typedValue.data;
+        }
+
+        int activeColor = colorOnSurface;
+        int inactiveColor = (colorOnSurface & 0x00FFFFFF) | (76 << 24); // 30% alpha
+
+        if (undoItem != null) {
+            undoItem.setEnabled(canUndo);
+            android.graphics.drawable.Drawable icon = undoItem.getIcon();
+            if (icon != null) {
+                icon = icon.mutate();
+                icon.setTint(canUndo ? activeColor : inactiveColor);
+                undoItem.setIcon(icon);
+            }
+        }
+
+        if (redoItem != null) {
+            redoItem.setEnabled(canRedo);
+            android.graphics.drawable.Drawable icon = redoItem.getIcon();
+            if (icon != null) {
+                icon = icon.mutate();
+                icon.setTint(canRedo ? activeColor : inactiveColor);
+                redoItem.setIcon(icon);
+            }
+        }
+    }
+
     private void saveUndoState() {
         if (undoStack.size() >= MAX_UNDO) undoStack.remove(0);
         undoStack.add(logicBlockManager.toJson());
         redoStack.clear();
+        updateUndoRedoMenuState();
     }
 
     private void undo() {
@@ -612,6 +653,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         logicBlockManager.fromJson(undoStack.get(undoStack.size() - 1));
         workspaceView.rebuild();
         refreshHud();
+        updateUndoRedoMenuState();
     }
 
     private void redo() {
@@ -621,6 +663,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         logicBlockManager.fromJson(state);
         workspaceView.rebuild();
         refreshHud();
+        updateUndoRedoMenuState();
     }
 
     private void saveAndFinish() {

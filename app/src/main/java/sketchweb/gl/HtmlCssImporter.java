@@ -33,18 +33,73 @@ public class HtmlCssImporter {
     private final Map<String, Map<String, String>> cssRules = new LinkedHashMap<>();
 
     /**
-     * Import result containing the widget tree for the project.
+     * Import result containing the widget tree and logic blocks for the project.
      */
     public static class ImportResult {
         public boolean success;
         public String message;
         public List<Map<String, Object>> widgetTree;
+        public List<Map<String, Object>> logicBlocks;
 
         public ImportResult(boolean success, String message, List<Map<String, Object>> widgetTree) {
             this.success = success;
             this.message = message;
             this.widgetTree = widgetTree;
+            this.logicBlocks = new ArrayList<>();
         }
+
+        public ImportResult(boolean success, String message, List<Map<String, Object>> widgetTree, List<Map<String, Object>> logicBlocks) {
+            this.success = success;
+            this.message = message;
+            this.widgetTree = widgetTree;
+            this.logicBlocks = logicBlocks;
+        }
+    }
+
+    /**
+     * Import parse helper to get css rules as LogicBlocks maps.
+     */
+    private List<Map<String, Object>> getCssAsLogicBlocks() {
+        List<Map<String, Object>> blocksList = new ArrayList<>();
+        int counter = 0;
+        long timestamp = System.currentTimeMillis();
+
+        for (Map.Entry<String, Map<String, String>> ruleEntry : cssRules.entrySet()) {
+            String selector = ruleEntry.getKey();
+            Map<String, String> properties = ruleEntry.getValue();
+            if (properties == null || properties.isEmpty()) continue;
+
+            String targetMode = "id";
+            String targetWidget = selector;
+
+            if (selector.startsWith("#")) {
+                targetMode = "id";
+                targetWidget = selector.substring(1);
+            } else if (selector.startsWith(".")) {
+                targetMode = "class";
+                targetWidget = selector.substring(1);
+            } else {
+                targetMode = "tag";
+                targetWidget = selector;
+            }
+
+            for (Map.Entry<String, String> propEntry : properties.entrySet()) {
+                String camelProp = propEntry.getKey();
+                String val = propEntry.getValue();
+
+                Map<String, Object> blockMap = new HashMap<>();
+                blockMap.put("category", "style");
+                blockMap.put("targetWidget", targetWidget);
+                blockMap.put("targetMode", targetMode);
+                blockMap.put("event", "immediate");
+                blockMap.put("action", "changeStyle");
+                blockMap.put("params", camelProp + ":" + val);
+                blockMap.put("id", "blk_import_" + timestamp + "_" + (counter++));
+
+                blocksList.add(blockMap);
+            }
+        }
+        return blocksList;
     }
 
     /**
@@ -74,7 +129,9 @@ public class HtmlCssImporter {
                 return new ImportResult(false, "No supported HTML elements found", null);
             }
 
-            return new ImportResult(true, "Successfully imported " + countNodes(widgetTree) + " elements", widgetTree);
+            List<Map<String, Object>> logicBlocks = getCssAsLogicBlocks();
+
+            return new ImportResult(true, "Successfully imported " + countNodes(widgetTree) + " elements", widgetTree, logicBlocks);
         } catch (Exception e) {
             Log.e(TAG, "Import failed: " + e.getMessage(), e);
             return new ImportResult(false, "Parse error: " + e.getMessage(), null);
@@ -579,7 +636,7 @@ public class HtmlCssImporter {
         Map<String, Object> styleMap = new HashMap<>();
 
         // Apply CSS rules based on tag name
-        applyCssRules(styleMap, parsedTag.tagName, parsedTag.attributes);
+        // applyCssRules(styleMap, parsedTag.tagName, parsedTag.attributes);
 
         // Apply inline styles (highest priority)
         if (parsedTag.attributes.containsKey("style")) {

@@ -74,6 +74,7 @@ public final class UniversalDialog {
             edit.setGravity(Gravity.TOP | Gravity.START);
         } else {
             edit.setSingleLine(true);
+            applyOutlinedFieldStyling(ctx, edit);
         }
         if (initial != null) edit.setText(initial);
         til.addView(edit);
@@ -99,6 +100,7 @@ public final class UniversalDialog {
         TextInputLayout til = makeInputLayout(ctx, hint);
         MaterialAutoCompleteTextView edit = new MaterialAutoCompleteTextView(til.getContext());
         edit.setSingleLine(true);
+        applyOutlinedFieldStyling(ctx, edit);
         if (initial != null) edit.setText(initial);
         if (suggestions != null && !suggestions.isEmpty()) {
             edit.setAdapter(new android.widget.ArrayAdapter<>(ctx,
@@ -165,6 +167,7 @@ public final class UniversalDialog {
         TextInputEditText edit = new TextInputEditText(til.getContext());
         edit.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED);
         edit.setText(formatFloat(initial));
+        applyOutlinedFieldStyling(themed, edit);
         til.addView(edit);
         LinearLayout.LayoutParams tilLp = new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WRAP_CONTENT, 1.2f);
@@ -178,6 +181,7 @@ public final class UniversalDialog {
             android.R.layout.simple_list_item_1,
             new String[]{"px", "%", "em", "rem", "vw", "vh", "pt", "fr", "auto"}));
         unitField.setThreshold(1);
+        applyOutlinedFieldStyling(themed, unitField);
         unitTil.addView(unitField);
         LinearLayout.LayoutParams unitLp = new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
@@ -235,6 +239,7 @@ public final class UniversalDialog {
         TextInputEditText hexEdit = new TextInputEditText(hexTil.getContext());
         hexEdit.setSingleLine(true);
         hexEdit.setText(formatHex(rgb));
+        applyOutlinedFieldStyling(ctx, hexEdit);
         hexTil.addView(hexEdit);
 
         SeekBar rBar = newColorSlider(ctx, rgb[0]);
@@ -340,6 +345,14 @@ public final class UniversalDialog {
         til.setHint(hint);
         til.setBoxCornerRadii(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 16));
         return til;
+    }
+
+    private static void applyOutlinedFieldStyling(Context ctx, android.widget.EditText edit) {
+        edit.setMinimumHeight(dp(ctx, 56));
+        int hp = dp(ctx, 16);
+        int vp = dp(ctx, 12);
+        edit.setPadding(hp, vp, hp, vp);
+        edit.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
     }
 
     private static SeekBar newColorSlider(Context ctx, int initial) {
