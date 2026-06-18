@@ -4,18 +4,19 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.content.res.ColorStateList;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.RotateAnimation;
+import android.view.animation.Animation;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.card.MaterialCardView;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -63,16 +64,8 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     }
 
     public void setSelectedView(View view) {
-        View oldSelected = this.selectedWidgetView;
         this.selectedWidgetView = view;
-
-        // Only rebind items whose selection state actually changed (avoids full refresh)
-        for (int i = 0; i < flatList.size(); i++) {
-            View nodeView = flatList.get(i).view;
-            if (nodeView == oldSelected || nodeView == view) {
-                notifyItemChanged(i);
-            }
-        }
+        notifyDataSetChanged();
     }
 
     public void setFilter(String query) {
@@ -84,14 +77,9 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     public void buildTree(ViewGroup screen) {
         this.rootScreen = screen;
-
-        List<TreeNode> oldList = new ArrayList<>(flatList);
         flatList.clear();
         addNode(screen, 0, "body");
-
-        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(
-                new TreeDiffCallback(oldList, flatList, selectedWidgetView), true);
-        diffResult.dispatchUpdatesTo(this);
+        notifyDataSetChanged();
     }
 
     public void attachToRecyclerView(RecyclerView rv) {
@@ -105,7 +93,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 int fromPos = viewHolder.getAdapterPosition();
                 int toPos = target.getAdapterPosition();
 
-                // Don't move root (body)
                 if (fromPos == 0 || toPos == 0) return false;
                 if (fromPos < 0 || toPos < 0) return false;
                 if (fromPos >= flatList.size() || toPos >= flatList.size()) return false;
@@ -113,50 +100,51 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 TreeNode fromNode = flatList.get(fromPos);
                 TreeNode toNode = flatList.get(toPos);
 
-                // Don't move locked nodes
                 if (fromNode.isLocked) return false;
-
-                // Perform the actual view reparenting/reorder
-                if (fromNode.view != null && fromNode.view.getParent() instanceof ViewGroup) {
-                    ViewGroup fromParent = (ViewGroup) fromNode.view.getParent();
-
-                    // Determine target parent and index
-                    ViewGroup targetParent;
-                    int targetIndex;
-
-                    if (toNode.isContainer && toNode.depth >= fromNode.depth) {
-                        // Moving INTO a container - add as first child
-                        targetParent = (ViewGroup) toNode.view;
-                        targetIndex = 0;
-                    } else if (toNode.view.getParent() instanceof ViewGroup) {
-                        // Moving BESIDE a sibling
-                        targetParent = (ViewGroup) toNode.view.getParent();
-                        targetIndex = targetParent.indexOfChild(toNode.view);
-                    } else {
-                        return false;
-                    }
-
-                    // Prevent dropping into own children
-                    if (isDescendantOf(targetParent, fromNode.view)) {
-                        return false;
-                    }
-
-                    fromParent.removeView(fromNode.view);
-
-                    // Recalculate index after removal
-                    targetIndex = Math.min(targetIndex, targetParent.getChildCount());
-                    targetParent.addView(fromNode.view, Math.max(0, targetIndex));
-
-                    if (reorderListener != null) {
-                        reorderListener.onReorder(fromNode.view, targetParent, targetIndex);
-                    }
+                if (fromNode.view == null || !(fromNode.view.getParent() instanceof ViewGroup)) {
+                    return false;
                 }
 
-                // Animate the swap in the flat list without a full rebind
-                if (fromPos >= 0 && toPos >= 0 && fromPos < flatList.size() && toPos < flatList.size()) {
-                    Collections.swap(flatList, fromPos, toPos);
-                    notifyItemMoved(fromPos, toPos);
-                    // Full rebuild (with DiffUtil) happens in clearView after drag ends
+                ViewGroup fromParent = (ViewGroup) fromNode.view.getParent();
+                ViewGroup targetParent;
+                int targetIndex;
+
+                boolean movingDown = toPos > fromPos;
+                if (toNode.isContainer && toNode.view != fromNode.view) {
+                    targetParent = (ViewGroup) toNode.view;
+                    targetIndex = movingDown ? 0 : targetParent.getChildCount();
+                } else if (toNode.view.getParent() instanceof ViewGroup) {
+                    targetParent = (ViewGroup) toNode.view.getParent();
+                    int siblingIdx = targetParent.indexOfChild(toNode.view);
+                    targetIndex = movingDown ? siblingIdx + 1 : siblingIdx;
+                } else {
+                    return false;
+                }
+
+                if (isDescendantOf(targetParent, fromNode.view)) {
+                    return false;
+                }
+
+                // Reparent the view.
+                int prevIndexInSameParent = -1;
+                if (fromParent == targetParent) {
+                    prevIndexInSameParent = fromParent.indexOfChild(fromNode.view);
+                }
+                fromParent.removeView(fromNode.view);
+                if (prevIndexInSameParent != -1 && prevIndexInSameParent < targetIndex) {
+                    targetIndex--;
+                }
+                targetIndex = Math.max(0, Math.min(targetIndex, targetParent.getChildCount()));
+                targetParent.addView(fromNode.view, targetIndex);
+
+                if (reorderListener != null) {
+                    reorderListener.onReorder(fromNode.view, targetParent, targetIndex);
+                }
+
+                // Rebuild immediately so depth, child counts, and arrows refresh
+                // in real time during the drag.
+                if (rootScreen != null) {
+                    buildTree(rootScreen);
                 }
                 return true;
             }
@@ -175,7 +163,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             public void clearView(@NonNull RecyclerView recyclerView,
                                   @NonNull RecyclerView.ViewHolder viewHolder) {
                 super.clearView(recyclerView, viewHolder);
-                // Rebuild tree with DiffUtil after drag ends to sync depths/structure
                 if (rootScreen != null) {
                     buildTree(rootScreen);
                 }
@@ -247,7 +234,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             }
         }
 
-        // Apply filter
         if (!filterQuery.isEmpty() && depth > 0) {
             String searchable = (name + " " + tag + " " + id + " " + cssClass + " " + textPreview).toLowerCase();
             if (!searchable.contains(filterQuery)) {
@@ -287,107 +273,137 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        LinearLayout layout = new LinearLayout(context);
-        layout.setOrientation(LinearLayout.HORIZONTAL);
-        layout.setGravity(Gravity.CENTER_VERTICAL);
-        layout.setPadding(12, 6, 12, 6);
-        layout.setLayoutParams(new RecyclerView.LayoutParams(
+        // Wrapper LinearLayout so we can indent the M3 card via margins.
+        LinearLayout wrapper = new LinearLayout(context);
+        wrapper.setOrientation(LinearLayout.HORIZONTAL);
+        wrapper.setLayoutParams(new RecyclerView.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        return new ViewHolder(layout);
+
+        MaterialCardView card = new MaterialCardView(context);
+        card.setRadius(20);
+        card.setCardElevation(0);
+        card.setStrokeWidth(1);
+        card.setUseCompatPadding(false);
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardParams.setMargins(8, 4, 8, 4);
+        card.setLayoutParams(cardParams);
+
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(12, 10, 12, 10);
+        row.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        card.addView(row);
+        wrapper.addView(card);
+
+        ViewHolder vh = new ViewHolder(wrapper);
+        vh.card = card;
+        vh.row = row;
+        return vh;
     }
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
         TreeNode node = flatList.get(position);
-        LinearLayout layout = (LinearLayout) holder.itemView;
-        layout.removeAllViews();
+        LinearLayout row = holder.row;
+        MaterialCardView card = holder.card;
+        row.removeAllViews();
 
         boolean isSelected = node.view == selectedWidgetView;
         boolean isRoot = node.depth == 0;
-
         int indentPx = node.depth * 24;
 
-        LinearLayout cardRow = new LinearLayout(context);
-        cardRow.setOrientation(LinearLayout.HORIZONTAL);
-        cardRow.setGravity(Gravity.CENTER_VERTICAL);
-        cardRow.setPadding(12, 10, 12, 10);
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardParams.setMargins(indentPx, 2, 4, 2);
-        cardRow.setLayoutParams(cardParams);
+        ((LinearLayout.LayoutParams) card.getLayoutParams()).setMargins(8 + indentPx, 4, 8, 4);
 
-        GradientDrawable cardBg = new GradientDrawable();
-        cardBg.setCornerRadius(16);
-
+        // Material 3 card surface — tonal fill + outline + ripple.
+        int fill, stroke, textColor;
         if (isSelected) {
-            cardBg.setColor(Color.parseColor("#1A2196F3"));
-            cardBg.setStroke(2, Color.parseColor("#2196F3"));
+            fill = Color.parseColor("#332196F3");
+            stroke = Color.parseColor("#2196F3");
+            textColor = Color.parseColor("#2196F3");
         } else if (isRoot) {
-            cardBg.setColor(Color.parseColor("#1A6750A4"));
-            cardBg.setStroke(2, Color.parseColor("#6750A4"));
+            fill = Color.parseColor("#266750A4");
+            stroke = Color.parseColor("#6750A4");
+            textColor = Color.parseColor("#D0BCFF");
         } else if (node.isContainer) {
-            cardBg.setColor(Color.parseColor("#0D37474F"));
-            cardBg.setStroke(1, Color.parseColor("#49454F"));
+            fill = Color.parseColor("#1437474F");
+            stroke = Color.parseColor("#49454F");
+            textColor = Color.parseColor("#E6E1E5");
         } else {
-            cardBg.setColor(Color.TRANSPARENT);
-            cardBg.setStroke(1, Color.parseColor("#36343B"));
+            fill = Color.parseColor("#0C1F1B24");
+            stroke = Color.parseColor("#36343B");
+            textColor = Color.parseColor("#CAC4D0");
         }
-        cardRow.setBackground(cardBg);
+        card.setCardBackgroundColor(fill);
+        card.setStrokeColor(stroke);
+        card.setRippleColor(ColorStateList.valueOf(Color.parseColor("#332196F3")));
+        card.setClickable(true);
+        card.setFocusable(true);
 
         // Collapse/expand arrow for containers
         if (node.isContainer && node.childCount > 0) {
             TextView arrow = new TextView(context);
-            arrow.setTextSize(14);
-            boolean collapsed = collapsedNodes.contains(node.nodeId);
-            arrow.setText(collapsed ? "\u25B6" : "\u25BC");
+            arrow.setText("▶");
+            arrow.setTextSize(12);
             arrow.setTextColor(getTagColor(node.tag));
-            LinearLayout.LayoutParams arrowParams = new LinearLayout.LayoutParams(
-                28, ViewGroup.LayoutParams.WRAP_CONTENT);
+            arrow.setGravity(Gravity.CENTER);
+            arrow.setPadding(0, 0, 0, 0);
+            LinearLayout.LayoutParams arrowParams = new LinearLayout.LayoutParams(28, 28);
             arrowParams.setMargins(0, 0, 6, 0);
             arrow.setLayoutParams(arrowParams);
-            arrow.setGravity(Gravity.CENTER);
+
+            boolean collapsed = collapsedNodes.contains(node.nodeId);
+            arrow.setRotation(collapsed ? 0f : 90f);
             arrow.setOnClickListener(v -> {
-                if (collapsedNodes.contains(node.nodeId)) {
-                    collapsedNodes.remove(node.nodeId);
-                } else {
+                boolean nowCollapsed = !collapsedNodes.contains(node.nodeId);
+                if (nowCollapsed) {
                     collapsedNodes.add(node.nodeId);
+                } else {
+                    collapsedNodes.remove(node.nodeId);
                 }
-                if (rootScreen != null) {
-                    buildTree(rootScreen);
-                }
+                // Animate the arrow rotation, then rebuild the list.
+                RotateAnimation rot = new RotateAnimation(
+                    nowCollapsed ? 90f : 0f,
+                    nowCollapsed ? 0f : 90f,
+                    Animation.RELATIVE_TO_SELF, 0.5f,
+                    Animation.RELATIVE_TO_SELF, 0.5f);
+                rot.setDuration(160);
+                rot.setFillAfter(true);
+                arrow.startAnimation(rot);
+                arrow.postDelayed(() -> {
+                    if (rootScreen != null) buildTree(rootScreen);
+                }, 160);
             });
-            cardRow.addView(arrow);
+            row.addView(arrow);
         } else {
             View spacer = new View(context);
             LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(28, 1);
             spacerParams.setMargins(0, 0, 6, 0);
             spacer.setLayoutParams(spacerParams);
-            cardRow.addView(spacer);
+            row.addView(spacer);
         }
 
-        // Tag color indicator (rounded pill)
+        // Tag badge
         TextView tagBadge = new TextView(context);
         tagBadge.setTextSize(10);
         tagBadge.setTypeface(null, Typeface.BOLD);
         tagBadge.setTextColor(Color.WHITE);
         tagBadge.setGravity(Gravity.CENTER);
         tagBadge.setPadding(10, 2, 10, 2);
-
         GradientDrawable badgeBg = new GradientDrawable();
         badgeBg.setCornerRadius(12);
         badgeBg.setColor(getTagColor(node.tag));
         tagBadge.setBackground(badgeBg);
-
-        String badgeText = isRoot ? "body" : node.tag;
-        tagBadge.setText(badgeText);
-
+        tagBadge.setText(isRoot ? "body" : node.tag);
         LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         badgeParams.setMargins(0, 0, 8, 0);
         tagBadge.setLayoutParams(badgeParams);
-        cardRow.addView(tagBadge);
+        row.addView(tagBadge);
 
-        // Name + info column
+        // Name + preview column
         LinearLayout nameCol = new LinearLayout(context);
         nameCol.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams nameColParams = new LinearLayout.LayoutParams(
@@ -396,42 +412,28 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
         TextView nameView = new TextView(context);
         StringBuilder displayName = new StringBuilder();
-
-        if (node.isLocked) displayName.append("\uD83D\uDD12 ");
-        if (node.isHidden) displayName.append("\uD83D\uDC41 ");
-
+        if (node.isLocked) displayName.append("🔒 ");
+        if (node.isHidden) displayName.append("👁 ");
         if (!isRoot) {
             displayName.append("<").append(node.tag).append(">");
-            if (!node.id.isEmpty()) {
-                displayName.append(" #").append(node.id);
-            }
+            if (!node.id.isEmpty()) displayName.append(" #").append(node.id);
             if (!node.cssClass.isEmpty()) {
-                String shortClass = node.cssClass.length() > 15 ? node.cssClass.substring(0, 15) + ".." : node.cssClass;
+                String shortClass = node.cssClass.length() > 15
+                    ? node.cssClass.substring(0, 15) + ".." : node.cssClass;
                 displayName.append(" .").append(shortClass);
             }
         } else {
             displayName.append("body");
         }
-
         if (node.isContainer && node.childCount > 0) {
             displayName.append("  (").append(node.childCount).append(")");
         }
-
         nameView.setText(displayName.toString());
         nameView.setTextSize(14);
         nameView.setSingleLine(true);
         nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         nameView.setTypeface(null, Typeface.BOLD);
-
-        if (isSelected) {
-            nameView.setTextColor(Color.parseColor("#2196F3"));
-        } else if (isRoot) {
-            nameView.setTextColor(Color.parseColor("#D0BCFF"));
-        } else if (node.isContainer) {
-            nameView.setTextColor(Color.parseColor("#E6E1E5"));
-        } else {
-            nameView.setTextColor(Color.parseColor("#CAC4D0"));
-        }
+        nameView.setTextColor(textColor);
         nameCol.addView(nameView);
 
         if (!node.textPreview.isEmpty()) {
@@ -444,12 +446,12 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             nameCol.addView(previewView);
         }
 
-        cardRow.addView(nameCol);
+        row.addView(nameCol);
 
-        // More options button
+        // More options
         if (!isRoot) {
             TextView moreBtn = new TextView(context);
-            moreBtn.setText("\u22EE");
+            moreBtn.setText("⋮");
             moreBtn.setTextSize(18);
             moreBtn.setTextColor(Color.parseColor("#A8A4AE"));
             moreBtn.setPadding(10, 2, 10, 2);
@@ -459,23 +461,14 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             moreBg.setCornerRadius(10);
             moreBtn.setBackground(moreBg);
             moreBtn.setOnClickListener(v -> {
-                if (longClickListener != null) {
-                    longClickListener.onItemLongClick(node.view);
-                }
+                if (longClickListener != null) longClickListener.onItemLongClick(node.view);
             });
-            cardRow.addView(moreBtn);
+            row.addView(moreBtn);
         }
 
-        layout.setPadding(0, 0, 0, 0);
-        layout.addView(cardRow);
-
-        cardRow.setOnClickListener(v -> {
-            if (clickListener != null && !isRoot) {
-                clickListener.onItemClick(node.view);
-            }
+        card.setOnClickListener(v -> {
+            if (clickListener != null && !isRoot) clickListener.onItemClick(node.view);
         });
-
-
     }
 
     @Override
@@ -508,70 +501,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         }
     }
 
-    // -------------------------------------------------------------------------
-    // DiffUtil Callback
-    // -------------------------------------------------------------------------
-
-    /**
-     * Compares two snapshots of the flat hierarchy list so RecyclerView can
-     * animate inserts, removes, and moves without a full rebind.
-     */
-    static class TreeDiffCallback extends DiffUtil.Callback {
-
-        private final List<TreeNode> oldList;
-        private final List<TreeNode> newList;
-        @Nullable private final View selectedView;
-
-        TreeDiffCallback(List<TreeNode> oldList, List<TreeNode> newList, @Nullable View selectedView) {
-            this.oldList = oldList;
-            this.newList = newList;
-            this.selectedView = selectedView;
-        }
-
-        @Override
-        public int getOldListSize() {
-            return oldList.size();
-        }
-
-        @Override
-        public int getNewListSize() {
-            return newList.size();
-        }
-
-        /** Two nodes represent the same widget if they wrap the same View instance. */
-        @Override
-        public boolean areItemsTheSame(int oldPos, int newPos) {
-            return oldList.get(oldPos).nodeId == newList.get(newPos).nodeId;
-        }
-
-        /**
-         * Content equality: checks all visible properties including selection state,
-         * depth, tag, id, class, text preview, and structural flags.
-         */
-        @Override
-        public boolean areContentsTheSame(int oldPos, int newPos) {
-            TreeNode o = oldList.get(oldPos);
-            TreeNode n = newList.get(newPos);
-            boolean oSel = (o.view == selectedView);
-            boolean nSel = (n.view == selectedView);
-            return oSel == nSel
-                    && o.depth == n.depth
-                    && o.tag.equals(n.tag)
-                    && o.name.equals(n.name)
-                    && o.id.equals(n.id)
-                    && o.cssClass.equals(n.cssClass)
-                    && o.textPreview.equals(n.textPreview)
-                    && o.isContainer == n.isContainer
-                    && o.childCount == n.childCount
-                    && o.isLocked == n.isLocked
-                    && o.isHidden == n.isHidden;
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Data classes
-    // -------------------------------------------------------------------------
-
     static class TreeNode {
         View view;
         int depth;
@@ -588,6 +517,8 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
+        MaterialCardView card;
+        LinearLayout row;
         ViewHolder(View v) { super(v); }
     }
 }
