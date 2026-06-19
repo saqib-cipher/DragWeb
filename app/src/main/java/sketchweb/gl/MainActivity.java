@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
 	private ExportManager exportManager;
 	private WidgetRegistry widgetRegistry;
 	private LogicBlockManager logicBlockManager;
-	private CustomBlockManager customBlockManager;
+	private ManageBlocksWidgets customBlockManager;
 	private HierarchyTreeAdapter hierarchyAdapter;
 	private PageManager pageManager;
 	private ActivityResultLauncher<Intent> logicBlockLauncher;
@@ -95,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
 	private Button btnDrawer, btnBack, btnUndo, btnRedo, btnTheme, btnExport;
 	private Button btnAddLogicBlock, btnViewAllBlocks, btnResetLogic;
 	private LinearLayout blockEditorContainer;
-	private Button btnLoadCustomWidgets, btnLoadCustomBlocks, btnNewFolder;
+	private Button btnNewFolder;
 	private Button btnCopyWidget, btnAddPage;
 	private TextView textview2, tvAssetsPath;
 	private RecyclerView recyclerview3, recyclerview1, recyclerviewRightPanel, rvAssets;
@@ -279,8 +279,6 @@ public class MainActivity extends AppCompatActivity {
 		btnTheme = findViewById(R.id.btnTheme);
 		btnExport = findViewById(R.id.btnExport);
 		btnAddLogicBlock = findViewById(R.id.btnAddLogicBlock);
-		btnLoadCustomWidgets = findViewById(R.id.btnLoadCustomWidgets);
-		btnLoadCustomBlocks = findViewById(R.id.btnLoadCustomBlocks);
 		btnCopyWidget = findViewById(R.id.btnCopyWidget);
 		tvAssetsPath = findViewById(R.id.tvAssetsPath);
 		tabLayout = findViewById(R.id.tabLayout);
@@ -510,7 +508,7 @@ public class MainActivity extends AppCompatActivity {
 		exportManager.setAnimationLibraryManager(animMgr);
 		codeGenerator.setAnimationLibraryManager(animMgr);
 		logicBlockManager = new LogicBlockManager(this);
-		customBlockManager = new CustomBlockManager(this);
+		customBlockManager = new ManageBlocksWidgets(this);
 		pageManager = new PageManager(this, projectId);
 
 		// Load logic blocks for the initial page
@@ -1689,7 +1687,7 @@ public class MainActivity extends AppCompatActivity {
 		}
 
 		// Custom-block library (templates that emit static HTML/CSS) is loaded
-		// by CustomBlockManager itself: it tries /.dragweb/custom/blocks.json,
+		// by ManageBlocksWidgets itself: it tries /.dragweb/custom/blocks.json,
 		// falls back to assets/blocks.json, then to built-in defaults. We just
 		// re-trigger that load so any external edits are picked up.
 		if (customBlockManager != null) {
@@ -1727,7 +1725,7 @@ public class MainActivity extends AppCompatActivity {
 		File file = new File(blocksPath);
 		if (file.exists()) {
 			try {
-				if (customBlockManager == null) customBlockManager = new CustomBlockManager(this);
+				if (customBlockManager == null) customBlockManager = new ManageBlocksWidgets(this);
 				customBlockManager.loadLibrary();
 				int count = customBlockManager.getDefinitions().size();
 				Toast.makeText(this, "Loaded " + count + " custom block templates", Toast.LENGTH_SHORT).show();
@@ -2605,50 +2603,60 @@ public class MainActivity extends AppCompatActivity {
 	// ---- Export Dialog ----
 
 	private void showExportDialog() {
-		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_export, null);
+		final android.app.ProgressDialog progress = new android.app.ProgressDialog(this);
+		progress.setTitle("Exporting Project");
+		progress.setMessage("Exporting ZIP and separate files...");
+		progress.setCancelable(false);
+		progress.show();
 
-		MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
-		builder.setTitle("Export Project");
-		builder.setView(dialogView);
-		builder.setNegativeButton("Close", null);
+		new Thread(() -> {
+			boolean folderOk = false;
+			String folderPath = "";
+			boolean zipOk = false;
+			String zipPath = "";
+			String errMsg = "";
 
-		androidx.appcompat.app.AlertDialog dialog = builder.create();
-
-		dialogView.findViewById(R.id.cardExportHtml).setOnClickListener(v -> {
-			ExportManager.ExportResult result = exportManager.generateExportFiles(
-				screen, projectName, logicBlockManager, customBlockManager);
-			if (result.success) {
-				Toast.makeText(this, result.message, Toast.LENGTH_LONG).show();
-			} else {
-				Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show();
-			}
-			dialog.dismiss();
-		});
-
-		dialogView.findViewById(R.id.cardExportZip).setOnClickListener(v -> {
 			try {
+				// 1. Generate separate files (Folder export)
+				ExportManager.ExportResult result = exportManager.generateExportFiles(
+						screen, projectName, logicBlockManager, customBlockManager);
+				folderOk = result.success;
+				if (folderOk && result.exportDir != null) {
+					folderPath = result.exportDir.getAbsolutePath();
+				} else {
+					errMsg = result.message;
+				}
+
+				// 2. Generate ZIP archive
 				File zipFile = exportManager.exportAsZip(
-					screen, projectName, projectId, logicBlockManager, customBlockManager);
-				Toast.makeText(this, "ZIP exported: " + zipFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+						screen, projectName, projectId, logicBlockManager, customBlockManager);
+				zipOk = (zipFile != null && zipFile.exists());
+				if (zipOk) {
+					zipPath = zipFile.getAbsolutePath();
+				}
 			} catch (Exception e) {
-				Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+				errMsg = e.getMessage();
 			}
-			dialog.dismiss();
-		});
 
-		dialogView.findViewById(R.id.cardExportPreview).setOnClickListener(v -> {
-			PageCodeGenerator gen = new PageCodeGenerator();
-			gen.setProjectInfo(projectName, getProjectLogoPath());
-			gen.setIconLibraryManager(new IconLibraryManager(this, projectId));
-			gen.setAnimationLibraryManager(new AnimationLibraryManager(this, projectId));
-			String html = gen.generateFullCode(screen, themeManager, logicBlockManager, customBlockManager);
-			ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-			clipboard.setPrimaryClip(ClipData.newPlainText("html", html));
-			Toast.makeText(this, "HTML copied to clipboard", Toast.LENGTH_SHORT).show();
-			dialog.dismiss();
-		});
+			final boolean finalFolderOk = folderOk;
+			final String finalFolderPath = folderPath;
+			final boolean finalZipOk = zipOk;
+			final String finalZipPath = zipPath;
+			final String finalErrMsg = errMsg;
 
-		dialog.show();
+			runOnUiThread(() -> {
+				progress.dismiss();
+				if (finalFolderOk && finalZipOk) {
+					new MaterialAlertDialogBuilder(MainActivity.this)
+						.setTitle("Export Successful")
+						.setMessage("Exported separate files to:\n" + finalFolderPath + "\n\nExported ZIP file to:\n" + finalZipPath)
+						.setPositiveButton("OK", null)
+						.show();
+				} else {
+					Toast.makeText(MainActivity.this, "Export failed: " + finalErrMsg, Toast.LENGTH_LONG).show();
+				}
+			});
+		}).start();
 	}
 
 	// ---- Design Property Lists (removed event items from view section) ----

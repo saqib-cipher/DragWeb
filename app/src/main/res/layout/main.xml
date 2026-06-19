@@ -638,35 +638,6 @@
 			android:clipToPadding="false"
 			tools:listitem="@layout/widgets" />
 
-		<!-- Drawer bottom: Custom configs -->
-		<View
-			android:layout_width="match_parent"
-			android:layout_height="1dp"
-			android:background="?attr/colorOutlineVariant" />
-
-		<LinearLayout
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:orientation="vertical"
-			android:padding="8dp">
-
-			<Button
-				android:id="@+id/btnLoadCustomWidgets"
-				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:text="Load Custom Widgets JSON"
-				android:textSize="11sp"
-				style="?attr/materialButtonOutlinedStyle" />
-
-			<Button
-				android:id="@+id/btnLoadCustomBlocks"
-				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:text="Load Custom Blocks JSON"
-				android:textSize="11sp"
-				android:layout_marginTop="4dp"
-				style="?attr/materialButtonOutlinedStyle" />
-		</LinearLayout>
 	</LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>

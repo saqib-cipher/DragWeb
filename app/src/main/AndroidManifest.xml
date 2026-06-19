@@ -54,6 +54,12 @@
 			android:windowSoftInputMode="stateHidden"
 			android:exported="false" />
 		<activity
+			android:name=".ManageBlocksWidgetsActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="stateHidden"
+			android:exported="false" />
+		<activity
 			android:name=".PreviewActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"

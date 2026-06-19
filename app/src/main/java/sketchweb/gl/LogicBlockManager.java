@@ -864,7 +864,7 @@ public class LogicBlockManager {
      * ({@code %1$s}, {@code %2$s}, ...) inside a block template with the
      * supplied values and returns the resulting source code string.
      *
-     * <p>Used by {@link CustomBlockManager} to convert visual custom blocks
+     * <p>Used by {@link ManageBlocksWidgets} to convert visual custom blocks
      * into static HTML or CSS at code-generation time. The same engine
      * powers selector tokens (%m.id, %m.class, %m.tag, %m.file, %m.section)
      * because the values supplied are resolved selectors.

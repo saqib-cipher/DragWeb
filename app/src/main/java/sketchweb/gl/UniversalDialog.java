@@ -72,6 +72,7 @@ public final class UniversalDialog {
             edit.setMinLines(4);
             edit.setMaxLines(12);
             edit.setGravity(Gravity.TOP | Gravity.START);
+            applyOutlinedFieldStyling(ctx, edit);
         } else {
             edit.setSingleLine(true);
             applyOutlinedFieldStyling(ctx, edit);
@@ -343,7 +344,9 @@ public final class UniversalDialog {
     private static TextInputLayout makeInputLayout(Context ctx, String hint) {
         TextInputLayout til = new TextInputLayout(ctx, null, com.google.android.material.R.attr.textInputOutlinedStyle);
         til.setHint(hint);
-        til.setBoxCornerRadii(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 16));
+        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        int dp12 = dp(ctx, 12);
+        til.setBoxCornerRadii(dp12, dp12, dp12, dp12);
         return til;
     }
 

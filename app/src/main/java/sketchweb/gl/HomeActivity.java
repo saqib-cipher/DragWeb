@@ -32,6 +32,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import java.io.BufferedReader;
 import java.io.File;
@@ -192,8 +193,6 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		);
 
-
-
 		htmlFileLauncher = registerForActivityResult(
 			new ActivityResultContracts.OpenDocument(),
 			uri -> {
@@ -263,6 +262,15 @@ public class HomeActivity extends AppCompatActivity {
 				showImportWebsiteDialog();
 			});
 		}
+
+		LinearLayout menuCustomManager = findViewById(R.id.menuCustomManager);
+		if (menuCustomManager != null) {
+			menuCustomManager.setOnClickListener(v -> {
+				drawer.closeDrawer(GravityCompat.START);
+				startActivity(new Intent(this, ManageBlocksWidgetsActivity.class));
+			});
+		}
+
 	}
 
 	/** Generate a short unique project ID using a numeric system */
@@ -358,6 +366,7 @@ public class HomeActivity extends AppCompatActivity {
 			openProject(projectId, projectName);
 		}
 	}
+
 
 	private void setupToolbar() {
 		setSupportActionBar(toolbar);

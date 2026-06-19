@@ -43,7 +43,7 @@ public class PageCodeGenerator {
 
     public String generateFullCode(View screen, ThemeManager themeManager,
                                    LogicBlockManager logicBlockManager,
-                                   CustomBlockManager customBlockManager) {
+                                   ManageBlocksWidgets customBlockManager) {
         this.themeManager = themeManager;
         resetStyleCache();
         StringBuilder bodyBuilder = new StringBuilder();
@@ -95,7 +95,7 @@ public class PageCodeGenerator {
     public String generateFullCodeFromTree(List<Map<String, Object>> widgetTree,
                                            ThemeManager themeManager,
                                            LogicBlockManager logicBlockManager,
-                                           CustomBlockManager customBlockManager) {
+                                           ManageBlocksWidgets customBlockManager) {
         this.themeManager = themeManager;
         resetStyleCache();
         StringBuilder bodyBuilder = new StringBuilder();
@@ -174,14 +174,14 @@ public class PageCodeGenerator {
 
     private void appendHtmlFooter(StringBuilder htmlBuilder,
                                   LogicBlockManager logicBlockManager,
-                                  CustomBlockManager customBlockManager) {
+                                  ManageBlocksWidgets customBlockManager) {
         appendHtmlFooter(htmlBuilder, null, logicBlockManager, customBlockManager);
     }
 
     private void appendHtmlFooter(StringBuilder htmlBuilder,
                                   ThemeManager themeManager,
                                   LogicBlockManager logicBlockManager,
-                                  CustomBlockManager customBlockManager) {
+                                  ManageBlocksWidgets customBlockManager) {
         // Consolidated <style> block at the end of body as requested.
         htmlBuilder.append("\n  <style>\n");
 

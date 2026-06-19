@@ -20,17 +20,7 @@
         android:icon="@drawable/icon_code_round"
         app:showAsAction="ifRoom" />
 
-    <item
-        android:id="@+id/action_import"
-        android:title="Import"
-        android:icon="@drawable/icon_import_round"
-        app:showAsAction="never" />
 
-    <item
-        android:id="@+id/action_export"
-        android:title="Export"
-        android:icon="@drawable/icon_export_round"
-        app:showAsAction="never" />
 
     <item
         android:id="@+id/action_collections"

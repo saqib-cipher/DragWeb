@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?attr/colorSurface"
+    android:fitsSystemWindows="true">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbarManager"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurfaceContainerHigh"
+        app:title="Manage Blocks &amp; Widgets"
+        app:titleTextColor="?attr/colorOnSurface"
+        app:navigationIcon="@drawable/icon_arrow_back_round"
+        app:navigationIconTint="?attr/colorOnSurface" />
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayoutManager"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurfaceContainerHigh"
+        app:tabIndicatorAnimationMode="elastic"
+        app:tabSelectedTextColor="?attr/colorPrimary"
+        app:tabTextColor="?attr/colorOnSurfaceVariant"
+        app:tabIndicatorColor="?attr/colorPrimary">
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Custom Blocks" />
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Custom Widgets" />
+    </com.google.android.material.tabs.TabLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- ===== Custom Blocks Content ===== -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scrollBlocks"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="vertical">
+
+            <LinearLayout
+                android:id="@+id/containerBlocks"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:clipToPadding="false">
+
+                <!-- Dynamic block cards go here -->
+                <TextView
+                    android:id="@+id/tvEmptyBlocks"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:padding="32dp"
+                    android:text="No custom blocks created yet.\nTap the + button to add one!"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+
+        <!-- ===== Custom Widgets Content ===== -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scrollWidgets"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/containerWidgets"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:clipToPadding="false">
+
+                <!-- Dynamic widget cards go here -->
+                <TextView
+                    android:id="@+id/tvEmptyWidgets"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:padding="32dp"
+                    android:text="No custom widgets created yet.\nTap the + button to add one!"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+
+        <!-- Floating Action Button -->
+        <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+            android:id="@+id/fabAddCustom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="16dp"
+            android:text="Add Block"
+            app:icon="@drawable/ic_add"
+            app:backgroundTint="?attr/colorPrimaryContainer"
+            app:iconTint="?attr/colorOnPrimaryContainer"
+            android:textColor="?attr/colorOnPrimaryContainer" />
+
+    </FrameLayout>
+</LinearLayout>

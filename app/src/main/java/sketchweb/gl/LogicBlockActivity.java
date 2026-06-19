@@ -60,7 +60,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
     private BlockParamTypeManager paramTypeManager;
     private BlockChipFactory chipFactory;
     private BlockDragDropManager dragDropManager;
-    private CustomBlockManager customBlockManager;
+    private ManageBlocksWidgets customBlockManager;
 
     private String projectId;
     private String pageName = "index";
@@ -93,7 +93,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         setContentView(R.layout.activity_logic_block);
 
         paramTypeManager = new BlockParamTypeManager();
-        customBlockManager = new CustomBlockManager(this);
+        customBlockManager = new ManageBlocksWidgets(this);
 
         projectId = getIntent().getStringExtra("project_id");
         if (projectId == null) projectId = "";

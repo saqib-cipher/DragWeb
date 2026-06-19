@@ -27,7 +27,6 @@ import java.util.List;
  */
 final class BlockChipFactory {
 
-    private static final java.util.Map<String, String> lastValueMap = new java.util.HashMap<>();
 
     interface OnChipValueChanged {
         void onChanged(String chipId, String newValue);
@@ -35,11 +34,11 @@ final class BlockChipFactory {
 
     private final Context context;
     private final BlockParamTypeManager paramTypes;
-    private final CustomBlockManager customBlocks;
+    private final ManageBlocksWidgets customBlocks;
 
     BlockChipFactory(Context context,
                      BlockParamTypeManager paramTypes,
-                     CustomBlockManager customBlocks) {
+                     ManageBlocksWidgets customBlocks) {
         this.context = context;
         this.paramTypes = paramTypes;
         this.customBlocks = customBlocks;
@@ -114,17 +113,14 @@ final class BlockChipFactory {
         String display = value.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : value;
         TextView chip = baseChip(baseColor, display);
         chip.setOnClickListener(v -> {
-            String cached = lastValueMap.get(input.id);
-            String initialVal = value.isEmpty() && cached != null ? cached : value;
+            String currentText = chip.getText().toString();
+            String currentVal = (currentText.equals("...") || (input.placeholder != null && currentText.equals(input.placeholder))) ? "" : currentText;
             new UniversalM3Dialog(context)
                 .setTitle(input.id != null ? input.id : "Edit")
                 .setHint(input.placeholder != null ? input.placeholder : "Value")
-                .setInitialValue(initialVal)
+                .setInitialValue(currentVal)
                 .showTextInput(nv -> {
                     chip.setText(nv.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : nv);
-                    if (nv != null && !nv.isEmpty()) {
-                        lastValueMap.put(input.id, nv);
-                    }
                     if (listener != null) listener.onChanged(input.id, nv);
                 });
         });
@@ -135,17 +131,14 @@ final class BlockChipFactory {
                                   OnChipValueChanged listener, List<String> options) {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "▼" : value + " ▼");
         chip.setOnClickListener(v -> {
-            String cached = lastValueMap.get(input.id);
-            String initialVal = value.isEmpty() && cached != null ? cached : value;
+            String currentText = chip.getText().toString();
+            String currentVal = currentText.equals("▼") ? "" : currentText.substring(0, currentText.length() - 2);
             new UniversalM3Dialog(context)
                 .setTitle(input.id != null ? input.id : "Choose")
                 .setHint(input.placeholder != null ? input.placeholder : "Custom value")
-                .setInitialValue(initialVal)
-                .showAutocompleteChoice(options, initialVal, chosen -> {
+                .setInitialValue(currentVal)
+                .showAutocompleteChoice(options, currentVal, chosen -> {
                     chip.setText(chosen.isEmpty() ? "▼" : chosen + " ▼");
-                    if (chosen != null && !chosen.isEmpty()) {
-                        lastValueMap.put(input.id, chosen);
-                    }
                     if (listener != null) listener.onChanged(input.id, chosen);
                 });
         });
@@ -169,17 +162,13 @@ final class BlockChipFactory {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "#FFFFFF" : value);
         applyColorSwatch(chip, value);
         chip.setOnClickListener(v -> {
-            String cached = lastValueMap.get(input.id);
-            String initialVal = value.isEmpty() && cached != null ? cached : value;
+            String currentVal = chip.getText().toString();
             new UniversalM3Dialog(context)
                 .setTitle(input.id != null ? "Color · " + input.id : "Color")
-                .setInitialValue(initialVal)
+                .setInitialValue(currentVal)
                 .showColorInput(picked -> {
                     chip.setText(picked);
                     applyColorSwatch(chip, picked);
-                    if (picked != null && !picked.isEmpty()) {
-                        lastValueMap.put(input.id, picked);
-                    }
                     if (listener != null) listener.onChanged(input.id, picked);
                 });
         });
@@ -192,13 +181,10 @@ final class BlockChipFactory {
                                   OnChipValueChanged listener) {
         TextView chip = baseChip(baseColor, value.isEmpty() ? "▼" : value);
         chip.setOnClickListener(v -> {
-            String cached = lastValueMap.get(input.id);
-            String initialVal = value.isEmpty() && cached != null ? cached : value;
-            showSelectorPickerDialog(input, initialVal, picked -> {
+            String currentText = chip.getText().toString();
+            String currentVal = currentText.equals("▼") ? "" : currentText;
+            showSelectorPickerDialog(input, currentVal, picked -> {
                 chip.setText(picked.isEmpty() ? "▼" : picked);
-                if (picked != null && !picked.isEmpty()) {
-                    lastValueMap.put(input.id, picked);
-                }
                 if (listener != null) listener.onChanged(input.id, picked);
             });
         });

@@ -3,6 +3,7 @@ package sketchweb.gl;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,6 +20,10 @@ public class WidgetBuilderEngine {
 
     public WidgetBuilderEngine(Context context) {
         this.context = context;
+    }
+
+    private int dpToPx(float dp) {
+        return (int) (dp * context.getResources().getDisplayMetrics().density);
     }
 
     public View createWidget(String tag) {
@@ -38,22 +43,48 @@ public class WidgetBuilderEngine {
             case "i":
                 view = new TextView(context);
                 break;
-            case "button":
-                view = new Button(context);
+            case "button": {
+                Button btn = new Button(context);
+                btn.setTransformationMethod(null);
+                btn.setMinimumWidth(0);
+                btn.setMinimumHeight(0);
+                btn.setMinWidth(0);
+                btn.setMinHeight(0);
+                btn.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
+                btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+                view = btn;
                 break;
+            }
             case "img":
                 view = new ImageView(context);
                 ((ImageView) view).setScaleType(ImageView.ScaleType.FIT_CENTER);
                 break;
-            case "input":
-                view = new TextInputEditText(context);
+            case "input": {
+                TextInputEditText input = new TextInputEditText(context);
+                input.setMinimumWidth(0);
+                input.setMinimumHeight(0);
+                input.setMinWidth(0);
+                input.setMinHeight(0);
+                input.setBackground(null);
+                input.setPadding(dpToPx(8), dpToPx(6), dpToPx(8), dpToPx(6));
+                input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+                view = input;
                 break;
-            case "textarea":
+            }
+            case "textarea": {
                 TextInputEditText textArea = new TextInputEditText(context);
                 textArea.setMinLines(3);
                 textArea.setGravity(Gravity.TOP | Gravity.START);
+                textArea.setMinimumWidth(0);
+                textArea.setMinimumHeight(0);
+                textArea.setMinWidth(0);
+                textArea.setMinHeight(0);
+                textArea.setBackground(null);
+                textArea.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
+                textArea.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
                 view = textArea;
                 break;
+            }
             case "div":
             case "section":
             case "nav":
@@ -66,14 +97,14 @@ public class WidgetBuilderEngine {
             case "ul":
             case "ol":
             case "li":
-            case "a":
+            case "a": {
                 LinearLayout layoutView = new LinearLayout(context);
                 layoutView.setOrientation(LinearLayout.VERTICAL);
-                layoutView.setMinimumHeight(60);
-                // Ensure layout containers have padding so nested drops work easily
-                layoutView.setPadding(8, 8, 8, 8);
+                layoutView.setMinimumHeight(dpToPx(60));
+                layoutView.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
                 view = layoutView;
                 break;
+            }
 
             case "hr":
                 view = new View(context);
@@ -110,13 +141,14 @@ public class WidgetBuilderEngine {
                 iframeView.setBackgroundColor(Color.parseColor("#1A000000"));
                 view = iframeView;
                 break;
-            case "table":
+            case "table": {
                 LinearLayout tableView = new LinearLayout(context);
                 tableView.setOrientation(LinearLayout.VERTICAL);
-                tableView.setMinimumHeight(60);
-                tableView.setPadding(8, 8, 8, 8);
+                tableView.setMinimumHeight(dpToPx(60));
+                tableView.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
                 view = tableView;
                 break;
+            }
             default:
                 view = new TextView(context);
                 break;
@@ -132,17 +164,17 @@ public class WidgetBuilderEngine {
             LinearLayout.LayoutParams defaultParams;
             if ("hr".equals(tag)) {
                 defaultParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, 2);
-                defaultParams.setMargins(0, 12, 0, 12);
+                    ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(2));
+                defaultParams.setMargins(0, dpToPx(12), 0, dpToPx(12));
             } else if (isBlockTag(tag)) {
                 defaultParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
                 if (isLayoutTag(tag)) {
-                    defaultParams.setMargins(0, 4, 0, 4);
-                    view.setMinimumHeight(60);
+                    defaultParams.setMargins(0, dpToPx(4), 0, dpToPx(4));
+                    view.setMinimumHeight(dpToPx(60));
                 } else {
-                    defaultParams.setMargins(0, 2, 0, 2);
+                    defaultParams.setMargins(0, dpToPx(2), 0, dpToPx(2));
                 }
             } else {
                 defaultParams = new LinearLayout.LayoutParams(
@@ -310,14 +342,14 @@ public class WidgetBuilderEngine {
 
         if ("button".equals(tag)) {
             defaultBgColor = Color.parseColor("#EFEFEF");
-            defaultBorderWidth = 1;
+            defaultBorderWidth = dpToPx(1);
             defaultBorderColor = Color.parseColor("#B0BEC5");
-            defaultCornerRadius = 4;
+            defaultCornerRadius = dpToPx(4);
         } else if ("input".equals(tag) || "textarea".equals(tag)) {
             defaultBgColor = Color.parseColor("#FFFFFF");
-            defaultBorderWidth = 1;
+            defaultBorderWidth = dpToPx(1);
             defaultBorderColor = Color.parseColor("#B0BEC5");
-            defaultCornerRadius = 4;
+            defaultCornerRadius = dpToPx(4);
         }
 
         // Background color
@@ -372,7 +404,7 @@ public class WidgetBuilderEngine {
         view.setBackground(shape);
 
         // Padding
-        int paddingPx = 8;
+        int paddingPx = dpToPx(8);
         if (style.containsKey("padding")) {
             paddingPx = parseDimension(style.get("padding").toString());
         }
@@ -471,16 +503,16 @@ public class WidgetBuilderEngine {
             if (style.containsKey("fontSize")) {
                 try {
                     float size = parseDimension(style.get("fontSize").toString());
-                    if (size > 0 && size < 200) {
-                        tv.setTextSize(size);
+                    if (size > 0 && size < dpToPx(200)) {
+                        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, size);
                     } else {
-                        tv.setTextSize(13);
+                        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
                     }
                 } catch (Exception e) {
-                    tv.setTextSize(13);
+                    tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
                 }
             } else {
-                tv.setTextSize(13);
+                tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
             }
 
             if (style.containsKey("fontWeight")) {
@@ -547,7 +579,8 @@ public class WidgetBuilderEngine {
     private int parseDimension(String dimStr) {
         dimStr = dimStr.replaceAll("[^0-9.]", "");
         try {
-            return (int) Float.parseFloat(dimStr);
+            float val = Float.parseFloat(dimStr);
+            return dpToPx(val);
         } catch (NumberFormatException e) {
             return 0;
         }
