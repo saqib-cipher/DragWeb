@@ -22,6 +22,7 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -2719,6 +2720,7 @@ public class MainActivity extends AppCompatActivity {
 		
 		items.add("SetId");
 		items.add("SetClass");
+		items.add("JSEvents");
 		items.add("Color");
 		items.add("Background");
 
@@ -2731,6 +2733,15 @@ public class MainActivity extends AppCompatActivity {
 			else if (item.equals("SetClass")) value = currentFunction.containsKey("class") ? currentFunction.get("class").toString() : "";
 			else if (item.equals("SetHref")) value = currentFunction.containsKey("href") ? currentFunction.get("href").toString() : "";
 			else if (item.equals("SetPlaceholder")) value = currentFunction.containsKey("placeholder") ? currentFunction.get("placeholder").toString() : "";
+			else if (item.equals("JSEvents")) {
+				int count = 0;
+				for (String key : currentFunction.keySet()) {
+					if (key.startsWith("on") && currentFunction.get(key) != null && !String.valueOf(currentFunction.get(key)).trim().isEmpty()) {
+						count++;
+					}
+				}
+				value = count > 0 ? "(" + count + ")" : "";
+			}
 			else {
 				String cssKey = getCssKeyFromItem(item);
 				if (currentStyle.containsKey(cssKey)) value = currentStyle.get(cssKey).toString();
@@ -3033,6 +3044,9 @@ public class MainActivity extends AppCompatActivity {
 				break;
 			case "ListItems":
 				showListItemsDialog(selected);
+				break;
+			case "JSEvents":
+				showJsEventsDialog(selected);
 				break;
 			case "TextSize":
 				dialog.setUnits(new String[]{"px", "rem", "em", "vh", "vw", "pt"}).showUnitInput("fontSize", value -> {
@@ -3373,6 +3387,147 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	@SuppressWarnings("unchecked")
+	private void showJsEventsDialog(final View selected) {
+		Object tagObj = selected.getTag();
+		if (!(tagObj instanceof Map)) return;
+		final Map<String, Object> wm = (Map<String, Object>) tagObj;
+		Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+		if (fn == null) {
+			fn = new HashMap<>();
+			wm.put("function", fn);
+		}
+
+		final Map<String, Object> fnRef = fn;
+		final Map<String, String> localEventsMap = new HashMap<>();
+		for (Map.Entry<String, Object> entry : fnRef.entrySet()) {
+			if (entry.getKey().startsWith("on") && entry.getValue() != null) {
+				localEventsMap.put(entry.getKey(), String.valueOf(entry.getValue()));
+			}
+		}
+
+		View dialogView = getLayoutInflater().inflate(R.layout.dialog_js_events, null);
+		final LinearLayout eventsContainer = dialogView.findViewById(R.id.eventsContainer);
+		Button btnAddEvent = dialogView.findViewById(R.id.btnAddEvent);
+
+		final Map<String, TextInputEditText> eventInputFields = new HashMap<>();
+
+		final Runnable rebuildRows = new Runnable() {
+			@Override
+			public void run() {
+				eventsContainer.removeAllViews();
+				eventInputFields.clear();
+
+				List<String> sortedKeys = new ArrayList<>(localEventsMap.keySet());
+				java.util.Collections.sort(sortedKeys);
+
+				if (sortedKeys.isEmpty()) {
+					TextView tvNoEvents = new TextView(MainActivity.this);
+					tvNoEvents.setText("No JS events configured. Use the add button below.");
+					tvNoEvents.setPadding(0, 24, 0, 24);
+					tvNoEvents.setGravity(Gravity.CENTER);
+					tvNoEvents.setTextSize(14);
+					eventsContainer.addView(tvNoEvents);
+					return;
+				}
+
+				for (final String eventName : sortedKeys) {
+					View rowView = getLayoutInflater().inflate(R.layout.item_js_event_row, null);
+					TextInputLayout tilEventValue = rowView.findViewById(R.id.tilEventValue);
+					TextInputEditText etEventValue = rowView.findViewById(R.id.etEventValue);
+					ImageButton btnDeleteEvent = rowView.findViewById(R.id.btnDeleteEvent);
+
+					tilEventValue.setHint(eventName);
+					etEventValue.setText(localEventsMap.get(eventName));
+					eventInputFields.put(eventName, etEventValue);
+
+					btnDeleteEvent.setOnClickListener(v -> {
+						localEventsMap.remove(eventName);
+						run();
+					});
+
+					eventsContainer.addView(rowView);
+				}
+			}
+		};
+
+		rebuildRows.run();
+
+		btnAddEvent.setOnClickListener(v -> {
+			final String[] eventOptions = {
+				"onclick", "onchange", "onmouseover", "onmouseout", 
+				"onkeydown", "onkeyup", "onkeypress", "oninput", 
+				"onfocus", "onblur", "onload", "onsubmit", "Custom..."
+			};
+			new MaterialAlertDialogBuilder(MainActivity.this)
+				.setTitle("Select Event Type")
+				.setItems(eventOptions, (dialog, which) -> {
+					String selectedOption = eventOptions[which];
+					if (selectedOption.equals("Custom...")) {
+						new UniversalM3Dialog(MainActivity.this)
+							.setTitle("Custom Event")
+							.setHint("e.g. onmouseenter")
+							.showTextInput(customEvent -> {
+								String cleaned = customEvent.trim().toLowerCase();
+								if (!cleaned.isEmpty()) {
+									if (!cleaned.startsWith("on")) {
+										cleaned = "on" + cleaned;
+									}
+									if (!localEventsMap.containsKey(cleaned)) {
+										for (Map.Entry<String, TextInputEditText> entry : eventInputFields.entrySet()) {
+											localEventsMap.put(entry.getKey(), entry.getValue().getText().toString());
+										}
+										localEventsMap.put(cleaned, "");
+										rebuildRows.run();
+									} else {
+										Toast.makeText(MainActivity.this, "Event already exists", Toast.LENGTH_SHORT).show();
+									}
+								}
+							});
+					} else {
+						if (!localEventsMap.containsKey(selectedOption)) {
+							for (Map.Entry<String, TextInputEditText> entry : eventInputFields.entrySet()) {
+								localEventsMap.put(entry.getKey(), entry.getValue().getText().toString());
+							}
+							localEventsMap.put(selectedOption, "");
+							rebuildRows.run();
+						} else {
+							Toast.makeText(MainActivity.this, "Event already exists", Toast.LENGTH_SHORT).show();
+						}
+					}
+				})
+				.show();
+		});
+
+		new MaterialAlertDialogBuilder(this)
+			.setView(dialogView)
+			.setPositiveButton("Save", (dialog, which) -> {
+				List<String> keysToRemove = new ArrayList<>();
+				for (String key : fnRef.keySet()) {
+					if (key.startsWith("on")) {
+						keysToRemove.add(key);
+					}
+				}
+				for (String key : keysToRemove) {
+					fnRef.remove(key);
+				}
+
+				for (Map.Entry<String, TextInputEditText> entry : eventInputFields.entrySet()) {
+					String code = entry.getValue().getText().toString().trim();
+					if (!code.isEmpty()) {
+						fnRef.put(entry.getKey(), code);
+					}
+				}
+				selected.setTag(wm);
+				saveUndoState();
+				refreshHierarchy();
+				buildDesignList();
+				Toast.makeText(MainActivity.this, "Events saved", Toast.LENGTH_SHORT).show();
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	@SuppressWarnings("unchecked")
 	private void showListItemsDialog(View selected) {
 		Object tagObj = selected.getTag();
 		if (!(tagObj instanceof Map)) return;
@@ -3520,6 +3675,7 @@ public class MainActivity extends AppCompatActivity {
 			case "LineHeight": case "LetterSpace": return R.drawable.textsize;
 			case "Gradient": return R.drawable.background;
 			case "CssVar": case "CustomStyle": return R.drawable.icon_design_services_round;
+			case "JSEvents": return R.drawable.icon_code_round;
 			default: return R.drawable.cursor_text;
 		}
 	}

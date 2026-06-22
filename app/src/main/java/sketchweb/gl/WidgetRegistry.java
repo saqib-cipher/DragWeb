@@ -194,30 +194,21 @@ public class WidgetRegistry {
     }
 
     public File getCustomWidgetsFile() {
-        File internalDir = new File(context.getFilesDir(), "custom");
-        if (!internalDir.exists()) internalDir.mkdirs();
-        File internalFile = new File(internalDir, "widgets.json");
-
         try {
             String base = Environment.getExternalStorageDirectory().getAbsolutePath();
-            File externalFile = new File(base + "/.dragweb/custom/widgets.json");
-            File externalParent = externalFile.getParentFile();
-            boolean isExternalWritable = externalParent != null && (externalParent.exists() || externalParent.mkdirs()) && externalParent.canWrite();
-            
-            if (isExternalWritable) {
-                return externalFile;
+            File file = new File(base + "/.dragweb/custom/widgets.json");
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
             }
-            
-            // Migrate old data if present and internal file doesn't exist yet
-            if (externalFile.exists() && externalFile.canRead() && !internalFile.exists()) {
-                String oldData = FileUtil.readFile(externalFile.getAbsolutePath());
-                if (oldData != null && !oldData.trim().isEmpty()) {
-                    FileUtil.writeFile(internalFile.getAbsolutePath(), oldData);
-                }
-            }
+            return file;
         } catch (Exception e) {
+            File internalDir = new File(context.getFilesDir(), "custom");
+            if (!internalDir.exists()) {
+                internalDir.mkdirs();
+            }
+            return new File(internalDir, "widgets.json");
         }
-        return internalFile;
     }
 
     public ArrayList<HashMap<String, Object>> loadOnlyCustomWidgets() {

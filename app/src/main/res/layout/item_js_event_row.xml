@@ -1,0 +1,35 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:orientation="horizontal"
+	android:gravity="center_vertical"
+	android:layout_marginBottom="12dp">
+
+	<com.google.android.material.textfield.TextInputLayout
+		android:id="@+id/tilEventValue"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:layout_weight="1"
+		android:hint="onclick"
+		style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+		<com.google.android.material.textfield.TextInputEditText
+			android:id="@+id/etEventValue"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:inputType="text"
+			android:singleLine="true" />
+	</com.google.android.material.textfield.TextInputLayout>
+
+	<ImageButton
+		android:id="@+id/btnDeleteEvent"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_marginStart="8dp"
+		android:src="@drawable/icon_delete_round"
+		app:tint="@color/colorError"
+		android:background="?attr/selectableItemBackgroundBorderless"
+		android:padding="12dp"
+		android:contentDescription="Delete Event" />
+</LinearLayout>

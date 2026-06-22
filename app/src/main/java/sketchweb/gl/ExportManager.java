@@ -463,6 +463,17 @@ public class ExportManager {
             if (!elId.isEmpty()) html.append(" id=\"").append(escapeHtml(elId)).append("\"");
         }
 
+        // JS Event attributes
+        for (Map.Entry<String, Object> entry : function.entrySet()) {
+            String key = entry.getKey();
+            if (key.startsWith("on") && entry.getValue() != null) {
+                String val = String.valueOf(entry.getValue()).trim();
+                if (!val.isEmpty()) {
+                    html.append(" ").append(key).append("=\"").append(escapeHtml(val)).append("\"");
+                }
+            }
+        }
+
         // Output element styles to CSS only if inline styles are enabled
         if (useInline) {
             Map<String, Object> style = (Map<String, Object>) function.get("style");

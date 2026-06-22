@@ -152,62 +152,38 @@ public class ManageBlocksWidgets {
 
     public void loadLibrary() {
         definitions.clear();
+        File file = libraryFile();
+        if (file != null && file.exists()) {
+            String customJson = readLibraryFile();
+            List<CustomBlockDef> customParsed = parseLibraryJson(customJson);
+            if (!customParsed.isEmpty()) {
+                for (CustomBlockDef def : customParsed) {
+                    if (def != null) {
+                        def.isCustom = true;
+                        definitions.add(def);
+                    }
+                }
+                return;
+            }
+        }
 
-        // 1. Load standard library blocks from assets first (mark them standard/read-only)
+        // Fallback: seed with defaults & assets
         String bundled = readBundledLibrary();
         List<CustomBlockDef> standardParsed = parseLibraryJson(bundled);
         if (!standardParsed.isEmpty()) {
             for (CustomBlockDef def : standardParsed) {
                 if (def != null) {
-                    def.isCustom = false;
+                    def.isCustom = true;
                     definitions.add(def);
                 }
             }
         }
 
-        // 2. Load the defaults if not already present
-        ensureDefaultDefinitions();
-
-        // 3. Load custom blocks from internal blocks.json and merge (mark custom)
-        String customJson = readLibraryFile();
-        List<CustomBlockDef> customParsed = parseLibraryJson(customJson);
-        if (!customParsed.isEmpty()) {
-            for (CustomBlockDef customDef : customParsed) {
-                if (customDef == null || customDef.id == null || customDef.id.isEmpty()) continue;
-                customDef.isCustom = true;
-                
-                int existingIdx = -1;
-                for (int i = 0; i < definitions.size(); i++) {
-                    if (customDef.id.equals(definitions.get(i).id)) {
-                        existingIdx = i;
-                        break;
-                    }
-                }
-                if (existingIdx != -1) {
-                    definitions.set(existingIdx, customDef);
-                } else {
-                    definitions.add(customDef);
-                }
-            }
+        for (CustomBlockDef def : definitions) {
+            def.isCustom = true;
         }
-    }
 
-    private void ensureDefaultDefinitions() {
-        if (definitions == null) return;
-        List<CustomBlockDef> defaults = defaultDefinitions();
-        for (CustomBlockDef def : defaults) {
-            boolean found = false;
-            for (CustomBlockDef d : definitions) {
-                if (d != null && def.id.equalsIgnoreCase(d.id)) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                def.isCustom = false;
-                definitions.add(def);
-            }
-        }
+        saveLibrary();
     }
 
     private String stripMarkdownCodeBlocks(String input) {
@@ -336,13 +312,7 @@ public class ManageBlocksWidgets {
     }
 
     public void saveLibrary() {
-        List<CustomBlockDef> customOnly = new ArrayList<>();
-        for (CustomBlockDef def : definitions) {
-            if (def != null && def.isCustom) {
-                customOnly.add(def);
-            }
-        }
-        String json = new GsonBuilder().setPrettyPrinting().create().toJson(customOnly);
+        String json = new GsonBuilder().setPrettyPrinting().create().toJson(definitions);
         File file = libraryFile();
         if (file == null) return;
         File parent = file.getParentFile();
@@ -361,30 +331,21 @@ public class ManageBlocksWidgets {
     }
 
     private File libraryFile() {
-        File internalDir = new File(context.getFilesDir(), "custom");
-        if (!internalDir.exists()) internalDir.mkdirs();
-        File internalFile = new File(internalDir, "blocks.json");
-
         try {
             String base = Environment.getExternalStorageDirectory().getAbsolutePath();
-            File externalFile = new File(base + LIBRARY_REL_PATH);
-            File externalParent = externalFile.getParentFile();
-            boolean isExternalWritable = externalParent != null && (externalParent.exists() || externalParent.mkdirs()) && externalParent.canWrite();
-            
-            if (isExternalWritable) {
-                return externalFile;
+            File file = new File(base + LIBRARY_REL_PATH);
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
             }
-            
-            // Migrate old data if present and internal file doesn't exist yet
-            if (externalFile.exists() && externalFile.canRead() && !internalFile.exists()) {
-                String oldData = FileUtil.readFile(externalFile.getAbsolutePath());
-                if (oldData != null && !oldData.trim().isEmpty()) {
-                    FileUtil.writeFile(internalFile.getAbsolutePath(), oldData);
-                }
+            return file;
+        } catch (Exception e) {
+            File internalDir = new File(context.getFilesDir(), "custom");
+            if (!internalDir.exists()) {
+                internalDir.mkdirs();
             }
-        } catch (Exception ignored) {
+            return new File(internalDir, "blocks.json");
         }
-        return internalFile;
     }
 
     // -------------------------------------------------------------------------
@@ -620,80 +581,7 @@ public class ManageBlocksWidgets {
         }
     }
 
-    public static List<CustomBlockDef> defaultDefinitions() {
-        return new ArrayList<>(Arrays.asList(
-            def("navbar_link",
-                "Add navbar link %s to %s",
-                "<li><a href='%1$s'>%2$s</a></li>",
-                CATEGORY_HTML),
-            def("menu_link",
-                "Add menu link %s to %s",
-                "<li><a href='%1$s'>%2$s</a></li>",
-                CATEGORY_HTML),
-            def("section_link",
-                "Add section link %s to %s",
-                "<a href='#%1$s'>%2$s</a>",
-                CATEGORY_HTML),
-            def("button_block",
-                "Add button %s",
-                "<button>%1$s</button>",
-                CATEGORY_HTML),
-            def("image_block",
-                "Add image %s",
-                "<img src='%1$s'>",
-                CATEGORY_HTML),
-            def("paragraph_block",
-                "Add paragraph %s",
-                "<p>%1$s</p>",
-                CATEGORY_HTML),
-            def("heading_block",
-                "Add heading %s",
-                "<h2>%1$s</h2>",
-                CATEGORY_HTML),
-            def("page_link",
-                "Link to page %m.file labelled %s",
-                "<a href='%1$s'>%2$s</a>",
-                CATEGORY_HTML),
 
-            def("class_color",
-                "Set class %s color to %s",
-                ".%1$s{color:%2$s;}",
-                CATEGORY_CSS),
-            def("class_padding",
-                "Set class %s padding to %s",
-                ".%1$s{padding:%2$s;}",
-                CATEGORY_CSS),
-            def("class_margin",
-                "Set class %s margin to %s",
-                ".%1$s{margin:%2$s;}",
-                CATEGORY_CSS),
-            def("class_background",
-                "Set class %s background to %s",
-                ".%1$s{background:%2$s;}",
-                CATEGORY_CSS),
-            def("id_width",
-                "Set id %s width to %s",
-                "#%1$s{width:%2$s;}",
-                CATEGORY_CSS),
-            def("id_height",
-                "Set id %s height to %s",
-                "#%1$s{height:%2$s;}",
-                CATEGORY_CSS),
-            def("tag_font_size",
-                "Set tag %s font-size to %s",
-                "%1$s{font-size:%2$s;}",
-                CATEGORY_CSS)
-        ));
-    }
-
-    private static CustomBlockDef def(String id, String display, String template, String category) {
-        CustomBlockDef d = new CustomBlockDef();
-        d.id = id;
-        d.display = display;
-        d.template = template;
-        d.category = category;
-        return d;
-    }
 
     public static class CustomBlockDef {
         public String id;

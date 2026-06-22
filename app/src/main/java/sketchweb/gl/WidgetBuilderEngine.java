@@ -316,8 +316,9 @@ public class WidgetBuilderEngine {
         if (params instanceof ViewGroup.MarginLayoutParams) {
             ViewGroup.MarginLayoutParams marginParams = (ViewGroup.MarginLayoutParams) params;
             if (style.containsKey("margin")) {
-                int margin = parseDimension(style.get("margin").toString());
-                marginParams.setMargins(margin, margin, margin, margin);
+                String marginStr = style.get("margin").toString().trim();
+                int[] margins = parseShorthandDimension(marginStr);
+                marginParams.setMargins(margins[3], margins[0], margins[1], margins[2]); // left, top, right, bottom
             }
         }
 
@@ -404,11 +405,23 @@ public class WidgetBuilderEngine {
         view.setBackground(shape);
 
         // Padding
-        int paddingPx = dpToPx(8);
         if (style.containsKey("padding")) {
-            paddingPx = parseDimension(style.get("padding").toString());
+            String paddingStr = style.get("padding").toString().trim();
+            int[] paddings = parseShorthandDimension(paddingStr);
+            view.setPadding(paddings[3], paddings[0], paddings[1], paddings[2]); // left, top, right, bottom
+        } else {
+            // Respect tag-specific default paddings when no custom padding is defined
+            if ("button".equals(tag)) {
+                view.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
+            } else if ("input".equals(tag)) {
+                view.setPadding(dpToPx(8), dpToPx(6), dpToPx(8), dpToPx(6));
+            } else if ("textarea".equals(tag)) {
+                view.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
+            } else {
+                int defaultPadding = dpToPx(8);
+                view.setPadding(defaultPadding, defaultPadding, defaultPadding, defaultPadding);
+            }
         }
-        view.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
 
         // Opacity
         if (style.containsKey("opacity")) {
@@ -584,5 +597,42 @@ public class WidgetBuilderEngine {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    private int[] parseShorthandDimension(String shStr) {
+        // Returns [top, right, bottom, left]
+        int[] result = new int[4];
+        if (shStr == null || shStr.trim().isEmpty()) {
+            return result;
+        }
+        String[] parts = shStr.trim().split("\\s+");
+        if (parts.length == 1) {
+            int val = parseDimension(parts[0]);
+            result[0] = val; // top
+            result[1] = val; // right
+            result[2] = val; // bottom
+            result[3] = val; // left
+        } else if (parts.length == 2) {
+            int valV = parseDimension(parts[0]); // top & bottom
+            int valH = parseDimension(parts[1]); // left & right
+            result[0] = valV;
+            result[1] = valH;
+            result[2] = valV;
+            result[3] = valH;
+        } else if (parts.length == 3) {
+            int top = parseDimension(parts[0]);
+            int lr = parseDimension(parts[1]);
+            int bottom = parseDimension(parts[2]);
+            result[0] = top;
+            result[1] = lr;
+            result[2] = bottom;
+            result[3] = lr;
+        } else if (parts.length >= 4) {
+            result[0] = parseDimension(parts[0]); // top
+            result[1] = parseDimension(parts[1]); // right
+            result[2] = parseDimension(parts[2]); // bottom
+            result[3] = parseDimension(parts[3]); // left
+        }
+        return result;
     }
 }

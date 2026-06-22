@@ -305,6 +305,17 @@ public class PageCodeGenerator {
             }
         }
 
+        // JS Event attributes
+        for (Map.Entry<String, Object> entry : function.entrySet()) {
+            String key = entry.getKey();
+            if (key.startsWith("on") && entry.getValue() != null) {
+                String val = String.valueOf(entry.getValue()).trim();
+                if (!val.isEmpty()) {
+                    html.append(" ").append(key).append("=\"").append(escapeAttr(val)).append("\"");
+                }
+            }
+        }
+
 
 
         // Tag-specific attributes
@@ -405,6 +416,17 @@ public class PageCodeGenerator {
             String classVal = function.get("class").toString().trim();
             if (!classVal.isEmpty()) {
                 html.append(" class=\"").append(escapeAttr(classVal)).append("\"");
+            }
+        }
+
+        // JS Event attributes
+        for (Map.Entry<String, Object> entry : function.entrySet()) {
+            String key = entry.getKey();
+            if (key.startsWith("on") && entry.getValue() != null) {
+                String val = String.valueOf(entry.getValue()).trim();
+                if (!val.isEmpty()) {
+                    html.append(" ").append(key).append("=\"").append(escapeAttr(val)).append("\"");
+                }
             }
         }
 
