@@ -601,7 +601,7 @@ public class MainActivity extends AppCompatActivity {
 		hierarchyAdapter.attachToRecyclerView(recyclerviewRightPanel);
 
 		// Drop zone
-		dropZoneManager = new DropZoneManager(this, screen, widgets, engine, selector);
+		dropZoneManager = new DropZoneManager(this, screen, filteredWidgets, engine, selector);
 		dropZoneManager.setOnTreeChangedListener(() -> {
 			saveUndoState();
 			updateWidgetSpinnerFromTree();
@@ -1669,27 +1669,52 @@ public class MainActivity extends AppCompatActivity {
 			});
 	}
 
+	@Override
+	protected void onResume() {
+		super.onResume();
+		if (widgetRegistry != null) {
+			try {
+				widgets = widgetRegistry.getAllWidgets();
+				filteredWidgets.clear();
+				filteredWidgets.addAll(widgets);
+				if (recyclerview1 != null && recyclerview1.getAdapter() != null) {
+					recyclerview1.getAdapter().notifyDataSetChanged();
+				}
+				if (rvDrawerWidgets != null && rvDrawerWidgets.getAdapter() != null) {
+					rvDrawerWidgets.getAdapter().notifyDataSetChanged();
+				}
+			} catch (Exception e) {
+				Log.w("MainActivity", "Failed to refresh widgets on resume: " + e.getMessage());
+			}
+		}
+		if (customBlockManager != null) {
+			try {
+				customBlockManager.loadLibrary();
+			} catch (Exception e) {
+				Log.w("MainActivity", "Failed to refresh blocks on resume: " + e.getMessage());
+			}
+		}
+	}
+
 	// ---- Custom JSON Support ----
 
 	private void autoLoadCustomConfigs() {
-		String widgetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-			+ "/.dragweb/custom/widgets.json";
-		File customWidgetsFile = new File(widgetsPath);
-		if (customWidgetsFile.exists()) {
+		if (widgetRegistry != null) {
 			try {
-				String json = FileUtil.readFile(widgetsPath);
-				if (json != null && !json.isEmpty()) {
-					widgetRegistry.importCustomWidgets(json);
+				widgets = widgetRegistry.getAllWidgets();
+				filteredWidgets.clear();
+				filteredWidgets.addAll(widgets);
+				if (recyclerview1 != null && recyclerview1.getAdapter() != null) {
+					recyclerview1.getAdapter().notifyDataSetChanged();
+				}
+				if (rvDrawerWidgets != null && rvDrawerWidgets.getAdapter() != null) {
+					rvDrawerWidgets.getAdapter().notifyDataSetChanged();
 				}
 			} catch (Exception e) {
 				Log.w("MainActivity", "Failed to load custom widgets: " + e.getMessage());
 			}
 		}
 
-		// Custom-block library (templates that emit static HTML/CSS) is loaded
-		// by ManageBlocksWidgets itself: it tries /.dragweb/custom/blocks.json,
-		// falls back to assets/blocks.json, then to built-in defaults. We just
-		// re-trigger that load so any external edits are picked up.
 		if (customBlockManager != null) {
 			try {
 				customBlockManager.loadLibrary();

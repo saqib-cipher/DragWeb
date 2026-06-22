@@ -54,11 +54,13 @@ public class ManageBlocksWidgets {
     // -------------------------------------------------------------------------
 
     public List<CustomBlockDef> getDefinitions() {
+        loadLibrary();
         return new ArrayList<>(definitions);
     }
 
     public CustomBlockDef findDefinition(String id) {
         if (id == null) return null;
+        loadLibrary();
         for (CustomBlockDef def : definitions) {
             if (id.equals(def.id)) return def;
         }
@@ -68,6 +70,7 @@ public class ManageBlocksWidgets {
     public List<CustomBlockDef> getDefinitionsForCategory(String category) {
         List<CustomBlockDef> out = new ArrayList<>();
         if (category == null) return out;
+        loadLibrary();
         for (CustomBlockDef def : definitions) {
             if (category.equalsIgnoreCase(def.category)) out.add(def);
         }
@@ -76,6 +79,8 @@ public class ManageBlocksWidgets {
 
     public void addDefinition(CustomBlockDef def) {
         if (def == null || def.id == null || def.id.isEmpty()) return;
+        loadLibrary();
+        def.isCustom = true;
         // Replace by id if present.
         for (int i = 0; i < definitions.size(); i++) {
             if (def.id.equals(definitions.get(i).id)) {
@@ -90,6 +95,8 @@ public class ManageBlocksWidgets {
 
     public void addDefinitionAfter(String afterId, CustomBlockDef def) {
         if (def == null || def.id == null || def.id.isEmpty()) return;
+        loadLibrary();
+        def.isCustom = true;
         // If it already exists, replace/remove it first.
         removeDefinition(def.id);
         
@@ -110,6 +117,7 @@ public class ManageBlocksWidgets {
 
     public void removeDefinition(String id) {
         if (id == null) return;
+        loadLibrary();
         for (int i = 0; i < definitions.size(); i++) {
             if (id.equals(definitions.get(i).id)) {
                 definitions.remove(i);
@@ -120,10 +128,12 @@ public class ManageBlocksWidgets {
     }
 
     public boolean importCustomBlocks(String json) {
+        loadLibrary();
         List<CustomBlockDef> parsed = parseLibraryJson(json);
         if (parsed.isEmpty()) return false;
         for (CustomBlockDef def : parsed) {
             if (def == null || def.id == null || def.id.isEmpty()) continue;
+            def.isCustom = true;
             boolean replaced = false;
             for (int i = 0; i < definitions.size(); i++) {
                 if (def.id.equals(definitions.get(i).id)) {
@@ -143,64 +153,169 @@ public class ManageBlocksWidgets {
     public void loadLibrary() {
         definitions.clear();
 
-        String json = readLibraryFile();
-        List<CustomBlockDef> parsed = parseLibraryJson(json);
-        if (!parsed.isEmpty()) {
-            definitions.addAll(parsed);
-            return;
-        }
-
-        // Fallback to the bundled default library shipped in assets/blocks.json.
+        // 1. Load standard library blocks from assets first (mark them standard/read-only)
         String bundled = readBundledLibrary();
-        parsed = parseLibraryJson(bundled);
-        if (!parsed.isEmpty()) {
-            definitions.addAll(parsed);
-            saveLibrary();
-            return;
+        List<CustomBlockDef> standardParsed = parseLibraryJson(bundled);
+        if (!standardParsed.isEmpty()) {
+            for (CustomBlockDef def : standardParsed) {
+                if (def != null) {
+                    def.isCustom = false;
+                    definitions.add(def);
+                }
+            }
         }
 
-        // Final fallback: built-in defaults.
-        definitions.addAll(defaultDefinitions());
-        saveLibrary();
+        // 2. Load the defaults if not already present
+        ensureDefaultDefinitions();
+
+        // 3. Load custom blocks from internal blocks.json and merge (mark custom)
+        String customJson = readLibraryFile();
+        List<CustomBlockDef> customParsed = parseLibraryJson(customJson);
+        if (!customParsed.isEmpty()) {
+            for (CustomBlockDef customDef : customParsed) {
+                if (customDef == null || customDef.id == null || customDef.id.isEmpty()) continue;
+                customDef.isCustom = true;
+                
+                int existingIdx = -1;
+                for (int i = 0; i < definitions.size(); i++) {
+                    if (customDef.id.equals(definitions.get(i).id)) {
+                        existingIdx = i;
+                        break;
+                    }
+                }
+                if (existingIdx != -1) {
+                    definitions.set(existingIdx, customDef);
+                } else {
+                    definitions.add(customDef);
+                }
+            }
+        }
+    }
+
+    private void ensureDefaultDefinitions() {
+        if (definitions == null) return;
+        List<CustomBlockDef> defaults = defaultDefinitions();
+        for (CustomBlockDef def : defaults) {
+            boolean found = false;
+            for (CustomBlockDef d : definitions) {
+                if (d != null && def.id.equalsIgnoreCase(d.id)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                def.isCustom = false;
+                definitions.add(def);
+            }
+        }
+    }
+
+    private String stripMarkdownCodeBlocks(String input) {
+        if (input == null) return null;
+        String trimmed = input.trim();
+        if (trimmed.startsWith("```")) {
+            int firstLineBreak = trimmed.indexOf('\n');
+            if (firstLineBreak != -1) {
+                trimmed = trimmed.substring(firstLineBreak + 1);
+            } else {
+                trimmed = trimmed.substring(3);
+            }
+            if (trimmed.endsWith("```")) {
+                trimmed = trimmed.substring(0, trimmed.length() - 3);
+            }
+            trimmed = trimmed.trim();
+        }
+        return trimmed;
+    }
+
+    private CustomBlockDef parseSingleBlockDef(JsonObject obj, Gson gson) {
+        CustomBlockDef def = gson.fromJson(obj, CustomBlockDef.class);
+        if (def == null) return null;
+        
+        // Map label -> display if display is missing
+        if ((def.display == null || def.display.isEmpty()) && obj.has("label")) {
+            def.display = obj.get("label").getAsString();
+        }
+        // Map code -> template if template is missing
+        if ((def.template == null || def.template.isEmpty()) && obj.has("code")) {
+            def.template = obj.get("code").getAsString();
+        }
+        
+        if (def.id == null || def.id.isEmpty()) {
+            def.id = "block_" + System.currentTimeMillis();
+        }
+        if (def.template == null) {
+            def.template = "";
+        }
+        if (def.category == null || def.category.isEmpty()) {
+            def.category = CATEGORY_HTML;
+        }
+        return def;
     }
 
     private List<CustomBlockDef> parseLibraryJson(String json) {
         List<CustomBlockDef> out = new ArrayList<>();
         if (json == null || json.trim().isEmpty()) return out;
         try {
-            JsonElement root = JsonParser.parseString(json);
+            String cleanedJson = stripMarkdownCodeBlocks(json);
+            JsonElement root = JsonParser.parseString(cleanedJson);
             JsonArray array = null;
+            Gson gson = new Gson();
+            
             if (root.isJsonArray()) {
                 array = root.getAsJsonArray();
             } else if (root.isJsonObject()) {
                 JsonObject obj = root.getAsJsonObject();
                 if (obj.has("blocks") && obj.get("blocks").isJsonArray()) {
                     array = obj.getAsJsonArray("blocks");
-                } else if (obj.has("id") && obj.has("template")) {
-                    Gson gson = new Gson();
-                    CustomBlockDef def = gson.fromJson(obj, CustomBlockDef.class);
-                    if (def != null && def.id != null && !def.id.isEmpty() && def.template != null) {
-                        if (def.category == null || def.category.isEmpty()) {
-                            def.category = CATEGORY_HTML;
-                        }
+                } else if (obj.has("id") && (obj.has("template") || obj.has("code"))) {
+                    CustomBlockDef def = parseSingleBlockDef(obj, gson);
+                    if (def != null) {
                         out.add(def);
                         return out;
                     }
+                } else {
+                    // Try parsing as a map of block definitions:
+                    // e.g. { "block_id": { "display": "...", "template": "..." } }
+                    boolean parsedAsMap = false;
+                    for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+                        if (entry.getValue().isJsonObject()) {
+                            JsonObject valObj = entry.getValue().getAsJsonObject();
+                            if (valObj.has("template") || valObj.has("display") || valObj.has("code") || valObj.has("label")) {
+                                CustomBlockDef def = parseSingleBlockDef(valObj, gson);
+                                if (def != null) {
+                                    if (def.id == null || def.id.isEmpty() || def.id.startsWith("block_")) {
+                                        def.id = entry.getKey();
+                                    }
+                                    out.add(def);
+                                    parsedAsMap = true;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (!parsedAsMap) {
+                        // Treat obj as a single CustomBlockDef (even if ID is missing)
+                        CustomBlockDef def = parseSingleBlockDef(obj, gson);
+                        if (def != null) {
+                            out.add(def);
+                            return out;
+                        }
+                    }
                 }
             }
-            if (array == null) return out;
-            Gson gson = new Gson();
-            for (JsonElement el : array) {
-                try {
-                    CustomBlockDef def = gson.fromJson(el, CustomBlockDef.class);
-                    if (def != null && def.id != null && !def.id.isEmpty()
-                            && def.template != null) {
-                        if (def.category == null || def.category.isEmpty()) {
-                            def.category = CATEGORY_HTML;
+            
+            if (array != null) {
+                for (JsonElement el : array) {
+                    try {
+                        if (el.isJsonObject()) {
+                            CustomBlockDef def = parseSingleBlockDef(el.getAsJsonObject(), gson);
+                            if (def != null) {
+                                out.add(def);
+                            }
                         }
-                        out.add(def);
+                    } catch (Exception ignored) {
                     }
-                } catch (Exception ignored) {
                 }
             }
         } catch (Exception e) {
@@ -221,7 +336,13 @@ public class ManageBlocksWidgets {
     }
 
     public void saveLibrary() {
-        String json = new GsonBuilder().setPrettyPrinting().create().toJson(definitions);
+        List<CustomBlockDef> customOnly = new ArrayList<>();
+        for (CustomBlockDef def : definitions) {
+            if (def != null && def.isCustom) {
+                customOnly.add(def);
+            }
+        }
+        String json = new GsonBuilder().setPrettyPrinting().create().toJson(customOnly);
         File file = libraryFile();
         if (file == null) return;
         File parent = file.getParentFile();
@@ -240,14 +361,30 @@ public class ManageBlocksWidgets {
     }
 
     private File libraryFile() {
+        File internalDir = new File(context.getFilesDir(), "custom");
+        if (!internalDir.exists()) internalDir.mkdirs();
+        File internalFile = new File(internalDir, "blocks.json");
+
         try {
             String base = Environment.getExternalStorageDirectory().getAbsolutePath();
-            return new File(base + LIBRARY_REL_PATH);
-        } catch (Exception e) {
-            File internal = new File(context.getFilesDir(), "custom");
-            if (!internal.exists()) internal.mkdirs();
-            return new File(internal, "blocks.json");
+            File externalFile = new File(base + LIBRARY_REL_PATH);
+            File externalParent = externalFile.getParentFile();
+            boolean isExternalWritable = externalParent != null && (externalParent.exists() || externalParent.mkdirs()) && externalParent.canWrite();
+            
+            if (isExternalWritable) {
+                return externalFile;
+            }
+            
+            // Migrate old data if present and internal file doesn't exist yet
+            if (externalFile.exists() && externalFile.canRead() && !internalFile.exists()) {
+                String oldData = FileUtil.readFile(externalFile.getAbsolutePath());
+                if (oldData != null && !oldData.trim().isEmpty()) {
+                    FileUtil.writeFile(internalFile.getAbsolutePath(), oldData);
+                }
+            }
+        } catch (Exception ignored) {
         }
+        return internalFile;
     }
 
     // -------------------------------------------------------------------------
@@ -563,6 +700,7 @@ public class ManageBlocksWidgets {
         public String display;
         public String template;
         public String category;
+        public boolean isCustom = false;
     }
 
     public static class CustomBlockInstance {

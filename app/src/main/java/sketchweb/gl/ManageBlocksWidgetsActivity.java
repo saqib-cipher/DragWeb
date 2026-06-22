@@ -31,6 +31,8 @@ import com.google.android.material.floatingactionbutton.ExtendedFloatingActionBu
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -52,13 +54,19 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
 
     private MaterialToolbar toolbar;
     private TabLayout tabLayout;
-    private NestedScrollView scrollBlocks, scrollWidgets;
-    private LinearLayout containerBlocks, containerWidgets;
+    private androidx.recyclerview.widget.RecyclerView rvBlocks, rvWidgets;
     private TextView tvEmptyBlocks, tvEmptyWidgets;
     private ExtendedFloatingActionButton fabAddCustom;
 
+    private BlocksAdapter blocksAdapter;
+    private WidgetsAdapter widgetsAdapter;
+
     private int activeTab = 0; // 0: Blocks, 1: Widgets
     private int themePrimaryColor;
+
+    private ChipGroup chipGroupCategories;
+    private String selectedBlockCategory = "All";
+    private String selectedWidgetCategory = "All";
 
     private ActivityResultLauncher<String[]> importLauncher;
     private ActivityResultLauncher<String> exportBlocksLauncher;
@@ -135,13 +143,23 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
     private void initViews() {
         toolbar = findViewById(R.id.toolbarManager);
         tabLayout = findViewById(R.id.tabLayoutManager);
-        scrollBlocks = findViewById(R.id.scrollBlocks);
-        scrollWidgets = findViewById(R.id.scrollWidgets);
-        containerBlocks = findViewById(R.id.containerBlocks);
-        containerWidgets = findViewById(R.id.containerWidgets);
+        rvBlocks = findViewById(R.id.rvBlocks);
+        rvWidgets = findViewById(R.id.rvWidgets);
         tvEmptyBlocks = findViewById(R.id.tvEmptyBlocks);
         tvEmptyWidgets = findViewById(R.id.tvEmptyWidgets);
         fabAddCustom = findViewById(R.id.fabAddCustom);
+        chipGroupCategories = findViewById(R.id.chipGroupCategories);
+
+        rvBlocks.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+        rvWidgets.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+
+        blocksAdapter = new BlocksAdapter();
+        widgetsAdapter = new WidgetsAdapter();
+
+        rvBlocks.setAdapter(blocksAdapter);
+        rvWidgets.setAdapter(widgetsAdapter);
+
+        populateCategoryChips(new String[]{"All", "html", "css", "logic", "animation", "asd", "value", "meta"}, selectedBlockCategory, true);
 
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
@@ -154,13 +172,19 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
             public void onTabSelected(TabLayout.Tab tab) {
                 activeTab = tab.getPosition();
                 if (activeTab == 0) {
-                    scrollBlocks.setVisibility(View.VISIBLE);
-                    scrollWidgets.setVisibility(View.GONE);
+                    rvBlocks.setVisibility(View.VISIBLE);
+                    rvWidgets.setVisibility(View.GONE);
+                    tvEmptyBlocks.setVisibility(blocksAdapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
+                    tvEmptyWidgets.setVisibility(View.GONE);
                     fabAddCustom.setText("Add Block");
+                    populateCategoryChips(new String[]{"All", "html", "css", "logic", "animation", "asd", "value", "meta"}, selectedBlockCategory, true);
                 } else {
-                    scrollBlocks.setVisibility(View.GONE);
-                    scrollWidgets.setVisibility(View.VISIBLE);
+                    rvBlocks.setVisibility(View.GONE);
+                    rvWidgets.setVisibility(View.VISIBLE);
+                    tvEmptyBlocks.setVisibility(View.GONE);
+                    tvEmptyWidgets.setVisibility(widgetsAdapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
                     fabAddCustom.setText("Add Widget");
+                    populateCategoryChips(new String[]{"All", "basic", "layout", "form"}, selectedWidgetCategory, false);
                 }
             }
 
@@ -186,34 +210,42 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
     }
 
     private void refreshBlocksList() {
-        containerBlocks.removeAllViews();
-        containerBlocks.addView(tvEmptyBlocks);
-
         List<ManageBlocksWidgets.CustomBlockDef> defs = customBlockManager.getDefinitions();
-        if (defs.isEmpty()) {
-            tvEmptyBlocks.setVisibility(View.VISIBLE);
+        List<ManageBlocksWidgets.CustomBlockDef> filtered = new ArrayList<>();
+        for (ManageBlocksWidgets.CustomBlockDef def : defs) {
+            if (def != null) {
+                String cat = def.category != null ? def.category : "html";
+                if (selectedBlockCategory.equalsIgnoreCase("All") || selectedBlockCategory.equalsIgnoreCase(cat)) {
+                    filtered.add(def);
+                }
+            }
+        }
+        blocksAdapter.setBlocks(filtered);
+        
+        if (activeTab == 0) {
+            tvEmptyBlocks.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
         } else {
             tvEmptyBlocks.setVisibility(View.GONE);
-            for (ManageBlocksWidgets.CustomBlockDef def : defs) {
-                View blockCard = createBlockCard(def);
-                containerBlocks.addView(blockCard);
-            }
         }
     }
 
     private void refreshWidgetsList() {
-        containerWidgets.removeAllViews();
-        containerWidgets.addView(tvEmptyWidgets);
-
         ArrayList<HashMap<String, Object>> widgets = widgetRegistry.getAllWidgets();
-        if (widgets.isEmpty()) {
-            tvEmptyWidgets.setVisibility(View.VISIBLE);
+        ArrayList<HashMap<String, Object>> filtered = new ArrayList<>();
+        for (HashMap<String, Object> w : widgets) {
+            if (w != null) {
+                String cat = w.containsKey("category") ? String.valueOf(w.get("category")) : "basic";
+                if (selectedWidgetCategory.equalsIgnoreCase("All") || selectedWidgetCategory.equalsIgnoreCase(cat)) {
+                    filtered.add(w);
+                }
+            }
+        }
+        widgetsAdapter.setWidgets(filtered);
+        
+        if (activeTab == 1) {
+            tvEmptyWidgets.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
         } else {
             tvEmptyWidgets.setVisibility(View.GONE);
-            for (HashMap<String, Object> widget : widgets) {
-                View widgetCard = createWidgetCard(widget);
-                containerWidgets.addView(widgetCard);
-            }
         }
     }
 
@@ -226,333 +258,257 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Custom Block Card Programmatic Builder
-    // -------------------------------------------------------------------------
-    private View createBlockCard(final ManageBlocksWidgets.CustomBlockDef def) {
-        MaterialCardView card = new MaterialCardView(this);
-        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardLp.setMargins(0, 0, 0, 12);
-        card.setLayoutParams(cardLp);
-        card.setCardElevation(2f);
-        card.setRadius(12f);
-        card.setCardBackgroundColor(getColor(android.R.color.transparent));
-        card.setStrokeColor(Color.parseColor("#33CCCCCC"));
-        card.setStrokeWidth(1);
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(16, 16, 16, 16);
-
-        // Header Row (always visible)
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-
-        // Category Tag
-        TextView categoryTag = new TextView(this);
-        String categoryName = def.category != null ? def.category.toLowerCase() : "html";
-        categoryTag.setText(categoryName.toUpperCase());
-        categoryTag.setTextSize(10);
-        categoryTag.setTypeface(null, Typeface.BOLD);
-        categoryTag.setTextColor(Color.WHITE);
-        categoryTag.setPadding(12, 4, 12, 4);
-        
-        GradientDrawable gd = new GradientDrawable();
-        gd.setColor(BlockCategoryPalette.colorIntForCategory(categoryName));
-        gd.setCornerRadius(16f);
-        categoryTag.setBackground(gd);
-
-        TextView idText = new TextView(this);
-        LinearLayout.LayoutParams idLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        idLp.setMarginStart(12);
-        idText.setLayoutParams(idLp);
-        idText.setText(def.id);
-        idText.setTypeface(null, Typeface.BOLD);
-        idText.setTextSize(14);
-        idText.setTextColor(Color.BLACK);
-
-        // Chevron arrow indicator
-        TextView arrowIndicator = new TextView(this);
-        arrowIndicator.setText("▼");
-        arrowIndicator.setTextSize(14);
-        arrowIndicator.setTextColor(Color.GRAY);
-        arrowIndicator.setPadding(8, 0, 8, 0);
-
-        header.addView(categoryTag);
-        header.addView(idText);
-        header.addView(arrowIndicator);
-
-        // Display pattern (always visible under header)
-        TextView displayText = new TextView(this);
-        displayText.setText(def.display);
-        displayText.setTextSize(13);
-        displayText.setTypeface(null, Typeface.ITALIC);
-        displayText.setPadding(0, 8, 0, 0);
-
-        // Expandable Content Container (initially GONE)
-        LinearLayout expandableLayout = new LinearLayout(this);
-        expandableLayout.setOrientation(LinearLayout.VERTICAL);
-        expandableLayout.setVisibility(View.GONE);
-
-        // Divider
-        View divider = new View(this);
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(this, 1));
-        divLp.setMargins(0, 12, 0, 12);
-        divider.setLayoutParams(divLp);
-        divider.setBackgroundColor(Color.parseColor("#1F000000"));
-        expandableLayout.addView(divider);
-
-        // Template label & Monospace block template
-        TextView templateLabel = new TextView(this);
-        templateLabel.setText("HTML/CSS Template:");
-        templateLabel.setTextSize(12);
-        templateLabel.setTextColor(Color.GRAY);
-        templateLabel.setPadding(0, 0, 0, 2);
-
-        TextView templateText = new TextView(this);
-        templateText.setText(def.template);
-        templateText.setTextSize(12);
-        templateText.setTypeface(Typeface.MONOSPACE);
-        templateText.setBackgroundColor(Color.parseColor("#15000000"));
-        templateText.setPadding(12, 8, 12, 8);
-
-        expandableLayout.addView(templateLabel);
-        expandableLayout.addView(templateText);
-
-        // Action Buttons Row inside horizontal scroll container
-        android.widget.HorizontalScrollView hsv = new android.widget.HorizontalScrollView(this);
-        hsv.setHorizontalScrollBarEnabled(false);
-        LinearLayout.LayoutParams hsvLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        hsvLp.setMargins(0, 12, 0, 0);
-        hsv.setLayoutParams(hsvLp);
-
-        LinearLayout actions = new LinearLayout(this);
-        actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.setGravity(Gravity.END);
-        hsv.addView(actions);
-
-        // Edit
-        MaterialButton btnEdit = createM3Button("Edit", R.drawable.icon_edit_round, themePrimaryColor, v -> showBlockEditDialog(def));
-        actions.addView(btnEdit);
-
-        // Duplicate
-        MaterialButton btnDuplicate = createM3Button("Duplicate", R.drawable.icon_copy_all_round, themePrimaryColor, v -> duplicateBlock(def));
-        actions.addView(btnDuplicate);
-
-        // Copy
-        MaterialButton btnCopy = createM3Button("Copy", R.drawable.icon_code_round, themePrimaryColor, v -> {
-            copyToClipboard("Block Template", def.template);
-        });
-        actions.addView(btnCopy);
-
-        // Export
-        MaterialButton btnExport = createM3Button("Export", R.drawable.icon_export_round, themePrimaryColor, v -> {
-            pendingExportBlock = def;
-            exportSingleBlockLauncher.launch(def.id + ".json");
-        });
-        actions.addView(btnExport);
-
-        // Delete
-        MaterialButton btnDelete = createM3Button("Delete", R.drawable.icon_delete_round, themePrimaryColor, v -> showBlockDeleteConfirmation(def));
-        actions.addView(btnDelete);
-
-        expandableLayout.addView(hsv);
-
-        layout.addView(header);
-        layout.addView(displayText);
-        layout.addView(expandableLayout);
-        card.addView(layout);
-
-        // Card tap listener for smooth collapse/expand transition
-        card.setOnClickListener(v -> {
-            boolean isExpanded = (expandableLayout.getVisibility() == View.VISIBLE);
-            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) card.getParent());
-            expandableLayout.setVisibility(isExpanded ? View.GONE : View.VISIBLE);
-            arrowIndicator.setText(isExpanded ? "▼" : "▲");
-        });
-
-        return card;
+    private void populateCategoryChips(String[] categories, String selectedCategory, boolean isBlockTab) {
+        if (chipGroupCategories == null) return;
+        chipGroupCategories.removeAllViews();
+        for (String category : categories) {
+            Chip chip = new Chip(this);
+            chip.setText(category.toUpperCase());
+            chip.setCheckable(true);
+            chip.setClickable(true);
+            if (category.equalsIgnoreCase(selectedCategory)) {
+                chip.setChecked(true);
+            }
+            chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    if (isBlockTab) {
+                        selectedBlockCategory = category;
+                        refreshBlocksList();
+                    } else {
+                        selectedWidgetCategory = category;
+                        refreshWidgetsList();
+                    }
+                }
+            });
+            chipGroupCategories.addView(chip);
+        }
     }
 
     // -------------------------------------------------------------------------
-    // Custom Widget Card Programmatic Builder
+    // RecyclerView Adapters
     // -------------------------------------------------------------------------
-    private View createWidgetCard(final HashMap<String, Object> widget) {
-        MaterialCardView card = new MaterialCardView(this);
-        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardLp.setMargins(0, 0, 0, 12);
-        card.setLayoutParams(cardLp);
-        card.setCardElevation(2f);
-        card.setRadius(12f);
-        card.setCardBackgroundColor(getColor(android.R.color.transparent));
-        card.setStrokeColor(Color.parseColor("#33CCCCCC"));
-        card.setStrokeWidth(1);
+    private class BlocksAdapter extends androidx.recyclerview.widget.RecyclerView.Adapter<BlocksAdapter.BlockViewHolder> {
+        private final List<ManageBlocksWidgets.CustomBlockDef> blockList = new ArrayList<>();
+        private final java.util.Set<String> expandedIds = new java.util.HashSet<>();
 
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(16, 16, 16, 16);
-
-        // Header Row (always visible)
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-
-        // Category Tag
-        TextView categoryTag = new TextView(this);
-        String category = widget.containsKey("category") ? widget.get("category").toString() : "basic";
-        categoryTag.setText(category.toUpperCase());
-        categoryTag.setTextSize(10);
-        categoryTag.setTypeface(null, Typeface.BOLD);
-        categoryTag.setTextColor(Color.WHITE);
-        categoryTag.setPadding(12, 4, 12, 4);
-        
-        GradientDrawable gdCat = new GradientDrawable();
-        gdCat.setColor(Color.parseColor("#3F51B5"));
-        gdCat.setCornerRadius(16f);
-        categoryTag.setBackground(gdCat);
-
-        TextView nameText = new TextView(this);
-        LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        nameLp.setMarginStart(12);
-        nameText.setLayoutParams(nameLp);
-        nameText.setText(widget.containsKey("name") ? widget.get("name").toString() : "Unnamed");
-        nameText.setTypeface(null, Typeface.BOLD);
-        nameText.setTextSize(14);
-        nameText.setTextColor(Color.BLACK);
-
-        // Chevron arrow indicator
-        TextView arrowIndicator = new TextView(this);
-        arrowIndicator.setText("▼");
-        arrowIndicator.setTextSize(14);
-        arrowIndicator.setTextColor(Color.GRAY);
-        arrowIndicator.setPadding(8, 0, 8, 0);
-
-        header.addView(categoryTag);
-        header.addView(nameText);
-        header.addView(arrowIndicator);
-
-        // Tag and Color Row (always visible)
-        LinearLayout details = new LinearLayout(this);
-        details.setOrientation(LinearLayout.HORIZONTAL);
-        details.setGravity(Gravity.CENTER_VERTICAL);
-        details.setPadding(0, 8, 0, 0);
-
-        TextView tagText = new TextView(this);
-        tagText.setText("Tag: <" + (widget.containsKey("tag") ? widget.get("tag").toString() : "div") + ">");
-        tagText.setTextSize(13);
-        tagText.setTypeface(null, Typeface.BOLD);
-
-        TextView colorText = new TextView(this);
-        String colorHex = widget.containsKey("color") ? widget.get("color").toString() : "#CCCCCC";
-        colorText.setText(" Color: " + colorHex + " ");
-        colorText.setTextSize(12);
-        LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        colLp.setMarginStart(16);
-        colorText.setLayoutParams(colLp);
-        colorText.setTextColor(Color.WHITE);
-        colorText.setTypeface(null, Typeface.BOLD);
-        GradientDrawable gdColor = new GradientDrawable();
-        try {
-            gdColor.setColor(Color.parseColor(colorHex));
-        } catch (Exception e) {
-            gdColor.setColor(Color.LTGRAY);
+        public void setBlocks(List<ManageBlocksWidgets.CustomBlockDef> blocks) {
+            blockList.clear();
+            blockList.addAll(blocks);
+            notifyDataSetChanged();
         }
-        gdColor.setCornerRadius(8f);
-        colorText.setBackground(gdColor);
 
-        details.addView(tagText);
-        details.addView(colorText);
+        @Override
+        public int getItemCount() {
+            return blockList.size();
+        }
 
-        // Expandable Content Container (initially GONE)
-        LinearLayout expandableLayout = new LinearLayout(this);
-        expandableLayout.setOrientation(LinearLayout.VERTICAL);
-        expandableLayout.setVisibility(View.GONE);
+        @Override
+        public BlockViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = getLayoutInflater().inflate(R.layout.item_custom_block, parent, false);
+            return new BlockViewHolder(view);
+        }
 
-        // Divider
-        View divider = new View(this);
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(this, 1));
-        divLp.setMargins(0, 12, 0, 12);
-        divider.setLayoutParams(divLp);
-        divider.setBackgroundColor(Color.parseColor("#1F000000"));
-        expandableLayout.addView(divider);
+        @Override
+        public void onBindViewHolder(BlockViewHolder holder, int position) {
+            final ManageBlocksWidgets.CustomBlockDef def = blockList.get(position);
+            holder.tvId.setText(def.id);
+            holder.tvDisplay.setText(def.display);
+            holder.tvTemplate.setText(def.template);
 
-        // Function JSON Preview
-        TextView functionLabel = new TextView(this);
-        functionLabel.setText("Function Properties JSON:");
-        functionLabel.setTextSize(12);
-        functionLabel.setTextColor(Color.GRAY);
-        functionLabel.setPadding(0, 0, 0, 2);
+            String categoryName = def.category != null ? def.category.toLowerCase() : "html";
+            holder.tvCategory.setText(categoryName.toUpperCase());
+            
+            GradientDrawable gd = new GradientDrawable();
+            gd.setColor(BlockCategoryPalette.colorIntForCategory(categoryName));
+            gd.setCornerRadius(dpToPx(ManageBlocksWidgetsActivity.this, 16f));
+            holder.tvCategory.setBackground(gd);
 
-        TextView functionText = new TextView(this);
-        Object funcObj = widget.get("function");
-        String funcJson = funcObj != null ? new GsonBuilder().setPrettyPrinting().create().toJson(funcObj) : "{}";
-        functionText.setText(funcJson);
-        functionText.setTextSize(11);
-        functionText.setTypeface(Typeface.MONOSPACE);
-        functionText.setBackgroundColor(Color.parseColor("#15000000"));
-        functionText.setPadding(12, 8, 12, 8);
+            final boolean isExpanded = expandedIds.contains(def.id);
+            holder.layoutExpandable.setVisibility(isExpanded ? View.VISIBLE : View.GONE);
+            holder.tvArrow.setText(isExpanded ? "▲" : "▼");
 
-        expandableLayout.addView(functionLabel);
-        expandableLayout.addView(functionText);
+            holder.itemView.setOnClickListener(v -> {
+                boolean expanded = expandedIds.contains(def.id);
+                if (expanded) {
+                    expandedIds.remove(def.id);
+                } else {
+                    expandedIds.add(def.id);
+                }
+                android.transition.TransitionManager.beginDelayedTransition((ViewGroup) holder.itemView.getParent());
+                notifyItemChanged(position);
+            });
 
-        // Action Buttons Row inside horizontal scroll container
-        android.widget.HorizontalScrollView hsv = new android.widget.HorizontalScrollView(this);
-        hsv.setHorizontalScrollBarEnabled(false);
-        LinearLayout.LayoutParams hsvLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        hsvLp.setMargins(0, 12, 0, 0);
-        hsv.setLayoutParams(hsvLp);
+            // Bind actions dynamically
+            holder.layoutActions.removeAllViews();
 
-        LinearLayout actions = new LinearLayout(this);
-        actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.setGravity(Gravity.END);
-        hsv.addView(actions);
+            // Edit / Customize
+            String editLabel = def.isCustom ? "Edit" : "Customize";
+            MaterialButton btnEdit = createM3Button(editLabel, R.drawable.icon_edit_round, themePrimaryColor, v -> showBlockEditDialog(def));
+            holder.layoutActions.addView(btnEdit);
 
-        // Edit
-        MaterialButton btnEdit = createM3Button("Edit", R.drawable.icon_edit_round, themePrimaryColor, v -> showWidgetEditDialog(widget));
-        actions.addView(btnEdit);
+            // Duplicate
+            MaterialButton btnDuplicate = createM3Button("Duplicate", R.drawable.icon_copy_all_round, themePrimaryColor, v -> duplicateBlock(def));
+            holder.layoutActions.addView(btnDuplicate);
 
-        // Duplicate
-        MaterialButton btnDuplicate = createM3Button("Duplicate", R.drawable.icon_copy_all_round, themePrimaryColor, v -> duplicateWidget(widget));
-        actions.addView(btnDuplicate);
+            // Copy
+            MaterialButton btnCopy = createM3Button("Copy", R.drawable.icon_code_round, themePrimaryColor, v -> {
+                String json = new GsonBuilder().setPrettyPrinting().create().toJson(def);
+                copyToClipboard("Block JSON", json);
+            });
+            holder.layoutActions.addView(btnCopy);
 
-        // Copy
-        MaterialButton btnCopy = createM3Button("Copy", R.drawable.icon_code_round, themePrimaryColor, v -> {
-            copyToClipboard("Widget Function JSON", funcJson);
-        });
-        actions.addView(btnCopy);
+            // Export
+            MaterialButton btnExport = createM3Button("Export", R.drawable.icon_export_round, themePrimaryColor, v -> {
+                pendingExportBlock = def;
+                List<ManageBlocksWidgets.CustomBlockDef> singleList = new ArrayList<>();
+                singleList.add(def);
+                String json = new GsonBuilder().setPrettyPrinting().create().toJson(singleList);
+                copyToClipboard("Block JSON", json);
+                exportSingleBlockLauncher.launch(def.id + ".json");
+            });
+            holder.layoutActions.addView(btnExport);
 
-        // Export
-        MaterialButton btnExport = createM3Button("Export", R.drawable.icon_export_round, themePrimaryColor, v -> {
-            pendingExportWidget = widget;
-            exportSingleWidgetLauncher.launch(nameText.getText().toString() + ".json");
-        });
-        actions.addView(btnExport);
+            // Delete (only visible for custom blocks)
+            if (def.isCustom) {
+                MaterialButton btnDelete = createM3Button("Delete", R.drawable.icon_delete_round, themePrimaryColor, v -> showBlockDeleteConfirmation(def));
+                holder.layoutActions.addView(btnDelete);
+            }
+        }
 
-        // Delete
-        MaterialButton btnDelete = createM3Button("Delete", R.drawable.icon_delete_round, themePrimaryColor, v -> showWidgetDeleteConfirmation(widget));
-        actions.addView(btnDelete);
+        class BlockViewHolder extends androidx.recyclerview.widget.RecyclerView.ViewHolder {
+            TextView tvCategory, tvId, tvArrow, tvDisplay, tvTemplate;
+            LinearLayout layoutExpandable, layoutActions;
 
-        expandableLayout.addView(hsv);
+            BlockViewHolder(View v) {
+                super(v);
+                tvCategory = v.findViewById(R.id.tvBlockCategory);
+                tvId = v.findViewById(R.id.tvBlockId);
+                tvArrow = v.findViewById(R.id.tvBlockArrow);
+                tvDisplay = v.findViewById(R.id.tvBlockDisplay);
+                tvTemplate = v.findViewById(R.id.tvBlockTemplate);
+                layoutExpandable = v.findViewById(R.id.layoutBlockExpandable);
+                layoutActions = v.findViewById(R.id.layoutBlockActions);
+            }
+        }
+    }
 
-        layout.addView(header);
-        layout.addView(details);
-        layout.addView(expandableLayout);
-        card.addView(layout);
+    private class WidgetsAdapter extends androidx.recyclerview.widget.RecyclerView.Adapter<WidgetsAdapter.WidgetViewHolder> {
+        private final List<HashMap<String, Object>> widgetList = new ArrayList<>();
+        private final java.util.Set<String> expandedNames = new java.util.HashSet<>();
 
-        // Card tap listener for smooth collapse/expand transition
-        card.setOnClickListener(v -> {
-            boolean isExpanded = (expandableLayout.getVisibility() == View.VISIBLE);
-            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) card.getParent());
-            expandableLayout.setVisibility(isExpanded ? View.GONE : View.VISIBLE);
-            arrowIndicator.setText(isExpanded ? "▼" : "▲");
-        });
+        public void setWidgets(List<HashMap<String, Object>> widgets) {
+            widgetList.clear();
+            widgetList.addAll(widgets);
+            notifyDataSetChanged();
+        }
 
-        return card;
+        @Override
+        public int getItemCount() {
+            return widgetList.size();
+        }
+
+        @Override
+        public WidgetViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = getLayoutInflater().inflate(R.layout.item_custom_widget, parent, false);
+            return new WidgetViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(WidgetViewHolder holder, int position) {
+            final HashMap<String, Object> widget = widgetList.get(position);
+            final String name = widget.containsKey("name") ? widget.get("name").toString() : "Unnamed";
+            final String tag = widget.containsKey("tag") ? widget.get("tag").toString() : "div";
+            final String category = widget.containsKey("category") ? widget.get("category").toString() : "basic";
+            final String colorHex = widget.containsKey("color") ? widget.get("color").toString() : "#CCCCCC";
+
+            holder.tvName.setText(name);
+            holder.tvTag.setText("Tag: <" + tag + ">");
+            
+            holder.tvCategory.setText(category.toUpperCase());
+            GradientDrawable gdCat = new GradientDrawable();
+            gdCat.setColor(Color.parseColor("#3F51B5"));
+            gdCat.setCornerRadius(dpToPx(ManageBlocksWidgetsActivity.this, 16f));
+            holder.tvCategory.setBackground(gdCat);
+
+            holder.tvColor.setText(" Color: " + colorHex + " ");
+            GradientDrawable gdColor = new GradientDrawable();
+            try {
+                gdColor.setColor(Color.parseColor(colorHex));
+            } catch (Exception e) {
+                gdColor.setColor(Color.LTGRAY);
+            }
+            gdColor.setCornerRadius(dpToPx(ManageBlocksWidgetsActivity.this, 8f));
+            holder.tvColor.setBackground(gdColor);
+
+            Object funcObj = widget.get("function");
+            final String funcJson = funcObj != null ? new GsonBuilder().setPrettyPrinting().create().toJson(funcObj) : "{}";
+            holder.tvFunction.setText(funcJson);
+
+            final boolean isExpanded = expandedNames.contains(name);
+            holder.layoutExpandable.setVisibility(isExpanded ? View.VISIBLE : View.GONE);
+            holder.tvArrow.setText(isExpanded ? "▲" : "▼");
+
+            holder.itemView.setOnClickListener(v -> {
+                boolean expanded = expandedNames.contains(name);
+                if (expanded) {
+                    expandedNames.remove(name);
+                } else {
+                    expandedNames.add(name);
+                }
+                android.transition.TransitionManager.beginDelayedTransition((ViewGroup) holder.itemView.getParent());
+                notifyItemChanged(position);
+            });
+
+            // Bind actions dynamically
+            holder.layoutActions.removeAllViews();
+
+            // Edit
+            MaterialButton btnEdit = createM3Button("Edit", R.drawable.icon_edit_round, themePrimaryColor, v -> showWidgetEditDialog(widget));
+            holder.layoutActions.addView(btnEdit);
+
+            // Duplicate
+            MaterialButton btnDuplicate = createM3Button("Duplicate", R.drawable.icon_copy_all_round, themePrimaryColor, v -> duplicateWidget(widget));
+            holder.layoutActions.addView(btnDuplicate);
+
+            // Copy
+            MaterialButton btnCopy = createM3Button("Copy", R.drawable.icon_code_round, themePrimaryColor, v -> {
+                String json = new GsonBuilder().setPrettyPrinting().create().toJson(widget);
+                copyToClipboard("Widget JSON", json);
+            });
+            holder.layoutActions.addView(btnCopy);
+
+            // Export
+            MaterialButton btnExport = createM3Button("Export", R.drawable.icon_export_round, themePrimaryColor, v -> {
+                pendingExportWidget = widget;
+                List<HashMap<String, Object>> singleList = new ArrayList<>();
+                singleList.add(widget);
+                String json = new GsonBuilder().setPrettyPrinting().create().toJson(singleList);
+                copyToClipboard("Widget JSON", json);
+                exportSingleWidgetLauncher.launch(name + ".json");
+            });
+            holder.layoutActions.addView(btnExport);
+
+            // Delete
+            MaterialButton btnDelete = createM3Button("Delete", R.drawable.icon_delete_round, themePrimaryColor, v -> showWidgetDeleteConfirmation(widget));
+            holder.layoutActions.addView(btnDelete);
+        }
+
+        class WidgetViewHolder extends androidx.recyclerview.widget.RecyclerView.ViewHolder {
+            TextView tvCategory, tvName, tvArrow, tvTag, tvColor, tvFunction;
+            LinearLayout layoutExpandable, layoutActions;
+
+            WidgetViewHolder(View v) {
+                super(v);
+                tvCategory = v.findViewById(R.id.tvWidgetCategory);
+                tvName = v.findViewById(R.id.tvWidgetName);
+                tvArrow = v.findViewById(R.id.tvWidgetArrow);
+                tvTag = v.findViewById(R.id.tvWidgetTag);
+                tvColor = v.findViewById(R.id.tvWidgetColor);
+                tvFunction = v.findViewById(R.id.tvWidgetFunction);
+                layoutExpandable = v.findViewById(R.id.layoutWidgetExpandable);
+                layoutActions = v.findViewById(R.id.layoutWidgetActions);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -564,13 +520,14 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         ScrollView sv = new ScrollView(this);
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(32, 24, 32, 24);
+        form.setPadding(dpToPx(this, 24), dpToPx(this, 24), dpToPx(this, 24), dpToPx(this, 12));
         sv.addView(form);
 
         // Block ID
         final TextInputLayout tilId = createOutlinedInputLayout("Block ID (unique alphanumeric)");
         final TextInputEditText etId = new TextInputEditText(this);
         etId.setSingleLine(true);
+        applyOutlinedFieldStyling(etId);
         if (isEdit) {
             etId.setText(editDef.id);
             etId.setEnabled(false); // ID is final in edit
@@ -579,13 +536,6 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         form.addView(tilId);
 
         // Category Spinner
-        TextView spinnerLabel = new TextView(this);
-        spinnerLabel.setText("Category");
-        spinnerLabel.setTextSize(12);
-        spinnerLabel.setTextColor(Color.GRAY);
-        spinnerLabel.setPadding(4, 16, 0, 4);
-        form.addView(spinnerLabel);
-
         final Spinner spinnerCategory = new Spinner(this);
         final String[] categories = {"html", "css", "logic", "animation", "asd", "value"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categories);
@@ -599,15 +549,16 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
                 }
             }
         }
-        form.addView(spinnerCategory);
+        form.addView(createSpinnerWrapper(spinnerCategory, "Category"));
 
         // Display text
         final TextInputLayout tilDisplay = createOutlinedInputLayout("Display Text (e.g. Set tag %s class to %s)");
         LinearLayout.LayoutParams displayLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        displayLp.setMargins(0, 16, 0, 0);
+        displayLp.setMargins(0, dpToPx(this, 16f), 0, 0);
         tilDisplay.setLayoutParams(displayLp);
         final TextInputEditText etDisplay = new TextInputEditText(this);
         etDisplay.setSingleLine(true);
+        applyOutlinedFieldStyling(etDisplay);
         if (isEdit) {
             etDisplay.setText(editDef.display);
         }
@@ -617,11 +568,12 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         // Template text
         final TextInputLayout tilTemplate = createOutlinedInputLayout("HTML/CSS Template (e.g. %1$s{class:%2$s;})");
         LinearLayout.LayoutParams templateLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        templateLp.setMargins(0, 16, 0, 0);
+        templateLp.setMargins(0, dpToPx(this, 16f), 0, 0);
         tilTemplate.setLayoutParams(templateLp);
         final TextInputEditText etTemplate = new TextInputEditText(this);
         etTemplate.setSingleLine(false);
         etTemplate.setMinLines(3);
+        applyOutlinedFieldStyling(etTemplate);
         if (isEdit) {
             etTemplate.setText(editDef.template);
         }
@@ -631,6 +583,8 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         new MaterialAlertDialogBuilder(this)
             .setTitle(isEdit ? "Edit Custom Block" : "Create Custom Block")
             .setView(sv)
+            .setBackgroundInsetStart(dpToPx(this, 24))
+            .setBackgroundInsetEnd(dpToPx(this, 24))
             .setPositiveButton("Save", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
@@ -671,6 +625,8 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         new MaterialAlertDialogBuilder(this)
             .setTitle("Delete Custom Block")
             .setMessage("Are you sure you want to delete block '" + def.id + "'?")
+            .setBackgroundInsetStart(dpToPx(this, 24))
+            .setBackgroundInsetEnd(dpToPx(this, 24))
             .setPositiveButton("Delete", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
@@ -692,13 +648,14 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         ScrollView sv = new ScrollView(this);
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(32, 24, 32, 24);
+        form.setPadding(dpToPx(this, 24), dpToPx(this, 24), dpToPx(this, 24), dpToPx(this, 12f));
         sv.addView(form);
 
         // Widget Name
         final TextInputLayout tilName = createOutlinedInputLayout("Widget Name (unique, e.g. CustomCard)");
         final TextInputEditText etName = new TextInputEditText(this);
         etName.setSingleLine(true);
+        applyOutlinedFieldStyling(etName);
         if (isEdit) {
             etName.setText(editWidget.get("name").toString());
             etName.setEnabled(false); // Name is final in edit
@@ -707,13 +664,6 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         form.addView(tilName);
 
         // HTML Tag Spinner
-        TextView spinnerTagLabel = new TextView(this);
-        spinnerTagLabel.setText("HTML Tag");
-        spinnerTagLabel.setTextSize(12);
-        spinnerTagLabel.setTextColor(Color.GRAY);
-        spinnerTagLabel.setPadding(4, 16, 0, 4);
-        form.addView(spinnerTagLabel);
-
         final Spinner spinnerTag = new Spinner(this);
         final String[] tags = {"button", "div", "p", "h1", "h2", "h3", "img", "input", "textarea", "a", "span", "label", "select"};
         ArrayAdapter<String> tagAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tags);
@@ -728,16 +678,9 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
                 }
             }
         }
-        form.addView(spinnerTag);
+        form.addView(createSpinnerWrapper(spinnerTag, "HTML Tag"));
 
         // Category Spinner
-        TextView spinnerCatLabel = new TextView(this);
-        spinnerCatLabel.setText("Category");
-        spinnerCatLabel.setTextSize(12);
-        spinnerCatLabel.setTextColor(Color.GRAY);
-        spinnerCatLabel.setPadding(4, 16, 0, 4);
-        form.addView(spinnerCatLabel);
-
         final Spinner spinnerCat = new Spinner(this);
         final String[] widgetCats = {"basic", "layout", "form"};
         ArrayAdapter<String> catAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, widgetCats);
@@ -752,15 +695,16 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
                 }
             }
         }
-        form.addView(spinnerCat);
+        form.addView(createSpinnerWrapper(spinnerCat, "Category"));
 
         // Hex Color Code
         final TextInputLayout tilColor = createOutlinedInputLayout("Palette Hex Color (e.g. #FFBB33)");
         LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        colLp.setMargins(0, 16, 0, 0);
+        colLp.setMargins(0, dpToPx(this, 16f), 0, 0);
         tilColor.setLayoutParams(colLp);
         final TextInputEditText etColor = new TextInputEditText(this);
         etColor.setSingleLine(true);
+        applyOutlinedFieldStyling(etColor);
         etColor.setText(isEdit && editWidget.containsKey("color") ? editWidget.get("color").toString() : "#FFBB33");
         tilColor.addView(etColor);
         form.addView(tilColor);
@@ -768,12 +712,13 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         // Function JSON
         final TextInputLayout tilFunction = createOutlinedInputLayout("Function Properties JSON");
         LinearLayout.LayoutParams funcLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        funcLp.setMargins(0, 16, 0, 0);
+        funcLp.setMargins(0, dpToPx(this, 16f), 0, 0);
         tilFunction.setLayoutParams(funcLp);
         final TextInputEditText etFunction = new TextInputEditText(this);
         etFunction.setSingleLine(false);
         etFunction.setMinLines(6);
         etFunction.setTypeface(Typeface.MONOSPACE);
+        applyOutlinedFieldStyling(etFunction);
         
         if (isEdit) {
             Object funcObj = editWidget.get("function");
@@ -817,6 +762,8 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         new MaterialAlertDialogBuilder(this)
             .setTitle(isEdit ? "Edit Custom Widget" : "Create Custom Widget")
             .setView(sv)
+            .setBackgroundInsetStart(dpToPx(this, 24))
+            .setBackgroundInsetEnd(dpToPx(this, 24))
             .setPositiveButton("Save", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
@@ -877,6 +824,8 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         new MaterialAlertDialogBuilder(this)
             .setTitle("Delete Custom Widget")
             .setMessage("Are you sure you want to delete custom widget '" + name + "'?")
+            .setBackgroundInsetStart(dpToPx(this, 24))
+            .setBackgroundInsetEnd(dpToPx(this, 24))
             .setPositiveButton("Delete", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
@@ -917,8 +866,18 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.action_export) {
             if (activeTab == 0) {
+                List<ManageBlocksWidgets.CustomBlockDef> customOnly = new ArrayList<>();
+                for (ManageBlocksWidgets.CustomBlockDef def : customBlockManager.getDefinitions()) {
+                    if (def != null && def.isCustom) {
+                        customOnly.add(def);
+                    }
+                }
+                String json = new GsonBuilder().setPrettyPrinting().create().toJson(customOnly);
+                copyToClipboard("Blocks JSON", json);
                 exportBlocksLauncher.launch("blocks.json");
             } else {
+                String json = new GsonBuilder().setPrettyPrinting().create().toJson(widgetRegistry.getAllWidgets());
+                copyToClipboard("Widgets JSON", json);
                 exportWidgetsLauncher.launch("widgets.json");
             }
             return true;
@@ -945,9 +904,16 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
 
     private void performExportBlocks(Uri uri) {
         try {
-            String json = new GsonBuilder().setPrettyPrinting().create().toJson(customBlockManager.getDefinitions());
+            List<ManageBlocksWidgets.CustomBlockDef> customOnly = new ArrayList<>();
+            for (ManageBlocksWidgets.CustomBlockDef def : customBlockManager.getDefinitions()) {
+                if (def != null && def.isCustom) {
+                    customOnly.add(def);
+                }
+            }
+            String json = new GsonBuilder().setPrettyPrinting().create().toJson(customOnly);
             writeTextToUri(uri, json);
-            Toast.makeText(this, "Blocks exported successfully", Toast.LENGTH_SHORT).show();
+            copyToClipboard("Blocks JSON", json);
+            Toast.makeText(this, "Blocks exported and copied to clipboard", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
@@ -957,7 +923,8 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         try {
             String json = new GsonBuilder().setPrettyPrinting().create().toJson(widgetRegistry.getAllWidgets());
             writeTextToUri(uri, json);
-            Toast.makeText(this, "Widgets exported successfully", Toast.LENGTH_SHORT).show();
+            copyToClipboard("Widgets JSON", json);
+            Toast.makeText(this, "Widgets exported and copied to clipboard", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
@@ -969,7 +936,8 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
             singleList.add(def);
             String json = new GsonBuilder().setPrettyPrinting().create().toJson(singleList);
             writeTextToUri(uri, json);
-            Toast.makeText(this, "Block exported successfully", Toast.LENGTH_SHORT).show();
+            copyToClipboard("Block JSON", json);
+            Toast.makeText(this, "Block exported and copied to clipboard", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
@@ -981,7 +949,8 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
             singleList.add(widget);
             String json = new GsonBuilder().setPrettyPrinting().create().toJson(singleList);
             writeTextToUri(uri, json);
-            Toast.makeText(this, "Widget exported successfully", Toast.LENGTH_SHORT).show();
+            copyToClipboard("Widget JSON", json);
+            Toast.makeText(this, "Widget exported and copied to clipboard", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
@@ -1095,29 +1064,35 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
     }
 
     private void duplicateBlock(ManageBlocksWidgets.CustomBlockDef def) {
-        ManageBlocksWidgets.CustomBlockDef newDef = new ManageBlocksWidgets.CustomBlockDef();
-        newDef.category = def.category;
-        newDef.display = def.display;
-        newDef.template = def.template;
-        newDef.id = generateUniqueBlockId(def.id);
+        ManageBlocksWidgets.CustomBlockDef freshDef = customBlockManager.findDefinition(def.id);
+        if (freshDef == null) freshDef = def; // Fallback
         
-        customBlockManager.addDefinitionAfter(def.id, newDef);
+        ManageBlocksWidgets.CustomBlockDef newDef = new ManageBlocksWidgets.CustomBlockDef();
+        newDef.category = freshDef.category;
+        newDef.display = freshDef.display;
+        newDef.template = freshDef.template;
+        newDef.id = generateUniqueBlockId(freshDef.id);
+        
+        customBlockManager.addDefinitionAfter(freshDef.id, newDef);
         Toast.makeText(this, "Block duplicated as " + newDef.id, Toast.LENGTH_SHORT).show();
         refreshBlocksList();
     }
 
     private void duplicateWidget(HashMap<String, Object> widget) {
-        HashMap<String, Object> newWidget = new HashMap<>();
         String originalName = widget.containsKey("name") ? widget.get("name").toString() : "Widget";
+        HashMap<String, Object> freshWidget = widgetRegistry.getWidgetByName(originalName);
+        if (freshWidget == null) freshWidget = widget; // Fallback
+        
+        HashMap<String, Object> newWidget = new HashMap<>();
         String newName = generateUniqueWidgetName(originalName);
         
         newWidget.put("name", newName);
-        newWidget.put("tag", widget.get("tag"));
-        newWidget.put("category", widget.get("category"));
-        newWidget.put("color", widget.get("color"));
+        newWidget.put("tag", freshWidget.get("tag"));
+        newWidget.put("category", freshWidget.get("category"));
+        newWidget.put("color", freshWidget.get("color"));
         
         // Deep copy of function properties
-        Object funcObj = widget.get("function");
+        Object funcObj = freshWidget.get("function");
         if (funcObj != null) {
             String json = new Gson().toJson(funcObj);
             HashMap<String, Object> newFunc = new Gson().fromJson(json, new TypeToken<HashMap<String, Object>>(){}.getType());
@@ -1135,6 +1110,21 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_import, null);
         final TextInputLayout tilJson = dialogView.findViewById(R.id.tilImportJson);
         final TextInputEditText etJson = dialogView.findViewById(R.id.etImportJson);
+        if (etJson != null) {
+            applyOutlinedFieldStyling(etJson);
+            try {
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
+                    CharSequence clipText = clipboard.getPrimaryClip().getItemAt(0).getText();
+                    if (clipText != null) {
+                        String textStr = clipText.toString().trim();
+                        if ((textStr.startsWith("{") && textStr.endsWith("}")) || (textStr.startsWith("[") && textStr.endsWith("]"))) {
+                            etJson.setText(textStr);
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
         
         final String typeName = (activeTab == 0) ? "Blocks" : "Widgets";
         if (tilJson != null) {
@@ -1144,6 +1134,8 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         new MaterialAlertDialogBuilder(this)
             .setTitle("Import " + typeName)
             .setView(dialogView)
+            .setBackgroundInsetStart(dpToPx(this, 24))
+            .setBackgroundInsetEnd(dpToPx(this, 24))
             .setPositiveButton("Import from Text", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
@@ -1180,6 +1172,52 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
             })
             .setNegativeButton("Cancel", null)
             .show();
+    }
+
+    private View createSpinnerWrapper(Spinner spinner, String labelText) {
+        LinearLayout wrapper = new LinearLayout(this);
+        wrapper.setOrientation(LinearLayout.VERTICAL);
+        
+        TextView label = new TextView(this);
+        label.setText(labelText);
+        label.setTextSize(12);
+        label.setTextColor(Color.GRAY);
+        label.setPadding(dpToPx(this, 4f), dpToPx(this, 8f), 0, dpToPx(this, 4f));
+        wrapper.addView(label);
+        
+        LinearLayout spinnerBox = new LinearLayout(this);
+        spinnerBox.setOrientation(LinearLayout.HORIZONTAL);
+        spinnerBox.setGravity(Gravity.CENTER_VERTICAL);
+        
+        GradientDrawable gd = new GradientDrawable();
+        gd.setCornerRadius(dpToPx(this, 12f));
+        gd.setStroke(dpToPx(this, 1f), Color.parseColor("#79747E")); // Outline border color
+        gd.setColor(Color.TRANSPARENT);
+        spinnerBox.setBackground(gd);
+        
+        spinner.setBackgroundColor(Color.TRANSPARENT);
+        
+        LinearLayout.LayoutParams spinnerLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(this, 48f));
+        spinner.setLayoutParams(spinnerLp);
+        
+        spinnerBox.addView(spinner);
+        wrapper.addView(spinnerBox);
+        
+        LinearLayout.LayoutParams wrapperLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        wrapperLp.setMargins(0, dpToPx(this, 12f), 0, 0);
+        wrapper.setLayoutParams(wrapperLp);
+        
+        return wrapper;
+    }
+
+    private void applyOutlinedFieldStyling(android.widget.EditText edit) {
+        edit.setMinimumHeight(dpToPx(this, 56f));
+        int hp = dpToPx(this, 16f);
+        int vp = dpToPx(this, 12f);
+        edit.setPadding(hp, vp, hp, vp);
+        edit.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15);
     }
 
     private TextInputLayout createOutlinedInputLayout(String hint) {

@@ -38,67 +38,71 @@
             android:text="Custom Widgets" />
     </com.google.android.material.tabs.TabLayout>
 
+    <HorizontalScrollView
+        android:id="@+id/scrollViewChips"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:clipToPadding="false"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:background="?attr/colorSurfaceContainerHigh">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupCategories"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleLine="true"
+            app:singleSelection="true"
+            app:selectionRequired="true" />
+    </HorizontalScrollView>
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
         <!-- ===== Custom Blocks Content ===== -->
-        <androidx.core.widget.NestedScrollView
-            android:id="@+id/scrollBlocks"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvBlocks"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scrollbars="vertical">
+            android:padding="12dp"
+            android:clipToPadding="false"
+            android:scrollbars="vertical" />
 
-            <LinearLayout
-                android:id="@+id/containerBlocks"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp"
-                android:clipToPadding="false">
-
-                <!-- Dynamic block cards go here -->
-                <TextView
-                    android:id="@+id/tvEmptyBlocks"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:padding="32dp"
-                    android:text="No custom blocks created yet.\nTap the + button to add one!"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="14sp" />
-            </LinearLayout>
-        </androidx.core.widget.NestedScrollView>
+        <TextView
+            android:id="@+id/tvEmptyBlocks"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:layout_gravity="center"
+            android:padding="32dp"
+            android:text="No custom blocks created yet.\nTap the + button to add one!"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp" />
 
         <!-- ===== Custom Widgets Content ===== -->
-        <androidx.core.widget.NestedScrollView
-            android:id="@+id/scrollWidgets"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvWidgets"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:padding="12dp"
+            android:clipToPadding="false"
             android:scrollbars="vertical"
-            android:visibility="gone">
+            android:visibility="gone" />
 
-            <LinearLayout
-                android:id="@+id/containerWidgets"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp"
-                android:clipToPadding="false">
-
-                <!-- Dynamic widget cards go here -->
-                <TextView
-                    android:id="@+id/tvEmptyWidgets"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:padding="32dp"
-                    android:text="No custom widgets created yet.\nTap the + button to add one!"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="14sp" />
-            </LinearLayout>
-        </androidx.core.widget.NestedScrollView>
+        <TextView
+            android:id="@+id/tvEmptyWidgets"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:layout_gravity="center"
+            android:padding="32dp"
+            android:text="No custom widgets created yet.\nTap the + button to add one!"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp"
+            android:visibility="gone" />
 
         <!-- Floating Action Button -->
         <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
