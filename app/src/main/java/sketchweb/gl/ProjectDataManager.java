@@ -383,6 +383,13 @@ public class ProjectDataManager {
                     outFile = new File(customDir, relative);
                     safeBase = extDragwebBase;
 
+                } else if (entryName.startsWith("data/")) {
+                    // data/{projectId}.* → internal projects dir
+                    String relative = entryName.substring("data/".length());
+                    outFile = new File(internalProjectsDir, relative);
+                    safeBase = internalBase;
+                    captureProjectIdFromInternalFile(relative, result.importedProjectIds);
+
                 // ---- Backward-compatible old structure ----
                 } else if (entryName.startsWith("external/projects/")) {
                     String relative = entryName.substring("external/projects/".length());

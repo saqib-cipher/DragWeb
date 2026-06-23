@@ -44,7 +44,8 @@ final class BlockChipFactory {
         this.customBlocks = customBlocks;
     }
 
-    View buildChip(ChipInput input,
+    View buildChip(boolean isAsd,
+                   ChipInput input,
                    String currentValue,
                    int blockBaseColor,
                    OnChipValueChanged listener) {
@@ -59,8 +60,8 @@ final class BlockChipFactory {
             case "dropdown": return dropdownChip(input, value, blockBaseColor, listener, resolveDropdownOptions(input));
             case "selector": return selectorChip(input, value, blockBaseColor, listener);
             case "variable": return dropdownChip(input, value, blockBaseColor, listener, resolveVariableOptions());
-            case "number":   return textChip(input, value, blockBaseColor, listener, true);
-            default:         return textChip(input, value, blockBaseColor, listener, false);
+            case "number":   return textChip(input, value, blockBaseColor, listener, true, false);
+            default:         return textChip(input, value, blockBaseColor, listener, false, isAsd);
         }
     }
 
@@ -109,20 +110,31 @@ final class BlockChipFactory {
         return chip;
     }
     private TextView textChip(ChipInput input, String value, int baseColor,
-                              OnChipValueChanged listener, boolean numeric) {
+                              OnChipValueChanged listener, boolean numeric, boolean isAsd) {
         String display = value.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : value;
         TextView chip = baseChip(baseColor, display);
         chip.setOnClickListener(v -> {
             String currentText = chip.getText().toString();
             String currentVal = (currentText.equals("...") || (input.placeholder != null && currentText.equals(input.placeholder))) ? "" : currentText;
-            new UniversalM3Dialog(context)
-                .setTitle(input.id != null ? input.id : "Edit")
-                .setHint(input.placeholder != null ? input.placeholder : "Value")
-                .setInitialValue(currentVal)
-                .showTextInput(nv -> {
-                    chip.setText(nv.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : nv);
-                    if (listener != null) listener.onChanged(input.id, nv);
-                });
+            if (isAsd) {
+                UniversalDialog.multilineInput(context,
+                    input.id != null ? input.id : "Edit ASD",
+                    input.placeholder != null ? input.placeholder : "Enter code...",
+                    currentVal,
+                    nv -> {
+                        chip.setText(nv.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : nv);
+                        if (listener != null) listener.onChanged(input.id, nv);
+                    });
+            } else {
+                new UniversalM3Dialog(context)
+                    .setTitle(input.id != null ? input.id : "Edit")
+                    .setHint(input.placeholder != null ? input.placeholder : "Value")
+                    .setInitialValue(currentVal)
+                    .showTextInput(nv -> {
+                        chip.setText(nv.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : nv);
+                        if (listener != null) listener.onChanged(input.id, nv);
+                    });
+            }
         });
         return chip;
     }

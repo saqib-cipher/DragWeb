@@ -2442,6 +2442,17 @@ public class MainActivity extends AppCompatActivity {
 				}
 				themeManager.setCustomCssVars(newVars);
 
+				// Persist theme changes immediately
+				try {
+					File dir = new File(getFilesDir(), "projects");
+					if (!dir.exists()) dir.mkdirs();
+					File themeFile = new File(dir, projectId + ".theme");
+					FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
+					saveProjectToExternal();
+				} catch (Exception e) {
+					Log.w("MainActivity", "Failed to auto-save theme: " + e.getMessage());
+				}
+
 				Toast.makeText(this, "Theme updated (light + dark)", Toast.LENGTH_SHORT).show();
 			})
 			.setNegativeButton("Cancel", null)
@@ -3498,9 +3509,9 @@ public class MainActivity extends AppCompatActivity {
 				.show();
 		});
 
-		new MaterialAlertDialogBuilder(this)
+		androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
 			.setView(dialogView)
-			.setPositiveButton("Save", (dialog, which) -> {
+			.setPositiveButton("Save", (dialogInterface, which) -> {
 				List<String> keysToRemove = new ArrayList<>();
 				for (String key : fnRef.keySet()) {
 					if (key.startsWith("on")) {
@@ -3524,7 +3535,13 @@ public class MainActivity extends AppCompatActivity {
 				Toast.makeText(MainActivity.this, "Events saved", Toast.LENGTH_SHORT).show();
 			})
 			.setNegativeButton("Cancel", null)
-			.show();
+			.create();
+
+		if (dialog.getWindow() != null) {
+			dialog.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM);
+			dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+		}
+		dialog.show();
 	}
 
 	@SuppressWarnings("unchecked")

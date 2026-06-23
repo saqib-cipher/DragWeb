@@ -32,6 +32,9 @@ public class HtmlCssImporter {
     // CSS rules parsed from external CSS: selector -> { property -> value }
     private final Map<String, Map<String, String>> cssRules = new LinkedHashMap<>();
 
+    // Logic blocks parsed during CSS import
+    private final List<Map<String, Object>> importedLogicBlocks = new ArrayList<>();
+
     /**
      * Import result containing the widget tree and logic blocks for the project.
      */
@@ -57,52 +60,6 @@ public class HtmlCssImporter {
     }
 
     /**
-     * Import parse helper to get css rules as LogicBlocks maps.
-     */
-    private List<Map<String, Object>> getCssAsLogicBlocks() {
-        List<Map<String, Object>> blocksList = new ArrayList<>();
-        int counter = 0;
-        long timestamp = System.currentTimeMillis();
-
-        for (Map.Entry<String, Map<String, String>> ruleEntry : cssRules.entrySet()) {
-            String selector = ruleEntry.getKey();
-            Map<String, String> properties = ruleEntry.getValue();
-            if (properties == null || properties.isEmpty()) continue;
-
-            String targetMode = "id";
-            String targetWidget = selector;
-
-            if (selector.startsWith("#")) {
-                targetMode = "id";
-                targetWidget = selector.substring(1);
-            } else if (selector.startsWith(".")) {
-                targetMode = "class";
-                targetWidget = selector.substring(1);
-            } else {
-                targetMode = "tag";
-                targetWidget = selector;
-            }
-
-            for (Map.Entry<String, String> propEntry : properties.entrySet()) {
-                String camelProp = propEntry.getKey();
-                String val = propEntry.getValue();
-
-                Map<String, Object> blockMap = new HashMap<>();
-                blockMap.put("category", "style");
-                blockMap.put("targetWidget", targetWidget);
-                blockMap.put("targetMode", targetMode);
-                blockMap.put("event", "immediate");
-                blockMap.put("action", "changeStyle");
-                blockMap.put("params", camelProp + ":" + val);
-                blockMap.put("id", "blk_import_" + timestamp + "_" + (counter++));
-
-                blocksList.add(blockMap);
-            }
-        }
-        return blocksList;
-    }
-
-    /**
      * Parse HTML content (and optionally CSS) into a DragWeb widget tree.
      */
     public ImportResult importHtmlCss(String htmlContent, String cssContent) {
@@ -111,6 +68,10 @@ public class HtmlCssImporter {
         }
 
         try {
+            // Clear prior states
+            cssRules.clear();
+            importedLogicBlocks.clear();
+
             // Parse external CSS first so styles can be applied to elements
             if (cssContent != null && !cssContent.trim().isEmpty()) {
                 parseCss(cssContent);
@@ -129,9 +90,10 @@ public class HtmlCssImporter {
                 return new ImportResult(false, "No supported HTML elements found", null);
             }
 
-            List<Map<String, Object>> logicBlocks = getCssAsLogicBlocks();
+            // Link Blockly chains for nextBlockId and subStackId references
+            linkBlockChains(importedLogicBlocks);
 
-            return new ImportResult(true, "Successfully imported " + countNodes(widgetTree) + " elements", widgetTree, logicBlocks);
+            return new ImportResult(true, "Successfully imported " + countNodes(widgetTree) + " elements", widgetTree, new ArrayList<>(importedLogicBlocks));
         } catch (Exception e) {
             Log.e(TAG, "Import failed: " + e.getMessage(), e);
             return new ImportResult(false, "Parse error: " + e.getMessage(), null);
@@ -169,50 +131,608 @@ public class HtmlCssImporter {
         }
     }
 
+    private static class SelectorInfo {
+        String action;
+        String spec;
+        List<String> paramValues = new ArrayList<>();
+    }
+
+    private SelectorInfo parseSelector(String selector) {
+        SelectorInfo info = new SelectorInfo();
+        selector = selector.trim();
+
+        if (selector.endsWith(":hover")) {
+            info.action = "cssHover";
+            info.spec = "%s:hover { %m.space }";
+            info.paramValues.add(selector.substring(0, selector.length() - 6).trim());
+        } else if (selector.endsWith(":focus")) {
+            info.action = "cssFocus";
+            info.spec = "%s:focus { %m.space }";
+            info.paramValues.add(selector.substring(0, selector.length() - 6).trim());
+        } else if (selector.endsWith(":active")) {
+            info.action = "cssActive";
+            info.spec = "%s:active { %m.space }";
+            info.paramValues.add(selector.substring(0, selector.length() - 7).trim());
+        } else if (selector.endsWith(":visited")) {
+            info.action = "cssVisited";
+            info.spec = "%s:visited { %m.space }";
+            info.paramValues.add(selector.substring(0, selector.length() - 8).trim());
+        } else if (selector.endsWith("::before")) {
+            info.action = "cssBefore";
+            info.spec = "%s::before { %m.space }";
+            info.paramValues.add(selector.substring(0, selector.length() - 8).trim());
+        } else if (selector.endsWith(":before")) {
+            info.action = "cssBefore";
+            info.spec = "%s::before { %m.space }";
+            info.paramValues.add(selector.substring(0, selector.length() - 7).trim());
+        } else if (selector.endsWith("::after")) {
+            info.action = "cssAfter";
+            info.spec = "%s::after { %m.space }";
+            info.paramValues.add(selector.substring(0, selector.length() - 7).trim());
+        } else if (selector.endsWith(":after")) {
+            info.action = "cssAfter";
+            info.spec = "%s::after { %m.space }";
+            info.paramValues.add(selector.substring(0, selector.length() - 6).trim());
+        } else if (selector.endsWith(":first-child")) {
+            info.action = "cssFirstChild";
+            info.spec = "%s:first-child { %m.space }";
+            info.paramValues.add(selector.substring(0, selector.length() - 12).trim());
+        } else if (selector.endsWith(":last-child")) {
+            info.action = "cssLastChild";
+            info.spec = "%s:last-child { %m.space }";
+            info.paramValues.add(selector.substring(0, selector.length() - 11).trim());
+        } else if (selector.contains(":nth-child(")) {
+            int start = selector.indexOf(":nth-child(");
+            int end = selector.indexOf(")", start);
+            if (end > start) {
+                String base = selector.substring(0, start).trim();
+                String arg = selector.substring(start + 11, end).trim();
+                info.action = "cssNthChild";
+                info.spec = "%s:nth-child(%n) { %m.space }";
+                info.paramValues.add(base);
+                info.paramValues.add(arg);
+            } else {
+                info.action = "cssSelector";
+                info.spec = "%s { %m.space }";
+                info.paramValues.add(selector);
+            }
+        } else {
+            info.action = "cssSelector";
+            info.spec = "%s { %m.space }";
+            info.paramValues.add(selector);
+        }
+        return info;
+    }
+
+    private static class PropertyBlockInfo {
+        String action;
+        String category = "css";
+        String spec;
+        List<String> paramValues = new ArrayList<>();
+    }
+
+    private PropertyBlockInfo parsePropertyToBlock(String property, String value) {
+        PropertyBlockInfo info = new PropertyBlockInfo();
+        property = property.trim().toLowerCase();
+        value = value.trim();
+
+        String[] numUnit = splitNumberAndUnit(value);
+
+        switch (property) {
+            case "display":
+                info.action = "setDisplay";
+                info.spec = "display: %m.display;";
+                info.paramValues.add(value);
+                break;
+            case "position":
+                info.action = "setPosition";
+                info.spec = "position: %m.position;";
+                info.paramValues.add(value);
+                break;
+            case "overflow":
+                info.action = "setOverflow";
+                info.spec = "overflow: %m.overflow;";
+                info.paramValues.add(value);
+                break;
+            case "color":
+                info.action = "setColor";
+                info.spec = "color: %m.color;";
+                info.paramValues.add(value);
+                break;
+            case "background-color":
+            case "backgroundcolor":
+            case "background":
+                if (value.contains("url(")) {
+                    info.action = "setBackgroundImage";
+                    info.spec = "background-image: url(%s);";
+                    info.paramValues.add(extractUrl(value));
+                } else {
+                    info.action = "setBackground";
+                    info.spec = "background: %m.color;";
+                    info.paramValues.add(value);
+                }
+                break;
+            case "background-image":
+            case "backgroundimage":
+                info.action = "setBackgroundImage";
+                info.spec = "background-image: url(%s);";
+                info.paramValues.add(extractUrl(value));
+                break;
+            case "width":
+                info.action = "setWidth";
+                info.spec = "width: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "height":
+                info.action = "setHeight";
+                info.spec = "height: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "max-width":
+            case "maxwidth":
+                info.action = "setMaxWidth";
+                info.spec = "max-width: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "max-height":
+            case "maxheight":
+                info.action = "setMaxHeight";
+                info.spec = "max-height: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "min-width":
+            case "minwidth":
+                info.action = "setMinWidth";
+                info.spec = "min-width: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "min-height":
+            case "minheight":
+                info.action = "setMinHeight";
+                info.spec = "min-height: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "margin":
+                info.action = "setMargin";
+                info.spec = "margin: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "padding":
+                info.action = "setPadding";
+                info.spec = "padding: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "border-radius":
+            case "borderradius":
+                info.action = "setRadius";
+                info.spec = "border-radius: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "font-size":
+            case "fontsize":
+                info.action = "setFontSize";
+                info.spec = "font-size: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "font-family":
+            case "fontfamily":
+                info.action = "setFontFamily";
+                info.spec = "font-family: %s;";
+                info.paramValues.add(value);
+                break;
+            case "font-weight":
+            case "fontweight":
+                info.action = "setFontWeight";
+                info.spec = "font-weight: %m.fontWeight;";
+                info.paramValues.add(value);
+                break;
+            case "font-style":
+            case "fontstyle":
+                info.action = "setFontStyle";
+                info.spec = "font-style: %m.fontStyle;";
+                info.paramValues.add(value);
+                break;
+            case "text-align":
+            case "textalign":
+                info.action = "setTextAlign";
+                info.spec = "text-align: %m.textAlign;";
+                info.paramValues.add(value);
+                break;
+            case "text-decoration":
+            case "textdecoration":
+                info.action = "setTextDecoration";
+                info.spec = "text-decoration: %m.textDecoration;";
+                info.paramValues.add(value);
+                break;
+            case "line-height":
+            case "lineheight":
+                info.action = "setLineHeight";
+                info.spec = "line-height: %n;";
+                info.paramValues.add(value);
+                break;
+            case "letter-spacing":
+            case "letterspacing":
+                info.action = "setLetterSpacing";
+                info.spec = "letter-spacing: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "opacity":
+                info.action = "setOpacity";
+                info.spec = "opacity: %n;";
+                info.paramValues.add(value);
+                break;
+            case "z-index":
+            case "zindex":
+                info.action = "setZIndex";
+                info.spec = "z-index: %n;";
+                info.paramValues.add(value);
+                break;
+            case "cursor":
+                info.action = "setCursor";
+                info.spec = "cursor: %m.cursor;";
+                info.paramValues.add(value);
+                break;
+            case "flex-direction":
+            case "flexdirection":
+                info.action = "setFlexDirection";
+                info.spec = "flex-direction: %m.flexDirection;";
+                info.paramValues.add(value);
+                break;
+            case "justify-content":
+            case "justifycontent":
+                info.action = "setJustifyContent";
+                info.spec = "justify-content: %m.justifyContent;";
+                info.paramValues.add(value);
+                break;
+            case "align-items":
+            case "alignitems":
+                info.action = "setAlignItems";
+                info.spec = "align-items: %m.alignItems;";
+                info.paramValues.add(value);
+                break;
+            case "gap":
+                info.action = "setGap";
+                info.spec = "gap: %n%m.unit;";
+                info.paramValues.add(numUnit[0]);
+                info.paramValues.add(numUnit[1]);
+                break;
+            case "grid-template-columns":
+            case "gridtemplatecolumns":
+                info.action = "setGridTemplateColumns";
+                info.spec = "grid-template-columns: %s;";
+                info.paramValues.add(value);
+                break;
+            case "transform":
+                info.action = "setTransform";
+                info.spec = "transform: %s;";
+                info.paramValues.add(value);
+                break;
+            case "filter":
+                info.action = "setFilter";
+                info.spec = "filter: %s;";
+                info.paramValues.add(value);
+                break;
+            case "border":
+            case "borderwidth":
+            case "border-width":
+            case "bordercolor":
+            case "border-color":
+                if ("borderwidth".equals(property) || "border-width".equals(property)) {
+                    info.action = "setBorder";
+                    info.spec = "border: %n%m.unit solid %m.color;";
+                    info.paramValues.add(numUnit[0]);
+                    info.paramValues.add(numUnit[1]);
+                    info.paramValues.add("#000000");
+                } else if ("bordercolor".equals(property) || "border-color".equals(property)) {
+                    info.action = "setBorder";
+                    info.spec = "border: %n%m.unit solid %m.color;";
+                    info.paramValues.add("1");
+                    info.paramValues.add("px");
+                    info.paramValues.add(value);
+                } else {
+                    String[] borderParams = parseBorderParams(value);
+                    info.action = "setBorder";
+                    info.spec = "border: %n%m.unit solid %m.color;";
+                    info.paramValues.add(borderParams[0]);
+                    info.paramValues.add(borderParams[1]);
+                    info.paramValues.add(borderParams[2]);
+                }
+                break;
+            case "box-shadow":
+            case "boxshadow":
+                String[] shadowParams = parseBoxShadowParams(value);
+                info.action = "setBoxShadow";
+                info.spec = "box-shadow: %npx %npx %npx %m.color;";
+                info.paramValues.add(shadowParams[0]);
+                info.paramValues.add(shadowParams[1]);
+                info.paramValues.add(shadowParams[2]);
+                info.paramValues.add(shadowParams[3]);
+                break;
+            default:
+                info.action = "asdCss";
+                info.category = "asd";
+                info.spec = "%s";
+                info.paramValues.add(kebabToCamel(property) + ": " + value + ";");
+                break;
+        }
+
+        return info;
+    }
+
+    private String[] splitNumberAndUnit(String value) {
+        String num = "";
+        String unit = "";
+        Pattern p = Pattern.compile("^([+-]?\\d*(?:\\.\\d+)?)(.*)$");
+        Matcher m = p.matcher(value);
+        if (m.matches()) {
+            num = m.group(1);
+            unit = m.group(2).trim();
+        }
+        if (num.isEmpty()) {
+            unit = value;
+        }
+        if (unit.isEmpty()) {
+            unit = "px";
+        }
+        return new String[]{num, unit};
+    }
+
+    private String extractUrl(String val) {
+        Pattern p = Pattern.compile("url\\(['\"]?([^'\"]*)['\"]?\\)");
+        Matcher m = p.matcher(val);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return val;
+    }
+
+    private String[] parseBorderParams(String val) {
+        String size = "1";
+        String unit = "px";
+        String color = "#000000";
+        String[] parts = val.split("\\s+");
+        for (String part : parts) {
+            part = part.trim();
+            if (part.isEmpty() || part.equals("solid") || part.equals("dashed") || part.equals("dotted")) continue;
+            String[] nu = splitNumberAndUnit(part);
+            if (!nu[0].isEmpty()) {
+                size = nu[0];
+                unit = nu[1];
+            } else {
+                color = part;
+            }
+        }
+        return new String[]{size, unit, color};
+    }
+
+    private String[] parseBoxShadowParams(String val) {
+        String x = "0";
+        String y = "0";
+        String blur = "0";
+        String color = "#00000033";
+        
+        String[] parts = val.split("\\s+");
+        int numIndex = 0;
+        for (String part : parts) {
+            part = part.trim();
+            if (part.isEmpty()) continue;
+            String[] nu = splitNumberAndUnit(part);
+            if (!nu[0].isEmpty()) {
+                if (numIndex == 0) x = nu[0];
+                else if (numIndex == 1) y = nu[0];
+                else if (numIndex == 2) blur = nu[0];
+                numIndex++;
+            } else {
+                color = part;
+            }
+        }
+        return new String[]{x, y, blur, color};
+    }
+
+    private void linkBlockChains(List<Map<String, Object>> blocks) {
+        Map<String, List<Map<String, Object>>> childrenByParent = new HashMap<>();
+        for (Map<String, Object> block : blocks) {
+            String parentId = (String) block.get("parentBlockId");
+            if (parentId == null) parentId = "";
+            if (!childrenByParent.containsKey(parentId)) {
+                childrenByParent.put(parentId, new ArrayList<>());
+            }
+            childrenByParent.get(parentId).add(block);
+        }
+
+        for (Map.Entry<String, List<Map<String, Object>>> entry : childrenByParent.entrySet()) {
+            String parentId = entry.getKey();
+            List<Map<String, Object>> siblings = entry.getValue();
+            if (siblings.isEmpty()) continue;
+
+            for (int i = 0; i < siblings.size() - 1; i++) {
+                siblings.get(i).put("nextBlockId", siblings.get(i + 1).get("id"));
+            }
+            siblings.get(siblings.size() - 1).put("nextBlockId", null);
+
+            if (!parentId.isEmpty()) {
+                for (Map<String, Object> parentBlock : blocks) {
+                    if (parentId.equals(parentBlock.get("id"))) {
+                        parentBlock.put("subStackId", siblings.get(0).get("id"));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private String joinPipe(List<String> values) {
+        if (values == null || values.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < values.size(); i++) {
+            if (i > 0) sb.append('|');
+            String v = values.get(i);
+            sb.append(v != null ? v : "");
+        }
+        return sb.toString();
+    }
+
     /**
      * Parse CSS content and store rules.
      */
     private void parseCss(String css) {
-        if (css == null) return;
+        if (css == null || css.trim().isEmpty()) return;
 
-        // Remove comments
-        css = css.replaceAll("/\\*[\\s\\S]*?\\*/", "");
+        Pattern pattern = Pattern.compile("(?:/\\*([\\s\\S]*?)\\*/)|(?:(?<!https?:|ftp:|url\\()//([^\n]*))|([^{}]+)\\{([^}]*)\\}");
+        Matcher matcher = pattern.matcher(css);
 
-        // Remove @media, @import, @keyframes blocks (simplification)
-        css = css.replaceAll("@media[^{]*\\{[\\s\\S]*?\\}\\s*\\}", "");
-        css = css.replaceAll("@keyframes[^{]*\\{[\\s\\S]*?\\}\\s*\\}", "");
-        css = css.replaceAll("@import[^;]*;", "");
-        css = css.replaceAll("@font-face[^}]*\\}", "");
+        String currentGroupId = null;
+        long timestamp = System.currentTimeMillis();
+        int counter = importedLogicBlocks.size();
 
-        // Parse rule blocks: selector { properties }
-        Pattern rulePattern = Pattern.compile("([^{}]+)\\{([^}]*)\\}");
-        Matcher ruleMatcher = rulePattern.matcher(css);
+        while (matcher.find()) {
+            if (matcher.group(1) != null) {
+                // Block comment
+                String commentText = matcher.group(1).trim();
+                if (commentText.isEmpty()) continue;
 
-        while (ruleMatcher.find()) {
-            String selectorGroup = ruleMatcher.group(1).trim();
-            String propertiesBlock = ruleMatcher.group(2).trim();
+                String blockId = "blk_group_" + timestamp + "_" + (counter++);
+                Map<String, Object> groupBlock = new HashMap<>();
+                groupBlock.put("id", blockId);
+                groupBlock.put("action", "groupBlock");
+                groupBlock.put("category", "meta");
+                groupBlock.put("shape", "cblock");
+                groupBlock.put("spec", "/* <%s> */ %m.space /* </%s> */");
+                
+                String groupName = commentText.replaceAll("^<|>$", "").trim();
+                List<String> paramValues = new ArrayList<>();
+                paramValues.add(groupName);
+                groupBlock.put("paramValues", paramValues);
+                groupBlock.put("params", groupName);
+                groupBlock.put("event", "immediate");
+                groupBlock.put("parentBlockId", "");
 
-            Map<String, String> properties = parseCssProperties(propertiesBlock);
-            if (properties.isEmpty()) continue;
+                importedLogicBlocks.add(groupBlock);
+                currentGroupId = blockId;
 
-            // Handle comma-separated selectors
-            String[] selectors = selectorGroup.split(",");
-            for (String selector : selectors) {
-                selector = selector.trim();
-                if (selector.isEmpty()) continue;
-                // Simplify complex selectors: take only the last part
-                // e.g., "div > p.text" -> "p.text"
-                String[] parts = selector.split("\\s+");
-                String simpleSelector = parts[parts.length - 1];
-                // Remove pseudo-classes like :hover, :focus, etc.
-                simpleSelector = simpleSelector.replaceAll(":[a-zA-Z-]+(?:\\([^)]*\\))?", "");
-                if (simpleSelector.isEmpty()) continue;
+            } else if (matcher.group(2) != null) {
+                // Single-line comment
+                String commentText = matcher.group(2).trim();
+                if (commentText.isEmpty()) continue;
 
-                if (cssRules.containsKey(simpleSelector)) {
-                    cssRules.get(simpleSelector).putAll(properties);
-                } else {
-                    cssRules.put(simpleSelector, new HashMap<>(properties));
+                String blockId = "blk_comment_" + timestamp + "_" + (counter++);
+                Map<String, Object> commentBlock = new HashMap<>();
+                commentBlock.put("id", blockId);
+                commentBlock.put("action", "commentBlock");
+                commentBlock.put("category", "meta");
+                commentBlock.put("shape", "stack");
+                commentBlock.put("spec", "/* %s */");
+                List<String> paramValues = new ArrayList<>();
+                paramValues.add(commentText);
+                commentBlock.put("paramValues", paramValues);
+                commentBlock.put("params", commentText);
+                commentBlock.put("event", "immediate");
+                commentBlock.put("parentBlockId", currentGroupId != null ? currentGroupId : "");
+
+                importedLogicBlocks.add(commentBlock);
+
+            } else if (matcher.group(3) != null && matcher.group(4) != null) {
+                // Rule block
+                String selectorGroup = matcher.group(3).trim();
+                String propertiesBlock = matcher.group(4).trim();
+
+                if (selectorGroup.startsWith("@")) {
+                    continue;
                 }
+
+                Map<String, String> properties = parseCssProperties(propertiesBlock);
+                if (properties.isEmpty()) continue;
+
+                String[] selectors = selectorGroup.split(",");
+                for (String selector : selectors) {
+                    selector = selector.trim();
+                    if (selector.isEmpty()) continue;
+
+                    String[] parts = selector.split("\\s+");
+                    String simpleSelector = parts[parts.length - 1];
+
+                    String ruleSelector = simpleSelector.replaceAll(":[a-zA-Z-]+(?:\\([^)]*\\))?", "");
+                    if (!ruleSelector.isEmpty()) {
+                        if (cssRules.containsKey(ruleSelector)) {
+                            cssRules.get(ruleSelector).putAll(properties);
+                        } else {
+                            cssRules.put(ruleSelector, new HashMap<>(properties));
+                        }
+                    }
+
+                    SelectorInfo selInfo = parseSelector(simpleSelector);
+
+                    String selectorBlockId = "blk_sel_" + timestamp + "_" + (counter++);
+                    Map<String, Object> selBlock = new HashMap<>();
+                    selBlock.put("id", selectorBlockId);
+                    selBlock.put("action", selInfo.action);
+                    selBlock.put("category", "css");
+                    selBlock.put("shape", "cblock");
+                    selBlock.put("spec", selInfo.spec);
+                    selBlock.put("paramValues", selInfo.paramValues);
+                    selBlock.put("params", joinPipe(selInfo.paramValues));
+                    selBlock.put("event", "immediate");
+                    selBlock.put("parentBlockId", currentGroupId != null ? currentGroupId : "");
+
+                    importedLogicBlocks.add(selBlock);
+
+                    for (Map.Entry<String, String> propEntry : properties.entrySet()) {
+                        String prop = propEntry.getKey();
+                        String val = propEntry.getValue();
+
+                        PropertyBlockInfo propInfo = parsePropertyToBlock(prop, val);
+
+                        String propBlockId = "blk_prop_" + timestamp + "_" + (counter++);
+                        Map<String, Object> propBlock = new HashMap<>();
+                        propBlock.put("id", propBlockId);
+                        propBlock.put("action", propInfo.action);
+                        propBlock.put("category", propInfo.category);
+                        propBlock.put("shape", "stack");
+                        propBlock.put("spec", propInfo.spec);
+                        propBlock.put("paramValues", propInfo.paramValues);
+                        propBlock.put("params", joinPipe(propInfo.paramValues));
+                        propBlock.put("event", "immediate");
+                        propBlock.put("parentBlockId", selectorBlockId);
+
+                        importedLogicBlocks.add(propBlock);
+                    }
+                }
+            }
+        }
+    }
+
+    private void decomposeBorder(String borderVal, Map<String, String> targetMap) {
+        if (borderVal == null || borderVal.trim().isEmpty()) return;
+        String[] parts = borderVal.split("\\s+");
+        for (String part : parts) {
+            part = part.trim().toLowerCase();
+            if (part.isEmpty()) continue;
+            // Check if it's a border style
+            if (part.equals("solid") || part.equals("dashed") || part.equals("dotted") 
+                || part.equals("double") || part.equals("groove") || part.equals("ridge") 
+                || part.equals("inset") || part.equals("outset") || part.equals("none") 
+                || part.equals("hidden")) {
+                continue;
+            }
+            // Check if it's a width / dimension
+            if (part.endsWith("px") || part.endsWith("em") || part.endsWith("rem") 
+                || part.endsWith("pt") || part.endsWith("%") || part.matches("\\d+(\\.\\d+)?")
+                || part.equals("thin") || part.equals("medium") || part.equals("thick")) {
+                targetMap.put("borderWidth", part);
+            } else {
+                // Treat as color
+                targetMap.put("borderColor", part);
             }
         }
     }
@@ -223,6 +743,11 @@ public class HtmlCssImporter {
     private Map<String, String> parseCssProperties(String block) {
         Map<String, String> props = new LinkedHashMap<>();
         if (block == null || block.trim().isEmpty()) return props;
+
+        // Strip comments (block and single-line) from the block before parsing
+        block = block.replaceAll("/\\*[\\s\\S]*?\\*/", "");
+        block = block.replaceAll("(?m)^[ \\t]*//.*$", "");
+        block = block.replaceAll("(?i)(?<!https?:|ftp:|url\\()//.*", "");
 
         String[] declarations = block.split(";");
         for (String decl : declarations) {
@@ -237,7 +762,15 @@ public class HtmlCssImporter {
             if (property.isEmpty() || value.isEmpty()) continue;
 
             String camelProp = kebabToCamel(property);
-            props.put(camelProp, value);
+            if ("border".equals(camelProp)) {
+                decomposeBorder(value, props);
+            } else if ("background".equals(camelProp)) {
+                if (!value.contains("url")) {
+                    props.put("backgroundColor", value);
+                }
+            } else {
+                props.put(camelProp, value);
+            }
         }
         return props;
     }
@@ -630,6 +1163,13 @@ public class HtmlCssImporter {
         }
         if (parsedTag.attributes.containsKey("controls")) {
             function.put("controls", "true");
+        }
+
+        // Extract JS Event attributes (any attribute name starting with "on")
+        for (Map.Entry<String, String> entry : parsedTag.attributes.entrySet()) {
+            if (entry.getKey().startsWith("on")) {
+                function.put(entry.getKey(), entry.getValue());
+            }
         }
 
         // Build style map

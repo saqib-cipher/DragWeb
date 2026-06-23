@@ -379,7 +379,8 @@ class BlockView extends LinearLayout {
     private View buildChip(ChipInput input, int index) {
         String value = paramValueAt(index);
         int baseColor = def != null ? Color.parseColor(def.resolvedColor()) : BlockCategoryPalette.colorIntForCategory(block.category);
-        View chip = chipFactory.buildChip(input, value, baseColor, (chipId, newValue) -> {
+        boolean isAsd = block != null && ("asd".equals(block.category) || (def != null && "asd".equals(def.category)));
+        View chip = chipFactory.buildChip(isAsd, input, value, baseColor, (chipId, newValue) -> {
             setParamValue(index, newValue);
             syncLegacyParams();
             if (onChange != null) onChange.onBlockChanged(block);
