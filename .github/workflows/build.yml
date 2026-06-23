@@ -1,23 +1,4 @@
-Skip to content
-saqib-cipher
-DragWeb
-Repository navigation
-Code
-Issues
-Pull requests
-Agents
-Actions
-Projects
-Wiki
-Security and quality
-Insights
-Settings
-Android CI/CD
-feat(data): support importing projects from internal data directory #133
-All jobs
-Run details
-Workflow file for this run
-.github/workflows/build.yml at e9e521a
+
 name: Android CI/CD
 
 on:
