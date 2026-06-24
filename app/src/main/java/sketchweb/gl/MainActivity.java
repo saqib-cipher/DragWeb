@@ -1117,6 +1117,22 @@ public class MainActivity extends AppCompatActivity {
 						return;
 					}
 
+					// Disable default styles and inline styles for the project on import
+					themeManager.setUseInlineStyles(false);
+					themeManager.setDisableDefaultStyles(true);
+					File dir = new File(getFilesDir(), "projects");
+					if (!dir.exists()) dir.mkdirs();
+					File themeFile = new File(dir, projectId + ".theme");
+					FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
+
+					// Enable detected standard icon libraries
+					if (result.enabledLibraries != null && !result.enabledLibraries.isEmpty()) {
+						IconLibraryManager ilm = new IconLibraryManager(this, projectId);
+						for (String libId : result.enabledLibraries) {
+							ilm.enable(libId);
+						}
+					}
+
 					// Save imported page layout
 					String widgetTreeJson = new Gson().toJson(result.widgetTree);
 					pageManager.addPage(pageName);
@@ -1124,8 +1140,6 @@ public class MainActivity extends AppCompatActivity {
 
 					// Save logic blocks for the new page
 					if (result.logicBlocks != null && !result.logicBlocks.isEmpty()) {
-						File dir = new File(getFilesDir(), "projects");
-						if (!dir.exists()) dir.mkdirs();
 						File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
 						FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(result.logicBlocks));
 					}

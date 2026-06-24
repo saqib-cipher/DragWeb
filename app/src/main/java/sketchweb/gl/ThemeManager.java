@@ -172,6 +172,9 @@ public class ThemeManager {
     }
 
     public String generateGlobalCss() {
+        if (disableDefaultStyles) {
+            return "    .hidden { display: none !important; }\n";
+        }
         StringBuilder css = new StringBuilder();
         css.append(generateCssVariables());
         css.append("\n* {\n  margin: 0;\n  padding: 0;\n  box-sizing: border-box;\n}\n\n");
@@ -199,6 +202,7 @@ public class ThemeManager {
     }
 
     private boolean useInlineStyles = true;
+    private boolean disableDefaultStyles = false;
 
     public boolean isUseInlineStyles() {
         return useInlineStyles;
@@ -208,11 +212,20 @@ public class ThemeManager {
         this.useInlineStyles = useInlineStyles;
     }
 
+    public boolean isDisableDefaultStyles() {
+        return disableDefaultStyles;
+    }
+
+    public void setDisableDefaultStyles(boolean disableDefaultStyles) {
+        this.disableDefaultStyles = disableDefaultStyles;
+    }
+
     public void resetToDefaults() {
         initLightDefaults();
         initDarkDefaults();
         customCssVars.clear();
         useInlineStyles = true;
+        disableDefaultStyles = false;
         currentTheme = THEME_LIGHT;
     }
 
@@ -223,6 +236,7 @@ public class ThemeManager {
         data.put("darkStyles", darkStyles);
         data.put("customVars", customCssVars);
         data.put("useInlineStyles", useInlineStyles);
+        data.put("disableDefaultStyles", disableDefaultStyles);
         // Backwards compat: also write "styles" as active theme
         data.put("styles", getActiveStyles());
         return new Gson().toJson(data);
@@ -233,6 +247,18 @@ public class ThemeManager {
             Map<String, Object> data = new Gson().fromJson(json, Map.class);
             if (data.containsKey("theme")) {
                 currentTheme = data.get("theme").toString();
+            }
+            if (data.containsKey("disableDefaultStyles")) {
+                Object val = data.get("disableDefaultStyles");
+                if (val instanceof Boolean) {
+                    disableDefaultStyles = (Boolean) val;
+                } else if (val instanceof String) {
+                    disableDefaultStyles = Boolean.parseBoolean((String) val);
+                } else if (val instanceof Number) {
+                    disableDefaultStyles = ((Number) val).intValue() != 0;
+                }
+            } else {
+                disableDefaultStyles = false;
             }
             if (data.containsKey("useInlineStyles")) {
                 Object val = data.get("useInlineStyles");

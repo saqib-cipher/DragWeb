@@ -86,7 +86,6 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
     private LinearLayout btnSaveToCollection;
     private LinearLayout collectionList;
     private TextView tvBlockCount;
-    private TextView tvZoom;
 
     private String currentCategory = CAT_CSS;
     private final List<BlockDef> allBlockDefs = new ArrayList<>();
@@ -123,11 +122,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
 
         workspaceView.configure(logicBlockManager, allBlockDefs, chipFactory, dragDropManager);
         workspaceView.setOnBlockInteractionListener(() -> { saveUndoState(); refreshHud(); });
-        workspaceView.setOnZoomChangedListener(scale -> {
-            if (tvZoom != null) {
-                tvZoom.setText(Math.round(scale * 100) + "%");
-            }
-        });
+
         
         dragDropManager.attachDeleteBar(btnBlockDelete);
         if (btnBlockDuplicate != null) dragDropManager.attachDuplicateBar(btnBlockDuplicate);
@@ -186,7 +181,6 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         btnSaveToCollection = (LinearLayout) findViewById(R.id.btnSaveToCollection);
         collectionList = findViewById(R.id.collectionList);
         tvBlockCount = findViewById(R.id.tvBlockCount);
-        tvZoom = findViewById(R.id.tvZoom);
 
         TabLayout tabLayoutMode = findViewById(R.id.tabLayoutMode);
         if (tabLayoutMode != null) {

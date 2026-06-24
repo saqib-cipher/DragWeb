@@ -191,21 +191,25 @@ public class PageCodeGenerator {
         }
 
         // Resets and Utilities
-        htmlBuilder.append("    * { margin: 0; padding: 0; box-sizing: border-box; }\n");
-        htmlBuilder.append("    body { font-family: sans-serif; line-height: 1.6; }\n");
-        htmlBuilder.append("    .hidden { display: none !important; }\n");
-        htmlBuilder.append("    .flex { display: flex; }\n");
-        htmlBuilder.append("    .flex-col { flex-direction: column; }\n");
-        htmlBuilder.append("    .flex-row { flex-direction: row; }\n");
-        htmlBuilder.append("    .items-center { align-items: center; }\n");
-        htmlBuilder.append("    .justify-center { justify-content: center; }\n");
-        htmlBuilder.append("    .justify-between { justify-content: space-between; }\n");
-        htmlBuilder.append("    .text-center { text-align: center; }\n");
-        htmlBuilder.append("    .w-full { width: 100%; }\n");
-        htmlBuilder.append("    .h-full { height: 100%; }\n");
-        htmlBuilder.append("    button { cursor: pointer; font-family: inherit; }\n");
-        htmlBuilder.append("    input, textarea { font-family: inherit; }\n");
-        htmlBuilder.append("    img { max-width: 100%; height: auto; }\n");
+        if (themeManager == null || !themeManager.isDisableDefaultStyles()) {
+            htmlBuilder.append("    * { margin: 0; padding: 0; box-sizing: border-box; }\n");
+            htmlBuilder.append("    body { font-family: sans-serif; line-height: 1.6; }\n");
+            htmlBuilder.append("    .hidden { display: none !important; }\n");
+            htmlBuilder.append("    .flex { display: flex; }\n");
+            htmlBuilder.append("    .flex-col { flex-direction: column; }\n");
+            htmlBuilder.append("    .flex-row { flex-direction: row; }\n");
+            htmlBuilder.append("    .items-center { align-items: center; }\n");
+            htmlBuilder.append("    .justify-center { justify-content: center; }\n");
+            htmlBuilder.append("    .justify-between { justify-content: space-between; }\n");
+            htmlBuilder.append("    .text-center { text-align: center; }\n");
+            htmlBuilder.append("    .w-full { width: 100%; }\n");
+            htmlBuilder.append("    .h-full { height: 100%; }\n");
+            htmlBuilder.append("    button { cursor: pointer; font-family: inherit; }\n");
+            htmlBuilder.append("    input, textarea { font-family: inherit; }\n");
+            htmlBuilder.append("    img { max-width: 100%; height: auto; }\n");
+        } else {
+            htmlBuilder.append("    .hidden { display: none !important; }\n");
+        }
 
         // Keyframe library
         if (animationLibraryManager != null) {

@@ -545,7 +545,7 @@ public class HomeActivity extends AppCompatActivity {
 	/**
 	 * Create a project from an imported HTML/CSS widget tree and logic blocks.
 	 */
-	private void createProjectFromImport(String name, List<Map<String, Object>> widgetTree, List<Map<String, Object>> logicBlocks) {
+	private void createProjectFromImport(String name, List<Map<String, Object>> widgetTree, List<Map<String, Object>> logicBlocks, List<String> enabledLibraries) {
 		String projectId = generateProjectId();
 		File dir = new File(getFilesDir(), "projects");
 		if (!dir.exists()) dir.mkdirs();
@@ -570,6 +570,21 @@ public class HomeActivity extends AppCompatActivity {
 		meta.put("created", sdf.format(new Date()));
 		meta.put("logoPath", "");
 		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
+
+		// Save theme settings: disable default styles and inline styles since CSS is imported
+		ThemeManager tm = new ThemeManager();
+		tm.setUseInlineStyles(false);
+		tm.setDisableDefaultStyles(true);
+		File themeFile = new File(dir, projectId + ".theme");
+		FileUtil.writeFile(themeFile.getAbsolutePath(), tm.toJson());
+
+		// Enable detected standard icon libraries
+		if (enabledLibraries != null && !enabledLibraries.isEmpty()) {
+			IconLibraryManager ilm = new IconLibraryManager(this, projectId);
+			for (String libId : enabledLibraries) {
+				ilm.enable(libId);
+			}
+		}
 
 		// Create external directory
 		try {
@@ -906,7 +921,7 @@ public class HomeActivity extends AppCompatActivity {
 		}
 
 		Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show();
-		createProjectFromImport(projectName, result.widgetTree, result.logicBlocks);
+		createProjectFromImport(projectName, result.widgetTree, result.logicBlocks, result.enabledLibraries);
 	}
 
 

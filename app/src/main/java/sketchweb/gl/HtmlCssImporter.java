@@ -43,6 +43,7 @@ public class HtmlCssImporter {
         public String message;
         public List<Map<String, Object>> widgetTree;
         public List<Map<String, Object>> logicBlocks;
+        public List<String> enabledLibraries = new ArrayList<>();
 
         public ImportResult(boolean success, String message, List<Map<String, Object>> widgetTree) {
             this.success = success;
@@ -56,6 +57,14 @@ public class HtmlCssImporter {
             this.message = message;
             this.widgetTree = widgetTree;
             this.logicBlocks = logicBlocks;
+        }
+
+        public ImportResult(boolean success, String message, List<Map<String, Object>> widgetTree, List<Map<String, Object>> logicBlocks, List<String> enabledLibraries) {
+            this.success = success;
+            this.message = message;
+            this.widgetTree = widgetTree;
+            this.logicBlocks = logicBlocks;
+            this.enabledLibraries = enabledLibraries;
         }
     }
 
@@ -80,6 +89,28 @@ public class HtmlCssImporter {
             // Also extract <style> blocks from the HTML
             extractInlineStyleBlocks(htmlContent);
 
+            // Parse head libraries and other raw head tags
+            List<String> enabledLibraries = new ArrayList<>();
+            List<String> rawHeadTags = new ArrayList<>();
+            parseHeadLibrariesAndTags(htmlContent, enabledLibraries, rawHeadTags);
+
+            // If there are raw head tags, add them as an ASD head block
+            if (!rawHeadTags.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (String tag : rawHeadTags) {
+                    sb.append(tag).append("\n");
+                }
+                Map<String, Object> asdBlock = new HashMap<>();
+                asdBlock.put("id", "blk_asd_head_" + System.currentTimeMillis());
+                asdBlock.put("action", "asdHead");
+                asdBlock.put("category", "asd");
+                asdBlock.put("event", "immediate");
+                asdBlock.put("params", sb.toString().trim());
+                asdBlock.put("shape", "normal");
+                asdBlock.put("paramValues", java.util.Arrays.asList(sb.toString().trim()));
+                importedLogicBlocks.add(asdBlock);
+            }
+
             // Extract the <body> content, or use the whole HTML if no body tag
             String bodyContent = extractBodyContent(htmlContent);
 
@@ -93,10 +124,98 @@ public class HtmlCssImporter {
             // Link Blockly chains for nextBlockId and subStackId references
             linkBlockChains(importedLogicBlocks);
 
-            return new ImportResult(true, "Successfully imported " + countNodes(widgetTree) + " elements", widgetTree, new ArrayList<>(importedLogicBlocks));
+            return new ImportResult(true, "Successfully imported " + countNodes(widgetTree) + " elements", widgetTree, new ArrayList<>(importedLogicBlocks), enabledLibraries);
         } catch (Exception e) {
             Log.e(TAG, "Import failed: " + e.getMessage(), e);
             return new ImportResult(false, "Parse error: " + e.getMessage(), null);
+        }
+    }
+
+    private void parseHeadLibrariesAndTags(String html, List<String> enabledLibraries, List<String> rawHeadTags) {
+        if (html == null || html.isEmpty()) return;
+
+        // Extract the head block
+        String headContent = "";
+        Pattern headPattern = Pattern.compile("<head[^>]*>([\\s\\S]*?)</head>", Pattern.CASE_INSENSITIVE);
+        Matcher headMatcher = headPattern.matcher(html);
+        if (headMatcher.find()) {
+            headContent = headMatcher.group(1);
+        } else {
+            // If no <head>, scan the whole HTML but skip the body content to avoid body scripts
+            headContent = html;
+            Pattern bodyPattern = Pattern.compile("<body[^>]*>[\\s\\S]*?</body>", Pattern.CASE_INSENSITIVE);
+            Matcher bodyMatcher = bodyPattern.matcher(headContent);
+            if (bodyMatcher.find()) {
+                headContent = headContent.replace(bodyMatcher.group(), "");
+            }
+        }
+
+        // Find all <link> tags
+        Pattern linkPattern = Pattern.compile("<link[^>]*>", Pattern.CASE_INSENSITIVE);
+        Matcher linkMatcher = linkPattern.matcher(headContent);
+        while (linkMatcher.find()) {
+            String linkTag = linkMatcher.group();
+            boolean matched = false;
+            for (String libId : IconLibraryManager.LIBRARIES.keySet()) {
+                if (matchesLibrary(linkTag, libId)) {
+                    if (!enabledLibraries.contains(libId)) {
+                        enabledLibraries.add(libId);
+                    }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                rawHeadTags.add(linkTag);
+            }
+        }
+
+        // Find all <script> tags in head
+        Pattern scriptPattern = Pattern.compile("<script[^>]*>[\\s\\S]*?</script>", Pattern.CASE_INSENSITIVE);
+        Matcher scriptMatcher = scriptPattern.matcher(headContent);
+        while (scriptMatcher.find()) {
+            String scriptTag = scriptMatcher.group();
+            boolean matched = false;
+            for (String libId : IconLibraryManager.LIBRARIES.keySet()) {
+                if (matchesLibrary(scriptTag, libId)) {
+                    if (!enabledLibraries.contains(libId)) {
+                        enabledLibraries.add(libId);
+                    }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                rawHeadTags.add(scriptTag);
+            }
+        }
+    }
+
+    private boolean matchesLibrary(String tag, String libId) {
+        String lower = tag.toLowerCase(java.util.Locale.US);
+        switch (libId) {
+            case "material-icons":
+                return lower.contains("material-icons") || lower.contains("@material-icons");
+            case "material-symbols":
+                return lower.contains("material-symbols") || lower.contains("material+symbols");
+            case "font-awesome":
+                return lower.contains("font-awesome") || lower.contains("fontawesome") || lower.contains("/fa-");
+            case "bootstrap-icons":
+                return lower.contains("bootstrap-icons") || lower.contains("bi-");
+            case "feather-icons":
+                return lower.contains("feather-icons") || lower.contains("feather.min.js") || lower.contains("feather.js");
+            case "lucide-icons":
+                return lower.contains("lucide");
+            case "heroicons":
+                return lower.contains("heroicons");
+            case "remix-icon":
+                return lower.contains("remixicon") || lower.contains("remix-icon");
+            case "phosphor-icons":
+                return lower.contains("phosphor-icons") || lower.contains("phosphor");
+            case "tabler-icons":
+                return lower.contains("tabler-icons");
+            default:
+                return false;
         }
     }
 
