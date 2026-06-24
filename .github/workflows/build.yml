@@ -1,3 +1,4 @@
+
 name: Android CI/CD
 
 on:
@@ -32,7 +33,6 @@ jobs:
         run: |
           echo "Secret length: ${#KEYSTORE_BASE64}"
           echo "$KEYSTORE_BASE64" | base64 --decode > $GITHUB_WORKSPACE/release_raw.jks
-
           keytool -importkeystore \
             -srckeystore $GITHUB_WORKSPACE/release_raw.jks \
             -destkeystore $GITHUB_WORKSPACE/release.jks \
@@ -44,10 +44,8 @@ jobs:
             -srckeypass "${{ secrets.KEY_PASSWORD }}" \
             -destkeypass "${{ secrets.KEY_PASSWORD }}" \
             -noprompt
-
           echo "✅ Keystore ready at $GITHUB_WORKSPACE/release.jks"
           ls -la $GITHUB_WORKSPACE/release.jks
-
       - name: ⚙️ Grant permission
         run: chmod +x gradlew
 
@@ -58,15 +56,12 @@ jobs:
             -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
-
       - name: 📦 Rename APK
         run: |
           mv app/build/outputs/apk/release/*.apk app-release.apk
-
       - name: 📝 Generate Changelog
         run: |
           git log --pretty=format:"- %s" > CHANGELOG.txt
-
       # 📲 Send APK to Telegram on EVERY commit (branch pushes only)
       - name: 📲 Send APK to Telegram (Dev Build)
         if: github.ref_type == 'branch'
@@ -75,15 +70,12 @@ jobs:
           SHORT_SHA="${{ github.sha }}"
           SHORT_SHA="${SHORT_SHA:0:7}"
           CHANGELOG=$(cat CHANGELOG.txt | head -c 900)
-          CAPTION=$(printf "*Dev Build*\n\n *Branch:* %s\n *Commit:* #%s\n\n*Changes:*\n%s" "$BRANCH" "$SHORT_SHA" "$CHANGELOG")
-
+          CAPTION=$(printf "Dev Build\n\n Branch: %s\n Commit: #%s\n\nChanges:\n%s" "$BRANCH" "$SHORT_SHA" "$CHANGELOG")
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
             -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -F message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
             -F document=@app-release.apk \
-            -F caption="$CAPTION" \
-            -F parse_mode="Markdown"
-
+            -F caption="$CAPTION" 
       # 🚀 GitHub Release — only on release tag
       - name: 🚀 Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/release')
@@ -102,11 +94,9 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           CHANGELOG=$(cat CHANGELOG.txt | head -c 900)
-          CAPTION=$(printf "*New Release*\n\n*Version:* %s\n\n*Changes:*\n%s \n\n#%s" "$VERSION" "$CHANGELOG" "VERSION")
-
+          CAPTION=$(printf "New Release\n\nVersion: %s\n\nChanges:\n%s \n\n#%s" "$VERSION" "$CHANGELOG" "VERSION")
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
             -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -F message_thread_id="${{ secrets.TELEGRAM_THREAD_R_ID }}" \
             -F document=@app-release.apk \
-            -F caption="$CAPTION" \
-            -F parse_mode="Markdown"
+            -F caption="$CAPTION" 
