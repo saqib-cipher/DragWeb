@@ -227,16 +227,25 @@ public class PreviewActivity extends AppCompatActivity {
 
     /**
      * Copy project assets from external storage into the temp preview directory
-     * so that relative src="assets/..." references resolve correctly.
+     * so that relative references resolve correctly.
      */
     private void copyAssetsToTempDir() {
         if (assetBasePath == null || tempPreviewDir == null) return;
         try {
             File srcAssets = new File(assetBasePath, "assets");
             if (!srcAssets.exists() || !srcAssets.isDirectory()) return;
-            File destAssets = new File(tempPreviewDir, "assets");
-            destAssets.mkdirs();
-            copyDir(srcAssets, destAssets);
+
+            File[] files = srcAssets.listFiles();
+            if (files == null) return;
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    File target = new File(tempPreviewDir, file.getName());
+                    target.mkdirs();
+                    copyDir(file, target);
+                } else {
+                    copyFile(file, new File(tempPreviewDir, file.getName()));
+                }
+            }
         } catch (Exception e) {
             Log.w(TAG, "Could not copy assets to temp dir: " + e.getMessage());
         }

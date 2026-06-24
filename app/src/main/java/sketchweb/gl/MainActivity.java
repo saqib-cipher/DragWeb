@@ -114,6 +114,10 @@ public class MainActivity extends AppCompatActivity {
 	private ActivityResultLauncher<android.content.Intent> importAssetLauncher;
 	private ActivityResultLauncher<android.content.Intent> importSvgLauncher;
 	private ActivityResultLauncher<android.content.Intent> importZipLauncher;
+	private ActivityResultLauncher<android.content.Intent> importPageHtmlLauncher;
+	private android.net.Uri pageImportHtmlUri = null;
+	private TextView tvDialogHtmlFileName = null;
+	private android.widget.ImageButton btnDialogClearHtml = null;
 
 	// Track if a dialog is currently showing to avoid duplicates
 	private boolean isDialogShowing = false;
@@ -240,6 +244,25 @@ public class MainActivity extends AppCompatActivity {
 							Toast.makeText(this, "SVG imported!", Toast.LENGTH_SHORT).show();
 						} catch (Exception e) {
 							Toast.makeText(this, "Failed to import SVG.", Toast.LENGTH_SHORT).show();
+						}
+					}
+				}
+			}
+		);
+
+		importPageHtmlLauncher = registerForActivityResult(
+			new ActivityResultContracts.StartActivityForResult(),
+			result -> {
+				if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+					android.net.Uri uri = result.getData().getData();
+					if (uri != null) {
+						pageImportHtmlUri = uri;
+						if (tvDialogHtmlFileName != null) {
+							String name = resolveFileName(uri);
+							tvDialogHtmlFileName.setText(name != null ? name : "HTML file selected");
+						}
+						if (btnDialogClearHtml != null) {
+							btnDialogClearHtml.setVisibility(View.VISIBLE);
 						}
 					}
 				}
@@ -886,23 +909,48 @@ public class MainActivity extends AppCompatActivity {
 
 	private void showFileContextMenu(File file) {
 		String[] options = file.isDirectory() ?
-			new String[]{"Open", "Delete"} :
-			new String[]{"Use as Image Source", "Delete"};
+			new String[]{"Open", "Rename", "Delete"} :
+			new String[]{"Use as Image Source", "Rename", "Delete"};
 
 		new MaterialAlertDialogBuilder(this)
 			.setTitle(file.getName())
 			.setItems(options, (dialog, which) -> {
 				if (file.isDirectory()) {
 					if (which == 0) fileExplorerAdapter.navigateTo(file);
+					else if (which == 1) showRenameFileDialog(file);
 					else deleteFileWithConfirm(file);
 				} else {
 					if (which == 0) useFileAsImageSource(file);
+					else if (which == 1) showRenameFileDialog(file);
 					else deleteFileWithConfirm(file);
 				}
 				updateAssetsPath();
 			})
 			.setNegativeButton("Cancel", null)
 			.show();
+	}
+
+	private void showRenameFileDialog(File file) {
+		UniversalDialog.textInput(this, "Rename File", "New Name", file.getName(), newName -> {
+			if (newName == null || newName.trim().isEmpty()) {
+				Toast.makeText(this, "Name cannot be empty", Toast.LENGTH_SHORT).show();
+				return;
+			}
+			File parent = file.getParentFile();
+			File target = new File(parent, newName.trim());
+			if (target.exists()) {
+				Toast.makeText(this, "A file with this name already exists", Toast.LENGTH_SHORT).show();
+				return;
+			}
+			if (file.renameTo(target)) {
+				Toast.makeText(this, "File renamed successfully", Toast.LENGTH_SHORT).show();
+				if (fileExplorerAdapter != null) {
+					fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
+				}
+			} else {
+				Toast.makeText(this, "Rename failed", Toast.LENGTH_SHORT).show();
+			}
+		});
 	}
 
 	private void useFileAsImageSource(File file) {
@@ -1016,25 +1064,106 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void showAddPageDialog() {
-		new UniversalM3Dialog(this)
+		pageImportHtmlUri = null;
+		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_page, null);
+		TextInputLayout tilPageName = dialogView.findViewById(R.id.tilPageName);
+		TextInputEditText etPageName = dialogView.findViewById(R.id.etPageName);
+		View cardSelectHtml = dialogView.findViewById(R.id.cardSelectHtml);
+		tvDialogHtmlFileName = dialogView.findViewById(R.id.tvHtmlFileName);
+		btnDialogClearHtml = dialogView.findViewById(R.id.btnClearHtml);
+
+		cardSelectHtml.setOnClickListener(v -> {
+			android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+			intent.setType("text/html");
+			importPageHtmlLauncher.launch(intent);
+		});
+
+		btnDialogClearHtml.setOnClickListener(v -> {
+			pageImportHtmlUri = null;
+			tvDialogHtmlFileName.setText("No file selected");
+			btnDialogClearHtml.setVisibility(View.GONE);
+		});
+
+		new MaterialAlertDialogBuilder(this)
 			.setTitle("New Page")
-			.setHint("Page name (e.g. about)")
-			.showTextInput(value -> {
-				String pageName = value.trim().replaceAll("[^a-zA-Z0-9_-]", "");
+			.setView(dialogView)
+			.setPositiveButton("Create", (dialog, which) -> {
+				String rawName = etPageName.getText().toString().trim();
+				String pageName = rawName.replaceAll("[^a-zA-Z0-9_-]", "");
 				if (pageName.isEmpty()) {
 					Toast.makeText(this, "Invalid page name", Toast.LENGTH_SHORT).show();
 					return;
 				}
+				if (pageManager.getPages().contains(pageName)) {
+					Toast.makeText(this, "Page already exists", Toast.LENGTH_SHORT).show();
+					return;
+				}
+
 				saveCurrentPageLayout();
-				pageManager.addPage(pageName);
+
+				if (pageImportHtmlUri != null) {
+					// Parse the selected HTML file
+					String htmlContent = readUriContent(pageImportHtmlUri);
+					if (htmlContent == null || htmlContent.trim().isEmpty()) {
+						Toast.makeText(this, "Could not read HTML file", Toast.LENGTH_SHORT).show();
+						return;
+					}
+
+					HtmlCssImporter importer = new HtmlCssImporter();
+					HtmlCssImporter.ImportResult result = importer.importHtmlCss(htmlContent, null);
+
+					if (!result.success) {
+						Toast.makeText(this, "Import failed: " + result.message, Toast.LENGTH_LONG).show();
+						return;
+					}
+
+					// Save imported page layout
+					String widgetTreeJson = new Gson().toJson(result.widgetTree);
+					pageManager.addPage(pageName);
+					pageManager.savePageLayout(pageName, widgetTreeJson);
+
+					// Save logic blocks for the new page
+					if (result.logicBlocks != null && !result.logicBlocks.isEmpty()) {
+						File dir = new File(getFilesDir(), "projects");
+						if (!dir.exists()) dir.mkdirs();
+						File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+						FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(result.logicBlocks));
+					}
+				} else {
+					// Standard empty page
+					pageManager.addPage(pageName);
+				}
+
+				// Switch to new page
 				pageManager.setCurrentPage(pageName);
-				screen.removeAllViews();
-				saveCurrentPageLayout();
+
+				// Load current page layout (this will rebuild layout from json)
+				loadCurrentPageLayout();
+
+				// Load logic blocks for new page
+				if (logicBlockManager != null) {
+					File dir = new File(getFilesDir(), "projects");
+					File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+					if (logicFile.exists()) {
+						String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
+						logicBlockManager.fromJson(logicJson);
+					} else {
+						logicBlockManager.fromJson("[]");
+					}
+					refreshLogicBlocksUI();
+				}
+
 				saveUndoState();
 				refreshHierarchy();
 				updatePageSpinner();
 				Toast.makeText(this, "Page '" + pageName + "' created", Toast.LENGTH_SHORT).show();
-			});
+			})
+			.setNegativeButton("Cancel", null)
+			.setOnDismissListener(dialog -> {
+				tvDialogHtmlFileName = null;
+				btnDialogClearHtml = null;
+			})
+			.show();
 	}
 
 	private void saveCurrentPageLayout() {
@@ -1576,7 +1705,7 @@ public class MainActivity extends AppCompatActivity {
 			if (pageName.equals(currentPage)) {
 				// Current page: generate from live screen
 				String html = codeGen.generateFullCode(screen, themeManager, logicBlockManager);
-				pageCodes.add(html);
+				pageCodes.add(html.replace("assets/", ""));
 			} else {
 				// Other pages: generate from saved JSON data
 				String pageJson = pageManager.loadPageLayout(pageName);
@@ -1592,7 +1721,7 @@ public class MainActivity extends AppCompatActivity {
 					List<Map<String, Object>> widgetTree = new Gson().fromJson(pageJson,
 						new TypeToken<List<Map<String, Object>>>(){}.getType());
 					String html = codeGen.generateFullCodeFromTree(widgetTree, themeManager, pageLogic);
-					pageCodes.add(html);
+					pageCodes.add(html.replace("assets/", ""));
 				} catch (Exception e) {
 					pageCodes.add("<html><body><p>Error loading page: " + pageName + "</p></body></html>");
 				}
@@ -2640,6 +2769,17 @@ public class MainActivity extends AppCompatActivity {
 	// ---- Export Dialog ----
 
 	private void showExportDialog() {
+		new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+			.setTitle("Confirm Export")
+			.setMessage("Are you sure you want to export the project source code?")
+			.setPositiveButton("Export", (dialog, which) -> {
+				performExport();
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	private void performExport() {
 		final android.app.ProgressDialog progress = new android.app.ProgressDialog(this);
 		progress.setTitle("Exporting Project");
 		progress.setMessage("Exporting ZIP and separate files...");
@@ -2684,7 +2824,7 @@ public class MainActivity extends AppCompatActivity {
 			runOnUiThread(() -> {
 				progress.dismiss();
 				if (finalFolderOk && finalZipOk) {
-					new MaterialAlertDialogBuilder(MainActivity.this)
+					new com.google.android.material.dialog.MaterialAlertDialogBuilder(MainActivity.this)
 						.setTitle("Export Successful")
 						.setMessage("Exported separate files to:\n" + finalFolderPath + "\n\nExported ZIP file to:\n" + finalZipPath)
 						.setPositiveButton("OK", null)
@@ -3757,6 +3897,45 @@ public class MainActivity extends AppCompatActivity {
 
 		public class ViewHolder extends RecyclerView.ViewHolder {
 			public ViewHolder(View v) { super(v); }
+		}
+	}
+
+	private String resolveFileName(android.net.Uri uri) {
+		try {
+			android.database.Cursor c = getContentResolver().query(
+				uri,
+				new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
+				null, null, null
+			);
+			if (c != null) {
+				if (c.moveToFirst()) {
+					int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+					if (idx >= 0) {
+						String name = c.getString(idx);
+						c.close();
+						return name;
+					}
+				}
+				c.close();
+			}
+		} catch (Exception e) {
+			// ignore
+		}
+		return null;
+	}
+
+	private String readUriContent(android.net.Uri uri) {
+		try (java.io.InputStream is = getContentResolver().openInputStream(uri);
+			 java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is))) {
+			StringBuilder sb = new StringBuilder();
+			String line;
+			while ((line = reader.readLine()) != null) {
+				sb.append(line).append("\n");
+			}
+			return sb.toString();
+		} catch (Exception e) {
+			Log.e("MainActivity", "Failed to read URI: " + e.getMessage());
+			return null;
 		}
 	}
 }
