@@ -142,17 +142,44 @@
             <!-- Delete bar floats at the bottom of the workspace; release a
                  dragged block on it to remove. -->
 
+            <!-- Zoom Indicator Badge above FAB -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/zoomIndicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="85dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh">
+                <TextView
+                    android:id="@+id/tvZoom"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="100%"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnSurface"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp" />
+            </com.google.android.material.card.MaterialCardView>
+
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabBlockPalette"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_gravity="bottom|end"
-                android:layout_marginBottom="60dp"
-                android:background="?attr/colorPrimary"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="20dp"
+                app:backgroundTint="?attr/colorPrimary"
                 android:contentDescription="Toggle palette"
                 app:srcCompat="@drawable/icon_widgets_round"
-                app:fabCustomSize="40dp"
-                app:maxImageSize="20dp"
+                app:fabSize="normal"
                 app:tint="?attr/colorOnPrimary" />
         </FrameLayout>
 

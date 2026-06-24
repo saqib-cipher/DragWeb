@@ -51,6 +51,14 @@ public class WorkspaceView extends ScrollView {
     private int activePointerId = -1;
     private boolean isPanning = false;
 
+    public interface OnZoomChangedListener {
+        void onZoomChanged(float scale);
+    }
+    private OnZoomChangedListener zoomListener;
+    public void setOnZoomChangedListener(OnZoomChangedListener listener) {
+        this.zoomListener = listener;
+    }
+
     private void initZoomPan(Context context) {
         scaleGestureDetector = new ScaleGestureDetector(context, new ScaleGestureListener());
     }
@@ -65,6 +73,14 @@ public class WorkspaceView extends ScrollView {
             if (container != null) {
                 container.setScaleX(scaleFactor);
                 container.setScaleY(scaleFactor);
+                container.setPivotX(container.getWidth() / 2f);
+                container.setPivotY(0f);
+                if (container instanceof FrameContainer) {
+                    ((FrameContainer) container).setScaleFactor(scaleFactor);
+                }
+            }
+            if (zoomListener != null) {
+                zoomListener.onZoomChanged(scaleFactor);
             }
             return true;
         }
@@ -229,8 +245,7 @@ public class WorkspaceView extends ScrollView {
         // ScrollView delivers DragEvent Y relative to the visible viewport, so
         // add the scroll offset to land in the inner content's coordinate
         // space before comparing against block midpoints.
-        float adjustedY = (y - translationY) / scaleFactor;
-        float content = adjustedY + getScrollY();
+        float content = (y - translationY + getScrollY()) / scaleFactor;
         return computeInsertIndexAbsolute(stack, content);
     }
 
@@ -315,8 +330,7 @@ public class WorkspaceView extends ScrollView {
     }
 
     void showInsertionIndicator(float y) {
-        float adjustedY = (y - translationY) / scaleFactor;
-        float content = adjustedY + getScrollY();
+        float content = (y - translationY + getScrollY()) / scaleFactor;
         int idx = computeInsertIndexAbsolute(stack, content);
         float top;
         float baseTop = stack.getTop();
@@ -476,6 +490,22 @@ public class WorkspaceView extends ScrollView {
 
     /** Tiny FrameLayout-style holder so the indicator overlays the stack. */
     private static final class FrameContainer extends android.widget.FrameLayout {
-        FrameContainer(Context context) { super(context); }
+        private float scaleFactor = 1.0f;
+        FrameContainer(Context context) {
+            super(context);
+            setClipChildren(false);
+            setClipToPadding(false);
+        }
+        void setScaleFactor(float sf) {
+            this.scaleFactor = sf;
+            requestLayout();
+        }
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            int measuredHeight = getMeasuredHeight();
+            int scaledHeight = Math.round(measuredHeight * scaleFactor);
+            setMeasuredDimension(getMeasuredWidth(), scaledHeight);
+        }
     }
 }

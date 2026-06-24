@@ -86,6 +86,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
     private LinearLayout btnSaveToCollection;
     private LinearLayout collectionList;
     private TextView tvBlockCount;
+    private TextView tvZoom;
 
     private String currentCategory = CAT_CSS;
     private final List<BlockDef> allBlockDefs = new ArrayList<>();
@@ -122,6 +123,11 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
 
         workspaceView.configure(logicBlockManager, allBlockDefs, chipFactory, dragDropManager);
         workspaceView.setOnBlockInteractionListener(() -> { saveUndoState(); refreshHud(); });
+        workspaceView.setOnZoomChangedListener(scale -> {
+            if (tvZoom != null) {
+                tvZoom.setText(Math.round(scale * 100) + "%");
+            }
+        });
         
         dragDropManager.attachDeleteBar(btnBlockDelete);
         if (btnBlockDuplicate != null) dragDropManager.attachDuplicateBar(btnBlockDuplicate);
@@ -180,6 +186,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         btnSaveToCollection = (LinearLayout) findViewById(R.id.btnSaveToCollection);
         collectionList = findViewById(R.id.collectionList);
         tvBlockCount = findViewById(R.id.tvBlockCount);
+        tvZoom = findViewById(R.id.tvZoom);
 
         TabLayout tabLayoutMode = findViewById(R.id.tabLayoutMode);
         if (tabLayoutMode != null) {
@@ -674,7 +681,55 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         updateUndoRedoMenuState();
     }
 
+    private void cleanUselessBlocks() {
+        if (logicBlockManager == null) return;
+        List<LogicBlockManager.LogicBlock> allBlocks = logicBlockManager.getBlocks();
+        if (allBlocks.isEmpty()) return;
+
+        // Find the first root block (a block with no parent)
+        LogicBlockManager.LogicBlock firstRoot = null;
+        for (LogicBlockManager.LogicBlock b : allBlocks) {
+            if (b.parentBlockId == null || b.parentBlockId.isEmpty()) {
+                firstRoot = b;
+                break;
+            }
+        }
+
+        if (firstRoot == null) {
+            allBlocks.clear();
+            return;
+        }
+
+        // Collect all descendants of the first root block
+        List<LogicBlockManager.LogicBlock> workingBlocks = new ArrayList<>();
+        workingBlocks.add(firstRoot);
+
+        boolean addedAny = true;
+        while (addedAny) {
+            addedAny = false;
+            for (LogicBlockManager.LogicBlock b : allBlocks) {
+                if (b.parentBlockId != null && !b.parentBlockId.isEmpty()) {
+                    boolean parentInWorking = false;
+                    for (LogicBlockManager.LogicBlock wb : workingBlocks) {
+                        if (wb.id.equals(b.parentBlockId)) {
+                            parentInWorking = true;
+                            break;
+                        }
+                    }
+                    if (parentInWorking && !workingBlocks.contains(b)) {
+                        workingBlocks.add(b);
+                        addedAny = true;
+                    }
+                }
+            }
+        }
+
+        allBlocks.clear();
+        allBlocks.addAll(workingBlocks);
+    }
+
     private void saveAndFinish() {
+        cleanUselessBlocks();
         try {
             File dir = new File(getFilesDir(), "projects");
             if (!dir.exists()) dir.mkdirs();
