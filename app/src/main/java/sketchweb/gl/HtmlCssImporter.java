@@ -332,7 +332,8 @@ public class HtmlCssImporter {
 
     private PropertyBlockInfo parsePropertyToBlock(String property, String value) {
         PropertyBlockInfo info = new PropertyBlockInfo();
-        property = property.trim().toLowerCase();
+        String originalProperty = property.trim();
+        property = originalProperty.toLowerCase();
         value = value.trim();
 
         String[] numUnit = splitNumberAndUnit(value);
@@ -582,7 +583,7 @@ public class HtmlCssImporter {
                 info.action = "asdCss";
                 info.category = "asd";
                 info.spec = "%s";
-                info.paramValues.add(kebabToCamel(property) + ": " + value + ";");
+                info.paramValues.add(camelToKebab(originalProperty) + ": " + value + ";");
                 break;
         }
 
@@ -874,21 +875,26 @@ public class HtmlCssImporter {
             if (decl.isEmpty()) continue;
             int colonIdx = decl.indexOf(':');
             if (colonIdx <= 0) continue;
-            String property = decl.substring(0, colonIdx).trim().toLowerCase();
+            String property = decl.substring(0, colonIdx).trim();
+            String lowerProperty = property.toLowerCase();
             String value = decl.substring(colonIdx + 1).trim();
             // Remove !important
             value = value.replaceAll("\\s*!important\\s*$", "");
             if (property.isEmpty() || value.isEmpty()) continue;
 
-            String camelProp = kebabToCamel(property);
-            if ("border".equals(camelProp)) {
-                decomposeBorder(value, props);
-            } else if ("background".equals(camelProp)) {
-                if (!value.contains("url")) {
-                    props.put("backgroundColor", value);
-                }
+            if (property.startsWith("--")) {
+                props.put(property, value);
             } else {
-                props.put(camelProp, value);
+                String camelProp = kebabToCamel(lowerProperty);
+                if ("border".equals(camelProp)) {
+                    decomposeBorder(value, props);
+                } else if ("background".equals(camelProp)) {
+                    if (!value.contains("url")) {
+                        props.put("backgroundColor", value);
+                    }
+                } else {
+                    props.put(camelProp, value);
+                }
             }
         }
         return props;
@@ -914,6 +920,15 @@ public class HtmlCssImporter {
             }
         }
         return sb.toString();
+    }
+
+    /**
+     * Convert camelCase back to kebab-case: "fontSize" -> "font-size"
+     */
+    private String camelToKebab(String str) {
+        if (str == null || str.isEmpty()) return str;
+        if (str.startsWith("--")) return str;
+        return str.replaceAll("([A-Z])", "-$1").toLowerCase();
     }
 
     /**
