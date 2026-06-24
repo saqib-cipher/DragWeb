@@ -72,6 +72,13 @@ public class ExportManager {
     public ExportResult generateExportFiles(View screen, String projectName,
                                             LogicBlockManager logicBlockManager,
                                             ManageBlocksWidgets customBlockManager) {
+        return generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, null);
+    }
+
+    public ExportResult generateExportFiles(View screen, String projectName,
+                                            LogicBlockManager logicBlockManager,
+                                            ManageBlocksWidgets customBlockManager,
+                                            File customExportDir) {
         ExportResult result = new ExportResult();
         
         // Load all project pages using PageManager
@@ -199,7 +206,7 @@ public class ExportManager {
         String finalCssContent = accumulatedCssBuffer.toString().replace("assets/", "");
         String finalJsContent = accumulatedJsBuffer.toString().replace("assets/", "");
 
-        File exportDir = new File(context.getFilesDir(), "exports/" + sanitizeFileName(projectName));
+        File exportDir = customExportDir != null ? customExportDir : new File(context.getFilesDir(), "exports/" + sanitizeFileName(projectName));
         if (exportDir.exists()) {
             deleteDirectory(exportDir);
         }

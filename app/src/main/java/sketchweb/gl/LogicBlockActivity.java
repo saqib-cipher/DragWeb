@@ -29,6 +29,14 @@ import com.google.android.material.textfield.TextInputLayout;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.view.MenuItem;
+import android.webkit.WebView;
+import android.widget.Toast;
+import androidx.appcompat.widget.Toolbar;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -678,23 +686,112 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
     }
 
     private void showCodePreview() {
-        StringBuilder sb = new StringBuilder();
-        String css = logicBlockManager.generateBaseCssRules();
-        if (css != null && !css.isEmpty()) {
-            sb.append("/* CSS */\n").append(css).append("\n");
-        }
-        String pseudo = logicBlockManager.generateCssPseudoRules();
-        if (pseudo != null && !pseudo.isEmpty()) {
-            sb.append("/* Pseudo */\n").append(pseudo).append("\n");
-        }
-        String js = logicBlockManager.generateJavaScript();
-        if (js != null && !js.isEmpty()) sb.append(js);
-        if (sb.length() == 0) sb.append("// No emittable blocks yet");
+        final String cssCode = (logicBlockManager.generateBaseCssRules() + "\n" + logicBlockManager.generateCssPseudoRules()).trim();
+        final String jsCode = logicBlockManager.generateJavaScript();
+
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+
+        Toolbar dialogToolbar = new Toolbar(this);
+        dialogToolbar.setTitle("Generated Code");
+        dialogToolbar.setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFFE0E0E0));
+        dialogToolbar.setTitleTextColor(com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
+        
+        container.addView(dialogToolbar);
+
+        final WebView webView = new WebView(this);
+        webView.getSettings().setJavaScriptEnabled(true);
+        
+        LinearLayout.LayoutParams webViewParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(400));
+        webView.setLayoutParams(webViewParams);
+        container.addView(webView);
+
+        // Keep track of active section for copy
+        final String[] activeCode = { cssCode };
+        final String[] activeLang = { "css" };
+
+        // Set up menu inside toolbar
+        MenuItem itemCss = dialogToolbar.getMenu().add(0, 1, 0, "CSS");
+        itemCss.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        MenuItem itemJs = dialogToolbar.getMenu().add(0, 2, 0, "JS");
+        itemJs.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+
+        // Initial highlights
+        updateToolbarMenu(dialogToolbar, true);
+        loadHighlightedCode(webView, cssCode.isEmpty() ? "/* No CSS generated */" : cssCode, "css");
+
+        dialogToolbar.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == 1) { // CSS
+                updateToolbarMenu(dialogToolbar, true);
+                activeCode[0] = cssCode;
+                activeLang[0] = "css";
+                loadHighlightedCode(webView, cssCode.isEmpty() ? "/* No CSS generated */" : cssCode, "css");
+                return true;
+            } else if (id == 2) { // JS
+                updateToolbarMenu(dialogToolbar, false);
+                activeCode[0] = jsCode;
+                activeLang[0] = "javascript";
+                loadHighlightedCode(webView, jsCode.isEmpty() ? "/* No Javascript generated */" : jsCode, "javascript");
+                return true;
+            }
+            return false;
+        });
+
         new MaterialAlertDialogBuilder(this)
-            .setTitle("Generated Code")
-            .setMessage(sb.toString())
-            .setPositiveButton("OK", null)
+            .setView(container)
+            .setPositiveButton("Copy", (dialog, which) -> {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                clipboard.setPrimaryClip(ClipData.newPlainText(activeLang[0], activeCode[0]));
+                Toast.makeText(this, "Source copied", Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Close", null)
             .show();
+    }
+
+    private void updateToolbarMenu(Toolbar toolbar, boolean isCssSelected) {
+        MenuItem itemCss = toolbar.getMenu().findItem(1);
+        MenuItem itemJs = toolbar.getMenu().findItem(2);
+        if (itemCss != null && itemJs != null) {
+            if (isCssSelected) {
+                itemCss.setTitle(android.text.Html.fromHtml("<b><font color='#2196F3'>CSS</font></b>", android.text.Html.FROM_HTML_MODE_LEGACY));
+                itemJs.setTitle(android.text.Html.fromHtml("<font color='#888888'>JS</font>", android.text.Html.FROM_HTML_MODE_LEGACY));
+            } else {
+                itemCss.setTitle(android.text.Html.fromHtml("<font color='#888888'>CSS</font>", android.text.Html.FROM_HTML_MODE_LEGACY));
+                itemJs.setTitle(android.text.Html.fromHtml("<b><font color='#2196F3'>JS</font></b>", android.text.Html.FROM_HTML_MODE_LEGACY));
+            }
+        }
+    }
+
+    private void loadHighlightedCode(WebView webView, String code, String language) {
+        String escapedCode = escapeHtml(code);
+        String html = "<!DOCTYPE html>\n" +
+                "<html>\n" +
+                "<head>\n" +
+                "  <meta charset=\"UTF-8\">\n" +
+                "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\">\n" +
+                "  <style>\n" +
+                "    body { margin: 0; padding: 12px; background: #2d2d2d; font-family: monospace; font-size: 13px; }\n" +
+                "    pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; }\n" +
+                "  </style>\n" +
+                "</head>\n" +
+                "<body>\n" +
+                "  <pre><code class=\"language-" + language + "\">" + escapedCode + "</code></pre>\n" +
+                "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js\"></script>\n" +
+                "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js\"></script>\n" +
+                "</body>\n" +
+                "</html>";
+        webView.loadDataWithBaseURL("https://localhost", html, "text/html", "UTF-8", null);
+    }
+
+    private String escapeHtml(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;")
+                   .replace("\"", "&quot;")
+                   .replace("'", "&#39;");
     }
 
     @Override

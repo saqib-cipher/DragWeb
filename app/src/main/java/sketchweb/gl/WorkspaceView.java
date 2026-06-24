@@ -3,6 +3,8 @@ package sketchweb.gl;
 import android.content.Context;
 import android.graphics.Color;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -40,12 +42,41 @@ public class WorkspaceView extends ScrollView {
     private BlockChipFactory chipFactory;
     private BlockDragDropManager dragDropManager;
 
+    private ScaleGestureDetector scaleGestureDetector;
+    private float scaleFactor = 1.0f;
+    private float translationX = 0f;
+    private float translationY = 0f;
+    private float lastTouchX;
+    private float lastTouchY;
+    private int activePointerId = -1;
+    private boolean isPanning = false;
+
+    private void initZoomPan(Context context) {
+        scaleGestureDetector = new ScaleGestureDetector(context, new ScaleGestureListener());
+    }
+
+    private class ScaleGestureListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
+        @Override
+        public boolean onScale(ScaleGestureDetector detector) {
+            scaleFactor *= detector.getScaleFactor();
+            scaleFactor = Math.max(0.8f, Math.min(scaleFactor, 1.2f));
+
+            View container = getChildAt(0);
+            if (container != null) {
+                container.setScaleX(scaleFactor);
+                container.setScaleY(scaleFactor);
+            }
+            return true;
+        }
+    }
+
     public WorkspaceView(Context context) { this(context, null); }
     public WorkspaceView(Context context, @Nullable AttributeSet attrs) { this(context, attrs, 0); }
 
     public WorkspaceView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
         setFillViewport(true);
+        initZoomPan(context);
 
         // Top-level container so we can overlay an insertion indicator on top
         // of the vertical stack without breaking ScrollView's single-child rule.
@@ -63,6 +94,70 @@ public class WorkspaceView extends ScrollView {
         insertionIndicator.setVisibility(GONE);
         container.addView(insertionIndicator, new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, dp(3)));
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent ev) {
+        scaleGestureDetector.onTouchEvent(ev);
+
+        if (ev.getPointerCount() > 1) {
+            requestDisallowInterceptTouchEvent(true);
+        }
+
+        int action = ev.getActionMasked();
+        switch (action) {
+            case MotionEvent.ACTION_DOWN: {
+                lastTouchX = ev.getX();
+                lastTouchY = ev.getY();
+                activePointerId = ev.getPointerId(0);
+                isPanning = false;
+                break;
+            }
+            case MotionEvent.ACTION_POINTER_DOWN: {
+                isPanning = false;
+                break;
+            }
+            case MotionEvent.ACTION_MOVE: {
+                if (ev.getPointerCount() == 1 && activePointerId != -1) {
+                    int pointerIndex = ev.findPointerIndex(activePointerId);
+                    if (pointerIndex != -1) {
+                        float x = ev.getX(pointerIndex);
+                        float y = ev.getY(pointerIndex);
+
+                        float dx = x - lastTouchX;
+                        float dy = y - lastTouchY;
+
+                        translationX += dx;
+                        translationY += dy;
+
+                        float maxPanX = dp(50);
+                        float maxPanY = dp(30);
+
+                        translationX = Math.max(-maxPanX, Math.min(translationX, maxPanX));
+                        translationY = Math.max(-maxPanY, Math.min(translationY, maxPanY));
+
+                        View container = getChildAt(0);
+                        if (container != null) {
+                            container.setTranslationX(translationX);
+                            container.setTranslationY(translationY);
+                        }
+
+                        lastTouchX = x;
+                        lastTouchY = y;
+                        isPanning = true;
+                    }
+                }
+                break;
+            }
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL: {
+                activePointerId = -1;
+                isPanning = false;
+                break;
+            }
+        }
+
+        return super.onTouchEvent(ev);
     }
 
     /**
@@ -134,7 +229,8 @@ public class WorkspaceView extends ScrollView {
         // ScrollView delivers DragEvent Y relative to the visible viewport, so
         // add the scroll offset to land in the inner content's coordinate
         // space before comparing against block midpoints.
-        float content = y + getScrollY();
+        float adjustedY = (y - translationY) / scaleFactor;
+        float content = adjustedY + getScrollY();
         return computeInsertIndexAbsolute(stack, content);
     }
 
@@ -219,7 +315,8 @@ public class WorkspaceView extends ScrollView {
     }
 
     void showInsertionIndicator(float y) {
-        float content = y + getScrollY();
+        float adjustedY = (y - translationY) / scaleFactor;
+        float content = adjustedY + getScrollY();
         int idx = computeInsertIndexAbsolute(stack, content);
         float top;
         float baseTop = stack.getTop();

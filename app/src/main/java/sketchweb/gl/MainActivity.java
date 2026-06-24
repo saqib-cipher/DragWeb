@@ -1685,61 +1685,40 @@ public class MainActivity extends AppCompatActivity {
 			FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
 		}
 
-		PageCodeGenerator codeGen = new PageCodeGenerator();
-		codeGen.setProjectInfo(projectName, getProjectLogoPathForExport());
+		File previewDir = new File(getCacheDir(), "preview_" + projectId);
+		deleteDir(previewDir);
+		previewDir.mkdirs();
+
 		if (exportManager != null) {
-			codeGen.setIconLibraryManager(new IconLibraryManager(this, projectId));
-			codeGen.setAnimationLibraryManager(new AnimationLibraryManager(this, projectId));
+			exportManager.generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, previewDir);
 		}
-		ArrayList<String> pageNames = new ArrayList<>();
-		ArrayList<String> pageCodes = new ArrayList<>();
 
 		List<String> allPages = pageManager != null ? pageManager.getPages() : new ArrayList<>();
 		if (allPages.isEmpty()) allPages.add("index");
+		ArrayList<String> pageNames = new ArrayList<>(allPages);
 
 		String currentPage = pageManager != null ? pageManager.getCurrentPage() : "index";
-
-		for (String pageName : allPages) {
-			pageNames.add(pageName);
-
-			if (pageName.equals(currentPage)) {
-				// Current page: generate from live screen
-				String html = codeGen.generateFullCode(screen, themeManager, logicBlockManager);
-				pageCodes.add(html.replace("assets/", ""));
-			} else {
-				// Other pages: generate from saved JSON data
-				String pageJson = pageManager.loadPageLayout(pageName);
-				LogicBlockManager pageLogic = new LogicBlockManager(this);
-				File dir = new File(getFilesDir(), "projects");
-				File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
-				if (logicFile.exists()) {
-					String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-					pageLogic.fromJson(logicJson);
-				}
-
-				try {
-					List<Map<String, Object>> widgetTree = new Gson().fromJson(pageJson,
-						new TypeToken<List<Map<String, Object>>>(){}.getType());
-					String html = codeGen.generateFullCodeFromTree(widgetTree, themeManager, pageLogic);
-					pageCodes.add(html.replace("assets/", ""));
-				} catch (Exception e) {
-					pageCodes.add("<html><body><p>Error loading page: " + pageName + "</p></body></html>");
-				}
-			}
-		}
-
-		// Find the index of the current page to start on that tab
 		int startIndex = pageNames.indexOf(currentPage);
 		if (startIndex < 0) startIndex = 0;
 
 		Intent previewIntent = new Intent(this, PreviewActivity.class);
 		previewIntent.putStringArrayListExtra("page_names", pageNames);
-		previewIntent.putStringArrayListExtra("page_codes", pageCodes);
 		previewIntent.putExtra("start_page_index", startIndex);
-		// Pass the project id so PreviewActivity can locate /.dragweb/projects/<id>/assets
-		// and the local HTTP server can serve images referenced as "assets/...".
+		previewIntent.putExtra("preview_project_dir", previewDir.getAbsolutePath());
 		previewIntent.putExtra("project_id", projectId);
 		startActivity(previewIntent);
+	}
+
+	private void deleteDir(File file) {
+		if (file.isDirectory()) {
+			File[] children = file.listFiles();
+			if (children != null) {
+				for (File child : children) {
+					deleteDir(child);
+				}
+			}
+		}
+		file.delete();
 	}
 
 
