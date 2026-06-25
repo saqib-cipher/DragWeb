@@ -671,7 +671,7 @@ public class HomeActivity extends AppCompatActivity {
 					FileUtil.writeFile(targetJsFile.getAbsolutePath(), jsContent);
 
 					// Parse JavaScript content into visual logic blocks
-					HtmlCssImporter importer = new HtmlCssImporter();
+					HtmlCssImporter importer = new HtmlCssImporter(HomeActivity.this);
 					List<Map<String, Object>> jsBlocksList = importer.importJsOnly(jsContent);
 
 					File jsLogicFile = new File(logicDir, projectId + "_js_script_js.logic");
@@ -959,7 +959,7 @@ public class HomeActivity extends AppCompatActivity {
 			jsContent = readUriContent(pendingJsUri);
 		}
 
-		HtmlCssImporter importer = new HtmlCssImporter();
+		HtmlCssImporter importer = new HtmlCssImporter(HomeActivity.this);
 		HtmlCssImporter.ImportResult result = importer.importHtmlCss(htmlContent, null);
 
 		List<Map<String, Object>> cssLogicBlocks = null;

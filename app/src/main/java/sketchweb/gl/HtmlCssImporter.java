@@ -35,6 +35,136 @@ public class HtmlCssImporter {
     // Logic blocks parsed during CSS import
     private final List<Map<String, Object>> importedLogicBlocks = new ArrayList<>();
 
+    private android.content.Context context;
+    private final List<JsBlockMatcher> jsMatchers = new ArrayList<>();
+    private boolean jsMatchersInitialized = false;
+
+    public HtmlCssImporter() {
+    }
+
+    public HtmlCssImporter(android.content.Context context) {
+        this.context = context;
+    }
+
+    public static class JsBlockMatcher {
+        public BlockDef def;
+        public Pattern pattern;
+        public List<String> tokenTypes = new ArrayList<>();
+    }
+
+    private void initJsMatchers() {
+        if (context == null || jsMatchersInitialized) return;
+        jsMatchersInitialized = true;
+        try {
+            StringBuilder sb = new StringBuilder();
+            java.io.InputStream is = context.getAssets().open("blocks.json");
+            java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(is, "UTF-8"));
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+            br.close();
+
+            List<BlockDef> allDefs = new com.google.gson.Gson().fromJson(sb.toString(),
+                new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
+            if (allDefs == null) return;
+
+            // Sort by template length descending so more specific templates match first
+            java.util.Collections.sort(allDefs, new java.util.Comparator<BlockDef>() {
+                @Override
+                public int compare(BlockDef o1, BlockDef o2) {
+                    String t1 = o1.resolvedTemplate();
+                    String t2 = o2.resolvedTemplate();
+                    return Integer.compare(t2.length(), t1.length());
+                }
+            });
+
+            for (BlockDef def : allDefs) {
+                String cat = def.category;
+                if (cat == null) continue;
+                // Only match JS blocks: js_* categories or standard JS logic blocks
+                if (!cat.startsWith("js_") && !cat.equals("logic") && !cat.equals("meta")) continue;
+
+                // Skip open-ended raw block fallbacks to avoid overriding specific matches
+                if ("asdJs".equals(def.id) || "asdCss".equals(def.id) || "asdHtml".equals(def.id) || "asdHead".equals(def.id) || "asdMeta".equals(def.id)) continue;
+
+                String code = def.resolvedTemplate();
+                if (code == null || code.trim().isEmpty()) continue;
+
+                // Skip container blocks with space tokens - they are handled with custom brace matching in parseJsRules
+                if (code.contains("%m.space")) continue;
+
+                JsBlockMatcher matcher = buildMatcherFromTemplate(def, code);
+                if (matcher != null) {
+                    jsMatchers.add(matcher);
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to load blocks.json for dynamic JS matching: " + e.getMessage());
+        }
+    }
+
+    private JsBlockMatcher buildMatcherFromTemplate(BlockDef def, String template) {
+        Pattern tokenPat = Pattern.compile("%(?:m\\.([a-zA-Z]+)|([nsbd]))");
+        Matcher m = tokenPat.matcher(template);
+
+        StringBuilder regex = new StringBuilder();
+        regex.append("^");
+
+        int last = 0;
+        JsBlockMatcher matcher = new JsBlockMatcher();
+        matcher.def = def;
+
+        while (m.find()) {
+            String literal = template.substring(last, m.start());
+            regex.append(escapeLiteralWithFlexibleQuotes(literal));
+
+            String menuKind = m.group(1);
+            String basicType = m.group(2);
+
+            matcher.tokenTypes.add(menuKind != null ? "m." + menuKind : basicType);
+            if ("n".equals(basicType)) {
+                regex.append("(\\d+)");
+            } else if ("b".equals(basicType)) {
+                regex.append("(true|false)");
+            } else {
+                regex.append("([^;{}]+?)");
+            }
+            last = m.end();
+        }
+
+        String literal = template.substring(last);
+        regex.append(escapeLiteralWithFlexibleQuotes(literal));
+
+        if (!template.endsWith(";")) {
+            regex.append(";?\\s*");
+        } else {
+            regex.append("\\s*");
+        }
+
+        try {
+            matcher.pattern = Pattern.compile(regex.toString());
+            return matcher;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String escapeLiteralWithFlexibleQuotes(String literal) {
+        if (literal == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < literal.length(); i++) {
+            char c = literal.charAt(i);
+            if (c == '\'' || c == '"') {
+                sb.append("['\"]");
+            } else if ("\\^$.|?*+()[]{}".indexOf(c) >= 0) {
+                sb.append('\\').append(c);
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+
     /**
      * Import result containing the widget tree and logic blocks for the project.
      */
@@ -779,7 +909,7 @@ public class HtmlCssImporter {
                         groupStack.pop();
                     }
                     currentGroupId = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
-                } else {
+                } else if (commentText.startsWith("<") && commentText.endsWith(">")) {
                     String blockId = "blk_group_" + timestamp + "_" + (counterRef[0]++);
                     Map<String, Object> groupBlock = new HashMap<>();
                     groupBlock.put("id", blockId);
@@ -801,6 +931,24 @@ public class HtmlCssImporter {
                     importedLogicBlocks.add(groupBlock);
                     groupStack.push(blockId);
                     currentGroupId = blockId;
+                } else {
+                    String blockId = "blk_comment_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> commentBlock = new HashMap<>();
+                    commentBlock.put("id", blockId);
+                    commentBlock.put("action", "commentBlock");
+                    commentBlock.put("category", "meta");
+                    commentBlock.put("shape", "stack");
+                    commentBlock.put("spec", "/* %s */");
+                    List<String> paramValues = new ArrayList<>();
+                    paramValues.add(commentText);
+                    commentBlock.put("paramValues", paramValues);
+                    commentBlock.put("params", commentText);
+                    commentBlock.put("event", "immediate");
+                    
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    commentBlock.put("parentBlockId", parent != null ? parent : "");
+
+                    importedLogicBlocks.add(commentBlock);
                 }
                 continue;
             }
@@ -1048,7 +1196,7 @@ public class HtmlCssImporter {
                         groupStack.pop();
                     }
                     currentGroupId = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
-                } else {
+                } else if (commentText.startsWith("<") && commentText.endsWith(">")) {
                     String blockId = "blk_group_" + timestamp + "_" + (counterRef[0]++);
                     Map<String, Object> groupBlock = new HashMap<>();
                     groupBlock.put("id", blockId);
@@ -1070,6 +1218,24 @@ public class HtmlCssImporter {
                     importedLogicBlocks.add(groupBlock);
                     groupStack.push(blockId);
                     currentGroupId = blockId;
+                } else {
+                    String blockId = "blk_comment_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> commentBlock = new HashMap<>();
+                    commentBlock.put("id", blockId);
+                    commentBlock.put("action", "commentBlock");
+                    commentBlock.put("category", "meta");
+                    commentBlock.put("shape", "stack");
+                    commentBlock.put("spec", "/* %s */");
+                    List<String> paramValues = new ArrayList<>();
+                    paramValues.add(commentText);
+                    commentBlock.put("paramValues", paramValues);
+                    commentBlock.put("params", commentText);
+                    commentBlock.put("event", "immediate");
+                    
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    commentBlock.put("parentBlockId", parent != null ? parent : "");
+                    
+                    importedLogicBlocks.add(commentBlock);
                 }
                 continue;
             }
@@ -1385,6 +1551,51 @@ public class HtmlCssImporter {
                 block.put("parentBlockId", parent != null ? parent : "");
                 
                 importedLogicBlocks.add(block);
+                continue;
+            }
+            
+            // Try dynamic JS block matchers
+            initJsMatchers();
+            boolean matchedDynamic = false;
+            for (JsBlockMatcher matcher : jsMatchers) {
+                Matcher m = matcher.pattern.matcher(remaining);
+                if (m.find()) {
+                    pos += m.end();
+                    
+                    String blockId = "blk_js_dyn_" + matcher.def.id + "_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> block = new HashMap<>();
+                    block.put("id", blockId);
+                    block.put("action", matcher.def.id);
+                    block.put("category", matcher.def.category);
+                    block.put("shape", matcher.def.resolvedShape());
+                    block.put("spec", matcher.def.resolvedTemplate());
+                    
+                    List<String> paramValues = new ArrayList<>();
+                    for (int g = 1; g <= m.groupCount(); g++) {
+                        String captured = m.group(g);
+                        if (captured != null) {
+                            captured = captured.trim();
+                            if (captured.length() >= 2 && 
+                                ((captured.startsWith("'") && captured.endsWith("'")) || 
+                                 (captured.startsWith("\"") && captured.endsWith("\"")))) {
+                                captured = captured.substring(1, captured.length() - 1);
+                            }
+                        }
+                        paramValues.add(captured != null ? captured : "");
+                    }
+                    block.put("paramValues", paramValues);
+                    block.put("params", joinPipe(paramValues));
+                    block.put("event", "immediate");
+                    
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    block.put("parentBlockId", parent != null ? parent : "");
+                    
+                    importedLogicBlocks.add(block);
+                    matchedDynamic = true;
+                    break;
+                }
+            }
+            if (matchedDynamic) {
                 continue;
             }
             

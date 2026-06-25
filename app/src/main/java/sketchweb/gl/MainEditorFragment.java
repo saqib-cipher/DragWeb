@@ -378,12 +378,21 @@ public class MainEditorFragment extends Fragment {
 		delete = view.findViewById(R.id.delete);
 		textview2 = view.findViewById(R.id.textview2);
 		recyclerview3 = view.findViewById(R.id.recyclerview3);
-		recyclerview3.setOnTouchListener(new View.OnTouchListener() {
+		recyclerview3.addOnItemTouchListener(new RecyclerView.OnItemTouchListener() {
 			@Override
-			public boolean onTouch(View v, android.view.MotionEvent event) {
-				v.getParent().requestDisallowInterceptTouchEvent(true);
+			public boolean onInterceptTouchEvent(@NonNull RecyclerView rv, @NonNull android.view.MotionEvent e) {
+				int action = e.getAction();
+				if (action == android.view.MotionEvent.ACTION_DOWN || action == android.view.MotionEvent.ACTION_MOVE) {
+					rv.getParent().requestDisallowInterceptTouchEvent(true);
+				}
 				return false;
 			}
+
+			@Override
+			public void onTouchEvent(@NonNull RecyclerView rv, @NonNull android.view.MotionEvent e) {}
+
+			@Override
+			public void onRequestDisallowInterceptTouchEvent(boolean disallowIntercept) {}
 		});
 		recyclerview1 = view.findViewById(R.id.recyclerview1);
 		recyclerviewRightPanel = view.findViewById(R.id.recyclerviewRightPanel);
@@ -1702,7 +1711,7 @@ public class MainEditorFragment extends Fragment {
 						return;
 					}
 
-					HtmlCssImporter importer = new HtmlCssImporter();
+					HtmlCssImporter importer = new HtmlCssImporter(requireContext());
 					HtmlCssImporter.ImportResult result = importer.importHtmlCss(htmlContent, null);
 
 					if (!result.success) {

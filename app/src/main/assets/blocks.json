@@ -1,361 +1,3348 @@
 [
-  { "id": "groupBlock", "category": "meta", "shape": "cblock", "color": "#37474F",
-    "label": "▾ group %s", "code": "/* <%s> */ %m.space /* </%s> */",
-    "inputs": [ { "id": "name", "type": "text", "default": "navbar" } ] },
-  { "id": "commentBlock", "category": "meta", "shape": "stack", "color": "#546E7A",
-    "label": "// %s", "code": "/* %s */",
-    "inputs": [ { "id": "text", "type": "text", "default": "comment" } ] },
-
-  { "id": "cssSelector", "category": "css", "shape": "cblock", "color": "#1976D2",
-    "label": "%s {", "code": "%s { %m.space }",
+  {
+    "id": "groupBlock",
+    "category": "meta",
+    "shape": "cblock",
+    "color": "#37474F",
+    "label": "▾ group %s",
+    "code": "/* <%s> */ %m.space /* </%s> */",
     "inputs": [
-      { "id": "selector", "type": "selector", "selector": "any", "default": ".container" }
-    ] },
-  { "id": "cssHover", "category": "css", "shape": "cblock", "color": "#1976D2",
-    "label": "%s :hover {", "code": "%s:hover { %m.space }",
-    "inputs": [ { "id": "selector", "type": "selector", "selector": "any", "default": "a" } ] },
-  { "id": "cssFocus", "category": "css", "shape": "cblock", "color": "#1976D2",
-    "label": "%s :focus {", "code": "%s:focus { %m.space }",
-    "inputs": [ { "id": "selector", "type": "selector", "selector": "any", "default": "input" } ] },
-  { "id": "cssActive", "category": "css", "shape": "cblock", "color": "#1976D2",
-    "label": "%s :active {", "code": "%s:active { %m.space }",
-    "inputs": [ { "id": "selector", "type": "selector", "selector": "any", "default": "button" } ] },
-  { "id": "cssVisited", "category": "css", "shape": "cblock", "color": "#1976D2",
-    "label": "%s :visited {", "code": "%s:visited { %m.space }",
-    "inputs": [ { "id": "selector", "type": "selector", "selector": "any", "default": "a" } ] },
-  { "id": "cssBefore", "category": "css", "shape": "cblock", "color": "#1976D2",
-    "label": "%s ::before {", "code": "%s::before { %m.space }",
-    "inputs": [ { "id": "selector", "type": "selector", "selector": "any", "default": "a" } ] },
-  { "id": "cssAfter", "category": "css", "shape": "cblock", "color": "#1976D2",
-    "label": "%s ::after {", "code": "%s::after { %m.space }",
-    "inputs": [ { "id": "selector", "type": "selector", "selector": "any", "default": "a" } ] },
-  { "id": "cssFirstChild", "category": "css", "shape": "cblock", "color": "#1976D2",
-    "label": "%s :first-child {", "code": "%s:first-child { %m.space }",
-    "inputs": [ { "id": "selector", "type": "selector", "selector": "any", "default": "li" } ] },
-  { "id": "cssLastChild", "category": "css", "shape": "cblock", "color": "#1976D2",
-    "label": "%s :last-child {", "code": "%s:last-child { %m.space }",
-    "inputs": [ { "id": "selector", "type": "selector", "selector": "any", "default": "li" } ] },
-  { "id": "cssNthChild", "category": "css", "shape": "cblock", "color": "#1976D2",
-    "label": "%s :nth-child(%n) {", "code": "%s:nth-child(%n) { %m.space }",
+      {
+        "id": "name",
+        "type": "text",
+        "default": "navbar"
+      }
+    ]
+  },
+  {
+    "id": "commentBlock",
+    "category": "meta",
+    "shape": "stack",
+    "color": "#546E7A",
+    "label": "// %s",
+    "code": "/* %s */",
     "inputs": [
-      { "id": "selector", "type": "selector", "selector": "any", "default": "li" },
-      { "id": "n", "type": "number", "default": "1" }
-    ] },
-  { "id": "cssMediaQuery", "category": "css", "shape": "cblock", "color": "#1565C0",
-    "label": "@media (max-width: %n px) {", "code": "@media (max-width: %npx) { %m.space }",
-    "inputs": [ { "id": "max", "type": "number", "default": "768" } ] },
-
-  { "id": "setDisplay", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "display", "code": "display: %m.display;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "display", "default": "block" } ] },
-  { "id": "setPosition", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "position", "code": "position: %m.position;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "position", "default": "static" } ] },
-  { "id": "setOverflow", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "overflow", "code": "overflow: %m.overflow;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "overflow", "default": "visible" } ] },
-  { "id": "setColor", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "color", "code": "color: %m.color;",
-    "inputs": [ { "id": "value", "type": "color", "default": "#000000" } ] },
-  { "id": "setBackground", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "background", "code": "background: %m.color;",
-    "inputs": [ { "id": "value", "type": "color", "default": "#FFFFFF" } ] },
-  { "id": "setBackgroundImage", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "background-image url", "code": "background-image: url(%s);",
-    "inputs": [ { "id": "value", "type": "text", "default": "" } ] },
-  { "id": "setWidth", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "width", "code": "width: %n%m.unit;",
+      {
+        "id": "text",
+        "type": "text",
+        "default": "comment"
+      }
+    ]
+  },
+  {
+    "id": "cssSelector",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1976D2",
+    "label": "%s {",
+    "code": "%s { %m.space }",
     "inputs": [
-      { "id": "value", "type": "number", "default": "100" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","%","rem","em","vw","vh","auto"] }
-    ] },
-  { "id": "setHeight", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "height", "code": "height: %n%m.unit;",
+      {
+        "id": "selector",
+        "type": "selector",
+        "selector": "any",
+        "default": ".container"
+      }
+    ]
+  },
+  {
+    "id": "cssHover",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1976D2",
+    "label": "%s :hover {",
+    "code": "%s:hover { %m.space }",
     "inputs": [
-      { "id": "value", "type": "number", "default": "100" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","%","rem","em","vw","vh","auto"] }
-    ] },
-  { "id": "setMaxWidth", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "max-width", "code": "max-width: %n%m.unit;",
+      {
+        "id": "selector",
+        "type": "selector",
+        "selector": "any",
+        "default": "a"
+      }
+    ]
+  },
+  {
+    "id": "cssFocus",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1976D2",
+    "label": "%s :focus {",
+    "code": "%s:focus { %m.space }",
     "inputs": [
-      { "id": "value", "type": "number", "default": "100" },
-      { "id": "unit", "type": "dropdown", "default": "%", "options": ["px","%","rem","em","vw","vh","none"] }
-    ] },
-  { "id": "setMaxHeight", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "max-height", "code": "max-height: %n%m.unit;",
+      {
+        "id": "selector",
+        "type": "selector",
+        "selector": "any",
+        "default": "input"
+      }
+    ]
+  },
+  {
+    "id": "cssActive",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1976D2",
+    "label": "%s :active {",
+    "code": "%s:active { %m.space }",
     "inputs": [
-      { "id": "value", "type": "number", "default": "100" },
-      { "id": "unit", "type": "dropdown", "default": "%", "options": ["px","%","rem","em","vw","vh","none"] }
-    ] },
-  { "id": "setMinWidth", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "min-width", "code": "min-width: %n%m.unit;",
+      {
+        "id": "selector",
+        "type": "selector",
+        "selector": "any",
+        "default": "button"
+      }
+    ]
+  },
+  {
+    "id": "cssVisited",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1976D2",
+    "label": "%s :visited {",
+    "code": "%s:visited { %m.space }",
     "inputs": [
-      { "id": "value", "type": "number", "default": "0" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","%","rem","em","vw","vh"] }
-    ] },
-  { "id": "setMinHeight", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "min-height", "code": "min-height: %n%m.unit;",
+      {
+        "id": "selector",
+        "type": "selector",
+        "selector": "any",
+        "default": "a"
+      }
+    ]
+  },
+  {
+    "id": "cssBefore",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1976D2",
+    "label": "%s ::before {",
+    "code": "%s::before { %m.space }",
     "inputs": [
-      { "id": "value", "type": "number", "default": "0" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","%","rem","em","vw","vh"] }
-    ] },
-  { "id": "setMargin", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "margin", "code": "margin: %n%m.unit;",
+      {
+        "id": "selector",
+        "type": "selector",
+        "selector": "any",
+        "default": "a"
+      }
+    ]
+  },
+  {
+    "id": "cssAfter",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1976D2",
+    "label": "%s ::after {",
+    "code": "%s::after { %m.space }",
     "inputs": [
-      { "id": "value", "type": "number", "default": "0" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","%","rem","em","auto"] }
-    ] },
-  { "id": "setPadding", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "padding", "code": "padding: %n%m.unit;",
+      {
+        "id": "selector",
+        "type": "selector",
+        "selector": "any",
+        "default": "a"
+      }
+    ]
+  },
+  {
+    "id": "cssFirstChild",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1976D2",
+    "label": "%s :first-child {",
+    "code": "%s:first-child { %m.space }",
     "inputs": [
-      { "id": "value", "type": "number", "default": "0" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","%","rem","em"] }
-    ] },
-  { "id": "setBorder", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "border", "code": "border: %n%m.unit solid %m.color;",
+      {
+        "id": "selector",
+        "type": "selector",
+        "selector": "any",
+        "default": "li"
+      }
+    ]
+  },
+  {
+    "id": "cssLastChild",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1976D2",
+    "label": "%s :last-child {",
+    "code": "%s:last-child { %m.space }",
     "inputs": [
-      { "id": "size", "type": "number", "default": "1" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","rem","em"] },
-      { "id": "color", "type": "color", "default": "#000000" }
-    ] },
-  { "id": "setRadius", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "border-radius", "code": "border-radius: %n%m.unit;",
+      {
+        "id": "selector",
+        "type": "selector",
+        "selector": "any",
+        "default": "li"
+      }
+    ]
+  },
+  {
+    "id": "cssNthChild",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1976D2",
+    "label": "%s :nth-child(%n) {",
+    "code": "%s:nth-child(%n) { %m.space }",
     "inputs": [
-      { "id": "value", "type": "number", "default": "8" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","%","rem"] }
-    ] },
-  { "id": "setBoxShadow", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "box-shadow", "code": "box-shadow: %npx %npx %npx %m.color;",
+      {
+        "id": "selector",
+        "type": "selector",
+        "selector": "any",
+        "default": "li"
+      },
+      {
+        "id": "n",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "cssMediaQuery",
+    "category": "css",
+    "shape": "cblock",
+    "color": "#1565C0",
+    "label": "@media (max-width: %n px) {",
+    "code": "@media (max-width: %npx) { %m.space }",
     "inputs": [
-      { "id": "x", "type": "number", "default": "0" },
-      { "id": "y", "type": "number", "default": "2" },
-      { "id": "blur", "type": "number", "default": "8" },
-      { "id": "color", "type": "color", "default": "#00000033" }
-    ] },
-  { "id": "setFontSize", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "font-size", "code": "font-size: %n%m.unit;",
+      {
+        "id": "max",
+        "type": "number",
+        "default": "768"
+      }
+    ]
+  },
+  {
+    "id": "setDisplay",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "display",
+    "code": "display: %m.display;",
     "inputs": [
-      { "id": "value", "type": "number", "default": "16" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","rem","em","%"] }
-    ] },
-  { "id": "setFontFamily", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "font-family", "code": "font-family: %s;",
-    "inputs": [ { "id": "value", "type": "text", "default": "sans-serif" } ] },
-  { "id": "setFontWeight", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "font-weight", "code": "font-weight: %m.fontWeight;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "fontWeight", "default": "400" } ] },
-  { "id": "setFontStyle", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "font-style", "code": "font-style: %m.fontStyle;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "fontStyle", "default": "normal" } ] },
-  { "id": "setTextAlign", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "text-align", "code": "text-align: %m.textAlign;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "textAlign", "default": "left" } ] },
-  { "id": "setTextDecoration", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "text-decoration", "code": "text-decoration: %m.textDecoration;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "textDecoration", "default": "none" } ] },
-  { "id": "setLineHeight", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "line-height", "code": "line-height: %n;",
-    "inputs": [ { "id": "value", "type": "number", "default": "1.4" } ] },
-  { "id": "setLetterSpacing", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "letter-spacing", "code": "letter-spacing: %n%m.unit;",
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "display",
+        "default": "block"
+      }
+    ]
+  },
+  {
+    "id": "setPosition",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "position",
+    "code": "position: %m.position;",
     "inputs": [
-      { "id": "value", "type": "number", "default": "0" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","em","rem"] }
-    ] },
-  { "id": "setOpacity", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "opacity", "code": "opacity: %n;",
-    "inputs": [ { "id": "value", "type": "number", "default": "1" } ] },
-  { "id": "setZIndex", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "z-index", "code": "z-index: %n;",
-    "inputs": [ { "id": "value", "type": "number", "default": "0" } ] },
-  { "id": "setCursor", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "cursor", "code": "cursor: %m.cursor;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "cursor", "default": "default" } ] },
-  { "id": "setFlexDirection", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "flex-direction", "code": "flex-direction: %m.flexDirection;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "flexDirection", "default": "row" } ] },
-  { "id": "setJustifyContent", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "justify-content", "code": "justify-content: %m.justifyContent;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "justifyContent", "default": "flex-start" } ] },
-  { "id": "setAlignItems", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "align-items", "code": "align-items: %m.alignItems;",
-    "inputs": [ { "id": "value", "type": "dropdown", "paramType": "alignItems", "default": "stretch" } ] },
-  { "id": "setGap", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "gap", "code": "gap: %n%m.unit;",
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "position",
+        "default": "static"
+      }
+    ]
+  },
+  {
+    "id": "setOverflow",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "overflow",
+    "code": "overflow: %m.overflow;",
     "inputs": [
-      { "id": "value", "type": "number", "default": "8" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","%","rem","em"] }
-    ] },
-  { "id": "setGridTemplateColumns", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "grid columns", "code": "grid-template-columns: %s;",
-    "inputs": [ { "id": "value", "type": "text", "default": "1fr 1fr" } ] },
-  { "id": "setTransform", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "transform", "code": "transform: %s;",
-    "inputs": [ { "id": "value", "type": "text", "default": "none" } ] },
-  { "id": "setFilter", "category": "css", "shape": "stack", "color": "#2196F3",
-    "label": "filter", "code": "filter: %s;",
-    "inputs": [ { "id": "value", "type": "text", "default": "none" } ] },
-
-  { "id": "animateFadeIn", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "animate fade-in", "code": "animation: fadeIn %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "1" } ] },
-  { "id": "animateFadeOut", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "animate fade-out", "code": "animation: fadeOut %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "1" } ] },
-  { "id": "animateSlideIn", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "animate slide-in", "code": "animation: slideIn %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "1" } ] },
-  { "id": "animateSlideOut", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "animate slide-out", "code": "animation: slideOut %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "1" } ] },
-  { "id": "animateBounce", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "animate bounce", "code": "animation: bounce %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "1" } ] },
-  { "id": "animatePulse", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "animate pulse", "code": "animation: pulse %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "1" } ] },
-  { "id": "animateRotate", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "animate rotate", "code": "animation: rotate %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "1" } ] },
-  { "id": "animateShake", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "animate shake", "code": "animation: shake %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "1" } ] },
-  { "id": "transitionAll", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "transition all", "code": "transition: all %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "0.3" } ] },
-  { "id": "transitionColor", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "transition color", "code": "transition: color %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "0.3" } ] },
-  { "id": "transitionTransform", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "transition transform", "code": "transition: transform %ns;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "0.3" } ] },
-  { "id": "animateSlideUp", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "slide-up %ns", "code": "animation: slideUp %ns ease both;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "0.6" } ] },
-  { "id": "animateSlideDown", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "slide-down %ns", "code": "animation: slideDown %ns ease both;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "0.6" } ] },
-  { "id": "animateSlideLeft", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "slide-left %ns", "code": "animation: slideLeft %ns ease both;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "0.6" } ] },
-  { "id": "animateSlideRight", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "slide-right %ns", "code": "animation: slideRight %ns ease both;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "0.6" } ] },
-  { "id": "animateZoomIn", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "zoom-in %ns", "code": "animation: zoomIn %ns ease both;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "0.4" } ] },
-  { "id": "animateZoomOut", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "zoom-out %ns", "code": "animation: zoomOut %ns ease both;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "0.4" } ] },
-  { "id": "animateFlip", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "flip %ns", "code": "animation: flip %ns ease both;",
-    "inputs": [ { "id": "duration", "type": "number", "default": "0.8" } ] },
-  { "id": "animateCustom", "category": "animation", "shape": "stack", "color": "#9C27B0",
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "overflow",
+        "default": "visible"
+      }
+    ]
+  },
+  {
+    "id": "setColor",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "color",
+    "code": "color: %m.color;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "color",
+        "default": "#000000"
+      }
+    ]
+  },
+  {
+    "id": "setBackground",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "background",
+    "code": "background: %m.color;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "color",
+        "default": "#FFFFFF"
+      }
+    ]
+  },
+  {
+    "id": "setBackgroundImage",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "background-image url",
+    "code": "background-image: url(%s);",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "setWidth",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "width",
+    "code": "width: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "100"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "%",
+          "rem",
+          "em",
+          "vw",
+          "vh",
+          "auto"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setHeight",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "height",
+    "code": "height: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "100"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "%",
+          "rem",
+          "em",
+          "vw",
+          "vh",
+          "auto"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setMaxWidth",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "max-width",
+    "code": "max-width: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "100"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "%",
+        "options": [
+          "px",
+          "%",
+          "rem",
+          "em",
+          "vw",
+          "vh",
+          "none"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setMaxHeight",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "max-height",
+    "code": "max-height: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "100"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "%",
+        "options": [
+          "px",
+          "%",
+          "rem",
+          "em",
+          "vw",
+          "vh",
+          "none"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setMinWidth",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "min-width",
+    "code": "min-width: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "0"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "%",
+          "rem",
+          "em",
+          "vw",
+          "vh"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setMinHeight",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "min-height",
+    "code": "min-height: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "0"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "%",
+          "rem",
+          "em",
+          "vw",
+          "vh"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setMargin",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "margin",
+    "code": "margin: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "0"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "%",
+          "rem",
+          "em",
+          "auto"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setPadding",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "padding",
+    "code": "padding: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "0"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "%",
+          "rem",
+          "em"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setBorder",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "border",
+    "code": "border: %n%m.unit solid %m.color;",
+    "inputs": [
+      {
+        "id": "size",
+        "type": "number",
+        "default": "1"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "rem",
+          "em"
+        ]
+      },
+      {
+        "id": "color",
+        "type": "color",
+        "default": "#000000"
+      }
+    ]
+  },
+  {
+    "id": "setRadius",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "border-radius",
+    "code": "border-radius: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "8"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "%",
+          "rem"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setBoxShadow",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "box-shadow",
+    "code": "box-shadow: %npx %npx %npx %m.color;",
+    "inputs": [
+      {
+        "id": "x",
+        "type": "number",
+        "default": "0"
+      },
+      {
+        "id": "y",
+        "type": "number",
+        "default": "2"
+      },
+      {
+        "id": "blur",
+        "type": "number",
+        "default": "8"
+      },
+      {
+        "id": "color",
+        "type": "color",
+        "default": "#00000033"
+      }
+    ]
+  },
+  {
+    "id": "setFontSize",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "font-size",
+    "code": "font-size: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "16"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "rem",
+          "em",
+          "%"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setFontFamily",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "font-family",
+    "code": "font-family: %s;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "sans-serif"
+      }
+    ]
+  },
+  {
+    "id": "setFontWeight",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "font-weight",
+    "code": "font-weight: %m.fontWeight;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "fontWeight",
+        "default": "400"
+      }
+    ]
+  },
+  {
+    "id": "setFontStyle",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "font-style",
+    "code": "font-style: %m.fontStyle;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "fontStyle",
+        "default": "normal"
+      }
+    ]
+  },
+  {
+    "id": "setTextAlign",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "text-align",
+    "code": "text-align: %m.textAlign;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "textAlign",
+        "default": "left"
+      }
+    ]
+  },
+  {
+    "id": "setTextDecoration",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "text-decoration",
+    "code": "text-decoration: %m.textDecoration;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "textDecoration",
+        "default": "none"
+      }
+    ]
+  },
+  {
+    "id": "setLineHeight",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "line-height",
+    "code": "line-height: %n;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "1.4"
+      }
+    ]
+  },
+  {
+    "id": "setLetterSpacing",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "letter-spacing",
+    "code": "letter-spacing: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "0"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "em",
+          "rem"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setOpacity",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "opacity",
+    "code": "opacity: %n;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "setZIndex",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "z-index",
+    "code": "z-index: %n;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "0"
+      }
+    ]
+  },
+  {
+    "id": "setCursor",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "cursor",
+    "code": "cursor: %m.cursor;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "cursor",
+        "default": "default"
+      }
+    ]
+  },
+  {
+    "id": "setFlexDirection",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "flex-direction",
+    "code": "flex-direction: %m.flexDirection;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "flexDirection",
+        "default": "row"
+      }
+    ]
+  },
+  {
+    "id": "setJustifyContent",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "justify-content",
+    "code": "justify-content: %m.justifyContent;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "justifyContent",
+        "default": "flex-start"
+      }
+    ]
+  },
+  {
+    "id": "setAlignItems",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "align-items",
+    "code": "align-items: %m.alignItems;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "alignItems",
+        "default": "stretch"
+      }
+    ]
+  },
+  {
+    "id": "setGap",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "gap",
+    "code": "gap: %n%m.unit;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "8"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "%",
+          "rem",
+          "em"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setGridTemplateColumns",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "grid columns",
+    "code": "grid-template-columns: %s;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "1fr 1fr"
+      }
+    ]
+  },
+  {
+    "id": "setTransform",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "transform",
+    "code": "transform: %s;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "none"
+      }
+    ]
+  },
+  {
+    "id": "setFilter",
+    "category": "css",
+    "shape": "stack",
+    "color": "#2196F3",
+    "label": "filter",
+    "code": "filter: %s;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "none"
+      }
+    ]
+  },
+  {
+    "id": "animateFadeIn",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "animate fade-in",
+    "code": "animation: fadeIn %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "animateFadeOut",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "animate fade-out",
+    "code": "animation: fadeOut %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "animateSlideIn",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "animate slide-in",
+    "code": "animation: slideIn %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "animateSlideOut",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "animate slide-out",
+    "code": "animation: slideOut %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "animateBounce",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "animate bounce",
+    "code": "animation: bounce %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "animatePulse",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "animate pulse",
+    "code": "animation: pulse %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "animateRotate",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "animate rotate",
+    "code": "animation: rotate %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "animateShake",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "animate shake",
+    "code": "animation: shake %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "transitionAll",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "transition all",
+    "code": "transition: all %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.3"
+      }
+    ]
+  },
+  {
+    "id": "transitionColor",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "transition color",
+    "code": "transition: color %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.3"
+      }
+    ]
+  },
+  {
+    "id": "transitionTransform",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "transition transform",
+    "code": "transition: transform %ns;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.3"
+      }
+    ]
+  },
+  {
+    "id": "animateSlideUp",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "slide-up %ns",
+    "code": "animation: slideUp %ns ease both;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.6"
+      }
+    ]
+  },
+  {
+    "id": "animateSlideDown",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "slide-down %ns",
+    "code": "animation: slideDown %ns ease both;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.6"
+      }
+    ]
+  },
+  {
+    "id": "animateSlideLeft",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "slide-left %ns",
+    "code": "animation: slideLeft %ns ease both;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.6"
+      }
+    ]
+  },
+  {
+    "id": "animateSlideRight",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "slide-right %ns",
+    "code": "animation: slideRight %ns ease both;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.6"
+      }
+    ]
+  },
+  {
+    "id": "animateZoomIn",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "zoom-in %ns",
+    "code": "animation: zoomIn %ns ease both;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.4"
+      }
+    ]
+  },
+  {
+    "id": "animateZoomOut",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "zoom-out %ns",
+    "code": "animation: zoomOut %ns ease both;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.4"
+      }
+    ]
+  },
+  {
+    "id": "animateFlip",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "flip %ns",
+    "code": "animation: flip %ns ease both;",
+    "inputs": [
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.8"
+      }
+    ]
+  },
+  {
+    "id": "animateCustom",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
     "label": "%s %ns %s %s %m.iter %m.fill",
     "code": "animation: %s %ns %s %s %s %s;",
     "inputs": [
-      { "id": "name",     "type": "dropdown", "default": "fadeIn",
-        "options": ["fadeIn","fadeOut","slideIn","slideOut","slideUp","slideDown","slideLeft","slideRight","zoomIn","zoomOut","bounce","pulse","rotate","shake","flip"] },
-      { "id": "duration", "type": "number", "default": "0.6" },
-      { "id": "easing",   "type": "dropdown", "default": "ease",
-        "options": ["linear","ease","ease-in","ease-out","ease-in-out","spring","bounce-out"] },
-      { "id": "delay",    "type": "text",   "default": "0s" },
-      { "id": "iter",     "type": "dropdown", "default": "1",
-        "options": ["1","2","3","infinite"] },
-      { "id": "fill",     "type": "dropdown", "default": "both",
-        "options": ["none","forwards","backwards","both"] }
-    ] },
-  { "id": "transitionCustom", "category": "animation", "shape": "stack", "color": "#9C27B0",
+      {
+        "id": "name",
+        "type": "dropdown",
+        "default": "fadeIn",
+        "options": [
+          "fadeIn",
+          "fadeOut",
+          "slideIn",
+          "slideOut",
+          "slideUp",
+          "slideDown",
+          "slideLeft",
+          "slideRight",
+          "zoomIn",
+          "zoomOut",
+          "bounce",
+          "pulse",
+          "rotate",
+          "shake",
+          "flip"
+        ]
+      },
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.6"
+      },
+      {
+        "id": "easing",
+        "type": "dropdown",
+        "default": "ease",
+        "options": [
+          "linear",
+          "ease",
+          "ease-in",
+          "ease-out",
+          "ease-in-out",
+          "spring",
+          "bounce-out"
+        ]
+      },
+      {
+        "id": "delay",
+        "type": "text",
+        "default": "0s"
+      },
+      {
+        "id": "iter",
+        "type": "dropdown",
+        "default": "1",
+        "options": [
+          "1",
+          "2",
+          "3",
+          "infinite"
+        ]
+      },
+      {
+        "id": "fill",
+        "type": "dropdown",
+        "default": "both",
+        "options": [
+          "none",
+          "forwards",
+          "backwards",
+          "both"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "transitionCustom",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
     "label": "transition %s %ns %s %s",
     "code": "transition: %s %ns %s %s;",
     "inputs": [
-      { "id": "property", "type": "text",     "default": "all" },
-      { "id": "duration", "type": "number",   "default": "0.3" },
-      { "id": "easing",   "type": "dropdown", "default": "ease",
-        "options": ["linear","ease","ease-in","ease-out","ease-in-out","spring","bounce-out"] },
-      { "id": "delay",    "type": "text",     "default": "0s" }
-    ] },
-  { "id": "hoverScale", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "hover scale %n", "code": "transition: transform 0.2s ease; transform: scale(1);",
-    "inputs": [ { "id": "scale", "type": "number", "default": "1.05" } ] },
-  { "id": "scrollReveal", "category": "animation", "shape": "stack", "color": "#9C27B0",
-    "label": "scroll reveal %s", "code": "animation: %s 0.6s ease both; animation-timeline: view();",
-    "inputs": [ { "id": "name", "type": "dropdown", "default": "fadeIn",
-        "options": ["fadeIn","slideUp","slideDown","slideLeft","slideRight","zoomIn"] } ] },
-
-  { "id": "valueString", "category": "value", "shape": "value", "color": "#7E57C2",
-    "label": "%s", "code": "%s",
-    "inputs": [ { "id": "value", "type": "text", "default": "" } ] },
-  { "id": "valueNumber", "category": "value", "shape": "reporter", "color": "#7E57C2",
-    "label": "%n %m.unit", "code": "%n%m.unit",
+      {
+        "id": "property",
+        "type": "text",
+        "default": "all"
+      },
+      {
+        "id": "duration",
+        "type": "number",
+        "default": "0.3"
+      },
+      {
+        "id": "easing",
+        "type": "dropdown",
+        "default": "ease",
+        "options": [
+          "linear",
+          "ease",
+          "ease-in",
+          "ease-out",
+          "ease-in-out",
+          "spring",
+          "bounce-out"
+        ]
+      },
+      {
+        "id": "delay",
+        "type": "text",
+        "default": "0s"
+      }
+    ]
+  },
+  {
+    "id": "hoverScale",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "hover scale %n",
+    "code": "transition: transform 0.2s ease; transform: scale(1);",
     "inputs": [
-      { "id": "value", "type": "number", "default": "0" },
-      { "id": "unit", "type": "dropdown", "default": "px", "options": ["px","%","rem","em","vw","vh","s","ms",""] }
-    ] },
-  { "id": "valueBoolean", "category": "value", "shape": "boolean", "color": "#7E57C2",
-    "label": "%b", "code": "%b",
-    "inputs": [ { "id": "value", "type": "boolean", "default": "false" } ] },
-  { "id": "valueColor", "category": "value", "shape": "value", "color": "#7E57C2",
-    "label": "%m.color", "code": "%m.color",
-    "inputs": [ { "id": "value", "type": "color", "default": "#000000" } ] },
-  { "id": "stringConcat", "category": "value", "shape": "value", "color": "#7E57C2",
-    "label": "%s + %s", "code": "%s %s",
+      {
+        "id": "scale",
+        "type": "number",
+        "default": "1.05"
+      }
+    ]
+  },
+  {
+    "id": "scrollReveal",
+    "category": "animation",
+    "shape": "stack",
+    "color": "#9C27B0",
+    "label": "scroll reveal %s",
+    "code": "animation: %s 0.6s ease both; animation-timeline: view();",
     "inputs": [
-      { "id": "a", "type": "text", "default": "" },
-      { "id": "b", "type": "text", "default": "" }
-    ] },
-
-  { "id": "ifBlock", "category": "logic", "shape": "condition", "color": "#E91E63",
-    "label": "if %s {", "code": "if (%s) { %m.space }",
-    "inputs": [ { "id": "condition", "type": "text", "default": "true" } ] },
-  { "id": "loop", "category": "logic", "shape": "loop", "color": "#E91E63",
-    "label": "repeat %n {", "code": "for (var i = 0; i < %n; i++) { %m.space }",
-    "inputs": [ { "id": "count", "type": "number", "default": "10" } ] },
-
-  { "id": "asdHtml", "category": "asd", "shape": "stack", "color": "#455A64",
-    "label": "HTML source", "code": "%s",
-    "inputs": [ { "id": "value", "type": "text", "default": "" } ] },
-  { "id": "asdCss", "category": "asd", "shape": "stack", "color": "#455A64",
-    "label": "CSS source", "code": "%s",
-    "inputs": [ { "id": "value", "type": "text", "default": "" } ] },
-  { "id": "asdJs", "category": "asd", "shape": "stack", "color": "#455A64",
-    "label": "JS source", "code": "%s",
-    "inputs": [ { "id": "value", "type": "text", "default": "" } ] },
-  { "id": "asdHead", "category": "asd", "shape": "stack", "color": "#455A64",
-    "label": "Head source", "code": "%s",
-    "inputs": [ { "id": "value", "type": "text", "default": "" } ] },
-  { "id": "asdMeta", "category": "asd", "shape": "stack", "color": "#455A64",
-    "label": "Meta tag", "code": "%s",
-    "inputs": [ { "id": "value", "type": "text", "default": "" } ] },
-
-  { "id": "constDefine", "category": "logic", "shape": "stack", "color": "#E91E63",
-    "label": "const %s = %s", "code": "const %s = %s;",
+      {
+        "id": "name",
+        "type": "dropdown",
+        "default": "fadeIn",
+        "options": [
+          "fadeIn",
+          "slideUp",
+          "slideDown",
+          "slideLeft",
+          "slideRight",
+          "zoomIn"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "valueString",
+    "category": "value",
+    "shape": "value",
+    "color": "#7E57C2",
+    "label": "%s",
+    "code": "%s",
     "inputs": [
-      { "id": "name", "type": "text", "default": "MY_CONST" },
-      { "id": "value", "type": "text", "default": "\"value\"" }
-    ] },
-  { "id": "jsAlert", "category": "logic", "shape": "stack", "color": "#E91E63",
-    "label": "alert %s", "code": "alert(%s);",
-    "inputs": [ { "id": "message", "type": "text", "default": "Hello!" } ] },
-  { "id": "jsConsoleLog", "category": "logic", "shape": "stack", "color": "#E91E63",
-    "label": "console.log %s", "code": "console.log(%s);",
-    "inputs": [ { "id": "message", "type": "text", "default": "log message" } ] },
-  { "id": "jsGetElementById", "category": "logic", "shape": "value", "color": "#E91E63",
-    "label": "get element %s", "code": "document.querySelector('%s')",
-    "inputs": [ { "id": "id", "type": "selector", "default": "#my-id" } ] },
-  { "id": "jsSetInnerHTML", "category": "logic", "shape": "stack", "color": "#E91E63",
-    "label": "set innerHTML of element %s to %s", "code": "document.querySelector('%s').innerHTML = %s;",
-    "inputs": [ { "id": "id", "type": "selector", "default": "#my-id" }, { "id": "html", "type": "text", "default": "\"Hello World\"" } ] },
-  { "id": "jsSetStyle", "category": "logic", "shape": "stack", "color": "#E91E63",
-    "label": "on element %s set style %s to %s", "code": "document.querySelector('%s').style['%s'] = %s;",
-    "inputs": [ { "id": "id", "type": "selector", "default": "#my-id" }, { "id": "property", "type": "text", "default": "color" }, { "id": "value", "type": "text", "default": "\"red\"" } ] },
-  { "id": "jsSetTimeout", "category": "logic", "shape": "cblock", "color": "#E91E63",
-    "label": "run after %n ms", "code": "setTimeout(function() { %m.space }, %n);",
-    "inputs": [ { "id": "n", "type": "number", "default": "1000" } ] },
-  { "id": "jsAddEvent", "category": "logic", "shape": "cblock", "color": "#E91E63",
-    "label": "on element %s add event listener %s", "code": "document.querySelector('%s').addEventListener('%s', function() { %m.space });",
-    "inputs": [ { "id": "id", "type": "selector", "default": "#my-id" }, { "id": "event", "type": "text", "default": "click" } ] },
-  { "id": "jsWindowLocation", "category": "logic", "shape": "stack", "color": "#E91E63",
-    "label": "redirect to url %s", "code": "window.location.href = %s;",
-    "inputs": [ { "id": "url", "type": "text", "default": "https://google.com" } ] }
+      {
+        "id": "value",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "valueNumber",
+    "category": "value",
+    "shape": "reporter",
+    "color": "#7E57C2",
+    "label": "%n %m.unit",
+    "code": "%n%m.unit",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "number",
+        "default": "0"
+      },
+      {
+        "id": "unit",
+        "type": "dropdown",
+        "default": "px",
+        "options": [
+          "px",
+          "%",
+          "rem",
+          "em",
+          "vw",
+          "vh",
+          "s",
+          "ms",
+          ""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "valueBoolean",
+    "category": "value",
+    "shape": "boolean",
+    "color": "#7E57C2",
+    "label": "%b",
+    "code": "%b",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "boolean",
+        "default": "false"
+      }
+    ]
+  },
+  {
+    "id": "valueColor",
+    "category": "value",
+    "shape": "value",
+    "color": "#7E57C2",
+    "label": "%m.color",
+    "code": "%m.color",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "color",
+        "default": "#000000"
+      }
+    ]
+  },
+  {
+    "id": "stringConcat",
+    "category": "value",
+    "shape": "value",
+    "color": "#7E57C2",
+    "label": "%s + %s",
+    "code": "%s %s",
+    "inputs": [
+      {
+        "id": "a",
+        "type": "text",
+        "default": ""
+      },
+      {
+        "id": "b",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "ifBlock",
+    "category": "logic",
+    "shape": "condition",
+    "color": "#E91E63",
+    "label": "if %s {",
+    "code": "if (%s) { %m.space }",
+    "inputs": [
+      {
+        "id": "condition",
+        "type": "text",
+        "default": "true"
+      }
+    ]
+  },
+  {
+    "id": "loop",
+    "category": "logic",
+    "shape": "loop",
+    "color": "#E91E63",
+    "label": "repeat %n {",
+    "code": "for (var i = 0; i < %n; i++) { %m.space }",
+    "inputs": [
+      {
+        "id": "count",
+        "type": "number",
+        "default": "10"
+      }
+    ]
+  },
+  {
+    "id": "asdHtml",
+    "category": "asd",
+    "shape": "stack",
+    "color": "#455A64",
+    "label": "HTML source",
+    "code": "%s",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "asdCss",
+    "category": "asd",
+    "shape": "stack",
+    "color": "#455A64",
+    "label": "CSS source",
+    "code": "%s",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "asdJs",
+    "category": "asd",
+    "shape": "stack",
+    "color": "#455A64",
+    "label": "JS source",
+    "code": "%s",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "asdHead",
+    "category": "asd",
+    "shape": "stack",
+    "color": "#455A64",
+    "label": "Head source",
+    "code": "%s",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "asdMeta",
+    "category": "asd",
+    "shape": "stack",
+    "color": "#455A64",
+    "label": "Meta tag",
+    "code": "%s",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "constDefine",
+    "category": "logic",
+    "shape": "stack",
+    "color": "#E91E63",
+    "label": "const %s = %s",
+    "code": "const %s = %s;",
+    "inputs": [
+      {
+        "id": "name",
+        "type": "text",
+        "default": "MY_CONST"
+      },
+      {
+        "id": "value",
+        "type": "text",
+        "default": "\"value\""
+      }
+    ]
+  },
+  {
+    "id": "jsAlert",
+    "category": "logic",
+    "shape": "stack",
+    "color": "#E91E63",
+    "label": "alert %s",
+    "code": "alert(%s);",
+    "inputs": [
+      {
+        "id": "message",
+        "type": "text",
+        "default": "Hello!"
+      }
+    ]
+  },
+  {
+    "id": "jsConsoleLog",
+    "category": "logic",
+    "shape": "stack",
+    "color": "#E91E63",
+    "label": "console.log %s",
+    "code": "console.log(%s);",
+    "inputs": [
+      {
+        "id": "message",
+        "type": "text",
+        "default": "log message"
+      }
+    ]
+  },
+  {
+    "id": "jsGetElementById",
+    "category": "logic",
+    "shape": "value",
+    "color": "#E91E63",
+    "label": "get element %s",
+    "code": "document.querySelector('%s')",
+    "inputs": [
+      {
+        "id": "id",
+        "type": "selector",
+        "default": "#my-id"
+      }
+    ]
+  },
+  {
+    "id": "jsSetInnerHTML",
+    "category": "logic",
+    "shape": "stack",
+    "color": "#E91E63",
+    "label": "set innerHTML of element %s to %s",
+    "code": "document.querySelector('%s').innerHTML = %s;",
+    "inputs": [
+      {
+        "id": "id",
+        "type": "selector",
+        "default": "#my-id"
+      },
+      {
+        "id": "html",
+        "type": "text",
+        "default": "\"Hello World\""
+      }
+    ]
+  },
+  {
+    "id": "jsSetStyle",
+    "category": "logic",
+    "shape": "stack",
+    "color": "#E91E63",
+    "label": "on element %s set style %s to %s",
+    "code": "document.querySelector('%s').style['%s'] = %s;",
+    "inputs": [
+      {
+        "id": "id",
+        "type": "selector",
+        "default": "#my-id"
+      },
+      {
+        "id": "property",
+        "type": "text",
+        "default": "color"
+      },
+      {
+        "id": "value",
+        "type": "text",
+        "default": "\"red\""
+      }
+    ]
+  },
+  {
+    "id": "jsSetTimeout",
+    "category": "logic",
+    "shape": "cblock",
+    "color": "#E91E63",
+    "label": "run after %n ms",
+    "code": "setTimeout(function() { %m.space }, %n);",
+    "inputs": [
+      {
+        "id": "n",
+        "type": "number",
+        "default": "1000"
+      }
+    ]
+  },
+  {
+    "id": "jsAddEvent",
+    "category": "logic",
+    "shape": "cblock",
+    "color": "#E91E63",
+    "label": "on element %s add event listener %s",
+    "code": "document.querySelector('%s').addEventListener('%s', function() { %m.space });",
+    "inputs": [
+      {
+        "id": "id",
+        "type": "selector",
+        "default": "#my-id"
+      },
+      {
+        "id": "event",
+        "type": "text",
+        "default": "click"
+      }
+    ]
+  },
+  {
+    "id": "jsWindowLocation",
+    "category": "logic",
+    "shape": "stack",
+    "color": "#E91E63",
+    "label": "redirect to url %s",
+    "code": "window.location.href = %s;",
+    "inputs": [
+      {
+        "id": "url",
+        "type": "text",
+        "default": "https://google.com"
+      }
+    ]
+  },
+  {
+    "id": "jsQuerySelector",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#F57C00",
+    "label": "query %s",
+    "code": "document.querySelector('%s')",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".my-element"
+      }
+    ]
+  },
+  {
+    "id": "jsQuerySelectorAll",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#F57C00",
+    "label": "queryAll %s",
+    "code": "document.querySelectorAll('%s')",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".items"
+      }
+    ]
+  },
+  {
+    "id": "jsGetById",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#F57C00",
+    "label": "getElementById %s",
+    "code": "document.getElementById('%s')",
+    "inputs": [
+      {
+        "id": "id",
+        "type": "text",
+        "default": "my-id"
+      }
+    ]
+  },
+  {
+    "id": "jsQueryOnVar",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#F57C00",
+    "label": "%s .querySelector %s",
+    "code": "%s.querySelector('%s')",
+    "inputs": [
+      {
+        "id": "parent",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".child"
+      }
+    ]
+  },
+  {
+    "id": "jsQueryAllOnVar",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#F57C00",
+    "label": "%s .querySelectorAll %s",
+    "code": "%s.querySelectorAll('%s')",
+    "inputs": [
+      {
+        "id": "parent",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".items"
+      }
+    ]
+  },
+  {
+    "id": "jsParentElement",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#F57C00",
+    "label": "%s .parentElement",
+    "code": "%s.parentElement",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      }
+    ]
+  },
+  {
+    "id": "jsClosest",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#F57C00",
+    "label": "%s .closest %s",
+    "code": "%s.closest('%s')",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".wrapper"
+      }
+    ]
+  },
+  {
+    "id": "jsAddClass",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#EF6C00",
+    "label": "%s .addClass %s",
+    "code": "%s.classList.add('%s');",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "cls",
+        "type": "text",
+        "default": "active"
+      }
+    ]
+  },
+  {
+    "id": "jsRemoveClass",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#EF6C00",
+    "label": "%s .removeClass %s",
+    "code": "%s.classList.remove('%s');",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "cls",
+        "type": "text",
+        "default": "active"
+      }
+    ]
+  },
+  {
+    "id": "jsToggleClass",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#EF6C00",
+    "label": "%s .toggleClass %s",
+    "code": "%s.classList.toggle('%s');",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "cls",
+        "type": "text",
+        "default": "active"
+      }
+    ]
+  },
+  {
+    "id": "jsHasClass",
+    "category": "js_dom",
+    "shape": "boolean",
+    "color": "#EF6C00",
+    "label": "%s .hasClass %s",
+    "code": "%s.classList.contains('%s')",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "cls",
+        "type": "text",
+        "default": "active"
+      }
+    ]
+  },
+  {
+    "id": "jsReplaceClass",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#EF6C00",
+    "label": "%s .replaceClass %s → %s",
+    "code": "%s.classList.replace('%s', '%s');",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "old",
+        "type": "text",
+        "default": "inactive"
+      },
+      {
+        "id": "new",
+        "type": "text",
+        "default": "active"
+      }
+    ]
+  },
+  {
+    "id": "jsRemoveClassAll",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#EF6C00",
+    "label": "remove class %s from all %s",
+    "code": "document.querySelectorAll('%s').forEach(el => el.classList.remove('%s'));",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".btn"
+      },
+      {
+        "id": "cls",
+        "type": "text",
+        "default": "active"
+      }
+    ]
+  },
+  {
+    "id": "jsToggleFunctionBlock",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#EF6C00",
+    "label": "define toggleActive for %s in %s",
+    "code": "function toggleActive(selectedEl) { const group = selectedEl.parentElement; group.querySelectorAll('%s').forEach(el => el.classList.remove('%s')); selectedEl.classList.add('%s'); }",
+    "inputs": [
+      {
+        "id": "items",
+        "type": "selector",
+        "default": ".expressive-btn"
+      },
+      {
+        "id": "removeClass",
+        "type": "text",
+        "default": "active"
+      },
+      {
+        "id": "addClass",
+        "type": "text",
+        "default": "active"
+      }
+    ]
+  },
+  {
+    "id": "jsCallToggleActive",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#EF6C00",
+    "label": "call toggleActive on %s",
+    "code": "toggleActive(%s);",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "this"
+      }
+    ]
+  },
+  {
+    "id": "jsSetStyleProp",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#E65100",
+    "label": "%s .style %s = %s",
+    "code": "%s.style['%s'] = '%s';",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "property",
+        "type": "text",
+        "default": "color"
+      },
+      {
+        "id": "value",
+        "type": "text",
+        "default": "red"
+      }
+    ]
+  },
+  {
+    "id": "jsSetStyleColor",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#E65100",
+    "label": "%s .style color = %m.color",
+    "code": "%s.style['color'] = '%m.color';",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "value",
+        "type": "color",
+        "default": "#000000"
+      }
+    ]
+  },
+  {
+    "id": "jsSetStyleBg",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#E65100",
+    "label": "%s .style background = %m.color",
+    "code": "%s.style['background'] = '%m.color';",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "value",
+        "type": "color",
+        "default": "#FFFFFF"
+      }
+    ]
+  },
+  {
+    "id": "jsSetStyleDisplay",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#E65100",
+    "label": "%s .style display = %m.display",
+    "code": "%s.style['display'] = '%m.display';",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "value",
+        "type": "dropdown",
+        "paramType": "display",
+        "default": "block"
+      }
+    ]
+  },
+  {
+    "id": "jsSetStyleOpacity",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#E65100",
+    "label": "%s .style opacity = %n",
+    "code": "%s.style['opacity'] = %n;",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "value",
+        "type": "number",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "jsSetCSSVar",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#E65100",
+    "label": "CSS var --%s = %s on %s",
+    "code": "%s.style.setProperty('--%s', '%s');",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "document.documentElement"
+      },
+      {
+        "id": "varName",
+        "type": "text",
+        "default": "primary-color"
+      },
+      {
+        "id": "value",
+        "type": "text",
+        "default": "#6200ee"
+      }
+    ]
+  },
+  {
+    "id": "jsGetCSSVar",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#E65100",
+    "label": "get CSS var --%s from %s",
+    "code": "getComputedStyle(%s).getPropertyValue('--%s').trim()",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "document.documentElement"
+      },
+      {
+        "id": "varName",
+        "type": "text",
+        "default": "primary-color"
+      }
+    ]
+  },
+  {
+    "id": "jsSetAttribute",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#BF360C",
+    "label": "%s .setAttribute %s = %s",
+    "code": "%s.setAttribute('%s', '%s');",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "attr",
+        "type": "text",
+        "default": "data-id"
+      },
+      {
+        "id": "value",
+        "type": "text",
+        "default": "1"
+      }
+    ]
+  },
+  {
+    "id": "jsGetAttribute",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#BF360C",
+    "label": "%s .getAttribute %s",
+    "code": "%s.getAttribute('%s')",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "attr",
+        "type": "text",
+        "default": "data-id"
+      }
+    ]
+  },
+  {
+    "id": "jsRemoveAttribute",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#BF360C",
+    "label": "%s .removeAttribute %s",
+    "code": "%s.removeAttribute('%s');",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "attr",
+        "type": "text",
+        "default": "disabled"
+      }
+    ]
+  },
+  {
+    "id": "jsSetInnerText",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#BF360C",
+    "label": "%s .innerText = %s",
+    "code": "%s.innerText = %s;",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "text",
+        "type": "text",
+        "default": "\"Hello\""
+      }
+    ]
+  },
+  {
+    "id": "jsSetInnerHTML2",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#BF360C",
+    "label": "%s .innerHTML = %s",
+    "code": "%s.innerHTML = %s;",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "html",
+        "type": "text",
+        "default": "\"<b>Hello</b>\""
+      }
+    ]
+  },
+  {
+    "id": "jsSetValue",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#BF360C",
+    "label": "%s .value = %s",
+    "code": "%s.value = %s;",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "val",
+        "type": "text",
+        "default": "\"\""
+      }
+    ]
+  },
+  {
+    "id": "jsGetValue",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#BF360C",
+    "label": "%s .value",
+    "code": "%s.value",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      }
+    ]
+  },
+  {
+    "id": "jsCreateElement",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#F57C00",
+    "label": "createElement %s",
+    "code": "document.createElement('%s')",
+    "inputs": [
+      {
+        "id": "tag",
+        "type": "text",
+        "default": "div"
+      }
+    ]
+  },
+  {
+    "id": "jsAppendChild",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#F57C00",
+    "label": "%s .appendChild %s",
+    "code": "%s.appendChild(%s);",
+    "inputs": [
+      {
+        "id": "parent",
+        "type": "text",
+        "default": "container"
+      },
+      {
+        "id": "child",
+        "type": "text",
+        "default": "newEl"
+      }
+    ]
+  },
+  {
+    "id": "jsRemoveElement",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#F57C00",
+    "label": "%s .remove()",
+    "code": "%s.remove();",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      }
+    ]
+  },
+  {
+    "id": "jsCloneElement",
+    "category": "js_dom",
+    "shape": "value",
+    "color": "#F57C00",
+    "label": "%s .cloneNode",
+    "code": "%s.cloneNode(true)",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "template"
+      }
+    ]
+  },
+  {
+    "id": "jsInsertHTML",
+    "category": "js_dom",
+    "shape": "stack",
+    "color": "#F57C00",
+    "label": "%s insertAdjacentHTML %s %s",
+    "code": "%s.insertAdjacentHTML('%s', %s);",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "container"
+      },
+      {
+        "id": "position",
+        "type": "dropdown",
+        "default": "beforeend",
+        "options": [
+          "beforebegin",
+          "afterbegin",
+          "beforeend",
+          "afterend"
+        ]
+      },
+      {
+        "id": "html",
+        "type": "text",
+        "default": "\"<div>new</div>\""
+      }
+    ]
+  },
+  {
+    "id": "jsVarLet",
+    "category": "js_logic",
+    "shape": "stack",
+    "color": "#2E7D32",
+    "label": "let %s = %s",
+    "code": "let %s = %s;",
+    "inputs": [
+      {
+        "id": "name",
+        "type": "text",
+        "default": "myVar"
+      },
+      {
+        "id": "value",
+        "type": "text",
+        "default": "null"
+      }
+    ]
+  },
+  {
+    "id": "jsVarConst",
+    "category": "js_logic",
+    "shape": "stack",
+    "color": "#2E7D32",
+    "label": "const %s = %s",
+    "code": "const %s = %s;",
+    "inputs": [
+      {
+        "id": "name",
+        "type": "text",
+        "default": "myConst"
+      },
+      {
+        "id": "value",
+        "type": "text",
+        "default": "\"value\""
+      }
+    ]
+  },
+  {
+    "id": "jsVarAssign",
+    "category": "js_logic",
+    "shape": "stack",
+    "color": "#2E7D32",
+    "label": "set %s = %s",
+    "code": "%s = %s;",
+    "inputs": [
+      {
+        "id": "name",
+        "type": "text",
+        "default": "myVar"
+      },
+      {
+        "id": "value",
+        "type": "text",
+        "default": "\"new value\""
+      }
+    ]
+  },
+  {
+    "id": "jsVarRef",
+    "category": "js_logic",
+    "shape": "value",
+    "color": "#2E7D32",
+    "label": "var %s",
+    "code": "%s",
+    "inputs": [
+      {
+        "id": "name",
+        "type": "text",
+        "default": "myVar"
+      }
+    ]
+  },
+  {
+    "id": "jsFunctionDefine",
+    "category": "js_logic",
+    "shape": "cblock",
+    "color": "#1B5E20",
+    "label": "function %s ( %s ) {",
+    "code": "function %s(%s) { %m.space }",
+    "inputs": [
+      {
+        "id": "name",
+        "type": "text",
+        "default": "myFunction"
+      },
+      {
+        "id": "params",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "jsFunctionArrow",
+    "category": "js_logic",
+    "shape": "cblock",
+    "color": "#1B5E20",
+    "label": "const %s = ( %s ) => {",
+    "code": "const %s = (%s) => { %m.space };",
+    "inputs": [
+      {
+        "id": "name",
+        "type": "text",
+        "default": "myFn"
+      },
+      {
+        "id": "params",
+        "type": "text",
+        "default": "e"
+      }
+    ]
+  },
+  {
+    "id": "jsFunctionCall",
+    "category": "js_logic",
+    "shape": "stack",
+    "color": "#1B5E20",
+    "label": "call %s ( %s )",
+    "code": "%s(%s);",
+    "inputs": [
+      {
+        "id": "name",
+        "type": "text",
+        "default": "myFunction"
+      },
+      {
+        "id": "args",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "jsReturn",
+    "category": "js_logic",
+    "shape": "stack",
+    "color": "#1B5E20",
+    "label": "return %s",
+    "code": "return %s;",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "result"
+      }
+    ]
+  },
+  {
+    "id": "jsAsyncFunction",
+    "category": "js_logic",
+    "shape": "cblock",
+    "color": "#1B5E20",
+    "label": "async function %s ( %s ) {",
+    "code": "async function %s(%s) { %m.space }",
+    "inputs": [
+      {
+        "id": "name",
+        "type": "text",
+        "default": "loadData"
+      },
+      {
+        "id": "params",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
+    "id": "jsAwait",
+    "category": "js_logic",
+    "shape": "value",
+    "color": "#1B5E20",
+    "label": "await %s",
+    "code": "await %s",
+    "inputs": [
+      {
+        "id": "promise",
+        "type": "text",
+        "default": "fetchData()"
+      }
+    ]
+  },
+  {
+    "id": "jsTryCatch",
+    "category": "js_logic",
+    "shape": "cblock",
+    "color": "#1B5E20",
+    "label": "try { } catch %s {",
+    "code": "try { %m.space } catch (%s) { %m.space }",
+    "inputs": [
+      {
+        "id": "err",
+        "type": "text",
+        "default": "err"
+      }
+    ]
+  },
+  {
+    "id": "jsIf",
+    "category": "js_logic",
+    "shape": "cblock",
+    "color": "#880E4F",
+    "label": "if ( %s ) {",
+    "code": "if (%s) { %m.space }",
+    "inputs": [
+      {
+        "id": "condition",
+        "type": "text",
+        "default": "condition"
+      }
+    ]
+  },
+  {
+    "id": "jsIfElse",
+    "category": "js_logic",
+    "shape": "cblock",
+    "color": "#880E4F",
+    "label": "if ( %s ) { } else {",
+    "code": "if (%s) { %m.space } else { %m.space }",
+    "inputs": [
+      {
+        "id": "condition",
+        "type": "text",
+        "default": "condition"
+      }
+    ]
+  },
+  {
+    "id": "jsTernary",
+    "category": "js_logic",
+    "shape": "value",
+    "color": "#880E4F",
+    "label": "%s ? %s : %s",
+    "code": "(%s ? %s : %s)",
+    "inputs": [
+      {
+        "id": "condition",
+        "type": "text",
+        "default": "x > 0"
+      },
+      {
+        "id": "ifTrue",
+        "type": "text",
+        "default": "\"yes\""
+      },
+      {
+        "id": "ifFalse",
+        "type": "text",
+        "default": "\"no\""
+      }
+    ]
+  },
+  {
+    "id": "jsForEach",
+    "category": "js_logic",
+    "shape": "cblock",
+    "color": "#880E4F",
+    "label": "%s .forEach %s =>",
+    "code": "%s.forEach(%s => { %m.space });",
+    "inputs": [
+      {
+        "id": "array",
+        "type": "text",
+        "default": "items"
+      },
+      {
+        "id": "item",
+        "type": "text",
+        "default": "item"
+      }
+    ]
+  },
+  {
+    "id": "jsForOf",
+    "category": "js_logic",
+    "shape": "cblock",
+    "color": "#880E4F",
+    "label": "for %s of %s {",
+    "code": "for (const %s of %s) { %m.space }",
+    "inputs": [
+      {
+        "id": "item",
+        "type": "text",
+        "default": "item"
+      },
+      {
+        "id": "array",
+        "type": "text",
+        "default": "items"
+      }
+    ]
+  },
+  {
+    "id": "jsForLoop",
+    "category": "js_logic",
+    "shape": "cblock",
+    "color": "#880E4F",
+    "label": "for i = 0 to %n {",
+    "code": "for (let i = 0; i < %n; i++) { %m.space }",
+    "inputs": [
+      {
+        "id": "count",
+        "type": "number",
+        "default": "10"
+      }
+    ]
+  },
+  {
+    "id": "jsWhile",
+    "category": "js_logic",
+    "shape": "cblock",
+    "color": "#880E4F",
+    "label": "while ( %s ) {",
+    "code": "while (%s) { %m.space }",
+    "inputs": [
+      {
+        "id": "condition",
+        "type": "text",
+        "default": "i < 10"
+      }
+    ]
+  },
+  {
+    "id": "jsMathRandom",
+    "category": "js_logic",
+    "shape": "value",
+    "color": "#2E7D32",
+    "label": "random 0–%n",
+    "code": "Math.floor(Math.random() * %n)",
+    "inputs": [
+      {
+        "id": "max",
+        "type": "number",
+        "default": "100"
+      }
+    ]
+  },
+  {
+    "id": "jsMathRound",
+    "category": "js_logic",
+    "shape": "value",
+    "color": "#2E7D32",
+    "label": "round %s",
+    "code": "Math.round(%s)",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "x"
+      }
+    ]
+  },
+  {
+    "id": "jsMathClamp",
+    "category": "js_logic",
+    "shape": "value",
+    "color": "#2E7D32",
+    "label": "clamp %s min %n max %n",
+    "code": "Math.min(Math.max(%s, %n), %n)",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "x"
+      },
+      {
+        "id": "min",
+        "type": "number",
+        "default": "0"
+      },
+      {
+        "id": "max",
+        "type": "number",
+        "default": "100"
+      }
+    ]
+  },
+  {
+    "id": "jsStringTemplate",
+    "category": "js_logic",
+    "shape": "value",
+    "color": "#2E7D32",
+    "label": "template ` %s `",
+    "code": "`%s`",
+    "inputs": [
+      {
+        "id": "template",
+        "type": "text",
+        "default": "Hello ${name}"
+      }
+    ]
+  },
+  {
+    "id": "jsParseInt",
+    "category": "js_logic",
+    "shape": "value",
+    "color": "#2E7D32",
+    "label": "parseInt %s",
+    "code": "parseInt(%s, 10)",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "\"42\""
+      }
+    ]
+  },
+  {
+    "id": "jsParseFloat",
+    "category": "js_logic",
+    "shape": "value",
+    "color": "#2E7D32",
+    "label": "parseFloat %s",
+    "code": "parseFloat(%s)",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "\"3.14\""
+      }
+    ]
+  },
+  {
+    "id": "jsTypeOf",
+    "category": "js_logic",
+    "shape": "value",
+    "color": "#2E7D32",
+    "label": "typeof %s",
+    "code": "typeof %s",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "myVar"
+      }
+    ]
+  },
+  {
+    "id": "jsConsoleLog2",
+    "category": "js_logic",
+    "shape": "stack",
+    "color": "#2E7D32",
+    "label": "console.log %s",
+    "code": "console.log(%s);",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "\"debug\""
+      }
+    ]
+  },
+  {
+    "id": "jsConsoleWarn",
+    "category": "js_logic",
+    "shape": "stack",
+    "color": "#2E7D32",
+    "label": "console.warn %s",
+    "code": "console.warn(%s);",
+    "inputs": [
+      {
+        "id": "value",
+        "type": "text",
+        "default": "\"warning\""
+      }
+    ]
+  },
+  {
+    "id": "jsOnClick",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "%s on click {",
+    "code": "document.querySelector('%s').addEventListener('click', function(e) { %m.space });",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".btn"
+      }
+    ]
+  },
+  {
+    "id": "jsOnInput",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "%s on input {",
+    "code": "document.querySelector('%s').addEventListener('input', function(e) { %m.space });",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": "input"
+      }
+    ]
+  },
+  {
+    "id": "jsOnChange",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "%s on change {",
+    "code": "document.querySelector('%s').addEventListener('change', function(e) { %m.space });",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": "select"
+      }
+    ]
+  },
+  {
+    "id": "jsOnSubmit",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "%s on submit {",
+    "code": "document.querySelector('%s').addEventListener('submit', function(e) { e.preventDefault(); %m.space });",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": "form"
+      }
+    ]
+  },
+  {
+    "id": "jsOnKeyDown",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "%s on keydown {",
+    "code": "document.querySelector('%s').addEventListener('keydown', function(e) { %m.space });",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": "input"
+      }
+    ]
+  },
+  {
+    "id": "jsOnMouseEnter",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "%s on mouseenter {",
+    "code": "document.querySelector('%s').addEventListener('mouseenter', function(e) { %m.space });",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".card"
+      }
+    ]
+  },
+  {
+    "id": "jsOnMouseLeave",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "%s on mouseleave {",
+    "code": "document.querySelector('%s').addEventListener('mouseleave', function(e) { %m.space });",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".card"
+      }
+    ]
+  },
+  {
+    "id": "jsOnScroll",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "window on scroll {",
+    "code": "window.addEventListener('scroll', function() { %m.space });",
+    "inputs": []
+  },
+  {
+    "id": "jsOnLoad",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "on DOMContentLoaded {",
+    "code": "document.addEventListener('DOMContentLoaded', function() { %m.space });",
+    "inputs": []
+  },
+  {
+    "id": "jsAddEventOnVar",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "%s addEventListener %s {",
+    "code": "%s.addEventListener('%s', function(e) { %m.space });",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "event",
+        "type": "dropdown",
+        "default": "click",
+        "options": [
+          "click",
+          "input",
+          "change",
+          "submit",
+          "keydown",
+          "keyup",
+          "mouseenter",
+          "mouseleave",
+          "focus",
+          "blur",
+          "scroll",
+          "resize"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "jsRemoveEventOnVar",
+    "category": "js_events",
+    "shape": "stack",
+    "color": "#0277BD",
+    "label": "%s removeEventListener %s %s",
+    "code": "%s.removeEventListener('%s', %s);",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "event",
+        "type": "text",
+        "default": "click"
+      },
+      {
+        "id": "handler",
+        "type": "text",
+        "default": "handleClick"
+      }
+    ]
+  },
+  {
+    "id": "jsDispatchCustomEvent",
+    "category": "js_events",
+    "shape": "stack",
+    "color": "#0277BD",
+    "label": "%s dispatch event %s",
+    "code": "%s.dispatchEvent(new CustomEvent('%s', { bubbles: true }));",
+    "inputs": [
+      {
+        "id": "el",
+        "type": "text",
+        "default": "el"
+      },
+      {
+        "id": "eventName",
+        "type": "text",
+        "default": "my-event"
+      }
+    ]
+  },
+  {
+    "id": "jsStopPropagation",
+    "category": "js_events",
+    "shape": "stack",
+    "color": "#0277BD",
+    "label": "e.stopPropagation()",
+    "code": "e.stopPropagation();",
+    "inputs": []
+  },
+  {
+    "id": "jsPreventDefault",
+    "category": "js_events",
+    "shape": "stack",
+    "color": "#0277BD",
+    "label": "e.preventDefault()",
+    "code": "e.preventDefault();",
+    "inputs": []
+  },
+  {
+    "id": "jsIntersectionObserver",
+    "category": "js_events",
+    "shape": "cblock",
+    "color": "#0277BD",
+    "label": "observe %s on enter {",
+    "code": "new IntersectionObserver((entries) => { entries.forEach(entry => { if (entry.isIntersecting) { %m.space } }); }).observe(document.querySelector('%s'));",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".section"
+      }
+    ]
+  },
+  {
+    "id": "jsObserveAddClass",
+    "category": "js_events",
+    "shape": "stack",
+    "color": "#0277BD",
+    "label": "observe %s → add class %s",
+    "code": "new IntersectionObserver((entries) => { entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('%s'); }); }, { threshold: 0.1 }).observe(document.querySelector('%s'));",
+    "inputs": [
+      {
+        "id": "cls",
+        "type": "text",
+        "default": "visible"
+      },
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": ".reveal"
+      }
+    ]
+  },
+  {
+    "id": "jsSetTimeout2",
+    "category": "js_timing",
+    "shape": "cblock",
+    "color": "#00695C",
+    "label": "after %n ms {",
+    "code": "setTimeout(function() { %m.space }, %n);",
+    "inputs": [
+      {
+        "id": "ms",
+        "type": "number",
+        "default": "1000"
+      }
+    ]
+  },
+  {
+    "id": "jsSetInterval",
+    "category": "js_timing",
+    "shape": "cblock",
+    "color": "#00695C",
+    "label": "every %n ms {",
+    "code": "setInterval(function() { %m.space }, %n);",
+    "inputs": [
+      {
+        "id": "ms",
+        "type": "number",
+        "default": "1000"
+      }
+    ]
+  },
+  {
+    "id": "jsSetTimeoutSave",
+    "category": "js_timing",
+    "shape": "stack",
+    "color": "#00695C",
+    "label": "save timer %s = after %n ms call %s",
+    "code": "const %s = setTimeout(%s, %n);",
+    "inputs": [
+      {
+        "id": "varName",
+        "type": "text",
+        "default": "timer"
+      },
+      {
+        "id": "ms",
+        "type": "number",
+        "default": "1000"
+      },
+      {
+        "id": "fn",
+        "type": "text",
+        "default": "myFunction"
+      }
+    ]
+  },
+  {
+    "id": "jsClearTimeout",
+    "category": "js_timing",
+    "shape": "stack",
+    "color": "#00695C",
+    "label": "clearTimeout %s",
+    "code": "clearTimeout(%s);",
+    "inputs": [
+      {
+        "id": "timer",
+        "type": "text",
+        "default": "timer"
+      }
+    ]
+  },
+  {
+    "id": "jsClearInterval",
+    "category": "js_timing",
+    "shape": "stack",
+    "color": "#00695C",
+    "label": "clearInterval %s",
+    "code": "clearInterval(%s);",
+    "inputs": [
+      {
+        "id": "timer",
+        "type": "text",
+        "default": "timer"
+      }
+    ]
+  },
+  {
+    "id": "jsRequestAnimFrame",
+    "category": "js_timing",
+    "shape": "cblock",
+    "color": "#00695C",
+    "label": "requestAnimationFrame {",
+    "code": "requestAnimationFrame(function() { %m.space });",
+    "inputs": []
+  },
+  {
+    "id": "jsScrollToEl",
+    "category": "js_window",
+    "shape": "stack",
+    "color": "#4527A0",
+    "label": "scrollIntoView %s",
+    "code": "document.querySelector('%s').scrollIntoView({ behavior: 'smooth' });",
+    "inputs": [
+      {
+        "id": "selector",
+        "type": "selector",
+        "default": "#section"
+      }
+    ]
+  },
+  {
+    "id": "jsScrollToTop",
+    "category": "js_window",
+    "shape": "stack",
+    "color": "#4527A0",
+    "label": "scroll to top",
+    "code": "window.scrollTo({ top: 0, behavior: 'smooth' });",
+    "inputs": []
+  },
+  {
+    "id": "jsScrollY",
+    "category": "js_window",
+    "shape": "value",
+    "color": "#4527A0",
+    "label": "window.scrollY",
+    "code": "window.scrollY",
+    "inputs": []
+  },
+  {
+    "id": "jsWindowWidth",
+    "category": "js_window",
+    "shape": "value",
+    "color": "#4527A0",
+    "label": "window.innerWidth",
+    "code": "window.innerWidth",
+    "inputs": []
+  },
+  {
+    "id": "jsWindowHeight",
+    "category": "js_window",
+    "shape": "value",
+    "color": "#4527A0",
+    "label": "window.innerHeight",
+    "code": "window.innerHeight",
+    "inputs": []
+  },
+  {
+    "id": "jsWindowRedirect",
+    "category": "js_window",
+    "shape": "stack",
+    "color": "#4527A0",
+    "label": "redirect to %s",
+    "code": "window.location.href = '%s';",
+    "inputs": [
+      {
+        "id": "url",
+        "type": "text",
+        "default": "https://example.com"
+      }
+    ]
+  },
+  {
+    "id": "jsOpenTab",
+    "category": "js_window",
+    "shape": "stack",
+    "color": "#4527A0",
+    "label": "open new tab %s",
+    "code": "window.open('%s', '_blank');",
+    "inputs": [
+      {
+        "id": "url",
+        "type": "text",
+        "default": "https://example.com"
+      }
+    ]
+  },
+  {
+    "id": "jsLocalStorageSet",
+    "category": "js_window",
+    "shape": "stack",
+    "color": "#4527A0",
+    "label": "localStorage set %s = %s",
+    "code": "localStorage.setItem('%s', %s);",
+    "inputs": [
+      {
+        "id": "key",
+        "type": "text",
+        "default": "theme"
+      },
+      {
+        "id": "value",
+        "type": "text",
+        "default": "\"dark\""
+      }
+    ]
+  },
+  {
+    "id": "jsLocalStorageGet",
+    "category": "js_window",
+    "shape": "value",
+    "color": "#4527A0",
+    "label": "localStorage get %s",
+    "code": "localStorage.getItem('%s')",
+    "inputs": [
+      {
+        "id": "key",
+        "type": "text",
+        "default": "theme"
+      }
+    ]
+  },
+  {
+    "id": "jsLocalStorageRemove",
+    "category": "js_window",
+    "shape": "stack",
+    "color": "#4527A0",
+    "label": "localStorage remove %s",
+    "code": "localStorage.removeItem('%s');",
+    "inputs": [
+      {
+        "id": "key",
+        "type": "text",
+        "default": "theme"
+      }
+    ]
+  },
+  {
+    "id": "jsFetch",
+    "category": "js_window",
+    "shape": "cblock",
+    "color": "#4527A0",
+    "label": "fetch %s then {",
+    "code": "fetch('%s').then(r => r.json()).then(data => { %m.space });",
+    "inputs": [
+      {
+        "id": "url",
+        "type": "text",
+        "default": "https://api.example.com/data"
+      }
+    ]
+  }
 ]

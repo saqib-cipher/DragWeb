@@ -289,7 +289,7 @@ public class TextEditorActivity extends AppCompatActivity {
             if (relativePath != null && (relativePath.toLowerCase().endsWith(".css") || relativePath.toLowerCase().endsWith(".js") || relativePath.toLowerCase().endsWith(".htm") || relativePath.toLowerCase().endsWith(".html"))) {
                 try {
                     if (relativePath.toLowerCase().endsWith(".css")) {
-                        HtmlCssImporter importer = new HtmlCssImporter();
+                        HtmlCssImporter importer = new HtmlCssImporter(TextEditorActivity.this);
                         List<Map<String, Object>> blocks = importer.importCssOnly(content);
                         String blocksJson = new Gson().toJson(blocks);
 
@@ -302,7 +302,7 @@ public class TextEditorActivity extends AppCompatActivity {
 
                         Toast.makeText(this, "CSS rules synced to block editor", Toast.LENGTH_SHORT).show();
                     } else if (relativePath.toLowerCase().endsWith(".js")) {
-                        HtmlCssImporter importer = new HtmlCssImporter();
+                        HtmlCssImporter importer = new HtmlCssImporter(TextEditorActivity.this);
                         List<Map<String, Object>> blocks = importer.importJsOnly(content);
                         String blocksJson = new Gson().toJson(blocks);
 

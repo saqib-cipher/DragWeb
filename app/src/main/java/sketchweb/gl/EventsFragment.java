@@ -213,7 +213,7 @@ public class EventsFragment extends Fragment {
                     return;
                 }
 
-                HtmlCssImporter importer = new HtmlCssImporter();
+                HtmlCssImporter importer = new HtmlCssImporter(getContext());
                 List<Map<String, Object>> blockMaps;
                 if (isJs) {
                     blockMaps = importer.importJsOnly(codeText);
