@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="?attr/colorSurface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Stylesheet Logic"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface" />
+
+        <Button
+            android:id="@+id/btnImportCss"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Import CSS"
+            style="@style/Widget.Material3.Button.TextButton"
+            app:icon="@drawable/icon_export_round"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/btnResetLogic"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Reset"
+            style="@style/Widget.Material3.Button.TextButton"
+            app:icon="@drawable/icon_delete_round" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_events"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingVertical="8dp"
+        android:clipToPadding="false"/>
+
+</LinearLayout>

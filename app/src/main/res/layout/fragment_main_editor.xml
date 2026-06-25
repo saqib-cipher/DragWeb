@@ -1,0 +1,495 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:id="@+id/_main"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent">
+
+	<!-- Main Content Area inside Editor -->
+	<LinearLayout
+		android:id="@+id/main"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:orientation="vertical"
+		android:background="?attr/colorSurface">
+
+		<!-- Top Bar -->
+		<LinearLayout
+			android:id="@+id/topBar"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:padding="2dp"
+			android:gravity="center_vertical"
+			android:orientation="horizontal"
+			android:background="?attr/colorSurfaceContainerHigh">
+			<Button
+				android:id="@+id/btnDrawer"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				style="?attr/materialIconButtonStyle"
+				app:icon="@drawable/icon_widgets_round" />
+
+			<!-- Page selector spinner -->
+			<com.google.android.material.card.MaterialCardView
+				android:id="@+id/page_name_container"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:layout_marginStart="12dp"
+				android:layout_marginEnd="8dp"
+				android:clickable="true"
+				app:cardBackgroundColor="?attr/colorSurfaceContainerLowest"
+				app:contentPadding="8dp">
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="match_parent"
+					android:gravity="center_vertical"
+					android:paddingVertical="2dp">
+
+					<TextView
+						android:id="@+id/page_name"
+						android:layout_width="0dp"
+						android:layout_height="wrap_content"
+						android:layout_marginHorizontal="8dp"
+						android:layout_weight="1"
+						android:singleLine="true"
+						android:text="main"
+						android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+					<ImageView
+						android:layout_width="20dp"
+						android:layout_height="20dp"
+						android:layout_marginEnd="4dp"
+						android:src="@drawable/rounded_arrow_drop_down_24"
+						app:tint="?attr/colorControlNormal" />
+
+				</LinearLayout>
+			</com.google.android.material.card.MaterialCardView>
+
+			<Button
+				android:id="@+id/btnUndo"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:enabled="false"
+				style="?attr/materialIconButtonStyle"
+				app:icon="@drawable/icon_undo_round" />
+			<Button
+				android:id="@+id/btnRedo"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:enabled="false"
+				style="?attr/materialIconButtonStyle"
+				app:icon="@drawable/icon_redo_round" />
+			<Button
+				android:id="@+id/btnTheme"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				style="?attr/materialIconButtonStyle"
+				app:icon="@drawable/icon_theme_round" />
+		</LinearLayout>
+
+		<!-- Main Area: Canvas + Side Panels -->
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="0dp"
+			android:layout_weight="1"
+			android:orientation="horizontal">
+
+			<!-- Center pane: Design Canvas -->
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="match_parent"
+				android:layout_weight="1"
+				android:padding="4dp"
+				android:orientation="vertical">
+				<FrameLayout
+					android:layout_width="match_parent"
+					android:layout_height="match_parent">
+
+					<!-- Canvas area (View tab) -->
+					<androidx.core.widget.NestedScrollView
+						android:id="@+id/vscroll2"
+						android:layout_width="match_parent"
+						android:layout_height="match_parent">
+						<LinearLayout
+							android:id="@+id/screen"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:padding="4dp"
+							android:gravity="center_horizontal|top"
+							android:orientation="vertical"
+							android:background="?attr/colorSurface"
+							android:elevation="2dp"
+							android:minHeight="540dp" />
+					</androidx.core.widget.NestedScrollView>
+
+				</FrameLayout>
+			</LinearLayout>
+
+			<!-- Right side panel: Widgets + Hierarchy stacked -->
+			<com.google.android.material.card.MaterialCardView
+				android:id="@+id/rightPanelCard"
+				android:layout_width="180dp"
+				android:layout_height="match_parent"
+				android:layout_margin="4dp"
+				app:cardCornerRadius="12dp"
+				app:cardElevation="2dp"
+				app:cardBackgroundColor="?attr/colorSurfaceContainer">
+				<LinearLayout
+					android:id="@+id/rightPanel"
+					android:layout_width="match_parent"
+					android:layout_height="match_parent"
+					android:orientation="vertical"
+					android:padding="6dp">
+
+					<!-- Hierarchy section -->
+					<TextView
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:text="Hierarchy"
+						android:textSize="14sp"
+						android:textStyle="bold"
+						android:textColor="?attr/colorOnSurface"
+						android:gravity="center"
+						android:paddingTop="2dp"
+						android:paddingBottom="4dp" />
+
+					<!-- Widget search in hierarchy -->
+					<com.google.android.material.textfield.TextInputLayout
+						android:id="@+id/searchHierarchyLayout"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:hint="Find..."
+						app:boxCornerRadiusTopStart="8dp"
+						app:boxCornerRadiusTopEnd="8dp"
+						app:boxCornerRadiusBottomStart="8dp"
+						app:boxCornerRadiusBottomEnd="8dp"
+						style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense">
+						<com.google.android.material.textfield.TextInputEditText
+							android:id="@+id/etSearchHierarchy"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:textSize="11sp"
+							android:inputType="text"
+							android:maxLines="1" />
+					</com.google.android.material.textfield.TextInputLayout>
+
+					<androidx.recyclerview.widget.RecyclerView
+						android:id="@+id/recyclerviewRightPanel"
+						android:layout_width="match_parent"
+						android:layout_height="0dp"
+						android:layout_weight="1"
+						android:layout_marginTop="4dp"
+						android:clipToPadding="false" />
+
+					<!-- Hidden widget palette elements (moved to drawer only) -->
+					<LinearLayout
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:orientation="horizontal">
+
+						<com.google.android.material.chip.ChipGroup
+							android:id="@+id/chipGroupCategories"
+							android:layout_width="0dp"
+							android:layout_height="0dp"
+							android:visibility="gone">
+
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatAll"
+								style="@style/Widget.Material3.Chip.Filter"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="All"
+								android:visibility="gone" />
+
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatLayout"
+								style="@style/Widget.Material3.Chip.Filter"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Layout"
+								android:visibility="gone" />
+
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatBasic"
+								style="@style/Widget.Material3.Chip.Filter"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Basic"
+								android:visibility="gone" />
+
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatForm"
+								style="@style/Widget.Material3.Chip.Filter"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Form"
+								android:visibility="gone" />
+
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatMedia"
+								style="@style/Widget.Material3.Chip.Filter"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Media"
+								android:visibility="gone" />
+
+							<com.google.android.material.chip.Chip
+								android:id="@+id/chipCatAdvanced"
+								style="@style/Widget.Material3.Chip.Filter"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Adv"
+								android:visibility="gone" />
+
+						</com.google.android.material.chip.ChipGroup>
+					</LinearLayout>
+
+					<androidx.recyclerview.widget.RecyclerView
+						android:id="@+id/recyclerview1"
+						android:layout_width="0dp"
+						android:layout_height="0dp"
+						android:visibility="gone" />
+				</LinearLayout>
+			</com.google.android.material.card.MaterialCardView>
+		</LinearLayout>
+
+		<!-- Bottom Panel: Style Management -->
+		<LinearLayout
+			android:id="@+id/bottomPanel"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="vertical"
+			android:background="?attr/colorSurfaceContainerHigh"
+			android:padding="6dp">
+
+			<!-- Style items horizontal list -->
+			<HorizontalScrollView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:scrollbars="none">
+				<LinearLayout
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:orientation="horizontal">
+					<androidx.recyclerview.widget.RecyclerView
+						android:id="@+id/recyclerview3"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:orientation="horizontal"
+						tools:listitem="@layout/design" />
+				</LinearLayout>
+			</HorizontalScrollView>
+
+			<!-- Tabs: Basic / Styles / Layout -->
+			<com.google.android.material.chip.ChipGroup
+				android:id="@+id/chipGroupBottom"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				app:singleSelection="true"
+				app:selectionRequired="true"
+				android:layout_marginTop="4dp"
+				android:layout_marginBottom="4dp">
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipBasic"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Basic"
+					android:textSize="11sp"
+					style="@style/Widget.Material3.Chip.Filter"
+					android:checked="true" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipLayout"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Layout"
+					android:textSize="11sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+			</com.google.android.material.chip.ChipGroup>
+
+			<!-- Bottom row: Selected widget & actions -->
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="horizontal"
+				android:gravity="center_vertical">
+
+				<Spinner
+					android:id="@+id/widgetSpinner"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_weight="1"
+					android:minHeight="40dp" />
+
+				<TextView
+					android:id="@+id/textview2"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="No selection"
+					android:textSize="11sp"
+					android:visibility="gone" />
+
+				<!-- Copy widget button -->
+				<Button
+					android:id="@+id/btnCopyWidget"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					style="?attr/materialIconButtonStyle"
+					app:icon="@drawable/icon_copy_all_round" />
+
+				<Button
+					android:id="@+id/delete"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:enabled="false"
+					style="?attr/materialIconButtonFilledStyle"
+					app:icon="@drawable/icon_delete_round" />
+
+				<Button
+					android:id="@+id/button4"
+					style="?attr/materialIconButtonFilledStyle"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					app:icon="@drawable/icon_save_round" />
+
+				<Button
+					android:id="@+id/button5"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					style="?attr/materialIconButtonFilledStyle"
+					app:icon="@drawable/icon_web_round" />
+
+				<Button
+					android:id="@+id/btnExport"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					style="?attr/materialIconButtonFilledStyle"
+					app:icon="@drawable/icon_export_round" />
+
+			</LinearLayout>
+		</LinearLayout>
+	</LinearLayout>
+
+	<!-- Left Drawer: Widget Palette + Settings -->
+	<LinearLayout
+		android:id="@+id/drawerContent"
+		android:layout_width="300dp"
+		android:layout_height="match_parent"
+		android:layout_gravity="start"
+		android:fitsSystemWindows="true"
+		android:clickable="true"
+		android:focusable="true"
+		android:background="?attr/colorSurface"
+		android:orientation="vertical">
+
+		<!-- Drawer header -->
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:padding="12dp"
+			android:gravity="center_vertical"
+			android:background="?attr/colorSurfaceContainerHigh">
+			<ImageView
+				android:layout_width="24dp"
+				android:layout_height="24dp"
+				android:src="@drawable/icon_widgets_round"
+				app:tint="?attr/colorPrimary" />
+			<TextView
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Widget Palette"
+				android:textSize="16sp"
+				android:textStyle="bold"
+				android:textColor="?attr/colorOnSurface"
+				android:paddingLeft="8dp" />
+		</LinearLayout>
+
+		<!-- Search bar for widgets -->
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/searchWidgetLayout"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginStart="8dp"
+			android:layout_marginEnd="8dp"
+			android:layout_marginTop="8dp"
+			android:hint="Search widgets..."
+			app:boxCornerRadiusTopStart="8dp"
+			app:boxCornerRadiusTopEnd="8dp"
+			app:boxCornerRadiusBottomStart="8dp"
+			app:boxCornerRadiusBottomEnd="8dp"
+			style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/etSearchWidget"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="13sp"
+				android:inputType="text"
+				android:maxLines="1" />
+		</com.google.android.material.textfield.TextInputLayout>
+
+		<!-- Widget category chips in drawer -->
+		<HorizontalScrollView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:scrollbars="none"
+			android:layout_marginTop="4dp"
+			android:paddingLeft="8dp"
+			android:paddingRight="8dp">
+			<com.google.android.material.chip.ChipGroup
+				android:id="@+id/chipGroupDrawerCategories"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				app:singleSelection="true"
+				app:singleLine="true">
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipDrawerAll"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="All"
+					android:textSize="11sp"
+					android:checked="true"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipDrawerLayout"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Layout"
+					android:textSize="11sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipDrawerBasic"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Basic"
+					android:textSize="11sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipDrawerForm"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Form"
+					android:textSize="11sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+			</com.google.android.material.chip.ChipGroup>
+		</HorizontalScrollView>
+
+		<!-- Widget list in drawer (vertical) with bigger text -->
+		<androidx.recyclerview.widget.RecyclerView
+			android:id="@+id/rvDrawerWidgets"
+			android:layout_width="match_parent"
+			android:layout_height="0dp"
+			android:layout_weight="1"
+			android:layout_marginTop="4dp"
+			android:paddingLeft="8dp"
+			android:paddingRight="8dp"
+			android:clipToPadding="false"
+			tools:listitem="@layout/widgets" />
+
+	</LinearLayout>
+
+</androidx.drawerlayout.widget.DrawerLayout>

@@ -13,7 +13,7 @@
 		android:layout_height="wrap_content"
 		android:layout_weight="1"
 		android:hint="onclick"
-		style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+		style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 		<com.google.android.material.textfield.TextInputEditText
 			android:id="@+id/etEventValue"
 			android:layout_width="match_parent"

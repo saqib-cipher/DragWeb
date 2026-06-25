@@ -112,26 +112,52 @@ final class BlockChipFactory {
     private TextView textChip(ChipInput input, String value, int baseColor,
                               OnChipValueChanged listener, boolean numeric, boolean isAsd) {
         String display = value.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : value;
-        TextView chip = baseChip(baseColor, display);
+        String shortDisplay = display;
+        if (display.length() > 15) {
+            shortDisplay = display.substring(0, 12) + "...";
+        }
+        TextView chip = baseChip(baseColor, shortDisplay);
+        chip.setTag(value);
         chip.setOnClickListener(v -> {
-            String currentText = chip.getText().toString();
-            String currentVal = (currentText.equals("...") || (input.placeholder != null && currentText.equals(input.placeholder))) ? "" : currentText;
+            String currentVal = (String) chip.getTag();
+            if (currentVal == null) currentVal = "";
             if (isAsd) {
                 UniversalDialog.multilineInput(context,
                     input.id != null ? input.id : "Edit ASD",
                     input.placeholder != null ? input.placeholder : "Enter code...",
                     currentVal,
                     nv -> {
-                        chip.setText(nv.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : nv);
+                        String newDisplay = nv.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : nv;
+                        String newShortDisplay = newDisplay;
+                        if (newDisplay.length() > 15) {
+                            newShortDisplay = newDisplay.substring(0, 12) + "...";
+                        }
+                        chip.setText(newShortDisplay);
+                        chip.setTag(nv);
                         if (listener != null) listener.onChanged(input.id, nv);
                     });
             } else {
+                boolean isMultiline = !numeric && (input.id != null && (
+                    input.id.toLowerCase().contains("text") || 
+                    input.id.toLowerCase().contains("content") || 
+                    input.id.toLowerCase().contains("value") || 
+                    input.id.toLowerCase().contains("placeholder") || 
+                    input.id.toLowerCase().contains("code") || 
+                    input.id.toLowerCase().contains("desc")
+                ));
                 new UniversalM3Dialog(context)
                     .setTitle(input.id != null ? input.id : "Edit")
                     .setHint(input.placeholder != null ? input.placeholder : "Value")
                     .setInitialValue(currentVal)
+                    .setMultiline(isMultiline)
                     .showTextInput(nv -> {
-                        chip.setText(nv.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : nv);
+                        String newDisplay = nv.isEmpty() ? (input.placeholder != null ? input.placeholder : "...") : nv;
+                        String newShortDisplay = newDisplay;
+                        if (newDisplay.length() > 15) {
+                            newShortDisplay = newDisplay.substring(0, 12) + "...";
+                        }
+                        chip.setText(newShortDisplay);
+                        chip.setTag(nv);
                         if (listener != null) listener.onChanged(input.id, nv);
                     });
             }

@@ -4,7 +4,7 @@
 	<string name="project_name" translatable="false">Project Name</string>
 	<string name="project_description" translatable="false">Description</string>
 	<string name="create" translatable="false">Create</string>
-	<string name="cancel" translatable="false">Cancel</string>
+	<string name="common_word_cancel" translatable="false">Cancel</string>
 	<string name="delete" translatable="false">Delete</string>
 	<string name="export_project" translatable="false">Export</string>
 	<string name="save" translatable="false">Save</string>
@@ -35,4 +35,7 @@
 	<string name="backup_project" translatable="false">Backup Project</string>
 	<string name="app_subtitle" translatable="false">No-Code Web Builder</string>
     <string name="add_new">Add New</string>
+    <string name="common_word_save">Save</string>
+    <string name="common_word_view">View</string>
+    <string name="common_word_custom_view">Custom View</string>
 </resources>

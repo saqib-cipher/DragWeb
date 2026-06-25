@@ -151,7 +151,8 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
     private void loadLogicFromDisk() {
         try {
             File dir = new File(getFilesDir(), "projects");
-            File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+            String safePageName = pageName.replace("/", "_").replace(".", "_");
+            File logicFile = new File(dir, projectId + "_" + safePageName + ".logic");
             if (logicFile.exists()) {
                 String json = FileUtil.readFile(logicFile.getAbsolutePath());
                 if (json != null && !json.isEmpty()) logicBlockManager.fromJson(json);
@@ -596,7 +597,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         TextInputLayout til = new TextInputLayout(this);
         til.setHint(hint);
         til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        til.setBoxCornerRadii(dp(8), dp(8), dp(8), dp(8));
+        til.setBoxCornerRadii(dp(14), dp(14), dp(14), dp(14));
         til.addView(new TextInputEditText(this));
         return til;
     }
@@ -675,60 +676,37 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         updateUndoRedoMenuState();
     }
 
-    private void cleanUselessBlocks() {
-        if (logicBlockManager == null) return;
-        List<LogicBlockManager.LogicBlock> allBlocks = logicBlockManager.getBlocks();
-        if (allBlocks.isEmpty()) return;
-
-        // Find the first root block (a block with no parent)
-        LogicBlockManager.LogicBlock firstRoot = null;
-        for (LogicBlockManager.LogicBlock b : allBlocks) {
-            if (b.parentBlockId == null || b.parentBlockId.isEmpty()) {
-                firstRoot = b;
-                break;
-            }
-        }
-
-        if (firstRoot == null) {
-            allBlocks.clear();
-            return;
-        }
-
-        // Collect all descendants of the first root block
-        List<LogicBlockManager.LogicBlock> workingBlocks = new ArrayList<>();
-        workingBlocks.add(firstRoot);
-
-        boolean addedAny = true;
-        while (addedAny) {
-            addedAny = false;
-            for (LogicBlockManager.LogicBlock b : allBlocks) {
-                if (b.parentBlockId != null && !b.parentBlockId.isEmpty()) {
-                    boolean parentInWorking = false;
-                    for (LogicBlockManager.LogicBlock wb : workingBlocks) {
-                        if (wb.id.equals(b.parentBlockId)) {
-                            parentInWorking = true;
-                            break;
-                        }
-                    }
-                    if (parentInWorking && !workingBlocks.contains(b)) {
-                        workingBlocks.add(b);
-                        addedAny = true;
-                    }
-                }
-            }
-        }
-
-        allBlocks.clear();
-        allBlocks.addAll(workingBlocks);
-    }
 
     private void saveAndFinish() {
-        cleanUselessBlocks();
         try {
             File dir = new File(getFilesDir(), "projects");
             if (!dir.exists()) dir.mkdirs();
-            File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+            String safePageName = pageName.replace("/", "_").replace(".", "_");
+            File logicFile = new File(dir, projectId + "_" + safePageName + ".logic");
             FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
+
+            // Compile the logic blocks and save compiled stylesheet to external assets
+            if (pageName != null && pageName.endsWith(".css")) {
+                String baseRules = logicBlockManager.generateBaseCssRules();
+                String pseudoRules = logicBlockManager.generateCssPseudoRules();
+                String asdCss = logicBlockManager.generateAsdSource("css");
+                StringBuilder compiledCss = new StringBuilder();
+                compiledCss.append("/* Compiled by DragWeb */\n\n");
+                if (baseRules != null && !baseRules.trim().isEmpty()) {
+                    compiledCss.append(baseRules).append("\n");
+                }
+                if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
+                    compiledCss.append(pseudoRules).append("\n");
+                }
+                if (asdCss != null && !asdCss.trim().isEmpty()) {
+                    compiledCss.append(asdCss).append("\n");
+                }
+
+                File targetStyleFile = new File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
+                    + "/.dragweb/projects/" + projectId + "/assets/" + pageName);
+                targetStyleFile.getParentFile().mkdirs();
+                FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCss.toString());
+            }
         } catch (Exception ignored) {}
         setResult(RESULT_OK);
         finish();

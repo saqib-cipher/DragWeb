@@ -140,6 +140,12 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         refreshLists();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshLists();
+    }
+
     private void initViews() {
         toolbar = findViewById(R.id.toolbarManager);
         tabLayout = findViewById(R.id.tabLayoutManager);
@@ -196,11 +202,13 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         });
 
         fabAddCustom.setOnClickListener(v -> {
+            android.content.Intent intent = new android.content.Intent(ManageBlocksWidgetsActivity.this, BlockWidgetEditorActivity.class);
             if (activeTab == 0) {
-                showBlockEditDialog(null);
+                intent.putExtra("extra_type", "block");
             } else {
-                showWidgetEditDialog(null);
+                intent.putExtra("extra_type", "widget");
             }
+            startActivity(intent);
         });
     }
 
@@ -343,7 +351,12 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
 
             // Edit / Customize
             String editLabel = def.isCustom ? "Edit" : "Customize";
-            MaterialButton btnEdit = createM3Button(editLabel, R.drawable.icon_edit_round, themePrimaryColor, v -> showBlockEditDialog(def));
+            MaterialButton btnEdit = createM3Button(editLabel, R.drawable.icon_edit_round, themePrimaryColor, v -> {
+                android.content.Intent intent = new android.content.Intent(ManageBlocksWidgetsActivity.this, BlockWidgetEditorActivity.class);
+                intent.putExtra("extra_type", "block");
+                intent.putExtra("extra_id", def.id);
+                startActivity(intent);
+            });
             holder.layoutActions.addView(btnEdit);
 
             // Duplicate
@@ -463,7 +476,12 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
             holder.layoutActions.removeAllViews();
 
             // Edit
-            MaterialButton btnEdit = createM3Button("Edit", R.drawable.icon_edit_round, themePrimaryColor, v -> showWidgetEditDialog(widget));
+            MaterialButton btnEdit = createM3Button("Edit", R.drawable.icon_edit_round, themePrimaryColor, v -> {
+                android.content.Intent intent = new android.content.Intent(ManageBlocksWidgetsActivity.this, BlockWidgetEditorActivity.class);
+                intent.putExtra("extra_type", "widget");
+                intent.putExtra("extra_id", name);
+                startActivity(intent);
+            });
             holder.layoutActions.addView(btnEdit);
 
             // Duplicate
@@ -511,116 +529,6 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Custom Block Create / Edit Dialog
-    // -------------------------------------------------------------------------
-    private void showBlockEditDialog(final ManageBlocksWidgets.CustomBlockDef editDef) {
-        final boolean isEdit = (editDef != null);
-        
-        ScrollView sv = new ScrollView(this);
-        LinearLayout form = new LinearLayout(this);
-        form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(dpToPx(this, 24), dpToPx(this, 24), dpToPx(this, 24), dpToPx(this, 12));
-        sv.addView(form);
-
-        // Block ID
-        final TextInputLayout tilId = createOutlinedInputLayout("Block ID (unique alphanumeric)");
-        final TextInputEditText etId = new TextInputEditText(this);
-        etId.setSingleLine(true);
-        applyOutlinedFieldStyling(etId);
-        if (isEdit) {
-            etId.setText(editDef.id);
-            etId.setEnabled(false); // ID is final in edit
-        }
-        tilId.addView(etId);
-        form.addView(tilId);
-
-        // Category Spinner
-        final Spinner spinnerCategory = new Spinner(this);
-        final String[] categories = {"html", "css", "logic", "animation", "asd", "value"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categories);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerCategory.setAdapter(adapter);
-        if (isEdit && editDef.category != null) {
-            for (int i = 0; i < categories.length; i++) {
-                if (categories[i].equalsIgnoreCase(editDef.category)) {
-                    spinnerCategory.setSelection(i);
-                    break;
-                }
-            }
-        }
-        form.addView(createSpinnerWrapper(spinnerCategory, "Category"));
-
-        // Display text
-        final TextInputLayout tilDisplay = createOutlinedInputLayout("Display Text (e.g. Set tag %s class to %s)");
-        LinearLayout.LayoutParams displayLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        displayLp.setMargins(0, dpToPx(this, 16f), 0, 0);
-        tilDisplay.setLayoutParams(displayLp);
-        final TextInputEditText etDisplay = new TextInputEditText(this);
-        etDisplay.setSingleLine(true);
-        applyOutlinedFieldStyling(etDisplay);
-        if (isEdit) {
-            etDisplay.setText(editDef.display);
-        }
-        tilDisplay.addView(etDisplay);
-        form.addView(tilDisplay);
-
-        // Template text
-        final TextInputLayout tilTemplate = createOutlinedInputLayout("HTML/CSS Template (e.g. %1$s{class:%2$s;})");
-        LinearLayout.LayoutParams templateLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        templateLp.setMargins(0, dpToPx(this, 16f), 0, 0);
-        tilTemplate.setLayoutParams(templateLp);
-        final TextInputEditText etTemplate = new TextInputEditText(this);
-        etTemplate.setSingleLine(false);
-        etTemplate.setMinLines(3);
-        applyOutlinedFieldStyling(etTemplate);
-        if (isEdit) {
-            etTemplate.setText(editDef.template);
-        }
-        tilTemplate.addView(etTemplate);
-        form.addView(tilTemplate);
-
-        new MaterialAlertDialogBuilder(this)
-            .setTitle(isEdit ? "Edit Custom Block" : "Create Custom Block")
-            .setView(sv)
-            .setBackgroundInsetStart(dpToPx(this, 24))
-            .setBackgroundInsetEnd(dpToPx(this, 24))
-            .setPositiveButton("Save", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    String id = etId.getText().toString().trim();
-                    String display = etDisplay.getText().toString().trim();
-                    String template = etTemplate.getText().toString().trim();
-                    String category = spinnerCategory.getSelectedItem().toString();
-
-                    if (id.isEmpty() || display.isEmpty() || template.isEmpty()) {
-                        Toast.makeText(ManageBlocksWidgetsActivity.this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    // If creating new, verify unique ID
-                    if (!isEdit) {
-                        if (customBlockManager.findDefinition(id) != null) {
-                            Toast.makeText(ManageBlocksWidgetsActivity.this, "Block ID already exists", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                    }
-
-                    ManageBlocksWidgets.CustomBlockDef def = new ManageBlocksWidgets.CustomBlockDef();
-                    def.id = id;
-                    def.display = display;
-                    def.template = template;
-                    def.category = category;
-
-                    customBlockManager.addDefinition(def);
-                    Toast.makeText(ManageBlocksWidgetsActivity.this, "Block saved", Toast.LENGTH_SHORT).show();
-                    refreshBlocksList();
-                }
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
-    }
-
     private void showBlockDeleteConfirmation(final ManageBlocksWidgets.CustomBlockDef def) {
         new MaterialAlertDialogBuilder(this)
             .setTitle("Delete Custom Block")
@@ -633,186 +541,6 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
                     customBlockManager.removeDefinition(def.id);
                     Toast.makeText(ManageBlocksWidgetsActivity.this, "Block deleted", Toast.LENGTH_SHORT).show();
                     refreshBlocksList();
-                }
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
-    }
-
-    // -------------------------------------------------------------------------
-    // Custom Widget Create / Edit Dialog
-    // -------------------------------------------------------------------------
-    private void showWidgetEditDialog(final HashMap<String, Object> editWidget) {
-        final boolean isEdit = (editWidget != null);
-
-        ScrollView sv = new ScrollView(this);
-        LinearLayout form = new LinearLayout(this);
-        form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(dpToPx(this, 24), dpToPx(this, 24), dpToPx(this, 24), dpToPx(this, 12f));
-        sv.addView(form);
-
-        // Widget Name
-        final TextInputLayout tilName = createOutlinedInputLayout("Widget Name (unique, e.g. CustomCard)");
-        final TextInputEditText etName = new TextInputEditText(this);
-        etName.setSingleLine(true);
-        applyOutlinedFieldStyling(etName);
-        if (isEdit) {
-            etName.setText(editWidget.get("name").toString());
-            etName.setEnabled(false); // Name is final in edit
-        }
-        tilName.addView(etName);
-        form.addView(tilName);
-
-        // HTML Tag Spinner
-        final Spinner spinnerTag = new Spinner(this);
-        final String[] tags = {"button", "div", "p", "h1", "h2", "h3", "img", "input", "textarea", "a", "span", "label", "select"};
-        ArrayAdapter<String> tagAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tags);
-        tagAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerTag.setAdapter(tagAdapter);
-        if (isEdit && editWidget.containsKey("tag")) {
-            String currentTag = editWidget.get("tag").toString();
-            for (int i = 0; i < tags.length; i++) {
-                if (tags[i].equalsIgnoreCase(currentTag)) {
-                    spinnerTag.setSelection(i);
-                    break;
-                }
-            }
-        }
-        form.addView(createSpinnerWrapper(spinnerTag, "HTML Tag"));
-
-        // Category Spinner
-        final Spinner spinnerCat = new Spinner(this);
-        final String[] widgetCats = {"basic", "layout", "form"};
-        ArrayAdapter<String> catAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, widgetCats);
-        catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerCat.setAdapter(catAdapter);
-        if (isEdit && editWidget.containsKey("category")) {
-            String currentCat = editWidget.get("category").toString();
-            for (int i = 0; i < widgetCats.length; i++) {
-                if (widgetCats[i].equalsIgnoreCase(currentCat)) {
-                    spinnerCat.setSelection(i);
-                    break;
-                }
-            }
-        }
-        form.addView(createSpinnerWrapper(spinnerCat, "Category"));
-
-        // Hex Color Code
-        final TextInputLayout tilColor = createOutlinedInputLayout("Palette Hex Color (e.g. #FFBB33)");
-        LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        colLp.setMargins(0, dpToPx(this, 16f), 0, 0);
-        tilColor.setLayoutParams(colLp);
-        final TextInputEditText etColor = new TextInputEditText(this);
-        etColor.setSingleLine(true);
-        applyOutlinedFieldStyling(etColor);
-        etColor.setText(isEdit && editWidget.containsKey("color") ? editWidget.get("color").toString() : "#FFBB33");
-        tilColor.addView(etColor);
-        form.addView(tilColor);
-
-        // Function JSON
-        final TextInputLayout tilFunction = createOutlinedInputLayout("Function Properties JSON");
-        LinearLayout.LayoutParams funcLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        funcLp.setMargins(0, dpToPx(this, 16f), 0, 0);
-        tilFunction.setLayoutParams(funcLp);
-        final TextInputEditText etFunction = new TextInputEditText(this);
-        etFunction.setSingleLine(false);
-        etFunction.setMinLines(6);
-        etFunction.setTypeface(Typeface.MONOSPACE);
-        applyOutlinedFieldStyling(etFunction);
-        
-        if (isEdit) {
-            Object funcObj = editWidget.get("function");
-            String funcJson = funcObj != null ? new GsonBuilder().setPrettyPrinting().create().toJson(funcObj) : "{}";
-            etFunction.setText(funcJson);
-        } else {
-            // Seed a default template
-            etFunction.setText("{\n  \"text\": \"Click Me\",\n  \"style\": {\n    \"padding\": \"10px 20px\",\n    \"backgroundColor\": \"#FFBB33\"\n  }\n}");
-        }
-        tilFunction.addView(etFunction);
-        form.addView(tilFunction);
-
-        // Dynamic seeding template depending on spinner selection
-        if (!isEdit) {
-            spinnerTag.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    String selectedTag = tags[position];
-                    String template = "{\n  \"style\": {}\n}";
-                    if ("button".equals(selectedTag)) {
-                        template = "{\n  \"text\": \"Click Me\",\n  \"style\": {\n    \"padding\": \"10px 20px\",\n    \"backgroundColor\": \"#FFBB33\"\n  }\n}";
-                    } else if ("p".equals(selectedTag) || "h1".equals(selectedTag) || "h2".equals(selectedTag) || "h3".equals(selectedTag) || "span".equals(selectedTag) || "label".equals(selectedTag)) {
-                        template = "{\n  \"text\": \"Hello World\",\n  \"style\": {\n    \"fontSize\": \"16px\"\n  }\n}";
-                    } else if ("img".equals(selectedTag)) {
-                        template = "{\n  \"src\": \"android.R.drawable.ic_menu_gallery\",\n  \"style\": {\n    \"width\": \"100%\"\n  }\n}";
-                    } else if ("input".equals(selectedTag) || "textarea".equals(selectedTag)) {
-                        template = "{\n  \"type\": \"text\",\n  \"placeholder\": \"Enter text...\",\n  \"style\": {\n    \"width\": \"100%\",\n    \"padding\": \"8px\"\n  }\n}";
-                    } else if ("div".equals(selectedTag)) {
-                        template = "{\n  \"style\": {\n    \"padding\": \"16px\",\n    \"backgroundColor\": \"#F5F5F5\"\n  }\n}";
-                    } else if ("a".equals(selectedTag)) {
-                        template = "{\n  \"text\": \"Visit Link\",\n  \"href\": \"https://\",\n  \"target\": \"_blank\",\n  \"style\": {}\n}";
-                    }
-                    etFunction.setText(template);
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {}
-            });
-        }
-
-        new MaterialAlertDialogBuilder(this)
-            .setTitle(isEdit ? "Edit Custom Widget" : "Create Custom Widget")
-            .setView(sv)
-            .setBackgroundInsetStart(dpToPx(this, 24))
-            .setBackgroundInsetEnd(dpToPx(this, 24))
-            .setPositiveButton("Save", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    String name = etName.getText().toString().trim();
-                    String tag = spinnerTag.getSelectedItem().toString();
-                    String category = spinnerCat.getSelectedItem().toString();
-                    String color = etColor.getText().toString().trim();
-                    String funcJson = etFunction.getText().toString().trim();
-
-                    if (name.isEmpty() || color.isEmpty() || funcJson.isEmpty()) {
-                        Toast.makeText(ManageBlocksWidgetsActivity.this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    // Validate hex color format
-                    if (!color.startsWith("#") || (color.length() != 4 && color.length() != 7 && color.length() != 9)) {
-                        Toast.makeText(ManageBlocksWidgetsActivity.this, "Invalid hex color code (e.g. #FFBB33)", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    // Parse function JSON
-                    HashMap<String, Object> functionMap;
-                    try {
-                        functionMap = new Gson().fromJson(funcJson, new TypeToken<HashMap<String, Object>>(){}.getType());
-                    } catch (Exception e) {
-                        Toast.makeText(ManageBlocksWidgetsActivity.this, "Invalid JSON format: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    // Verify uniqueness of name when creating new
-                    if (!isEdit) {
-                        for (HashMap<String, Object> w : widgetRegistry.getAllWidgets()) {
-                            if (name.equalsIgnoreCase(w.get("name").toString())) {
-                                Toast.makeText(ManageBlocksWidgetsActivity.this, "Widget name already exists", Toast.LENGTH_SHORT).show();
-                                return;
-                            }
-                        }
-                    }
-
-                    HashMap<String, Object> newWidget = new HashMap<>();
-                    newWidget.put("name", name);
-                    newWidget.put("tag", tag);
-                    newWidget.put("category", category);
-                    newWidget.put("color", color);
-                    newWidget.put("function", functionMap);
-
-                    widgetRegistry.updateOrAddWidget(newWidget);
-                    Toast.makeText(ManageBlocksWidgetsActivity.this, "Widget saved", Toast.LENGTH_SHORT).show();
-                    refreshWidgetsList();
                 }
             })
             .setNegativeButton("Cancel", null)
@@ -1224,8 +952,8 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         TextInputLayout til = new TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle);
         til.setHint(hint);
         til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        int dp12 = dpToPx(this, 12f);
-        til.setBoxCornerRadii(dp12, dp12, dp12, dp12);
+        int dp14 = dpToPx(this, 14f);
+        til.setBoxCornerRadii(dp14, dp14, dp14, dp14);
         til.setEndIconMode(TextInputLayout.END_ICON_CLEAR_TEXT);
         return til;
     }

@@ -3,6 +3,7 @@ package sketchweb.gl;
 import android.content.Context;
 import android.util.TypedValue;
 import android.view.View;
+import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ArrayAdapter;
@@ -35,6 +36,7 @@ public final class UniversalM3Dialog {
     private String[] options;
     private String[] units;
     private List<String> suggestions;
+    private boolean multiline = false;
 
     public UniversalM3Dialog(Context context) {
         this.context = context;
@@ -46,6 +48,7 @@ public final class UniversalM3Dialog {
     public UniversalM3Dialog setOptions(String[] options) { this.options = options; return this; }
     public UniversalM3Dialog setUnits(String[] units) { this.units = units; return this; }
     public UniversalM3Dialog setSuggestions(List<String> suggestions) { this.suggestions = suggestions; return this; }
+    public UniversalM3Dialog setMultiline(boolean multiline) { this.multiline = multiline; return this; }
 
     public void showTextInput(OnText cb) {
         showCoreDialog(null, initial, hint != null ? hint : "Value", cb);
@@ -644,18 +647,26 @@ public final class UniversalM3Dialog {
         TextInputLayout til = new TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
         til.setHint(hint);
         til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        til.setBoxCornerRadii(dp(12), dp(12), dp(12), dp(12));
+        til.setBoxCornerRadii(dp(14), dp(14), dp(14), dp(14));
         til.setEndIconMode(TextInputLayout.END_ICON_CLEAR_TEXT);
         return til;
     }
 
     private MaterialAutoCompleteTextView createEditor(TextInputLayout til, String value, List<String> presets) {
         MaterialAutoCompleteTextView edit = new MaterialAutoCompleteTextView(til.getContext());
-        edit.setSingleLine(true);
+        if (multiline) {
+            edit.setSingleLine(false);
+            edit.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+            edit.setMinLines(8);
+            edit.setMaxLines(15);
+            edit.setGravity(Gravity.TOP | Gravity.START);
+        } else {
+            edit.setSingleLine(true);
+        }
         edit.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         edit.setText(value);
         edit.setThreshold(1);
-        edit.setMinimumHeight(dp(56));
+        edit.setMinimumHeight(dp(multiline ? 160 : 56));
         int hp = dp(16), vp = dp(12);
         edit.setPadding(hp, vp, hp, vp);
         if (presets != null) edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, presets));

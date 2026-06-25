@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="?attr/colorSurface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="File Explorer"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface" />
+
+        <Button
+            android:id="@+id/btnImportImage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:icon="@drawable/file_open_24px"
+            android:textSize="12sp"
+            style="?attr/materialIconButtonStyle" />
+
+        <Button
+            android:id="@+id/btnNewFolder"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:icon="@drawable/create_new_folder_24px"
+            android:textSize="12sp"
+            android:layout_marginStart="4dp"
+            style="?attr/materialIconButtonStyle" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvAssetsPath"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="/assets/"
+        android:textSize="13sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:paddingBottom="8dp"
+        android:singleLine="true"
+        android:ellipsize="start" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvAssets"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="4dp"
+        android:clipToPadding="false" />
+
+</LinearLayout>

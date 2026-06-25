@@ -69,8 +69,8 @@ public final class UniversalDialog {
             edit.setInputType(InputType.TYPE_CLASS_TEXT
                 | InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-            edit.setMinLines(4);
-            edit.setMaxLines(12);
+            edit.setMinLines(8);
+            edit.setMaxLines(15);
             edit.setGravity(Gravity.TOP | Gravity.START);
             applyOutlinedFieldStyling(ctx, edit);
         } else {
@@ -345,8 +345,8 @@ public final class UniversalDialog {
         TextInputLayout til = new TextInputLayout(ctx, null, com.google.android.material.R.attr.textInputOutlinedStyle);
         til.setHint(hint);
         til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        int dp12 = dp(ctx, 12);
-        til.setBoxCornerRadii(dp12, dp12, dp12, dp12);
+        int dp14 = dp(ctx, 14);
+        til.setBoxCornerRadii(dp14, dp14, dp14, dp14);
         return til;
     }
 

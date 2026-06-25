@@ -241,23 +241,21 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         if (selectionListener != null) selectionListener.onSelectionChanged(selectedPaths.size());
     }
 
+    @Override
+    public int getItemViewType(int position) {
+        return viewMode;
+    }
+
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        if (viewMode == VIEW_MODE_GRID) {
-            LinearLayout root = new LinearLayout(context);
-            root.setOrientation(LinearLayout.VERTICAL);
-            root.setPadding(dp(8), dp(8), dp(8), dp(8));
-            return new ViewHolder(root);
+        if (viewType == VIEW_MODE_GRID) {
+            View v = android.view.LayoutInflater.from(context).inflate(R.layout.item_asset_grid, parent, false);
+            return new ViewHolder(v, VIEW_MODE_GRID);
+        } else {
+            View v = android.view.LayoutInflater.from(context).inflate(R.layout.item_asset_list, parent, false);
+            return new ViewHolder(v, VIEW_MODE_LIST);
         }
-        LinearLayout layout = new LinearLayout(context);
-        layout.setOrientation(LinearLayout.HORIZONTAL);
-        layout.setGravity(Gravity.CENTER_VERTICAL);
-        layout.setPadding(dp(16), dp(12), dp(16), dp(12));
-        layout.setLayoutParams(new RecyclerView.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        layout.setBackgroundResource(android.R.drawable.list_selector_background);
-        return new ViewHolder(layout);
     }
 
     @Override
@@ -270,68 +268,38 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     }
 
     private void bindList(ViewHolder holder, int position) {
-        LinearLayout layout = (LinearLayout) holder.itemView;
-        layout.removeAllViews();
-
         File file = files.get(position);
-
-        FrameLayout iconContainer = new FrameLayout(context);
-        int iconSize = dp(40);
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(iconSize, iconSize);
-        iconParams.setMargins(0, 0, dp(16), 0);
-        iconContainer.setLayoutParams(iconParams);
 
         GradientDrawable iconBg = new GradientDrawable();
         iconBg.setCornerRadius(dp(10));
         iconBg.setColor(Color.parseColor("#1A73E8"));
-        iconContainer.setBackground(iconBg);
+        holder.iconContainer.setBackground(iconBg);
 
-        TextView iconText = new TextView(context);
-        iconText.setTextSize(18);
-        iconText.setTextColor(Color.WHITE);
-        iconText.setGravity(Gravity.CENTER);
-        FrameLayout.LayoutParams iconTextLp = new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        iconTextLp.gravity = Gravity.CENTER;
-        iconContainer.addView(iconText, iconTextLp);
-
-        LinearLayout infoCol = new LinearLayout(context);
-        infoCol.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
-            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        infoCol.setLayoutParams(infoParams);
-
-        TextView nameView = new TextView(context);
-        nameView.setTextSize(15);
-        nameView.setSingleLine(true);
-        nameView.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
-        nameView.setTextColor(Color.parseColor("#E8EAED"));
-
-        TextView detailView = new TextView(context);
-        detailView.setTextSize(12);
-        detailView.setTextColor(Color.parseColor("#9AA0A6"));
+        ImageView listThumb = holder.iconContainer.findViewById(R.id.thumb_list);
+        if (listThumb != null) {
+            listThumb.setVisibility(View.GONE);
+        }
+        holder.iconView.setVisibility(View.VISIBLE);
 
         if (file == null) {
             iconBg.setColor(Color.parseColor("#5F6368"));
-            iconText.setText("↑");
-            nameView.setText(".. (Go up)");
-            nameView.setTypeface(null, Typeface.ITALIC);
-            infoCol.addView(nameView);
-            layout.setOnClickListener(v -> goUp());
+            holder.iconView.setImageResource(R.drawable.icon_arrow_back_round);
+            holder.nameView.setText(".. (Go up)");
+            holder.nameView.setTypeface(null, Typeface.ITALIC);
+            holder.detailView.setVisibility(View.GONE);
+            holder.itemView.setOnClickListener(v -> goUp());
         } else if (file.isDirectory()) {
             iconBg.setColor(Color.parseColor("#1A73E8"));
-            iconText.setText("📁");
-            nameView.setText(file.getName());
-            nameView.setTypeface(null, Typeface.BOLD);
+            holder.iconView.setImageResource(R.drawable.icon_folder_round);
+            holder.nameView.setText(file.getName());
+            holder.nameView.setTypeface(null, Typeface.BOLD);
+            holder.detailView.setVisibility(View.VISIBLE);
 
             File[] children = file.listFiles();
             int count = children != null ? children.length : 0;
-            detailView.setText(count + " items");
+            holder.detailView.setText(count + " items");
 
-            infoCol.addView(nameView);
-            infoCol.addView(detailView);
-
-            layout.setOnClickListener(v -> {
+            holder.itemView.setOnClickListener(v -> {
                 if (multiSelectEnabled) toggleSelection(file);
                 else {
                     navigateTo(file);
@@ -340,25 +308,24 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             });
         } else {
             iconBg.setColor(getFileColor(file.getName()));
-            iconText.setText(getFileIcon(file.getName()));
-            attachThumbnailIfImage(iconContainer, iconText, file);
-            nameView.setText(file.getName());
+            holder.iconView.setImageResource(getFileIconResource(file.getName()));
+            holder.nameView.setTypeface(null, Typeface.NORMAL);
+            holder.detailView.setVisibility(View.VISIBLE);
+            attachThumbnailIfImage(holder.iconContainer, holder.iconView, file);
+            holder.nameView.setText(file.getName());
 
             String size = formatFileSize(file.length());
             String date = dateFormat.format(new Date(file.lastModified()));
-            detailView.setText(size + " • " + date);
+            holder.detailView.setText(size + " • " + date);
 
-            infoCol.addView(nameView);
-            infoCol.addView(detailView);
-
-            layout.setOnClickListener(v -> {
+            holder.itemView.setOnClickListener(v -> {
                 if (multiSelectEnabled) toggleSelection(file);
                 else if (clickListener != null) clickListener.onFileClick(file);
             });
         }
 
         if (file != null) {
-            layout.setOnLongClickListener(v -> {
+            holder.itemView.setOnLongClickListener(v -> {
                 if (multiSelectEnabled) {
                     toggleSelection(file);
                     return true;
@@ -369,6 +336,8 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
                 }
                 return false;
             });
+        } else {
+            holder.itemView.setOnLongClickListener(null);
         }
 
         // Selection highlight overlay
@@ -376,60 +345,34 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             GradientDrawable bg = new GradientDrawable();
             bg.setColor(0x331A73E8);
             bg.setCornerRadius(dp(10));
-            layout.setBackground(bg);
+            holder.itemView.setBackground(bg);
         } else {
-            layout.setBackgroundResource(android.R.drawable.list_selector_background);
+            holder.itemView.setBackgroundResource(android.R.drawable.list_selector_background);
         }
-
-        layout.addView(iconContainer);
-        layout.addView(infoCol);
     }
 
     private void bindGrid(ViewHolder holder, int position) {
-        LinearLayout root = (LinearLayout) holder.itemView;
-        root.removeAllViews();
-
         File file = files.get(position);
 
-        // Card
-        FrameLayout card = new FrameLayout(context);
+        // Reset views
+        holder.thumb.setVisibility(View.GONE);
+        holder.placeholder.setVisibility(View.VISIBLE);
+
         GradientDrawable cardBg = new GradientDrawable();
         cardBg.setCornerRadius(dp(14));
         cardBg.setColor(Color.parseColor("#1F2329"));
         cardBg.setStroke(dp(1), 0x22FFFFFF);
-        card.setBackground(cardBg);
-
-        ImageView thumb = new ImageView(context);
-        thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        FrameLayout.LayoutParams thumbLp = new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(96));
-        card.addView(thumb, thumbLp);
-
-        TextView placeholder = new TextView(context);
-        placeholder.setGravity(Gravity.CENTER);
-        placeholder.setTextSize(28);
-        placeholder.setTextColor(Color.WHITE);
-        FrameLayout.LayoutParams plLp = new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(96));
-        plLp.gravity = Gravity.CENTER;
-        card.addView(placeholder, plLp);
-
-        TextView name = new TextView(context);
-        name.setSingleLine(true);
-        name.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
-        name.setTextColor(Color.parseColor("#E8EAED"));
-        name.setTextSize(13);
-        name.setPadding(dp(8), dp(6), dp(8), dp(8));
+        holder.card.setBackground(cardBg);
 
         if (file == null) {
-            placeholder.setText("↑");
-            name.setText(".. up");
-            root.setOnClickListener(v -> goUp());
+            holder.placeholder.setImageResource(R.drawable.icon_arrow_back_round);
+            holder.name.setText(".. up");
+            holder.itemView.setOnClickListener(v -> goUp());
         } else if (file.isDirectory()) {
-            placeholder.setText("📁");
+            holder.placeholder.setImageResource(R.drawable.icon_folder_round);
             cardBg.setColor(Color.parseColor("#202833"));
-            name.setText(file.getName());
-            root.setOnClickListener(v -> {
+            holder.name.setText(file.getName());
+            holder.itemView.setOnClickListener(v -> {
                 if (multiSelectEnabled) toggleSelection(file);
                 else {
                     navigateTo(file);
@@ -437,30 +380,28 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
                 }
             });
         } else {
-            placeholder.setText(getFileIcon(file.getName()));
-            attachThumbnailIfImage(thumb, placeholder, file);
-            name.setText(file.getName());
-            root.setOnClickListener(v -> {
+            holder.placeholder.setImageResource(getFileIconResource(file.getName()));
+            attachThumbnailIfImage(holder.thumb, holder.placeholder, file);
+            holder.name.setText(file.getName());
+            holder.itemView.setOnClickListener(v -> {
                 if (multiSelectEnabled) toggleSelection(file);
                 else if (clickListener != null) clickListener.onFileClick(file);
             });
         }
 
         if (file != null) {
-            root.setOnLongClickListener(v -> {
+            holder.itemView.setOnLongClickListener(v -> {
                 if (multiSelectEnabled) { toggleSelection(file); return true; }
                 if (longClickListener != null) { longClickListener.onFileLongClick(file); return true; }
                 return false;
             });
+        } else {
+            holder.itemView.setOnLongClickListener(null);
         }
 
         if (file != null && selectedPaths.contains(file.getAbsolutePath())) {
             cardBg.setStroke(dp(2), Color.parseColor("#1A73E8"));
         }
-
-        root.addView(card, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        root.addView(name);
     }
 
     private void toggleSelection(File f) {
@@ -505,16 +446,22 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     private void applyThumb(View target, View placeholder, Bitmap bm) {
         if (target instanceof ImageView) {
             ((ImageView) target).setImageBitmap(bm);
+            ((ImageView) target).setVisibility(View.VISIBLE);
             placeholder.setVisibility(View.GONE);
         } else if (target instanceof FrameLayout) {
             FrameLayout frame = (FrameLayout) target;
-            ImageView iv = new ImageView(context);
+            ImageView iv = frame.findViewById(R.id.thumb_list);
+            if (iv == null) {
+                iv = new ImageView(context);
+                iv.setId(R.id.thumb_list);
+                iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                lp.gravity = Gravity.CENTER;
+                frame.addView(iv, lp);
+            }
             iv.setImageBitmap(bm);
-            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-            lp.gravity = Gravity.CENTER;
-            frame.addView(iv, lp);
+            iv.setVisibility(View.VISIBLE);
             placeholder.setVisibility(View.GONE);
         }
     }
@@ -546,20 +493,20 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         return files.size();
     }
 
-    private String getFileIcon(String name) {
+    private int getFileIconResource(String name) {
         String lower = name.toLowerCase(Locale.US);
-        if (isImageFile(lower)) return "🖼";
-        if (lower.endsWith(".svg")) return "🎨";
-        if (lower.endsWith(".json")) return "📄";
-        if (lower.endsWith(".html") || lower.endsWith(".htm")) return "🌐";
-        if (lower.endsWith(".css")) return "🎨";
-        if (lower.endsWith(".js")) return "⚡";
-        if (lower.endsWith(".mp4") || lower.endsWith(".webm")) return "🎬";
-        if (lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg")) return "🎵";
-        if (lower.endsWith(".zip") || lower.endsWith(".tar") || lower.endsWith(".gz")) return "📦";
-        if (lower.endsWith(".ttf") || lower.endsWith(".otf")) return "🅰";
-        if (lower.endsWith(".txt")) return "📄";
-        return "📄";
+        if (isImageFile(lower)) return R.drawable.default_image;
+        if (lower.endsWith(".svg")) return R.drawable.icon_theme_round;
+        if (lower.endsWith(".json")) return R.drawable.code_xml_24px;
+        if (lower.endsWith(".html") || lower.endsWith(".htm")) return R.drawable.icon_web_round;
+        if (lower.endsWith(".css")) return R.drawable.icon_theme_round;
+        if (lower.endsWith(".js")) return R.drawable.icon_code_round;
+        if (lower.endsWith(".mp4") || lower.endsWith(".webm")) return R.drawable.icon_widgets_round;
+        if (lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg")) return R.drawable.icon_widgets_round;
+        if (lower.endsWith(".zip") || lower.endsWith(".tar") || lower.endsWith(".gz")) return R.drawable.code_xml_24px;
+        if (lower.endsWith(".ttf") || lower.endsWith(".otf")) return R.drawable.code_xml_24px;
+        if (lower.endsWith(".txt")) return R.drawable.code_xml_24px;
+        return R.drawable.code_xml_24px;
     }
 
     private String formatFileSize(long size) {
@@ -569,6 +516,31 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        ViewHolder(View v) { super(v); }
+        // List mode views
+        FrameLayout iconContainer;
+        ImageView iconView;
+        TextView nameView;
+        TextView detailView;
+
+        // Grid mode views
+        View card;
+        ImageView thumb;
+        ImageView placeholder;
+        TextView name;
+
+        ViewHolder(View v, int viewType) {
+            super(v);
+            if (viewType == VIEW_MODE_GRID) {
+                card = v.findViewById(R.id.card);
+                thumb = v.findViewById(R.id.thumb);
+                placeholder = v.findViewById(R.id.placeholder);
+                name = v.findViewById(R.id.name);
+            } else {
+                iconContainer = v.findViewById(R.id.icon_container);
+                iconView = v.findViewById(R.id.icon_view);
+                nameView = v.findViewById(R.id.name_view);
+                detailView = v.findViewById(R.id.detail_view);
+            }
+        }
     }
 }

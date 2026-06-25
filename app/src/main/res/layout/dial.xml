@@ -14,7 +14,7 @@
 		android:layout_marginRight="10dp"
 		android:hint="Write"
 		app:hintTextColor="?attr/colorOnSurfaceVariant"
-		style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+		style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 		<com.google.android.material.textfield.TextInputEditText
 			android:id="@+id/UserNameValue"
 			android:layout_width="match_parent"

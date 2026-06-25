@@ -22,7 +22,7 @@
 		android:layout_height="wrap_content"
 		android:hint="@string/project_name"
 		app:hintTextColor="?attr/colorOnSurfaceVariant"
-		style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+		style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 		<com.google.android.material.textfield.TextInputEditText
 			android:id="@+id/etProjectName"
 			android:layout_width="match_parent"
@@ -38,7 +38,7 @@
 		android:layout_marginTop="12dp"
 		android:hint="@string/project_description"
 		app:hintTextColor="?attr/colorOnSurfaceVariant"
-		style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+		style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 		<com.google.android.material.textfield.TextInputEditText
 			android:id="@+id/etProjectDescription"
 			android:layout_width="match_parent"

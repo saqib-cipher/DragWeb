@@ -1,9 +1,41 @@
 <resources>
+	<!-- Custom Shape Appearances for Rounded UI -->
+	<style name="ShapeAppearance.DragWeb.ExtraSmall" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
+		<item name="cornerSize">8dp</item>
+	</style>
+	<style name="ShapeAppearance.DragWeb.Small" parent="ShapeAppearance.Material3.Corner.Small">
+		<item name="cornerSize">14dp</item>
+	</style>
+	<style name="ShapeAppearance.DragWeb.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+		<item name="cornerSize">14dp</item>
+	</style>
+	<style name="ShapeAppearance.DragWeb.Large" parent="ShapeAppearance.Material3.Corner.Large">
+		<item name="cornerSize">20dp</item>
+	</style>
+
 	<style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
 		<item name="android:statusBarColor">@android:color/transparent</item>
 		<item name="android:navigationBarColor">@android:color/transparent</item>
 		<item name="android:windowLightStatusBar">?attr/isLightTheme</item>
+
+		<!-- Global corner styling overrides -->
+		<item name="shapeAppearanceCornerExtraSmall">@style/ShapeAppearance.DragWeb.ExtraSmall</item>
+		<item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.DragWeb.Small</item>
+		<item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.DragWeb.Medium</item>
+		<item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.DragWeb.Large</item>
+
+		<!-- Global TextInputLayout Outlined rounded style -->
+		<item name="textInputStyle">@style/Widget.Material3.TextInputLayout.OutlinedBox</item>
+
+		<!-- Custom Alert Dialog Themes for 14dp corners -->
+		<item name="alertDialogTheme">@style/ThemeOverlay.DragWeb.MaterialAlertDialog</item>
+		<item name="materialAlertDialogTheme">@style/ThemeOverlay.DragWeb.MaterialAlertDialog</item>
 	</style>
+
+	<style name="ThemeOverlay.DragWeb.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+		<item name="dialogCornerRadius">14dp</item>
+	</style>
+
 	<style name="AppTheme.FullScreen" parent="AppTheme">
 		<item name="android:windowFullscreen">true</item>
 		<item name="android:windowContentOverlay">@null</item>
