@@ -85,6 +85,93 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             }
         };
 
+    private final java.util.Map<String, String> projectFileTypes = new java.util.HashMap<>();
+
+    private void loadProjectFilesJson() {
+        projectFileTypes.clear();
+        if (rootDir == null || !rootDir.exists()) return;
+        try {
+            File manifestFile = new File(rootDir.getParentFile(), "project_files.json");
+            if (manifestFile.exists()) {
+                String json = FileUtil.readFile(manifestFile.getAbsolutePath());
+                if (json != null && !json.trim().isEmpty()) {
+                    com.google.gson.JsonObject obj = new com.google.gson.Gson().fromJson(json, com.google.gson.JsonObject.class);
+                    if (obj != null && obj.has("files")) {
+                        com.google.gson.JsonArray filesArr = obj.getAsJsonArray("files");
+                        if (filesArr != null) {
+                            for (int i = 0; i < filesArr.size(); i++) {
+                                com.google.gson.JsonObject item = filesArr.get(i).getAsJsonObject();
+                                if (item.has("path") && item.has("type")) {
+                                    String path = item.get("path").getAsString();
+                                    String type = item.get("type").getAsString();
+                                    projectFileTypes.put(path, type);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.w("FileExplorer", "Failed to load project_files.json: " + e.getMessage());
+        }
+    }
+
+    private String getProjectRelativePath(File file) {
+        if (file == null || rootDir == null) return null;
+        try {
+            String rootParentPath = rootDir.getParentFile().getCanonicalPath();
+            String filePath = file.getCanonicalPath();
+            if (filePath.startsWith(rootParentPath)) {
+                String relative = filePath.substring(rootParentPath.length());
+                if (relative.startsWith("/")) {
+                    relative = relative.substring(1);
+                }
+                return relative;
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public void setFileType(File file, String type) {
+        String rel = getProjectRelativePath(file);
+        if (rel != null) {
+            projectFileTypes.put(rel, type);
+            updateProjectFilesJson();
+        }
+    }
+
+    public void renameFileType(File oldFile, File newFile) {
+        String oldRel = getProjectRelativePath(oldFile);
+        String newRel = getProjectRelativePath(newFile);
+        if (oldRel != null && newRel != null) {
+            String type = projectFileTypes.remove(oldRel);
+            if (type != null) {
+                projectFileTypes.put(newRel, type);
+            } else {
+                projectFileTypes.put(newRel, isSystemFileFallback(newFile) ? "project" : "external");
+            }
+            updateProjectFilesJson();
+        }
+    }
+
+    public void removeFileType(File file) {
+        String rel = getProjectRelativePath(file);
+        if (rel != null) {
+            projectFileTypes.remove(rel);
+            String prefix = rel + "/";
+            java.util.List<String> keysToRemove = new java.util.ArrayList<>();
+            for (String key : projectFileTypes.keySet()) {
+                if (key.startsWith(prefix)) {
+                    keysToRemove.add(key);
+                }
+            }
+            for (String key : keysToRemove) {
+                projectFileTypes.remove(key);
+            }
+            updateProjectFilesJson();
+        }
+    }
+
     public FileExplorerAdapter(Context context, File rootDir) {
         this.context = context;
         this.rootDir = rootDir;
@@ -199,6 +286,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     }
 
     private void loadFiles() {
+        loadProjectFilesJson();
         allFiles.clear();
         if (canGoUp()) {
             allFiles.add(null); // ".."
@@ -454,7 +542,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         notifyDataSetChanged();
     }
 
-    public boolean isSystemFile(File file) {
+    public boolean isSystemFileFallback(File file) {
         if (file == null) return false;
         try {
             String rootPath = rootDir.getCanonicalPath();
@@ -477,6 +565,17 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             }
         } catch (Exception ignored) {}
         return false;
+    }
+
+    public boolean isSystemFile(File file) {
+        if (file == null) return false;
+        String rel = getProjectRelativePath(file);
+        if (rel != null) {
+            if (projectFileTypes.containsKey(rel)) {
+                return "project".equals(projectFileTypes.get(rel));
+            }
+        }
+        return isSystemFileFallback(file);
     }
 
     public void updateProjectFilesJson() {
@@ -510,9 +609,16 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
                 if (relative.isEmpty()) continue;
                 if (relative.equals("project_files.json")) continue;
 
+                String actualPath = "assets/" + relative;
+
                 java.util.Map<String, String> item = new java.util.HashMap<>();
-                item.put("path", relative);
-                item.put("type", isSystemFile(f) ? "project" : "external");
+                item.put("path", actualPath);
+                
+                String type = projectFileTypes.get(actualPath);
+                if (type == null) {
+                    type = isSystemFileFallback(f) ? "project" : "external";
+                }
+                item.put("type", type);
                 list.add(item);
 
                 if (f.isDirectory()) {

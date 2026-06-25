@@ -67,13 +67,16 @@ public class HomeActivity extends AppCompatActivity {
 	private ActivityResultLauncher<String> backupSingleLauncher;
 	private ActivityResultLauncher<String[]> htmlFileLauncher;
 	private ActivityResultLauncher<String[]> cssFileLauncher;
+	private ActivityResultLauncher<String[]> jsFileLauncher;
 	private String pendingBackupProject = null;
 
 	// HTML/CSS import state
 	private Uri pendingHtmlUri = null;
 	private Uri pendingCssUri = null;
+	private Uri pendingJsUri = null;
 	private TextView tvHtmlFileName = null;
 	private TextView tvCssFileName = null;
+	private TextView tvJsFileName = null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -214,6 +217,19 @@ public class HomeActivity extends AppCompatActivity {
 					if (tvCssFileName != null) {
 						String name = resolveFileName(uri);
 						tvCssFileName.setText(name != null ? name : "CSS file selected");
+					}
+				}
+			}
+		);
+
+		jsFileLauncher = registerForActivityResult(
+			new ActivityResultContracts.OpenDocument(),
+			uri -> {
+				if (uri != null) {
+					pendingJsUri = uri;
+					if (tvJsFileName != null) {
+						String name = resolveFileName(uri);
+						tvJsFileName.setText(name != null ? name : "JS file selected");
 					}
 				}
 			}
@@ -529,7 +545,6 @@ public class HomeActivity extends AppCompatActivity {
 		meta.put("description", description.isEmpty() ? "Website project" : description);
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 		meta.put("created", sdf.format(new Date()));
-		String logoRelPath = "";
 
 		try {
 			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
@@ -543,12 +558,10 @@ public class HomeActivity extends AppCompatActivity {
 			config.put("id", projectId);
 			config.put("name", name);
 			config.put("description", description.isEmpty() ? "Website project" : description);
-			config.put("logoPath", logoRelPath);
 			FileUtil.writeFile(configFile.getAbsolutePath(), new Gson().toJson(config));
 		} catch (Exception e) {
 			Log.w("HomeActivity", "Could not create external project dir");
 		}
-		meta.put("logoPath", logoRelPath);
 		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
 
 		openProject(projectId, name);
@@ -557,10 +570,13 @@ public class HomeActivity extends AppCompatActivity {
 	/**
 	 * Create a project from an imported HTML/CSS widget tree and logic blocks.
 	 */
-	private void createProjectFromImport(String name, List<Map<String, Object>> widgetTree, List<Map<String, Object>> logicBlocks, List<Map<String, Object>> cssLogicBlocks, List<String> enabledLibraries) {
+	private void createProjectFromImport(String name, List<Map<String, Object>> widgetTree, List<Map<String, Object>> logicBlocks, List<Map<String, Object>> cssLogicBlocks, String jsContent, List<String> enabledLibraries) {
 		String projectId = generateProjectId();
 		File dir = new File(getFilesDir(), "projects");
 		if (!dir.exists()) dir.mkdirs();
+
+		File logicDir = new File(dir, "logic");
+		if (!logicDir.exists()) logicDir.mkdirs();
 
 		// Save widget tree as project JSON
 		File projectFile = new File(dir, projectId + ".json");
@@ -568,7 +584,7 @@ public class HomeActivity extends AppCompatActivity {
 
 		// Save logic blocks if any
 		if (logicBlocks != null && !logicBlocks.isEmpty()) {
-			File logicFile = new File(dir, projectId + "_index.logic");
+			File logicFile = new File(logicDir, projectId + "_index.logic");
 			FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(logicBlocks));
 		}
 
@@ -576,7 +592,7 @@ public class HomeActivity extends AppCompatActivity {
 		if (cssLogicBlocks != null && !cssLogicBlocks.isEmpty()) {
 			String globalCssPath = "css/style.css";
 			String safeCssName = globalCssPath.replace("/", "_").replace(".", "_");
-			File cssLogicFile = new File(dir, projectId + "_" + safeCssName + ".logic");
+			File cssLogicFile = new File(logicDir, projectId + "_" + safeCssName + ".logic");
 			FileUtil.writeFile(cssLogicFile.getAbsolutePath(), new Gson().toJson(cssLogicBlocks));
 		}
 
@@ -588,7 +604,6 @@ public class HomeActivity extends AppCompatActivity {
 		meta.put("description", "Imported from HTML/CSS");
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 		meta.put("created", sdf.format(new Date()));
-		meta.put("logoPath", "");
 		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
 
 		// Save theme settings: disable default styles and inline styles since CSS is imported
@@ -618,7 +633,6 @@ public class HomeActivity extends AppCompatActivity {
 			config.put("id", projectId);
 			config.put("name", name.isEmpty() ? "Imported Website" : name);
 			config.put("description", "Imported from HTML/CSS");
-			config.put("logoPath", "");
 			FileUtil.writeFile(configFile.getAbsolutePath(), new Gson().toJson(config));
 
 			// If global CSS blocks were imported, compile and write to external assets/css/style.css
@@ -648,39 +662,30 @@ public class HomeActivity extends AppCompatActivity {
 					Log.w("HomeActivity", "Failed to compile/write style.css to assets: " + e.getMessage());
 				}
 			}
+
+			// If JS content was imported, write to external assets/js/script.js and create its logic block
+			if (jsContent != null && !jsContent.trim().isEmpty()) {
+				try {
+					File targetJsFile = new File(extPath, "assets/js/script.js");
+					targetJsFile.getParentFile().mkdirs();
+					FileUtil.writeFile(targetJsFile.getAbsolutePath(), jsContent);
+
+					// Parse JavaScript content into visual logic blocks
+					HtmlCssImporter importer = new HtmlCssImporter();
+					List<Map<String, Object>> jsBlocksList = importer.importJsOnly(jsContent);
+
+					File jsLogicFile = new File(logicDir, projectId + "_js_script_js.logic");
+					FileUtil.writeFile(jsLogicFile.getAbsolutePath(), new Gson().toJson(jsBlocksList));
+				} catch (Exception e) {
+					Log.w("HomeActivity", "Failed to write script.js/logic to assets: " + e.getMessage());
+				}
+			}
 		} catch (Exception e) {
 			Log.w("HomeActivity", "Could not create external project dir for import");
 		}
 
 		loadProjects();
 		openProject(projectId, name.isEmpty() ? "Imported Website" : name);
-	}
-
-	private String resolveLogoFileName(Uri logoUri) {
-		try {
-			String name = null;
-			android.database.Cursor c = getContentResolver().query(
-				logoUri,
-				new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
-				null, null, null
-			);
-			if (c != null) {
-				if (c.moveToFirst()) {
-					int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
-					if (idx >= 0) name = c.getString(idx);
-				}
-				c.close();
-			}
-			if (name != null && !name.isEmpty() && name.contains(".")) {
-				String ext = name.substring(name.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
-				if (ext.matches("png|jpg|jpeg|webp|gif|svg")) {
-					return "logo." + ext;
-				}
-			}
-		} catch (Exception e) {
-			// ignore
-		}
-		return "logo.png";
 	}
 
 	private String resolveFileName(Uri uri) {
@@ -719,21 +724,6 @@ public class HomeActivity extends AppCompatActivity {
 		} catch (Exception e) {
 			Log.e("HomeActivity", "Failed to read URI: " + e.getMessage());
 			return null;
-		}
-	}
-
-	private boolean copyUriToFile(Uri uri, File dest) {
-		try (InputStream in = getContentResolver().openInputStream(uri);
-		     OutputStream out = new java.io.FileOutputStream(dest)) {
-			byte[] buffer = new byte[4096];
-			int len;
-			while ((len = in.read(buffer)) != -1) {
-				out.write(buffer, 0, len);
-			}
-			return true;
-		} catch (Exception e) {
-			Log.w("HomeActivity", "Could not copy logo file: " + e.getMessage());
-			return false;
 		}
 	}
 
@@ -895,14 +885,17 @@ public class HomeActivity extends AppCompatActivity {
 	private void showImportWebsiteDialog() {
 		pendingHtmlUri = null;
 		pendingCssUri = null;
+		pendingJsUri = null;
 
 		View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_import_website, null);
 		tvHtmlFileName = dialogView.findViewById(R.id.tvHtmlFileName);
 		tvCssFileName = dialogView.findViewById(R.id.tvCssFileName);
+		tvJsFileName = dialogView.findViewById(R.id.tvJsFileName);
 		TextInputEditText etProjectName = dialogView.findViewById(R.id.etImportProjectName);
 
 		View cardSelectHtml = dialogView.findViewById(R.id.cardSelectHtml);
 		View cardSelectCss = dialogView.findViewById(R.id.cardSelectCss);
+		View cardSelectJs = dialogView.findViewById(R.id.cardSelectJs);
 
 		cardSelectHtml.setOnClickListener(v -> {
 			htmlFileLauncher.launch(new String[]{"text/html", "text/*", "*/*"});
@@ -910,6 +903,10 @@ public class HomeActivity extends AppCompatActivity {
 
 		cardSelectCss.setOnClickListener(v -> {
 			cssFileLauncher.launch(new String[]{"text/css", "text/*", "*/*"});
+		});
+
+		cardSelectJs.setOnClickListener(v -> {
+			jsFileLauncher.launch(new String[]{"application/javascript", "text/javascript", "text/*", "*/*"});
 		});
 
 		new MaterialAlertDialogBuilder(this)
@@ -937,8 +934,10 @@ public class HomeActivity extends AppCompatActivity {
 			.setNegativeButton("Cancel", (dialog, which) -> {
 				pendingHtmlUri = null;
 				pendingCssUri = null;
+				pendingJsUri = null;
 				tvHtmlFileName = null;
 				tvCssFileName = null;
+				tvJsFileName = null;
 			})
 			.show();
 	}
@@ -955,6 +954,11 @@ public class HomeActivity extends AppCompatActivity {
 			cssContent = readUriContent(pendingCssUri);
 		}
 
+		String jsContent = null;
+		if (pendingJsUri != null) {
+			jsContent = readUriContent(pendingJsUri);
+		}
+
 		HtmlCssImporter importer = new HtmlCssImporter();
 		HtmlCssImporter.ImportResult result = importer.importHtmlCss(htmlContent, null);
 
@@ -965,8 +969,10 @@ public class HomeActivity extends AppCompatActivity {
 
 		pendingHtmlUri = null;
 		pendingCssUri = null;
+		pendingJsUri = null;
 		tvHtmlFileName = null;
 		tvCssFileName = null;
+		tvJsFileName = null;
 
 		if (!result.success) {
 			Toast.makeText(this, "Import failed: " + result.message, Toast.LENGTH_LONG).show();
@@ -974,7 +980,7 @@ public class HomeActivity extends AppCompatActivity {
 		}
 
 		Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show();
-		createProjectFromImport(projectName, result.widgetTree, result.logicBlocks, cssLogicBlocks, result.enabledLibraries);
+		createProjectFromImport(projectName, result.widgetTree, result.logicBlocks, cssLogicBlocks, jsContent, result.enabledLibraries);
 	}
 
 

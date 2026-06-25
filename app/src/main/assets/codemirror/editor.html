@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="codemirror.min.css">
+  <link rel="stylesheet" href="theme/dracula.min.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #282a36;
+    }
+    .CodeMirror {
+      height: 100%;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <textarea id="editor" style="display: none;"></textarea>
+
+  <script src="codemirror.min.js"></script>
+  <script src="mode/xml.js"></script>
+  <script src="mode/javascript.js"></script>
+  <script src="mode/css.js"></script>
+  <script src="mode/htmlmixed.js"></script>
+
+  <script>
+    var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+      lineNumbers: true,
+      theme: "dracula",
+      mode: "htmlmixed",
+      lineWrapping: true,
+      viewportMargin: Infinity,
+      tabSize: 4,
+      indentUnit: 4
+    });
+
+    editor.on("change", function(cm) {
+      if (window.AndroidEditor) {
+        window.AndroidEditor.updateCode(cm.getValue());
+      }
+    });
+
+    function setEditorValue(val) {
+      editor.setValue(val);
+      editor.clearHistory();
+    }
+
+    function setFontSize(size) {
+      document.querySelector('.CodeMirror').style.fontSize = size + 'px';
+      editor.refresh();
+    }
+
+    function setMode(mode) {
+      editor.setOption("mode", mode);
+    }
+  </script>
+</body>
+</html>

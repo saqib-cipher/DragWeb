@@ -219,7 +219,8 @@ public class ManagePageActivity extends AppCompatActivity {
             pm.renamePage(pageName, cleanName);
 
             // Rename logic file
-            File dir = new File(getFilesDir(), "projects");
+            File dir = new File(getFilesDir(), "projects/logic");
+            if (!dir.exists()) dir.mkdirs();
             File oldLogic = new File(dir, projectId + "_" + pageName + ".logic");
             File newLogic = new File(dir, projectId + "_" + cleanName + ".logic");
             if (oldLogic.exists()) {
@@ -278,7 +279,7 @@ public class ManagePageActivity extends AppCompatActivity {
                 }
 
                 // Delete logic file
-                File dir = new File(getFilesDir(), "projects");
+                File dir = new File(getFilesDir(), "projects/logic");
                 File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
                 if (logicFile.exists()) {
                     logicFile.delete();

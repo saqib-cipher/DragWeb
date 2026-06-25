@@ -150,7 +150,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
 
     private void loadLogicFromDisk() {
         try {
-            File dir = new File(getFilesDir(), "projects");
+            File dir = new File(getFilesDir(), "projects/logic");
             String safePageName = pageName.replace("/", "_").replace(".", "_");
             File logicFile = new File(dir, projectId + "_" + safePageName + ".logic");
             if (logicFile.exists()) {
@@ -679,33 +679,51 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
 
     private void saveAndFinish() {
         try {
-            File dir = new File(getFilesDir(), "projects");
+            File dir = new File(getFilesDir(), "projects/logic");
             if (!dir.exists()) dir.mkdirs();
             String safePageName = pageName.replace("/", "_").replace(".", "_");
             File logicFile = new File(dir, projectId + "_" + safePageName + ".logic");
             FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
 
             // Compile the logic blocks and save compiled stylesheet to external assets
-            if (pageName != null && pageName.endsWith(".css")) {
-                String baseRules = logicBlockManager.generateBaseCssRules();
-                String pseudoRules = logicBlockManager.generateCssPseudoRules();
-                String asdCss = logicBlockManager.generateAsdSource("css");
-                StringBuilder compiledCss = new StringBuilder();
-                compiledCss.append("/* Compiled by DragWeb */\n\n");
-                if (baseRules != null && !baseRules.trim().isEmpty()) {
-                    compiledCss.append(baseRules).append("\n");
-                }
-                if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
-                    compiledCss.append(pseudoRules).append("\n");
-                }
-                if (asdCss != null && !asdCss.trim().isEmpty()) {
-                    compiledCss.append(asdCss).append("\n");
-                }
+            if (pageName != null) {
+                if (pageName.endsWith(".css")) {
+                    String baseRules = logicBlockManager.generateBaseCssRules();
+                    String pseudoRules = logicBlockManager.generateCssPseudoRules();
+                    String asdCss = logicBlockManager.generateAsdSource("css");
+                    StringBuilder compiledCss = new StringBuilder();
+                    compiledCss.append("/* Compiled by DragWeb */\n\n");
+                    if (baseRules != null && !baseRules.trim().isEmpty()) {
+                        compiledCss.append(baseRules).append("\n");
+                    }
+                    if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
+                        compiledCss.append(pseudoRules).append("\n");
+                    }
+                    if (asdCss != null && !asdCss.trim().isEmpty()) {
+                        compiledCss.append(asdCss).append("\n");
+                    }
 
-                File targetStyleFile = new File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
-                    + "/.dragweb/projects/" + projectId + "/assets/" + pageName);
-                targetStyleFile.getParentFile().mkdirs();
-                FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCss.toString());
+                    File targetStyleFile = new File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
+                        + "/.dragweb/projects/" + projectId + "/assets/" + pageName);
+                    targetStyleFile.getParentFile().mkdirs();
+                    FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCss.toString());
+                } else if (pageName.endsWith(".js")) {
+                    String jsBlocks = logicBlockManager.generateJavaScript();
+                    String asdJs = logicBlockManager.generateAsdSource("js");
+                    StringBuilder compiledJs = new StringBuilder();
+                    compiledJs.append("/* Compiled by DragWeb */\n\n");
+                    if (jsBlocks != null && !jsBlocks.trim().isEmpty()) {
+                        compiledJs.append(jsBlocks).append("\n");
+                    }
+                    if (asdJs != null && !asdJs.trim().isEmpty()) {
+                        compiledJs.append(asdJs).append("\n");
+                    }
+
+                    File targetJsFile = new File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
+                        + "/.dragweb/projects/" + projectId + "/assets/" + pageName);
+                    targetJsFile.getParentFile().mkdirs();
+                    FileUtil.writeFile(targetJsFile.getAbsolutePath(), compiledJs.toString());
+                }
             }
         } catch (Exception ignored) {}
         setResult(RESULT_OK);

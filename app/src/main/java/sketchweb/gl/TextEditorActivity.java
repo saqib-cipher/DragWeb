@@ -285,15 +285,15 @@ public class TextEditorActivity extends AppCompatActivity {
             initialCode = content; // Update initialCode so back press checks work correctly
             Toast.makeText(this, "Saved successfully", Toast.LENGTH_SHORT).show();
 
-            // If CSS, convert back to logic blocks
-            if (relativePath != null && (relativePath.toLowerCase().endsWith(".css") || relativePath.toLowerCase().endsWith(".htm") || relativePath.toLowerCase().endsWith(".html"))) {
+            // If CSS or JS, convert back to logic blocks
+            if (relativePath != null && (relativePath.toLowerCase().endsWith(".css") || relativePath.toLowerCase().endsWith(".js") || relativePath.toLowerCase().endsWith(".htm") || relativePath.toLowerCase().endsWith(".html"))) {
                 try {
                     if (relativePath.toLowerCase().endsWith(".css")) {
                         HtmlCssImporter importer = new HtmlCssImporter();
                         List<Map<String, Object>> blocks = importer.importCssOnly(content);
                         String blocksJson = new Gson().toJson(blocks);
 
-                        File dir = new File(getFilesDir(), "projects");
+                        File dir = new File(getFilesDir(), "projects/logic");
                         if (!dir.exists()) dir.mkdirs();
 
                         String safePageName = relativePath.replace("/", "_").replace(".", "_");
@@ -301,9 +301,22 @@ public class TextEditorActivity extends AppCompatActivity {
                         FileUtil.writeFile(logicFile.getAbsolutePath(), blocksJson);
 
                         Toast.makeText(this, "CSS rules synced to block editor", Toast.LENGTH_SHORT).show();
+                    } else if (relativePath.toLowerCase().endsWith(".js")) {
+                        HtmlCssImporter importer = new HtmlCssImporter();
+                        List<Map<String, Object>> blocks = importer.importJsOnly(content);
+                        String blocksJson = new Gson().toJson(blocks);
+
+                        File dir = new File(getFilesDir(), "projects/logic");
+                        if (!dir.exists()) dir.mkdirs();
+
+                        String safePageName = relativePath.replace("/", "_").replace(".", "_");
+                        File logicFile = new File(dir, projectId + "_" + safePageName + ".logic");
+                        FileUtil.writeFile(logicFile.getAbsolutePath(), blocksJson);
+
+                        Toast.makeText(this, "JavaScript synced to block editor", Toast.LENGTH_SHORT).show();
                     }
                 } catch (Exception e) {
-                    Log.e("TextEditorActivity", "CSS conversion failed", e);
+                    Log.e("TextEditorActivity", "Conversion failed", e);
                     Toast.makeText(this, "Sync to block editor failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 }
             }

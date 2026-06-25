@@ -22,6 +22,7 @@
 			android:id="@+id/toggleTheme"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
+			style="@style/Widget.Material3Expressive.MaterialButtonToggleGroup"
 			app:singleSelection="true"
 			app:selectionRequired="true">
 			<Button
@@ -29,15 +30,15 @@
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
 				android:layout_weight="1"
-				android:text="Light"
-				style="?attr/materialButtonOutlinedStyle" />
+				style="@style/Widget.Material3Expressive.Button.OutlinedButton"
+				android:text="Light" />
 			<Button
 				android:id="@+id/btnDarkTheme"
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
 				android:layout_weight="1"
-				android:text="Dark"
-				style="?attr/materialButtonOutlinedStyle" />
+				style="@style/Widget.Material3Expressive.Button.OutlinedButton"
+				android:text="Dark" />
 		</com.google.android.material.button.MaterialButtonToggleGroup>
 
 		<com.google.android.material.textfield.TextInputLayout
@@ -212,11 +213,12 @@
 					android:textSize="12sp"
 					android:textColor="?attr/colorOnSurfaceVariant" />
 			</LinearLayout>
-			<com.google.android.material.switchmaterial.SwitchMaterial
+			<com.google.android.material.materialswitch.MaterialSwitch
 				android:id="@+id/switchInlineStyles"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:checked="true" />
+				android:checked="true"
+				app:thumbIcon="@drawable/thumb_icon_selector"/>
 		</LinearLayout>
 
 		<Button

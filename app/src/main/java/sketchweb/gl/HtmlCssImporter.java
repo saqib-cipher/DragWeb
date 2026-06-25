@@ -739,65 +739,79 @@ public class HtmlCssImporter {
         return -1;
     }
 
-    private void parseMediaQuery(String mediaHeader, String mediaContent, String parentGroupId, long timestamp, int[] counterRef) {
-        Pattern p = Pattern.compile("max-width\\s*:\\s*(\\d+)");
-        Matcher m = p.matcher(mediaHeader);
-        String maxWidth = "768";
-        if (m.find()) {
-            maxWidth = m.group(1);
-        }
-
-        String mediaBlockId = "blk_media_" + timestamp + "_" + (counterRef[0]++);
-        Map<String, Object> mediaBlock = new HashMap<>();
-        mediaBlock.put("id", mediaBlockId);
-        mediaBlock.put("action", "cssMediaQuery");
-        mediaBlock.put("category", "css");
-        mediaBlock.put("shape", "cblock");
-        mediaBlock.put("spec", "@media (max-width: %npx) { %m.space }");
-        mediaBlock.put("paramValues", java.util.Arrays.asList(maxWidth));
-        mediaBlock.put("params", maxWidth);
-        mediaBlock.put("event", "immediate");
-        mediaBlock.put("parentBlockId", parentGroupId != null ? parentGroupId : "");
-        importedLogicBlocks.add(mediaBlock);
-
-        // Parse inner rules inside the media query, setting its id as parent
-        parseCssRules(mediaContent, mediaBlockId, timestamp, counterRef);
+    private void parseCss(String css) {
+        if (css == null || css.trim().isEmpty()) return;
+        long timestamp = System.currentTimeMillis();
+        int[] counterRef = new int[]{ importedLogicBlocks.size() };
+        parseCssSequential(css, null, timestamp, counterRef);
     }
 
-    private void parseCssRules(String css, String parentBlockId, long timestamp, int[] counterRef) {
-        Pattern pattern = Pattern.compile("(?:/\\*([\\s\\S]*?)\\*/)|(?:(?<!https?:|ftp:|url\\()//([^\n]*))|([^{}]+)\\{([^}]*)\\}");
-        Matcher matcher = pattern.matcher(css);
+    private void parseCssSequential(String css, String parentBlockId, long timestamp, int[] counterRef) {
+        if (css == null || css.trim().isEmpty()) return;
 
+        int pos = 0;
+        int len = css.length();
         String currentGroupId = parentBlockId;
+        java.util.Stack<String> groupStack = new java.util.Stack<>();
 
-        while (matcher.find()) {
-            if (matcher.group(1) != null) {
-                // Block comment
-                String commentText = matcher.group(1).trim();
+        while (pos < len) {
+            // Skip whitespace
+            while (pos < len && Character.isWhitespace(css.charAt(pos))) {
+                pos++;
+            }
+            if (pos >= len) break;
+
+            // 1. Check for block comment /* ... */
+            if (css.startsWith("/*", pos)) {
+                int end = css.indexOf("*/", pos + 2);
+                if (end < 0) {
+                    end = len;
+                } else {
+                    end += 2;
+                }
+                String commentText = css.substring(pos + 2, end - (end == len ? 0 : 2)).trim();
+                pos = end;
+
                 if (commentText.isEmpty()) continue;
 
-                String blockId = "blk_group_" + timestamp + "_" + (counterRef[0]++);
-                Map<String, Object> groupBlock = new HashMap<>();
-                groupBlock.put("id", blockId);
-                groupBlock.put("action", "groupBlock");
-                groupBlock.put("category", "meta");
-                groupBlock.put("shape", "cblock");
-                groupBlock.put("spec", "/* <%s> */ %m.space /* </%s> */");
-                
-                String groupName = commentText.replaceAll("^<|>$", "").trim();
-                List<String> paramValues = new ArrayList<>();
-                paramValues.add(groupName);
-                groupBlock.put("paramValues", paramValues);
-                groupBlock.put("params", groupName);
-                groupBlock.put("event", "immediate");
-                groupBlock.put("parentBlockId", parentBlockId != null ? parentBlockId : "");
+                if (commentText.startsWith("/") || commentText.startsWith("</")) {
+                    if (!groupStack.isEmpty()) {
+                        groupStack.pop();
+                    }
+                    currentGroupId = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                } else {
+                    String blockId = "blk_group_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> groupBlock = new HashMap<>();
+                    groupBlock.put("id", blockId);
+                    groupBlock.put("action", "groupBlock");
+                    groupBlock.put("category", "meta");
+                    groupBlock.put("shape", "cblock");
+                    groupBlock.put("spec", "/* <%s> */ %m.space /* </%s> */");
 
-                importedLogicBlocks.add(groupBlock);
-                currentGroupId = blockId;
+                    String groupName = commentText.replaceAll("^<|>$", "").trim();
+                    List<String> paramValues = new ArrayList<>();
+                    paramValues.add(groupName);
+                    groupBlock.put("paramValues", paramValues);
+                    groupBlock.put("params", groupName);
+                    groupBlock.put("event", "immediate");
+                    
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    groupBlock.put("parentBlockId", parent != null ? parent : "");
 
-            } else if (matcher.group(2) != null) {
-                // Single-line comment
-                String commentText = matcher.group(2).trim();
+                    importedLogicBlocks.add(groupBlock);
+                    groupStack.push(blockId);
+                    currentGroupId = blockId;
+                }
+                continue;
+            }
+
+            // 2. Check for single-line comment // ...
+            if (css.startsWith("//", pos)) {
+                int end = css.indexOf("\n", pos + 2);
+                if (end < 0) end = len;
+                String commentText = css.substring(pos + 2, end).trim();
+                pos = end;
+
                 if (commentText.isEmpty()) continue;
 
                 String blockId = "blk_comment_" + timestamp + "_" + (counterRef[0]++);
@@ -812,173 +826,607 @@ public class HtmlCssImporter {
                 commentBlock.put("paramValues", paramValues);
                 commentBlock.put("params", commentText);
                 commentBlock.put("event", "immediate");
-                commentBlock.put("parentBlockId", currentGroupId != null ? currentGroupId : "");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                commentBlock.put("parentBlockId", parent != null ? parent : "");
 
                 importedLogicBlocks.add(commentBlock);
+                continue;
+            }
 
-            } else if (matcher.group(3) != null && matcher.group(4) != null) {
-                // Rule block
-                String selectorGroup = matcher.group(3).trim();
-                String propertiesBlock = matcher.group(4).trim();
+            // 3. Check for @ rules (e.g. @media or @import)
+            if (css.charAt(pos) == '@') {
+                String remaining = css.substring(pos);
+                if (remaining.startsWith("@media")) {
+                    int openBraceIdx = css.indexOf("{", pos);
+                    if (openBraceIdx >= 0) {
+                        String mediaHeader = css.substring(pos, openBraceIdx).trim();
+                        int closeBraceIdx = findMatchingBrace(css, openBraceIdx);
+                        if (closeBraceIdx >= 0) {
+                            String mediaContent = css.substring(openBraceIdx + 1, closeBraceIdx).trim();
+                            pos = closeBraceIdx + 1;
 
-                if (selectorGroup.startsWith("@")) {
-                    continue;
-                }
+                            Pattern p = Pattern.compile("max-width\\s*:\\s*(\\d+)");
+                            Matcher m = p.matcher(mediaHeader);
+                            String maxWidth = "768";
+                            if (m.find()) {
+                                maxWidth = m.group(1);
+                            }
 
-                Map<String, String> properties = parseCssProperties(propertiesBlock);
-                if (properties.isEmpty()) continue;
+                            String mediaBlockId = "blk_media_" + timestamp + "_" + (counterRef[0]++);
+                            Map<String, Object> mediaBlock = new HashMap<>();
+                            mediaBlock.put("id", mediaBlockId);
+                            mediaBlock.put("action", "cssMediaQuery");
+                            mediaBlock.put("category", "css");
+                            mediaBlock.put("shape", "cblock");
+                            mediaBlock.put("spec", "@media (max-width: %npx) { %m.space }");
+                            mediaBlock.put("paramValues", java.util.Arrays.asList(maxWidth));
+                            mediaBlock.put("params", maxWidth);
+                            mediaBlock.put("event", "immediate");
+                            
+                            String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                            mediaBlock.put("parentBlockId", parent != null ? parent : "");
+                            importedLogicBlocks.add(mediaBlock);
 
-                String[] selectors = selectorGroup.split(",");
-                for (String selector : selectors) {
-                    selector = selector.trim();
-                    if (selector.isEmpty()) continue;
-
-                    String[] parts = selector.split("\\s+");
-                    String simpleSelector = parts[parts.length - 1];
-
-                    String ruleSelector = simpleSelector.replaceAll(":[a-zA-Z-]+(?:\\([^)]*\\))?", "");
-                    if (!ruleSelector.isEmpty()) {
-                        if (cssRules.containsKey(ruleSelector)) {
-                            cssRules.get(ruleSelector).putAll(properties);
-                        } else {
-                            cssRules.put(ruleSelector, new HashMap<>(properties));
+                            // Parse inner rules inside the media query, setting its id as parent
+                            parseCssSequential(mediaContent, mediaBlockId, timestamp, counterRef);
+                            continue;
                         }
                     }
                 }
-
-                SelectorInfo selInfo = parseSelector(selectorGroup);
-
-                String selectorBlockId = "blk_sel_" + timestamp + "_" + (counterRef[0]++);
-                Map<String, Object> selBlock = new HashMap<>();
-                selBlock.put("id", selectorBlockId);
-                selBlock.put("action", selInfo.action);
-                selBlock.put("category", "css");
-                selBlock.put("shape", "cblock");
-                selBlock.put("spec", selInfo.spec);
-                selBlock.put("paramValues", selInfo.paramValues);
-                selBlock.put("params", joinPipe(selInfo.paramValues));
-                selBlock.put("event", "immediate");
-                selBlock.put("parentBlockId", currentGroupId != null ? currentGroupId : "");
-
-                importedLogicBlocks.add(selBlock);
-
-                for (Map.Entry<String, String> propEntry : properties.entrySet()) {
-                    String prop = propEntry.getKey();
-                    String val = propEntry.getValue();
-
-                    PropertyBlockInfo propInfo = parsePropertyToBlock(prop, val);
+                
+                // Other @ rules
+                int semicolonIdx = css.indexOf(";", pos);
+                int openBraceIdx = css.indexOf("{", pos);
+                if (semicolonIdx >= 0 && (openBraceIdx < 0 || semicolonIdx < openBraceIdx)) {
+                    String ruleText = css.substring(pos, semicolonIdx + 1).trim();
+                    pos = semicolonIdx + 1;
 
                     String propBlockId = "blk_prop_" + timestamp + "_" + (counterRef[0]++);
                     Map<String, Object> propBlock = new HashMap<>();
                     propBlock.put("id", propBlockId);
-                    propBlock.put("action", propInfo.action);
-                    propBlock.put("category", propInfo.category);
+                    propBlock.put("action", "asdCss");
+                    propBlock.put("category", "asd");
                     propBlock.put("shape", "stack");
-                    propBlock.put("spec", propInfo.spec);
-                    propBlock.put("paramValues", propInfo.paramValues);
-                    propBlock.put("params", joinPipe(propInfo.paramValues));
+                    propBlock.put("spec", "%s");
+                    propBlock.put("paramValues", java.util.Arrays.asList(ruleText));
+                    propBlock.put("params", ruleText);
                     propBlock.put("event", "immediate");
-                    propBlock.put("parentBlockId", selectorBlockId);
-
+                    
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    propBlock.put("parentBlockId", parent != null ? parent : "");
                     importedLogicBlocks.add(propBlock);
+                } else if (openBraceIdx >= 0) {
+                    int closeBraceIdx = findMatchingBrace(css, openBraceIdx);
+                    if (closeBraceIdx >= 0) {
+                        String ruleText = css.substring(pos, closeBraceIdx + 1).trim();
+                        pos = closeBraceIdx + 1;
+
+                        String propBlockId = "blk_prop_" + timestamp + "_" + (counterRef[0]++);
+                        Map<String, Object> propBlock = new HashMap<>();
+                        propBlock.put("id", propBlockId);
+                        propBlock.put("action", "asdCss");
+                        propBlock.put("category", "asd");
+                        propBlock.put("shape", "stack");
+                        propBlock.put("spec", "%s");
+                        propBlock.put("paramValues", java.util.Arrays.asList(ruleText));
+                        propBlock.put("params", ruleText);
+                        propBlock.put("event", "immediate");
+                        
+                        String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                        propBlock.put("parentBlockId", parent != null ? parent : "");
+                        importedLogicBlocks.add(propBlock);
+                    } else {
+                        pos = openBraceIdx + 1;
+                    }
+                } else {
+                    pos = len;
                 }
+                continue;
+            }
+
+            // 4. Standard rule block: selector { properties }
+            int openBraceIdx = css.indexOf("{", pos);
+            if (openBraceIdx >= 0) {
+                int closeBraceIdx = findMatchingBrace(css, openBraceIdx);
+                if (closeBraceIdx >= 0) {
+                    String selectorGroup = css.substring(pos, openBraceIdx).trim();
+                    String propertiesBlock = css.substring(openBraceIdx + 1, closeBraceIdx).trim();
+                    pos = closeBraceIdx + 1;
+
+                    // Extract CSS rules to cssRules map for widget tree styling
+                    Map<String, String> properties = parseCssProperties(propertiesBlock);
+                    String[] selectors = selectorGroup.split(",");
+                    for (String selector : selectors) {
+                        selector = selector.trim();
+                        if (selector.isEmpty()) continue;
+                        String[] parts = selector.split("\\s+");
+                        String simpleSelector = parts[parts.length - 1];
+                        String ruleSelector = simpleSelector.replaceAll(":[a-zA-Z-]+(?:\\([^)]*\\))?", "");
+                        if (!ruleSelector.isEmpty()) {
+                            if (cssRules.containsKey(ruleSelector)) {
+                                cssRules.get(ruleSelector).putAll(properties);
+                            } else {
+                                cssRules.put(ruleSelector, new HashMap<>(properties));
+                            }
+                        }
+                    }
+
+                    // Parse selector to block
+                    SelectorInfo selInfo = parseSelector(selectorGroup);
+                    String selectorBlockId = "blk_sel_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> selBlock = new HashMap<>();
+                    selBlock.put("id", selectorBlockId);
+                    selBlock.put("action", selInfo.action);
+                    selBlock.put("category", "css");
+                    selBlock.put("shape", "cblock");
+                    selBlock.put("spec", selInfo.spec);
+                    selBlock.put("paramValues", selInfo.paramValues);
+                    selBlock.put("params", joinPipe(selInfo.paramValues));
+                    selBlock.put("event", "immediate");
+                    
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    selBlock.put("parentBlockId", parent != null ? parent : "");
+                    importedLogicBlocks.add(selBlock);
+
+                    // Parse properties
+                    for (Map.Entry<String, String> propEntry : properties.entrySet()) {
+                        String prop = propEntry.getKey();
+                        String val = propEntry.getValue();
+
+                        PropertyBlockInfo propInfo = parsePropertyToBlock(prop, val);
+
+                        String propBlockId = "blk_prop_" + timestamp + "_" + (counterRef[0]++);
+                        Map<String, Object> propBlock = new HashMap<>();
+                        propBlock.put("id", propBlockId);
+                        propBlock.put("action", propInfo.action);
+                        propBlock.put("category", propInfo.category);
+                        propBlock.put("shape", "stack");
+                        propBlock.put("spec", propInfo.spec);
+                        propBlock.put("paramValues", propInfo.paramValues);
+                        propBlock.put("params", joinPipe(propInfo.paramValues));
+                        propBlock.put("event", "immediate");
+                        propBlock.put("parentBlockId", selectorBlockId);
+
+                        importedLogicBlocks.add(propBlock);
+                    }
+                } else {
+                    pos = openBraceIdx + 1;
+                }
+            } else {
+                pos = len;
             }
         }
     }
 
     /**
-     * Parse CSS content and store rules.
+     * Parse JS content ONLY and convert it into a list of logic block maps.
      */
-    private void parseCss(String css) {
-        if (css == null || css.trim().isEmpty()) return;
+    public List<Map<String, Object>> importJsOnly(String jsContent) {
+        importedLogicBlocks.clear();
+        if (jsContent != null && !jsContent.trim().isEmpty()) {
+            long timestamp = System.currentTimeMillis();
+            int[] counterRef = new int[]{ 0 };
+            parseJsRules(jsContent, null, timestamp, counterRef);
+            linkBlockChains(importedLogicBlocks);
+        }
+        return new ArrayList<>(importedLogicBlocks);
+    }
 
-        long timestamp = System.currentTimeMillis();
-        int[] counterRef = new int[]{ importedLogicBlocks.size() };
-
-        // 1. Parse and extract @media blocks and other @ rules
-        StringBuilder cssWithoutMedia = new StringBuilder();
+    private void parseJsRules(String js, String parentBlockId, long timestamp, int[] counterRef) {
+        if (js == null || js.trim().isEmpty()) return;
+        
         int pos = 0;
-        int len = css.length();
+        int len = js.length();
+        String currentGroupId = parentBlockId;
+        java.util.Stack<String> groupStack = new java.util.Stack<>();
+        
         while (pos < len) {
-            int atIdx = css.indexOf("@", pos);
-            if (atIdx < 0) {
-                cssWithoutMedia.append(css.substring(pos));
-                break;
+            // Skip whitespace
+            while (pos < len && Character.isWhitespace(js.charAt(pos))) {
+                pos++;
             }
-            cssWithoutMedia.append(css.substring(pos, atIdx));
+            if (pos >= len) break;
             
-            // Check what @ rule it is
-            if (css.substring(atIdx).startsWith("@media")) {
-                int openBraceIdx = css.indexOf("{", atIdx);
-                if (openBraceIdx < 0) {
-                    cssWithoutMedia.append(css.substring(atIdx));
-                    break;
+            // 1. Block comment /* ... */
+            if (js.startsWith("/*", pos)) {
+                int end = js.indexOf("*/", pos + 2);
+                if (end < 0) {
+                    end = len;
+                } else {
+                    end += 2;
                 }
-                String mediaHeader = css.substring(atIdx, openBraceIdx).trim();
-                int closeBraceIdx = findMatchingBrace(css, openBraceIdx);
-                if (closeBraceIdx < 0) {
-                    cssWithoutMedia.append(css.substring(atIdx, openBraceIdx + 1));
-                    pos = openBraceIdx + 1;
+                
+                String commentText = js.substring(pos + 2, end - (end == len ? 0 : 2)).trim();
+                pos = end;
+                
+                if (commentText.isEmpty()) continue;
+                
+                if (commentText.startsWith("/") || commentText.startsWith("</")) {
+                    // Pop stack to close group
+                    if (!groupStack.isEmpty()) {
+                        groupStack.pop();
+                    }
+                    currentGroupId = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                } else {
+                    String blockId = "blk_group_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> groupBlock = new HashMap<>();
+                    groupBlock.put("id", blockId);
+                    groupBlock.put("action", "groupBlock");
+                    groupBlock.put("category", "meta");
+                    groupBlock.put("shape", "cblock");
+                    groupBlock.put("spec", "/* <%s> */ %m.space /* </%s> */");
+                    
+                    String groupName = commentText.replaceAll("^<|>$", "").trim();
+                    List<String> paramValues = new ArrayList<>();
+                    paramValues.add(groupName);
+                    groupBlock.put("paramValues", paramValues);
+                    groupBlock.put("params", groupName);
+                    groupBlock.put("event", "immediate");
+                    
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    groupBlock.put("parentBlockId", parent != null ? parent : "");
+                    
+                    importedLogicBlocks.add(groupBlock);
+                    groupStack.push(blockId);
+                    currentGroupId = blockId;
+                }
+                continue;
+            }
+            
+            // 2. Single-line comment // ...
+            if (js.startsWith("//", pos)) {
+                int end = js.indexOf("\n", pos + 2);
+                if (end < 0) end = len;
+                
+                String commentText = js.substring(pos + 2, end).trim();
+                pos = end;
+                
+                if (commentText.isEmpty()) continue;
+                
+                String blockId = "blk_comment_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> commentBlock = new HashMap<>();
+                commentBlock.put("id", blockId);
+                commentBlock.put("action", "commentBlock");
+                commentBlock.put("category", "meta");
+                commentBlock.put("shape", "stack");
+                commentBlock.put("spec", "/* %s */");
+                List<String> paramValues = new ArrayList<>();
+                paramValues.add(commentText);
+                commentBlock.put("paramValues", paramValues);
+                commentBlock.put("params", commentText);
+                commentBlock.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                commentBlock.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(commentBlock);
+                continue;
+            }
+            
+            // Try to match complex statements that have braces first
+            // 3. setTimeout(function() { ... }, delay);
+            String remaining = js.substring(pos);
+            
+            Pattern timeoutPat = Pattern.compile("^setTimeout\\s*\\(\\s*function\\s*\\(\\s*\\)\\s*\\{");
+            Matcher timeoutMat = timeoutPat.matcher(remaining);
+            if (timeoutMat.find()) {
+                int openBraceIdx = pos + timeoutMat.end() - 1;
+                int closeBraceIdx = findMatchingBrace(js, openBraceIdx);
+                if (closeBraceIdx >= 0) {
+                    // Extract inner body
+                    String innerBody = js.substring(openBraceIdx + 1, closeBraceIdx).trim();
+                    int afterClose = closeBraceIdx + 1;
+                    Pattern delayPat = Pattern.compile("^\\s*,\\s*(\\d+)\\s*\\)");
+                    Matcher delayMat = delayPat.matcher(js.substring(afterClose));
+                    String delay = "1000";
+                    if (delayMat.find()) {
+                        delay = delayMat.group(1);
+                        pos = afterClose + delayMat.end();
+                        if (pos < len && js.charAt(pos) == ';') pos++;
+                    } else {
+                        pos = closeBraceIdx + 1;
+                    }
+                    
+                    String blockId = "blk_js_timeout_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> timeoutBlock = new HashMap<>();
+                    timeoutBlock.put("id", blockId);
+                    timeoutBlock.put("action", "jsSetTimeout");
+                    timeoutBlock.put("category", "logic");
+                    timeoutBlock.put("shape", "cblock");
+                    timeoutBlock.put("spec", "run after %n ms");
+                    timeoutBlock.put("paramValues", java.util.Arrays.asList(delay));
+                    timeoutBlock.put("params", delay);
+                    timeoutBlock.put("event", "immediate");
+                    
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    timeoutBlock.put("parentBlockId", parent != null ? parent : "");
+                    
+                    importedLogicBlocks.add(timeoutBlock);
+                    parseJsRules(innerBody, blockId, timestamp, counterRef);
                     continue;
                 }
-                String mediaContent = css.substring(openBraceIdx + 1, closeBraceIdx).trim();
-                parseMediaQuery(mediaHeader, mediaContent, null, timestamp, counterRef);
-                pos = closeBraceIdx + 1;
-            } else {
-                // Extract other @ rules (like @keyframes, @font-face, @import) as single asdCss blocks
-                int semicolonIdx = css.indexOf(";", atIdx);
-                int openBraceIdx = css.indexOf("{", atIdx);
-                if (semicolonIdx >= 0 && (openBraceIdx < 0 || semicolonIdx < openBraceIdx)) {
-                    // Single line rule, like @import or @charset
-                    String ruleText = css.substring(atIdx, semicolonIdx + 1).trim();
+            }
+            
+            // 4. addEventListener
+            Pattern eventPat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\.addEventListener\\(\\s*['\"]([^'\"]+)['\"]\\s*,\\s*function\\s*\\([^)]*\\)\\s*\\{");
+            Matcher eventMat = eventPat.matcher(remaining);
+            if (eventMat.find()) {
+                String method = eventMat.group(1);
+                String selector = eventMat.group(2);
+                String event = eventMat.group(3);
+                if (method.contains("getElementById") && !selector.startsWith("#")) {
+                    selector = "#" + selector;
+                }
+                
+                int openBraceIdx = pos + eventMat.end() - 1;
+                int closeBraceIdx = findMatchingBrace(js, openBraceIdx);
+                if (closeBraceIdx >= 0) {
+                    String innerBody = js.substring(openBraceIdx + 1, closeBraceIdx).trim();
                     
-                    String propBlockId = "blk_prop_" + timestamp + "_" + (counterRef[0]++);
-                    Map<String, Object> propBlock = new HashMap<>();
-                    propBlock.put("id", propBlockId);
-                    propBlock.put("action", "asdCss");
-                    propBlock.put("category", "asd");
-                    propBlock.put("shape", "stack");
-                    propBlock.put("spec", "%s");
-                    propBlock.put("paramValues", java.util.Arrays.asList(ruleText));
-                    propBlock.put("params", ruleText);
-                    propBlock.put("event", "immediate");
-                    propBlock.put("parentBlockId", "");
-                    importedLogicBlocks.add(propBlock);
-                    
-                    pos = semicolonIdx + 1;
-                } else if (openBraceIdx >= 0) {
-                    // Block rule, like @keyframes or @font-face
-                    int closeBraceIdx = findMatchingBrace(css, openBraceIdx);
-                    if (closeBraceIdx < 0) {
-                        cssWithoutMedia.append(css.substring(atIdx, openBraceIdx + 1));
-                        pos = openBraceIdx + 1;
-                        continue;
+                    int afterClose = closeBraceIdx + 1;
+                    Pattern endPat = Pattern.compile("^\\s*\\)");
+                    Matcher endMat = endPat.matcher(js.substring(afterClose));
+                    if (endMat.find()) {
+                        pos = afterClose + endMat.end();
+                        if (pos < len && js.charAt(pos) == ';') pos++;
+                    } else {
+                        pos = closeBraceIdx + 1;
                     }
-                    String ruleText = css.substring(atIdx, closeBraceIdx + 1).trim();
                     
-                    String propBlockId = "blk_prop_" + timestamp + "_" + (counterRef[0]++);
-                    Map<String, Object> propBlock = new HashMap<>();
-                    propBlock.put("id", propBlockId);
-                    propBlock.put("action", "asdCss");
-                    propBlock.put("category", "asd");
-                    propBlock.put("shape", "stack");
-                    propBlock.put("spec", "%s");
-                    propBlock.put("paramValues", java.util.Arrays.asList(ruleText));
-                    propBlock.put("params", ruleText);
-                    propBlock.put("event", "immediate");
-                    propBlock.put("parentBlockId", "");
-                    importedLogicBlocks.add(propBlock);
+                    String blockId = "blk_js_event_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> eventBlock = new HashMap<>();
+                    eventBlock.put("id", blockId);
+                    eventBlock.put("action", "jsAddEvent");
+                    eventBlock.put("category", "logic");
+                    eventBlock.put("shape", "cblock");
+                    eventBlock.put("spec", "on element %s add event listener %s");
+                    eventBlock.put("paramValues", java.util.Arrays.asList(selector, event));
+                    eventBlock.put("params", selector + "|" + event);
+                    eventBlock.put("event", "immediate");
                     
-                    pos = closeBraceIdx + 1;
-                } else {
-                    cssWithoutMedia.append(css.substring(atIdx));
-                    break;
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    eventBlock.put("parentBlockId", parent != null ? parent : "");
+                    
+                    importedLogicBlocks.add(eventBlock);
+                    parseJsRules(innerBody, blockId, timestamp, counterRef);
+                    continue;
                 }
             }
+            
+            // 5. alert(msg);
+            Pattern alertPat = Pattern.compile("^alert\\(\\s*(['\"]?)(.*?)\\1\\s*\\)\\s*;?");
+            Matcher alertMat = alertPat.matcher(remaining);
+            if (alertMat.find()) {
+                String val = alertMat.group(2);
+                pos += alertMat.end();
+                
+                String blockId = "blk_js_alert_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "jsAlert");
+                block.put("category", "logic");
+                block.put("shape", "stack");
+                block.put("spec", "alert %s");
+                block.put("paramValues", java.util.Arrays.asList(val));
+                block.put("params", val);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(block);
+                continue;
+            }
+            
+            // 6. console.log(msg);
+            Pattern logPat = Pattern.compile("^console\\.log\\(\\s*(['\"]?)(.*?)\\1\\s*\\)\\s*;?");
+            Matcher logMat = logPat.matcher(remaining);
+            if (logMat.find()) {
+                String val = logMat.group(2);
+                pos += logMat.end();
+                
+                String blockId = "blk_js_log_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "jsConsoleLog");
+                block.put("category", "logic");
+                block.put("shape", "stack");
+                block.put("spec", "console.log %s");
+                block.put("paramValues", java.util.Arrays.asList(val));
+                block.put("params", val);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(block);
+                continue;
+            }
+            
+            // 7. window.location.href = url;
+            Pattern locPat = Pattern.compile("^window\\.location\\.href\\s*=\\s*(['\"]?)(.*?)\\1\\s*;?");
+            Matcher locMat = locPat.matcher(remaining);
+            if (locMat.find()) {
+                String val = locMat.group(2);
+                pos += locMat.end();
+                
+                String blockId = "blk_js_loc_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "jsWindowLocation");
+                block.put("category", "logic");
+                block.put("shape", "stack");
+                block.put("spec", "redirect to url %s");
+                block.put("paramValues", java.util.Arrays.asList(val));
+                block.put("params", val);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(block);
+                continue;
+            }
+            
+            // 8. const name = value;
+            Pattern constPat = Pattern.compile("^const\\s+([a-zA-Z0-9_$]+)\\s*=\\s*(.*?)\\s*;");
+            Matcher constMat = constPat.matcher(remaining);
+            if (constMat.find()) {
+                String name = constMat.group(1);
+                String val = constMat.group(2).trim();
+                pos += constMat.end();
+                
+                String blockId = "blk_js_const_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "constDefine");
+                block.put("category", "logic");
+                block.put("shape", "stack");
+                block.put("spec", "const %s = %s");
+                block.put("paramValues", java.util.Arrays.asList(name, val));
+                block.put("params", name + "|" + val);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(block);
+                continue;
+            }
+            
+            // 9. setInnerHTML
+            Pattern htmlPat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\.innerHTML\\s*=\\s*(.*?)\\s*;");
+            Matcher htmlMat = htmlPat.matcher(remaining);
+            if (htmlMat.find()) {
+                String method = htmlMat.group(1);
+                String selector = htmlMat.group(2);
+                String val = htmlMat.group(3).trim();
+                pos += htmlMat.end();
+                
+                if (method.contains("getElementById") && !selector.startsWith("#")) {
+                    selector = "#" + selector;
+                }
+                
+                String blockId = "blk_js_html_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "jsSetInnerHTML");
+                block.put("category", "logic");
+                block.put("shape", "stack");
+                block.put("spec", "set innerHTML of element %s to %s");
+                block.put("paramValues", java.util.Arrays.asList(selector, val));
+                block.put("params", selector + "|" + val);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(block);
+                continue;
+            }
+            
+            // 10. setStyle
+            Pattern stylePat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\.style(?:\\[['\"]([^'\"]+)['\"]\\]|\\.([a-zA-Z0-9_$]+))\\s*=\\s*(.*?)\\s*;");
+            Matcher styleMat = stylePat.matcher(remaining);
+            if (styleMat.find()) {
+                String method = styleMat.group(1);
+                String selector = styleMat.group(2);
+                String prop = styleMat.group(3) != null ? styleMat.group(3) : styleMat.group(4);
+                String val = styleMat.group(5).trim();
+                pos += styleMat.end();
+                
+                if (method.contains("getElementById") && !selector.startsWith("#")) {
+                    selector = "#" + selector;
+                }
+                
+                String blockId = "blk_js_style_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "jsSetStyle");
+                block.put("category", "logic");
+                block.put("shape", "stack");
+                block.put("spec", "on element %s set style %s to %s");
+                block.put("paramValues", java.util.Arrays.asList(selector, prop, val));
+                block.put("params", selector + "|" + prop + "|" + val);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(block);
+                continue;
+            }
+            
+            // 11. getElement
+            Pattern getPat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\s*;?");
+            Matcher getMat = getPat.matcher(remaining);
+            if (getMat.find()) {
+                String method = getMat.group(1);
+                String selector = getMat.group(2);
+                pos += getMat.end();
+                
+                if (method.contains("getElementById") && !selector.startsWith("#")) {
+                    selector = "#" + selector;
+                }
+                
+                String blockId = "blk_js_get_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "jsGetElementById");
+                block.put("category", "logic");
+                block.put("shape", "value");
+                block.put("spec", "get element %s");
+                block.put("paramValues", java.util.Arrays.asList(selector));
+                block.put("params", selector);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(block);
+                continue;
+            }
+            
+            // 12. Fallback to asdJs
+            int nextSemi = js.indexOf(";", pos);
+            int nextBrace = js.indexOf("{", pos);
+            int nextCloseBrace = js.indexOf("}", pos);
+            int nextComment1 = js.indexOf("/*", pos);
+            int nextComment2 = js.indexOf("//", pos);
+            
+            int nextEnd = len;
+            if (nextSemi >= 0) nextEnd = Math.min(nextEnd, nextSemi + 1);
+            if (nextBrace >= 0) nextEnd = Math.min(nextEnd, nextBrace);
+            if (nextCloseBrace >= 0) nextEnd = Math.min(nextEnd, nextCloseBrace);
+            if (nextComment1 >= 0) nextEnd = Math.min(nextEnd, nextComment1);
+            if (nextComment2 >= 0) nextEnd = Math.min(nextEnd, nextComment2);
+            
+            if (nextEnd == pos) {
+                nextEnd = pos + 1;
+            }
+            
+            String fallbackCode = js.substring(pos, nextEnd).trim();
+            pos = nextEnd;
+            
+            if (fallbackCode.isEmpty() || fallbackCode.equals(";")) continue;
+            
+            String blockId = "blk_asd_js_" + timestamp + "_" + (counterRef[0]++);
+            Map<String, Object> block = new HashMap<>();
+            block.put("id", blockId);
+            block.put("action", "asdJs");
+            block.put("category", "asd");
+            block.put("shape", "stack");
+            block.put("spec", "%s");
+            block.put("paramValues", java.util.Arrays.asList(fallbackCode));
+            block.put("params", fallbackCode);
+            block.put("event", "immediate");
+            
+            String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+            block.put("parentBlockId", parent != null ? parent : "");
+            
+            importedLogicBlocks.add(block);
         }
-
-        // 2. Parse the remaining CSS (without media queries and keyframes/imports)
-        parseCssRules(cssWithoutMedia.toString(), null, timestamp, counterRef);
     }
 
     private void decomposeBorder(String borderVal, Map<String, String> targetMap) {

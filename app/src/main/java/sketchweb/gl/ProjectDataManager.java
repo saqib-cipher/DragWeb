@@ -151,9 +151,7 @@ public class ProjectDataManager {
                             // Theme → styles/
                             addFileToZip(zos, ZIP_STYLES + name, file);
 
-                        } else if (name.startsWith(projectId + "_") && name.endsWith(".logic")) {
-                            // Logic blocks → logic/
-                            addFileToZip(zos, ZIP_LOGIC + name, file);
+
 
                         } else if (name.equals(projectId + ".meta")) {
                             // Metadata → meta/
@@ -176,6 +174,21 @@ public class ProjectDataManager {
                             addFileToZip(zos, ZIP_BREAKPOINTS + name, file);
                         }
                         // Other files (e.g. belonging to other projects) are skipped
+                    }
+                }
+            }
+
+            // Export logic blocks from projects/logic folder
+            File logicDir = new File(internalDir, "logic");
+            if (logicDir.exists() && logicDir.isDirectory()) {
+                File[] logicFiles = logicDir.listFiles();
+                if (logicFiles != null) {
+                    for (File file : logicFiles) {
+                        if (!file.isFile()) continue;
+                        String name = file.getName();
+                        if ((name.startsWith(projectId + "_") || name.startsWith(projectId + ".")) && name.endsWith(".logic")) {
+                            addFileToZip(zos, ZIP_LOGIC + name, file);
+                        }
                     }
                 }
             }
@@ -231,6 +244,20 @@ public class ProjectDataManager {
                         String zipPath = classifyInternalFile(name);
                         if (zipPath != null) {
                             addFileToZip(zos, zipPath, file);
+                        }
+                    }
+                }
+                // Scan the logic/ subdirectory too for all projects' logic files
+                File logicDir = new File(internalDir, "logic");
+                if (logicDir.exists() && logicDir.isDirectory()) {
+                    File[] logicFiles = logicDir.listFiles();
+                    if (logicFiles != null) {
+                        for (File file : logicFiles) {
+                            if (!file.isFile()) continue;
+                            String name = file.getName();
+                            if (name.endsWith(".logic")) {
+                                addFileToZip(zos, ZIP_LOGIC + name, file);
+                            }
                         }
                     }
                 }
@@ -317,9 +344,11 @@ public class ProjectDataManager {
                     captureProjectIdFromInternalFile(relative, result.importedProjectIds);
 
                 } else if (entryName.startsWith(ZIP_LOGIC)) {
-                    // logic/{projectId}_{page}.logic → internal projects dir
+                    // logic/{projectId}_{page}.logic → internal projects/logic dir
                     String relative = entryName.substring(ZIP_LOGIC.length());
-                    outFile = new File(internalProjectsDir, relative);
+                    File logicDir = new File(internalProjectsDir, "logic");
+                    if (!logicDir.exists()) logicDir.mkdirs();
+                    outFile = new File(logicDir, relative);
                     safeBase = internalBase;
                     captureProjectIdFromInternalFile(relative, result.importedProjectIds);
 

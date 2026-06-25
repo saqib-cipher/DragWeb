@@ -98,19 +98,19 @@ public class EventsFragment extends Fragment {
         rvEvents.setLayoutManager(new LinearLayoutManager(getContext()));
 
         btnResetLogic.setOnClickListener(v -> {
-            List<String> files = getCssFiles();
+            List<String> files = getCssAndJsFiles();
             String[] items = files.toArray(new String[0]);
             new MaterialAlertDialogBuilder(getContext())
-                .setTitle("Select stylesheet to reset")
+                .setTitle("Select stylesheet/script to reset")
                 .setItems(items, (dialog, which) -> {
                     String selected = items[which];
                     new MaterialAlertDialogBuilder(getContext())
                         .setTitle("Reset Logic")
                         .setMessage("Are you sure you want to delete all logic blocks for '" + selected + "'? This cannot be undone.")
                         .setPositiveButton("Reset", (d, w) -> {
-                            File dir = new File(getContext().getFilesDir(), "projects");
-                            String safeName = selected.replace("/", "_").replace(".", "_");
-                            File logicFile = new File(dir, projectId + "_" + safeName + ".logic");
+                             File dir = new File(new File(getContext().getFilesDir(), "projects"), "logic");
+                             String safeName = selected.replace("/", "_").replace(".", "_");
+                             File logicFile = new File(dir, projectId + "_" + safeName + ".logic");
                             if (logicFile.exists()) {
                                 logicFile.delete();
                             }
@@ -125,7 +125,8 @@ public class EventsFragment extends Fragment {
         });
 
         if (btnImportCss != null) {
-            btnImportCss.setOnClickListener(v -> showImportCssDialog());
+            btnImportCss.setText("Import Code");
+            btnImportCss.setOnClickListener(v -> showImportCodeDialog());
         }
 
         refreshLogicList();
@@ -138,33 +139,39 @@ public class EventsFragment extends Fragment {
 
     private void refreshLogicList() {
         if (getContext() == null || rvEvents == null) return;
-        List<String> cssFiles = getCssFiles();
-        rvEvents.setAdapter(new CssFilesAdapter(cssFiles));
+        List<String> files = getCssAndJsFiles();
+        rvEvents.setAdapter(new CssFilesAdapter(files));
     }
 
-    private List<String> getCssFiles() {
-        List<String> cssFiles = new ArrayList<>();
-        cssFiles.add("css/style.css");
+
+
+    private List<String> getCssAndJsFiles() {
+        List<String> files = new ArrayList<>();
+        files.add("css/style.css");
+        files.add("js/script.js");
         String path = Environment.getExternalStorageDirectory().getAbsolutePath()
             + "/.dragweb/projects/" + projectId + "/assets";
         File dir = new File(path);
         if (dir.exists() && dir.isDirectory()) {
-            collectCssFilesRecursive(dir, dir, cssFiles);
+            collectCssAndJsFilesRecursive(dir, dir, files);
         }
-        return cssFiles;
+        return files;
     }
 
-    private void collectCssFilesRecursive(File root, File current, List<String> cssFiles) {
+    private void collectCssAndJsFilesRecursive(File root, File current, List<String> filesList) {
         File[] files = current.listFiles();
         if (files != null) {
             for (File f : files) {
                 if (f.isDirectory()) {
-                    collectCssFilesRecursive(root, f, cssFiles);
-                } else if (f.isFile() && f.getName().toLowerCase().endsWith(".css")) {
-                    String relative = f.getAbsolutePath().substring(root.getAbsolutePath().length() + 1);
-                    relative = relative.replace("\\", "/");
-                    if (!cssFiles.contains(relative)) {
-                        cssFiles.add(relative);
+                    collectCssAndJsFilesRecursive(root, f, filesList);
+                } else if (f.isFile()) {
+                    String name = f.getName().toLowerCase();
+                    if (name.endsWith(".css") || name.endsWith(".js")) {
+                        String relative = f.getAbsolutePath().substring(root.getAbsolutePath().length() + 1);
+                        relative = relative.replace("\\", "/");
+                        if (!filesList.contains(relative)) {
+                            filesList.add(relative);
+                        }
                     }
                 }
             }
@@ -172,7 +179,7 @@ public class EventsFragment extends Fragment {
     }
 
     private int getBlockCountForCss(String cssPath) {
-        File dir = new File(getContext().getFilesDir(), "projects");
+        File dir = new File(new File(getContext().getFilesDir(), "projects"), "logic");
         String safeName = cssPath.replace("/", "_").replace(".", "_");
         File logicFile = new File(dir, projectId + "_" + safeName + ".logic");
         if (logicFile.exists()) {
@@ -188,34 +195,46 @@ public class EventsFragment extends Fragment {
         return 0;
     }
 
-    private void showImportCssDialog() {
+    private void showImportCodeDialog() {
         if (getContext() == null) return;
-        List<String> files = getCssFiles();
+        List<String> files = getCssAndJsFiles();
         if (files.isEmpty()) return;
 
         String[] items = files.toArray(new String[0]);
-        UniversalDialog.singleChoice(getContext(), "Select Target Stylesheet", items, (index, target) -> {
-            UniversalDialog.multilineInput(getContext(), "Import CSS to " + target.substring(target.lastIndexOf('/') + 1), "Paste CSS code here", "", cssText -> {
-                if (cssText.trim().isEmpty()) {
-                    Toast.makeText(getContext(), "Pasted CSS is empty", Toast.LENGTH_SHORT).show();
+        UniversalDialog.singleChoice(getContext(), "Select Target File", items, (index, target) -> {
+            boolean isJs = target.toLowerCase().endsWith(".js");
+            String title = isJs ? "Import JS to " + target.substring(target.lastIndexOf('/') + 1) : "Import CSS to " + target.substring(target.lastIndexOf('/') + 1);
+            String hint = isJs ? "Paste JS code here" : "Paste CSS code here";
+            String codeType = isJs ? "JS" : "CSS";
+
+            UniversalDialog.multilineInput(getContext(), title, hint, "", codeText -> {
+                if (codeText.trim().isEmpty()) {
+                    Toast.makeText(getContext(), "Pasted " + codeType + " is empty", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
                 HtmlCssImporter importer = new HtmlCssImporter();
-                List<Map<String, Object>> blockMaps = importer.importCssOnly(cssText);
+                List<Map<String, Object>> blockMaps;
+                if (isJs) {
+                    blockMaps = importer.importJsOnly(codeText);
+                } else {
+                    blockMaps = importer.importCssOnly(codeText);
+                }
+
                 List<LogicBlockManager.LogicBlock> importedBlocks = new Gson().fromJson(
                     new Gson().toJson(blockMaps),
                     new TypeToken<List<LogicBlockManager.LogicBlock>>(){}.getType()
                 );
                 if (importedBlocks == null || importedBlocks.isEmpty()) {
-                    Toast.makeText(getContext(), "No CSS rules could be parsed into blocks.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getContext(), "No " + codeType + " rules could be parsed into blocks.", Toast.LENGTH_LONG).show();
                     return;
                 }
 
-                File dir = new File(getContext().getFilesDir(), "projects");
+                File dir = new File(new File(getContext().getFilesDir(), "projects"), "logic");
+                if (!dir.exists()) dir.mkdirs();
                 String safeName = target.replace("/", "_").replace(".", "_");
                 File logicFile = new File(dir, projectId + "_" + safeName + ".logic");
-                
+
                 List<LogicBlockManager.LogicBlock> currentBlocks = new ArrayList<>();
                 if (logicFile.exists()) {
                     try {
@@ -231,7 +250,7 @@ public class EventsFragment extends Fragment {
                 currentBlocks.addAll(importedBlocks);
                 FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(currentBlocks));
                 refreshLogicList();
-                Toast.makeText(getContext(), "Successfully imported " + importedBlocks.size() + " CSS blocks into " + target, Toast.LENGTH_LONG).show();
+                Toast.makeText(getContext(), "Successfully imported " + importedBlocks.size() + " " + codeType + " blocks into " + target, Toast.LENGTH_LONG).show();
             });
         });
     }
@@ -281,7 +300,7 @@ public class EventsFragment extends Fragment {
             }
 
             if (holder.tvPreview != null) {
-                holder.tvPreview.setText("CSS");
+                holder.tvPreview.setText(cssPath.endsWith(".js") ? "JS" : "CSS");
             }
 
 

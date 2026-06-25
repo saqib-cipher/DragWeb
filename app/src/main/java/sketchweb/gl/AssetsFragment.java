@@ -189,6 +189,9 @@ public class AssetsFragment extends Fragment {
             return;
         }
         if (newDir.mkdirs()) {
+            if (fileExplorerAdapter != null) {
+                fileExplorerAdapter.setFileType(newDir, "external");
+            }
             fileExplorerAdapter.navigateTo(current);
             updateAssetsPath();
             Toast.makeText(getContext(), "Folder created: " + name, Toast.LENGTH_SHORT).show();
@@ -222,6 +225,7 @@ public class AssetsFragment extends Fragment {
             fos.close();
 
             if (fileExplorerAdapter != null) {
+                fileExplorerAdapter.setFileType(dest, "external");
                 fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
                 updateAssetsPath();
             }
@@ -315,10 +319,11 @@ public class AssetsFragment extends Fragment {
                 return;
             }
             if (file.renameTo(target)) {
-                Toast.makeText(getContext(), "File renamed successfully", Toast.LENGTH_SHORT).show();
                 if (fileExplorerAdapter != null) {
+                    fileExplorerAdapter.renameFileType(file, target);
                     fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
                 }
+                Toast.makeText(getContext(), "File renamed successfully", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(getContext(), "Rename failed", Toast.LENGTH_SHORT).show();
             }
@@ -331,6 +336,9 @@ public class AssetsFragment extends Fragment {
             .setTitle("Delete " + (file.isDirectory() ? "Folder" : "File"))
             .setMessage("Are you sure you want to delete " + file.getName() + "? This cannot be undone.")
             .setPositiveButton("Delete", (dialog, which) -> {
+                if (fileExplorerAdapter != null) {
+                    fileExplorerAdapter.removeFileType(file);
+                }
                 if (deleteRecursive(file)) {
                     Toast.makeText(getContext(), "Deleted successfully", Toast.LENGTH_SHORT).show();
                     if (fileExplorerAdapter != null) {

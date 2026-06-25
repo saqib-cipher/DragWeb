@@ -267,22 +267,12 @@
 			android:padding="6dp">
 
 			<!-- Style items horizontal list -->
-			<HorizontalScrollView
+			<androidx.recyclerview.widget.RecyclerView
+				android:id="@+id/recyclerview3"
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
-				android:scrollbars="none">
-				<LinearLayout
-					android:layout_width="wrap_content"
-					android:layout_height="wrap_content"
-					android:orientation="horizontal">
-					<androidx.recyclerview.widget.RecyclerView
-						android:id="@+id/recyclerview3"
-						android:layout_width="wrap_content"
-						android:layout_height="wrap_content"
-						android:orientation="horizontal"
-						tools:listitem="@layout/design" />
-				</LinearLayout>
-			</HorizontalScrollView>
+				android:orientation="horizontal"
+				tools:listitem="@layout/design" />
 
 			<!-- Tabs: Basic / Styles / Layout -->
 			<com.google.android.material.chip.ChipGroup

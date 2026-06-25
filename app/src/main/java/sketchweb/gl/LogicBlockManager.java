@@ -846,6 +846,13 @@ public class LogicBlockManager {
                 return "console.log(" + name + ");\n";
             }
 
+            case "constDefine": {
+                String[] parts = block.params.split("\\|", 2);
+                String name = parts.length > 0 ? parts[0].trim() : "MY_CONST";
+                String val = parts.length > 1 ? parts[1].trim() : "\"value\"";
+                return "const " + name + " = " + val + ";\n";
+            }
+
             default:
                 String rendered = applyChipTemplate(block);
                 if (rendered != null && !rendered.isEmpty()) {

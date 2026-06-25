@@ -64,6 +64,12 @@ public class PageManager {
         if (internalFile.exists()) {
             internalFile.delete();
         }
+        // Delete logic file too
+        File logicDir = new File(context.getFilesDir(), "projects/logic");
+        File logicFile = new File(logicDir, projectId + "_" + pageName + ".logic");
+        if (logicFile.exists()) {
+            logicFile.delete();
+        }
     }
 
     public void renamePage(String oldName, String newName) {
@@ -88,6 +94,13 @@ public class PageManager {
             if (oldInternal.exists()) {
                 oldInternal.renameTo(newInternal);
             }
+            // Rename logic file too
+            File logicDir = new File(context.getFilesDir(), "projects/logic");
+            File oldLogic = new File(logicDir, projectId + "_" + oldName + ".logic");
+            File newLogic = new File(logicDir, projectId + "_" + newName + ".logic");
+            if (oldLogic.exists()) {
+                oldLogic.renameTo(newLogic);
+            }
         }
     }
 
@@ -110,6 +123,20 @@ public class PageManager {
             }
         }
 
+        // Fallback for "index" page layout to layout.json
+        if ("index".equals(pageName)) {
+            String layoutPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectId + "/layout.json";
+            File layoutFile = new File(layoutPath);
+            if (layoutFile.exists()) {
+                String json = FileUtil.readFile(layoutFile.getAbsolutePath());
+                if (json != null && !json.isEmpty()) {
+                    pageLayoutCache.put(pageName, json);
+                    return json;
+                }
+            }
+        }
+
         // Try internal storage as fallback
         File internalFile = getInternalPageFile(pageName);
         if (internalFile.exists()) {
@@ -117,6 +144,19 @@ public class PageManager {
             if (json != null && !json.isEmpty()) {
                 pageLayoutCache.put(pageName, json);
                 return json;
+            }
+        }
+
+        // Fallback for internal "index" page layout to projectId.json
+        if ("index".equals(pageName)) {
+            File internalDir = new File(context.getFilesDir(), "projects");
+            File internalLayoutFile = new File(internalDir, projectId + ".json");
+            if (internalLayoutFile.exists()) {
+                String json = FileUtil.readFile(internalLayoutFile.getAbsolutePath());
+                if (json != null && !json.isEmpty()) {
+                    pageLayoutCache.put(pageName, json);
+                    return json;
+                }
             }
         }
 
@@ -137,11 +177,25 @@ public class PageManager {
         File internalFile = new File(internalDir, projectId + "_" + pageName + ".json");
         FileUtil.writeFile(internalFile.getAbsolutePath(), json);
 
+        // Also if pageName is "index", save to internal storage as projectId.json (which matches layout.json)
+        if ("index".equals(pageName)) {
+            File internalLayoutFile = new File(internalDir, projectId + ".json");
+            FileUtil.writeFile(internalLayoutFile.getAbsolutePath(), json);
+        }
+
         // Save to external storage
         File extFile = getPageLayoutFile(pageName);
         File extDir = extFile.getParentFile();
         if (!extDir.exists()) extDir.mkdirs();
         FileUtil.writeFile(extFile.getAbsolutePath(), json);
+
+        // ALSO: if pageName is "index", save to layout.json
+        if ("index".equals(pageName)) {
+            String layoutPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectId + "/layout.json";
+            File layoutFile = new File(layoutPath);
+            FileUtil.writeFile(layoutFile.getAbsolutePath(), json);
+        }
     }
 
     /**
@@ -159,11 +213,23 @@ public class PageManager {
                 File internalFile = new File(internalDir, projectId + "_" + pageName + ".json");
                 FileUtil.writeFile(internalFile.getAbsolutePath(), json);
 
+                if ("index".equals(pageName)) {
+                    File internalLayoutFile = new File(internalDir, projectId + ".json");
+                    FileUtil.writeFile(internalLayoutFile.getAbsolutePath(), json);
+                }
+
                 // Save to external storage
                 File extFile = getPageLayoutFile(pageName);
                 File extDir = extFile.getParentFile();
                 if (!extDir.exists()) extDir.mkdirs();
                 FileUtil.writeFile(extFile.getAbsolutePath(), json);
+
+                if ("index".equals(pageName)) {
+                    String layoutPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                        + "/.dragweb/projects/" + projectId + "/layout.json";
+                    File layoutFile = new File(layoutPath);
+                    FileUtil.writeFile(layoutFile.getAbsolutePath(), json);
+                }
             }
         }
     }

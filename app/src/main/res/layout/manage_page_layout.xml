@@ -94,6 +94,7 @@
                             android:layout_height="wrap_content"
                             android:layout_gravity="end|center_vertical"
                             android:layout_marginEnd="16dp"
+                            app:thumbIcon="@drawable/thumb_icon_selector"
                             android:checked="true"/>
                     </com.google.android.material.card.MaterialCardView>
 

@@ -123,6 +123,7 @@ public class BlockDef {
             case "tag":
             case "file":
             case "section":
+            case "selector":
                 return "selector";
             case "space": return "container";
             case "boolean": return "boolean";

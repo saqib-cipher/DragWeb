@@ -162,7 +162,7 @@ public class MainEditorFragment extends Fragment {
 				if (result.getResultCode() == Activity.RESULT_OK) {
 					// Reload logic blocks from file after returning
 					if (logicBlockManager != null) {
-						File dir = new File(requireContext().getFilesDir(), "projects");
+						File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
 						String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
 						File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
 						if (logicFile.exists()) {
@@ -325,7 +325,7 @@ public class MainEditorFragment extends Fragment {
 								pageManager.setCurrentPage("index");
 								loadCurrentPageLayout();
 								
-								File dir = new File(requireContext().getFilesDir(), "projects");
+								File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
 								File logicFile = new File(dir, projectId + "_index.logic");
 								if (logicFile.exists()) {
 									String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
@@ -348,7 +348,7 @@ public class MainEditorFragment extends Fragment {
 								pageManager.setCurrentPage(newName);
 								loadCurrentPageLayout();
 								
-								File dir = new File(requireContext().getFilesDir(), "projects");
+								File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
 								File logicFile = new File(dir, projectId + "_" + newName + ".logic");
 								if (logicFile.exists()) {
 									String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
@@ -378,6 +378,13 @@ public class MainEditorFragment extends Fragment {
 		delete = view.findViewById(R.id.delete);
 		textview2 = view.findViewById(R.id.textview2);
 		recyclerview3 = view.findViewById(R.id.recyclerview3);
+		recyclerview3.setOnTouchListener(new View.OnTouchListener() {
+			@Override
+			public boolean onTouch(View v, android.view.MotionEvent event) {
+				v.getParent().requestDisallowInterceptTouchEvent(true);
+				return false;
+			}
+		});
 		recyclerview1 = view.findViewById(R.id.recyclerview1);
 		recyclerviewRightPanel = view.findViewById(R.id.recyclerviewRightPanel);
 		rvDrawerWidgets = view.findViewById(R.id.rvDrawerWidgets);
@@ -512,7 +519,7 @@ public class MainEditorFragment extends Fragment {
 		engine = new WidgetBuilderEngine(requireContext());
 		widgetUpdater = new WidgetUpdater(requireContext(), engine);
 		codeGenerator = new PageCodeGenerator();
-		codeGenerator.setProjectInfo(projectName, getProjectLogoPath());
+		codeGenerator.setProjectInfo(projectName, null);
 		projectDataManager = new ProjectDataManager(requireContext());
 		themeManager = new ThemeManager();
 		exportManager = new ExportManager(requireContext(), themeManager);
@@ -529,17 +536,23 @@ public class MainEditorFragment extends Fragment {
 		pageManager = new PageManager(requireContext(), projectId);
 
 		// Load logic blocks for the initial page
-		File dir = new File(requireContext().getFilesDir(), "projects");
+		File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
 		String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
 		File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
 		if (logicFile.exists()) {
 			String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
 			logicBlockManager.fromJson(logicJson);
 		} else {
-			File oldLogicFile = new File(dir, projectId + ".logic");
+			File oldLogicFile = new File(dir.getParentFile(), projectId + "_" + pageName + ".logic");
 			if (oldLogicFile.exists()) {
 				String logicJson = FileUtil.readFile(oldLogicFile.getAbsolutePath());
 				logicBlockManager.fromJson(logicJson);
+			} else {
+				File veryOldLogicFile = new File(dir.getParentFile(), projectId + ".logic");
+				if (veryOldLogicFile.exists()) {
+					String logicJson = FileUtil.readFile(veryOldLogicFile.getAbsolutePath());
+					logicBlockManager.fromJson(logicJson);
+				}
 			}
 		}
 
@@ -943,7 +956,7 @@ public class MainEditorFragment extends Fragment {
 
 		// Load logic blocks for new page
 		if (logicBlockManager != null) {
-			File dir = new File(requireContext().getFilesDir(), "projects");
+			File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
 			File logicFile = new File(dir, projectId + "_" + selectedPage + ".logic");
 			if (logicFile.exists()) {
 				String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
@@ -987,7 +1000,7 @@ public class MainEditorFragment extends Fragment {
 				if (pageName.equals(pageManager.getCurrentPage())) {
 					pageManager.setCurrentPage("index");
 					loadCurrentPageLayout();
-					File dir = new File(requireContext().getFilesDir(), "projects");
+					File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
 					File logicFile = new File(dir, projectId + "_index.logic");
 					if (logicFile.exists()) {
 						String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
@@ -1120,6 +1133,11 @@ public class MainEditorFragment extends Fragment {
 					showAddCssFileDialog(() -> {
 						showPageSelectorPopupWithTab(R.id.option_custom_view);
 					});
+				} else if (optionsSelector != null && optionsSelector.getCheckedButtonId() == R.id.option_js_view) {
+					dialog.dismiss();
+					showAddJsFileDialog(() -> {
+						showPageSelectorPopupWithTab(R.id.option_js_view);
+					});
 				} else {
 					dialog.dismiss();
 					showAddPageDialog();
@@ -1165,15 +1183,16 @@ public class MainEditorFragment extends Fragment {
 			@Override
 			public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
 				String name = items.get(position);
-				boolean isCss = name.endsWith(".css") || name.contains("/");
+				boolean isCss = name.endsWith(".css");
+				boolean isJs = name.endsWith(".js");
 
-				if (isCss) {
+				if (isCss || isJs) {
 					String displayName = name.substring(name.lastIndexOf('/') + 1);
 					holder.tvPageName.setText(displayName);
 					holder.tvLinkedStyleName.setText(name + " (" + getBlockCountForCss(name) + " blocks)");
 
 					if (holder.tvPreview != null) {
-						holder.tvPreview.setText("CSS");
+						holder.tvPreview.setText(isJs ? "JS" : "CSS");
 						holder.tvPreview.setVisibility(View.VISIBLE);
 					}
 					if (holder.layoutPreviewContainer != null) {
@@ -1290,6 +1309,22 @@ public class MainEditorFragment extends Fragment {
 					if (createNewView instanceof TextView) {
 						((TextView) createNewView).setText("Create new CSS");
 					}
+				} else if (checkedId == R.id.option_js_view) {
+					List<String> jsFiles = getJsFiles();
+					if (jsFiles.isEmpty()) {
+						listXml.setVisibility(View.GONE);
+						if (emptyMessage != null) {
+							emptyMessage.setVisibility(View.VISIBLE);
+							emptyMessage.setText("No JavaScript files found.");
+						}
+					} else {
+						listXml.setVisibility(View.VISIBLE);
+						if (emptyMessage != null) emptyMessage.setVisibility(View.GONE);
+						listXml.setAdapter(new PageSelectorAdapter(jsFiles));
+					}
+					if (createNewView instanceof TextView) {
+						((TextView) createNewView).setText("Create new JS");
+					}
 				}
 			});
 
@@ -1301,7 +1336,7 @@ public class MainEditorFragment extends Fragment {
 				if (createNewView instanceof TextView) {
 					((TextView) createNewView).setText("Create new page");
 				}
-			} else {
+			} else if (defaultCheckedId == R.id.option_custom_view) {
 				List<String> cssFiles = getCssFiles();
 				if (cssFiles.isEmpty()) {
 					listXml.setVisibility(View.GONE);
@@ -1316,6 +1351,22 @@ public class MainEditorFragment extends Fragment {
 				}
 				if (createNewView instanceof TextView) {
 					((TextView) createNewView).setText("Create new CSS");
+				}
+			} else if (defaultCheckedId == R.id.option_js_view) {
+				List<String> jsFiles = getJsFiles();
+				if (jsFiles.isEmpty()) {
+					listXml.setVisibility(View.GONE);
+					if (emptyMessage != null) {
+						emptyMessage.setVisibility(View.VISIBLE);
+						emptyMessage.setText("No JavaScript files found.");
+					}
+				} else {
+					listXml.setVisibility(View.VISIBLE);
+					if (emptyMessage != null) emptyMessage.setVisibility(View.GONE);
+					listXml.setAdapter(new PageSelectorAdapter(jsFiles));
+				}
+				if (createNewView instanceof TextView) {
+					((TextView) createNewView).setText("Create new JS");
 				}
 			}
 		}
@@ -1379,7 +1430,7 @@ public class MainEditorFragment extends Fragment {
 
 	private int getBlockCountForCss(String cssPath) {
 		if (getContext() == null) return 0;
-		File dir = new File(requireContext().getFilesDir(), "projects");
+		File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
 		String safeName = cssPath.replace("/", "_").replace(".", "_");
 		File logicFile = new File(dir, projectId + "_" + safeName + ".logic");
 		if (logicFile.exists()) {
@@ -1485,6 +1536,125 @@ public class MainEditorFragment extends Fragment {
 			.show();
 	}
 
+	private List<String> getJsFiles() {
+		List<String> jsFiles = new ArrayList<>();
+		jsFiles.add("js/script.js");
+		String path = Environment.getExternalStorageDirectory().getAbsolutePath()
+			+ "/.dragweb/projects/" + projectId + "/assets";
+		File dir = new File(path);
+		if (dir.exists() && dir.isDirectory()) {
+			collectJsFilesRecursive(dir, dir, jsFiles);
+		}
+		return jsFiles;
+	}
+
+	private void collectJsFilesRecursive(File root, File current, List<String> jsFiles) {
+		File[] files = current.listFiles();
+		if (files != null) {
+			for (File f : files) {
+				if (f.isDirectory()) {
+					collectJsFilesRecursive(root, f, jsFiles);
+				} else if (f.isFile() && f.getName().toLowerCase().endsWith(".js")) {
+					String relative = f.getAbsolutePath().substring(root.getAbsolutePath().length() + 1);
+					relative = relative.replace("\\", "/");
+					if (!jsFiles.contains(relative)) {
+						jsFiles.add(relative);
+					}
+				}
+			}
+		}
+	}
+
+	private void showAddJsFileDialog(Runnable onCreated) {
+		if (getContext() == null) return;
+
+		List<String> dirs = getAssetsDirectories();
+
+		LinearLayout layout = new LinearLayout(requireContext());
+		layout.setOrientation(LinearLayout.VERTICAL);
+		int pad = (int) (24 * getResources().getDisplayMetrics().density);
+		layout.setPadding(pad, (int) (16 * getResources().getDisplayMetrics().density), pad, (int) (16 * getResources().getDisplayMetrics().density));
+
+		com.google.android.material.textfield.TextInputLayout tilName = new com.google.android.material.textfield.TextInputLayout(requireContext(), null, com.google.android.material.R.attr.textInputOutlinedStyle);
+		tilName.setHint("JavaScript File Name");
+		tilName.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+		int dp14 = (int) (14 * getResources().getDisplayMetrics().density);
+		tilName.setBoxCornerRadii(dp14, dp14, dp14, dp14);
+
+		com.google.android.material.textfield.TextInputEditText etName = new com.google.android.material.textfield.TextInputEditText(tilName.getContext());
+		etName.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+		etName.setSingleLine(true);
+		etName.setMinimumHeight((int) (56 * getResources().getDisplayMetrics().density));
+		int hp = (int) (16 * getResources().getDisplayMetrics().density);
+		int vp = (int) (12 * getResources().getDisplayMetrics().density);
+		etName.setPadding(hp, vp, hp, vp);
+		etName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15);
+		tilName.addView(etName);
+		layout.addView(tilName);
+
+		com.google.android.material.textfield.TextInputLayout tilLocation = new com.google.android.material.textfield.TextInputLayout(requireContext(), null, com.google.android.material.R.attr.textInputOutlinedStyle);
+		tilLocation.setHint("Select Location");
+		tilLocation.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+		tilLocation.setBoxCornerRadii(dp14, dp14, dp14, dp14);
+		LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+		lp.topMargin = (int) (16 * getResources().getDisplayMetrics().density);
+		tilLocation.setLayoutParams(lp);
+
+		com.google.android.material.textfield.MaterialAutoCompleteTextView actvLocation = new com.google.android.material.textfield.MaterialAutoCompleteTextView(tilLocation.getContext());
+		actvLocation.setInputType(android.text.InputType.TYPE_NULL);
+		actvLocation.setSingleLine(true);
+		actvLocation.setMinimumHeight((int) (56 * getResources().getDisplayMetrics().density));
+		actvLocation.setPadding(hp, vp, hp, vp);
+		actvLocation.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15);
+		actvLocation.setOnClickListener(v -> actvLocation.showDropDown());
+
+		android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(requireContext(),
+			android.R.layout.simple_list_item_1, dirs);
+		actvLocation.setAdapter(adapter);
+		actvLocation.setText("assets", false);
+		tilLocation.addView(actvLocation);
+		layout.addView(tilLocation);
+
+		new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+			.setTitle("New JavaScript File")
+			.setView(layout)
+			.setPositiveButton("Create", (dialog, which) -> {
+				String rawName = etName.getText() != null ? etName.getText().toString() : "";
+				String jsName = rawName.trim().replaceAll("[^a-zA-Z0-9_-]", "");
+				if (jsName.isEmpty()) {
+					Toast.makeText(getContext(), "Invalid JavaScript file name", Toast.LENGTH_SHORT).show();
+					return;
+				}
+				if (!jsName.toLowerCase().endsWith(".js")) {
+					jsName += ".js";
+				}
+
+				String chosenDir = actvLocation.getText().toString();
+				String projectPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+					+ "/.dragweb/projects/" + projectId;
+				File targetDir = new File(projectPath, chosenDir);
+				if (!targetDir.exists()) targetDir.mkdirs();
+
+				File jsFile = new File(targetDir, jsName);
+				if (jsFile.exists()) {
+					Toast.makeText(getContext(), "JavaScript file already exists", Toast.LENGTH_SHORT).show();
+					return;
+				}
+
+				try {
+					FileUtil.writeFile(jsFile.getAbsolutePath(), "// JavaScript code for " + jsName + "\n");
+					Toast.makeText(getContext(), "JavaScript file created successfully", Toast.LENGTH_SHORT).show();
+					if (onCreated != null) {
+						onCreated.run();
+					}
+				} catch (Exception e) {
+					Toast.makeText(getContext(), "Failed to create JavaScript file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+				}
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
 	private void showAddPageDialog() {
 		pageImportHtmlUri = null;
 		View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_page, null);
@@ -1563,7 +1733,9 @@ public class MainEditorFragment extends Fragment {
 
 					// Save logic blocks for the new page
 					if (result.logicBlocks != null && !result.logicBlocks.isEmpty()) {
-						File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+						File logicDir = new File(dir, "logic");
+						if (!logicDir.exists()) logicDir.mkdirs();
+						File logicFile = new File(logicDir, projectId + "_" + pageName + ".logic");
 						FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(result.logicBlocks));
 					}
 				} else {
@@ -1579,7 +1751,7 @@ public class MainEditorFragment extends Fragment {
 
 				// Load logic blocks for new page
 				if (logicBlockManager != null) {
-					File dir = new File(requireContext().getFilesDir(), "projects");
+					File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
 					File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
 					if (logicFile.exists()) {
 						String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
@@ -1956,65 +2128,7 @@ public class MainEditorFragment extends Fragment {
 		}
 	}
 
-	/** Get the project logo path from assets storage. */
-	private String getProjectLogoPath() {
-		String configuredPath = getLogoPathFromProjectConfig();
-		if (!configuredPath.isEmpty()) {
-			String abs = configuredPathToAbsolute(configuredPath);
-			if (!abs.isEmpty()) {
-				return abs;
-			}
-		}
-		try {
-			String assetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-				+ "/.dragweb/projects/" + projectId + "/assets";
-			File assetsDir = new File(assetsPath);
-			if (assetsDir.exists()) {
-				// Look for a logo file (logo.png, logo.jpg, logo.svg)
-				String[] logoNames = {"logo.png", "logo.jpg", "logo.jpeg", "logo.svg", "logo.webp"};
-				for (String name : logoNames) {
-					File logoFile = new File(assetsDir, name);
-					if (logoFile.exists()) {
-						return logoFile.getAbsolutePath();
-					}
-				}
-			}
-		} catch (Exception e) {
-			Log.w("MainActivity", "Could not find project logo: " + e.getMessage());
-		}
-		return "";
-	}
 
-	private String getProjectLogoPathForExport() {
-		String configuredPath = getLogoPathFromProjectConfig();
-		if (!configuredPath.isEmpty()) {
-			return configuredPath;
-		}
-		String abs = getProjectLogoPath();
-		if (abs.contains("/assets/")) {
-			return "assets/" + abs.substring(abs.lastIndexOf('/') + 1);
-		}
-		return "";
-	}
-
-	private String getLogoPathFromProjectConfig() {
-		try {
-			File metaFile = new File(requireContext().getFilesDir(), "projects/" + projectId + ".meta");
-			if (metaFile.exists()) {
-				Map<String, String> meta = new Gson().fromJson(
-					FileUtil.readFile(metaFile.getAbsolutePath()),
-					new TypeToken<Map<String, String>>(){}.getType()
-				);
-				if (meta != null && meta.containsKey("logoPath")) {
-					String rel = meta.get("logoPath");
-					if (rel != null && !rel.trim().isEmpty()) return rel.trim();
-				}
-			}
-		} catch (Exception e) {
-			Log.w("MainActivity", "Could not load logo path from config: " + e.getMessage());
-		}
-		return "";
-	}
 
 	private String configuredPathToAbsolute(String configured) {
 		if (configured == null || configured.isEmpty()) return "";
@@ -2064,7 +2178,7 @@ public class MainEditorFragment extends Fragment {
 
 		// Save current logic blocks
 		if (logicBlockManager != null) {
-			File dir = new File(requireContext().getFilesDir(), "projects");
+			File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
 			if (!dir.exists()) dir.mkdirs();
 			String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
 			File logicFile = new File(dir, projectId + "_" + currentPageName + ".logic");
@@ -2309,8 +2423,10 @@ public class MainEditorFragment extends Fragment {
 		File themeFile = new File(dir, projectId + ".theme");
 		FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
 
+		File logicDir = new File(dir, "logic");
+		if (!logicDir.exists()) logicDir.mkdirs();
 		String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-		File logicFile = new File(dir, projectId + "_" + currentPageName + ".logic");
+		File logicFile = new File(logicDir, projectId + "_" + currentPageName + ".logic");
 		FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
 
 		// Save logic blocks for all pages to ensure nothing is lost
@@ -2358,7 +2474,7 @@ public class MainEditorFragment extends Fragment {
 			// Save logic blocks for all pages
 			if (pageManager != null) {
 				for (String page : pageManager.getPages()) {
-					File logicFile = new File(internalDir, projectId + "_" + page + ".logic");
+					File logicFile = new File(new File(internalDir, "logic"), projectId + "_" + page + ".logic");
 					if (logicFile.exists()) {
 						String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
 						FileUtil.writeFile(new File(extDir, page + "_logic.json").getAbsolutePath(), logicJson);
@@ -2411,17 +2527,24 @@ public class MainEditorFragment extends Fragment {
 			themeManager.fromJson(themeJson);
 		}
 
+		File logicDir = new File(dir, "logic");
 		String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-		File logicFile = new File(dir, projectId + "_" + currentPageName + ".logic");
+		File logicFile = new File(logicDir, projectId + "_" + currentPageName + ".logic");
 		if (logicFile.exists()) {
 			String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
 			logicBlockManager.fromJson(logicJson);
 		} else {
 			// Fallback for older projects
-			File oldLogicFile = new File(dir, projectId + ".logic");
+			File oldLogicFile = new File(dir, projectId + "_" + currentPageName + ".logic");
 			if (oldLogicFile.exists()) {
 				String logicJson = FileUtil.readFile(oldLogicFile.getAbsolutePath());
 				logicBlockManager.fromJson(logicJson);
+			} else {
+				File veryOldLogicFile = new File(dir, projectId + ".logic");
+				if (veryOldLogicFile.exists()) {
+					String logicJson = FileUtil.readFile(veryOldLogicFile.getAbsolutePath());
+					logicBlockManager.fromJson(logicJson);
+				}
 			}
 		}
 
@@ -2523,7 +2646,7 @@ public class MainEditorFragment extends Fragment {
 		TextInputEditText etBorderColor = dialogView.findViewById(R.id.etBorderColor);
 		LinearLayout customVarsContainer = dialogView.findViewById(R.id.customVarsContainer);
 		Button btnAddCssVar = dialogView.findViewById(R.id.btnAddCssVar);
-		com.google.android.material.switchmaterial.SwitchMaterial switchInlineStyles = dialogView.findViewById(R.id.switchInlineStyles);
+		com.google.android.material.materialswitch.MaterialSwitch switchInlineStyles = dialogView.findViewById(R.id.switchInlineStyles);
 		Button btnResetTheme = dialogView.findViewById(R.id.btnResetTheme);
 
 		if (switchInlineStyles != null) {
