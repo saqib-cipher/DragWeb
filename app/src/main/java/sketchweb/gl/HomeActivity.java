@@ -271,6 +271,13 @@ public class HomeActivity extends AppCompatActivity {
 			});
 		}
 
+		LinearLayout menuEditorSettings = findViewById(R.id.menuEditorSettings);
+		if (menuEditorSettings != null) {
+			menuEditorSettings.setOnClickListener(v -> {
+				drawer.closeDrawer(GravityCompat.START);
+				startActivity(new Intent(this, EditorSettingsActivity.class));
+			});
+		}
 	}
 
 	/** Generate a short unique project ID using a numeric system */

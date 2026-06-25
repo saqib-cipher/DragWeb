@@ -1,28 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/card"
+    style="?attr/materialCardViewFilledStyle"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="8dp"
-    android:gravity="center_horizontal"
+    android:layout_margin="8dp"
     android:clickable="true"
-    android:focusable="true">
+    android:focusable="true"
+    app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+    app:cardCornerRadius="14dp"
+    app:strokeWidth="0dp"
+    app:strokeColor="@android:color/transparent">
 
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/card"
-        style="?attr/materialCardViewFilledStyle"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="96dp"
-        app:cardCornerRadius="14dp"
-        app:strokeWidth="1dp"
-        app:strokeColor="#22FFFFFF"
-        app:cardBackgroundColor="#1F2329">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="8dp">
 
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="96dp">
 
             <ImageView
                 android:id="@+id/thumb"
@@ -40,20 +41,31 @@
                 app:tint="#FFFFFF"
                 tools:src="@drawable/icon_folder_round" />
 
+            <ImageView
+                android:id="@+id/lock_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="4dp"
+                android:src="@drawable/ic_lock"
+                app:tint="?attr/colorOnSurfaceVariant"
+                android:visibility="gone"
+                tools:visibility="visible" />
+
         </FrameLayout>
 
-    </com.google.android.material.card.MaterialCardView>
+        <TextView
+            android:id="@+id/name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:ellipsize="middle"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="13sp"
+            android:paddingTop="8dp"
+            android:gravity="center"
+            tools:text="image.png" />
 
-    <TextView
-        android:id="@+id/name"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:singleLine="true"
-        android:ellipsize="middle"
-        android:textColor="#E8EAED"
-        android:textSize="13sp"
-        android:padding="8dp"
-        android:gravity="center"
-        tools:text="image.png" />
+    </LinearLayout>
 
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -932,17 +932,8 @@ public class MainEditorFragment extends Fragment {
 	private void switchPage(String selectedPage) {
 		if (pageManager == null) return;
 
-		// Save current page layout with all nested children
-		saveCurrentPageLayout();
-
-		// Save current logic blocks for current page
-		if (logicBlockManager != null) {
-			File dir = new File(requireContext().getFilesDir(), "projects");
-			if (!dir.exists()) dir.mkdirs();
-			String oldPageName = pageManager.getCurrentPage();
-			File logicFile = new File(dir, projectId + "_" + oldPageName + ".logic");
-			FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
-		}
+		// Save current project state first, which also compiles and updates assets
+		saveProject();
 
 		// Switch to new page
 		pageManager.setCurrentPage(selectedPage);
@@ -1445,6 +1436,7 @@ public class MainEditorFragment extends Fragment {
 		actvLocation.setMinimumHeight((int) (56 * getResources().getDisplayMetrics().density));
 		actvLocation.setPadding(hp, vp, hp, vp);
 		actvLocation.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15);
+		actvLocation.setOnClickListener(v -> actvLocation.showDropDown());
 
 		android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(requireContext(),
 			android.R.layout.simple_list_item_1, dirs);
@@ -2331,6 +2323,18 @@ public class MainEditorFragment extends Fragment {
 		}
 
 		saveProjectToExternal();
+
+		// Compile all pages and sync with assets folder in real-time
+		if (exportManager != null) {
+			try {
+				File assetsDir = new File(Environment.getExternalStorageDirectory(), "/.dragweb/projects/" + projectId + "/assets");
+				assetsDir.mkdirs();
+				exportManager.generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, assetsDir);
+			} catch (Exception e) {
+				Log.w("MainEditor", "Failed to sync compiled files to assets: " + e.getMessage());
+			}
+		}
+
 		Toast.makeText(requireContext(), "Project saved", Toast.LENGTH_SHORT).show();
 	}
 

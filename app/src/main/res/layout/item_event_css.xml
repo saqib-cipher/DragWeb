@@ -17,16 +17,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="12dp">
+        android:orientation="horizontal">
 
         <RelativeLayout
             android:id="@+id/action_container"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="?attr/colorSurfaceContainerHigh"
-            android:backgroundTint="?attr/colorPrimaryContainer"
-            android:padding="4dp">
+            android:background="?attr/colorPrimaryContainer">
 
             <TextView
                 android:id="@+id/tv_preview"
@@ -35,8 +32,33 @@
                 android:layout_centerInParent="true"
                 android:textSize="14sp"
                 android:textStyle="bold"
+                android:translationY="-4dp"
                 android:textColor="?attr/colorOnPrimaryContainer"
                 tools:text="CSS" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:padding="2dp"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:background="?attr/colorSurfaceVariant">
+
+                <ImageView
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginEnd="4dp"
+                    android:tint="?attr/colorOnSurfaceVariant"
+                    android:src="@drawable/toys_and_games_24px" />
+                <TextView
+                    android:id="@+id/blockscount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="10sp"
+                    tools:text="69" />
+            </LinearLayout>
         </RelativeLayout>
 
         <LinearLayout
@@ -62,16 +84,7 @@
                 android:layout_marginTop="4dp"
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                tools:text="css/style.css (15 blocks)" />
+                tools:text="css/style.css" />
         </LinearLayout>
-
-        <Button
-            android:id="@+id/img_edit"
-            style="@style/Widget.Material3.Button.IconButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            app:icon="@drawable/icon_edit_round" />
-
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

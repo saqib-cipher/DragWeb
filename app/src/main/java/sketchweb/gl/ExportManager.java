@@ -236,7 +236,7 @@ public class ExportManager {
         String finalJsContent = accumulatedJsBuffer.toString().replace("assets/", "");
 
         File exportDir = customExportDir != null ? customExportDir : new File(context.getFilesDir(), "exports/" + sanitizeFileName(projectName));
-        if (exportDir.exists()) {
+        if (customExportDir == null && exportDir.exists()) {
             deleteDirectory(exportDir);
         }
         exportDir.mkdirs();
@@ -299,6 +299,11 @@ public class ExportManager {
                 + "/.dragweb/projects/" + projectId + "/assets";
             File src = new File(panelPath);
             if (!src.exists() || !src.isDirectory()) return;
+
+            // Skip copying if the target directory is the assets directory itself
+            if (targetRootDir.getCanonicalPath().equals(src.getCanonicalPath())) {
+                return;
+            }
 
             File[] files = src.listFiles();
             if (files == null) return;

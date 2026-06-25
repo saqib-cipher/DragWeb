@@ -38,6 +38,8 @@ public class AssetsFragment extends Fragment {
     private TextView tvAssetsPath;
     private Button btnImportImage;
     private Button btnNewFolder;
+    private Button btnRefresh;
+    private android.widget.ProgressBar progressAssets;
 
     public static AssetsFragment newInstance(String projectId) {
         AssetsFragment fragment = new AssetsFragment();
@@ -85,6 +87,8 @@ public class AssetsFragment extends Fragment {
         tvAssetsPath = view.findViewById(R.id.tvAssetsPath);
         btnImportImage = view.findViewById(R.id.btnImportImage);
         btnNewFolder = view.findViewById(R.id.btnNewFolder);
+        btnRefresh = view.findViewById(R.id.btnRefresh);
+        progressAssets = view.findViewById(R.id.progressAssets);
 
         btnImportImage.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -103,7 +107,46 @@ public class AssetsFragment extends Fragment {
             }
         });
 
+        if (btnRefresh != null) {
+            btnRefresh.setOnClickListener(v -> loadFilesWithProgress());
+        }
+
         setupFileExplorer();
+        loadFilesWithProgress();
+    }
+
+    private boolean isTextFile(File file) {
+        if (file == null || file.isDirectory()) return false;
+        String name = file.getName().toLowerCase(java.util.Locale.US);
+        return name.endsWith(".html") || name.endsWith(".htm") 
+            || name.endsWith(".css") || name.endsWith(".js") 
+            || name.endsWith(".json") || name.endsWith(".txt") 
+            || name.endsWith(".svg") || name.endsWith(".xml");
+    }
+
+    private void openTextEditor(File file) {
+        if (getContext() == null || file == null) return;
+        Intent intent = new Intent(getContext(), TextEditorActivity.class);
+        intent.putExtra("file_path", file.getAbsolutePath());
+        intent.putExtra("project_id", projectId);
+        String relPath = "";
+        try {
+            String assetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/.dragweb/projects/" + projectId + "/assets";
+            File rootDir = new File(assetsPath);
+            String rootCanonical = rootDir.getCanonicalPath();
+            String fileCanonical = file.getCanonicalPath();
+            if (fileCanonical.startsWith(rootCanonical)) {
+                relPath = fileCanonical.substring(rootCanonical.length());
+                if (relPath.startsWith("/")) {
+                    relPath = relPath.substring(1);
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.w("AssetsFragment", "Failed to compute relative path: " + e.getMessage());
+        }
+        intent.putExtra("relative_path", relPath);
+        startActivity(intent);
     }
 
     private void setupFileExplorer() {
@@ -120,6 +163,8 @@ public class AssetsFragment extends Fragment {
                 fileExplorerAdapter.goUp();
             } else if (file.isDirectory()) {
                 fileExplorerAdapter.navigateTo(file);
+            } else if (isTextFile(file)) {
+                openTextEditor(file);
             }
             updateAssetsPath();
         });
@@ -127,8 +172,6 @@ public class AssetsFragment extends Fragment {
 
         rvAssets.setAdapter(fileExplorerAdapter);
         rvAssets.setLayoutManager(new LinearLayoutManager(getContext()));
-        fileExplorerAdapter.navigateTo(assetsDir);
-        updateAssetsPath();
     }
 
     private void updateAssetsPath() {
@@ -213,21 +256,44 @@ public class AssetsFragment extends Fragment {
 
     private void showFileContextMenu(File file) {
         if (getContext() == null || file == null) return;
-        String[] options = file.isDirectory() ?
-            new String[]{"Open", "Rename", "Delete"} :
-            new String[]{"Use as Image Source", "Rename", "Delete"};
 
+        boolean isSys = false;
+        if (fileExplorerAdapter != null) {
+            isSys = fileExplorerAdapter.isSystemFile(file);
+        }
+
+        final java.util.List<String> optionsList = new java.util.ArrayList<>();
+        if (file.isDirectory()) {
+            optionsList.add("Open");
+            if (!isSys) {
+                optionsList.add("Rename");
+                optionsList.add("Delete");
+            }
+        } else {
+            if (isTextFile(file)) {
+                optionsList.add("Edit Code");
+            }
+            if (!isSys) {
+                optionsList.add("Rename");
+                optionsList.add("Delete");
+            }
+        }
+
+        if (optionsList.isEmpty()) return;
+
+        final String[] options = optionsList.toArray(new String[0]);
         new MaterialAlertDialogBuilder(getContext())
             .setTitle(file.getName())
             .setItems(options, (dialog, which) -> {
-                if (file.isDirectory()) {
-                    if (which == 0) fileExplorerAdapter.navigateTo(file);
-                    else if (which == 1) showRenameFileDialog(file);
-                    else deleteFileWithConfirm(file);
-                } else {
-                    if (which == 0) useFileAsImageSource(file);
-                    else if (which == 1) showRenameFileDialog(file);
-                    else deleteFileWithConfirm(file);
+                String option = options[which];
+                if ("Open".equals(option)) {
+                    fileExplorerAdapter.navigateTo(file);
+                } else if ("Edit Code".equals(option)) {
+                    openTextEditor(file);
+                } else if ("Rename".equals(option)) {
+                    showRenameFileDialog(file);
+                } else if ("Delete".equals(option)) {
+                    deleteFileWithConfirm(file);
                 }
                 updateAssetsPath();
             })
@@ -295,9 +361,35 @@ public class AssetsFragment extends Fragment {
     }
 
     public void refresh() {
-        if (fileExplorerAdapter != null) {
-            fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
-            updateAssetsPath();
+        loadFilesWithProgress();
+    }
+
+    public void loadFilesWithProgress() {
+        if (progressAssets != null) {
+            progressAssets.setVisibility(View.VISIBLE);
         }
+        if (rvAssets != null) {
+            rvAssets.setVisibility(View.INVISIBLE);
+        }
+        if (getView() != null) {
+            getView().postDelayed(() -> {
+                if (fileExplorerAdapter != null) {
+                    fileExplorerAdapter.navigateTo(fileExplorerAdapter.getCurrentDir());
+                    updateAssetsPath();
+                }
+                if (progressAssets != null) {
+                    progressAssets.setVisibility(View.GONE);
+                }
+                if (rvAssets != null) {
+                    rvAssets.setVisibility(View.VISIBLE);
+                }
+            }, 300);
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        loadFilesWithProgress();
     }
 }

@@ -246,18 +246,17 @@ public class EventsFragment extends Fragment {
         }
 
         class ViewHolder extends RecyclerView.ViewHolder {
-            TextView tvPageName, tvLinkedStyleName, tvPreview;
+            TextView tvPageName, tvLinkedStyleName, tvPreview, tvBlocksCount;
             View cardView, actionContainer;
-            Button imgEdit;
 
             ViewHolder(View view) {
                 super(view);
                 tvPageName = view.findViewById(R.id.tv_pagename);
                 tvLinkedStyleName = view.findViewById(R.id.tv_linked_stylename);
                 tvPreview = view.findViewById(R.id.tv_preview);
+                tvBlocksCount = view.findViewById(R.id.blockscount);
                 cardView = view.findViewById(R.id.cardView);
                 actionContainer = view.findViewById(R.id.action_container);
-                imgEdit = view.findViewById(R.id.img_edit);
             }
         }
 
@@ -275,15 +274,16 @@ public class EventsFragment extends Fragment {
             holder.tvPageName.setText(displayName);
             
             int blockCount = getBlockCountForCss(cssPath);
-            holder.tvLinkedStyleName.setText(cssPath + " (" + blockCount + " blocks)");
+            holder.tvLinkedStyleName.setText(cssPath);
+
+            if (holder.tvBlocksCount != null) {
+                holder.tvBlocksCount.setText(String.valueOf(blockCount));
+            }
 
             if (holder.tvPreview != null) {
                 holder.tvPreview.setText("CSS");
             }
 
-            if (holder.imgEdit != null) {
-                holder.imgEdit.setVisibility(View.GONE);
-            }
 
             holder.itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(getContext(), LogicBlockActivity.class);

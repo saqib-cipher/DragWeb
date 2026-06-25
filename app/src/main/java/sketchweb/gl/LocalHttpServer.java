@@ -37,9 +37,14 @@ public final class LocalHttpServer {
     private final File rootDir;
     private final ExecutorService pool = Executors.newCachedThreadPool();
     private final Map<String, File> aliases = new java.util.LinkedHashMap<>();
+    private File fallbackDir;
     private ServerSocket socket;
     private volatile boolean running;
     private int port;
+
+    public void setFallbackDir(File fallbackDir) {
+        this.fallbackDir = fallbackDir;
+    }
 
     public LocalHttpServer(File rootDir) {
         this.rootDir = rootDir;
@@ -150,6 +155,16 @@ public final class LocalHttpServer {
             if (target.isDirectory()) {
                 File index = new File(target, "index.html");
                 if (index.exists()) target = index;
+            }
+            if (!target.exists() || !target.isFile()) {
+                if (fallbackDir != null && fallbackDir.exists() && fallbackDir.isDirectory()) {
+                    String rootRel = path.startsWith("/") ? path.substring(1) : path;
+                    File fallbackFile = new File(fallbackDir, rootRel);
+                    File canonicalFallback = canonicalChildOf(fallbackDir, fallbackFile);
+                    if (canonicalFallback != null && canonicalFallback.exists() && canonicalFallback.isFile()) {
+                        target = canonicalFallback;
+                    }
+                }
             }
             if (!target.exists() || !target.isFile()) {
                 writeStatus(out, 404, "Not Found", "text/plain", "Not Found".getBytes());

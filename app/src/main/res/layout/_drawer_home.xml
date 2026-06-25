@@ -269,6 +269,41 @@
 				android:layout_marginStart="16dp" />
 		</LinearLayout>
 
+		<View
+			android:layout_width="match_parent"
+			android:layout_height="1dp"
+			android:layout_marginTop="8dp"
+			android:layout_marginBottom="8dp"
+			android:layout_marginStart="16dp"
+			android:layout_marginEnd="16dp"
+			android:background="?attr/colorOutlineVariant" />
+
+		<!-- Editor Settings Menu Item -->
+		<LinearLayout
+			android:id="@+id/menuEditorSettings"
+			android:layout_width="match_parent"
+			android:layout_height="56dp"
+			android:orientation="horizontal"
+			android:paddingStart="16dp"
+			android:paddingEnd="24dp"
+			android:gravity="center_vertical"
+			android:layout_marginStart="12dp"
+			android:layout_marginEnd="12dp"
+			android:background="?attr/selectableItemBackground">
+			<ImageView
+				android:layout_width="24dp"
+				android:layout_height="24dp"
+				android:src="@drawable/icon_code_round"
+				app:tint="?attr/colorOnSurfaceVariant" />
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Editor Settings"
+				android:textSize="14sp"
+				android:textColor="?attr/colorOnSurface"
+				android:layout_marginStart="16dp" />
+		</LinearLayout>
+
 		</LinearLayout>
 	</ScrollView>
 </LinearLayout>

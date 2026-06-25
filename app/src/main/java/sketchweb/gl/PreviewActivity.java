@@ -310,6 +310,7 @@ public class PreviewActivity extends AppCompatActivity {
                 File externalAssets = new File(assetBasePath, "assets");
                 if (externalAssets.exists() && externalAssets.isDirectory()) {
                     localServer.addAlias("/assets", externalAssets);
+                    localServer.setFallbackDir(externalAssets);
                 }
             }
 
@@ -678,15 +679,17 @@ public class PreviewActivity extends AppCompatActivity {
                 "<head>\n" +
                 "  <meta charset=\"UTF-8\">\n" +
                 "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\">\n" +
+                "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css\">\n" +
                 "  <style>\n" +
                 "    body { margin: 0; padding: 12px; background: #2d2d2d; font-family: monospace; font-size: 13px; }\n" +
                 "    pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; }\n" +
                 "  </style>\n" +
                 "</head>\n" +
                 "<body>\n" +
-                "  <pre><code class=\"language-" + language + "\">" + escapedCode + "</code></pre>\n" +
+                "  <pre class=\"line-numbers\"><code class=\"language-" + language + "\">" + escapedCode + "</code></pre>\n" +
                 "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js\"></script>\n" +
                 "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js\"></script>\n" +
+                "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js\"></script>\n" +
                 "</body>\n" +
                 "</html>";
         webView.loadDataWithBaseURL("https://localhost", html, "text/html", "UTF-8", null);

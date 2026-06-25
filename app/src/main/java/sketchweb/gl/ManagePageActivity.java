@@ -76,12 +76,14 @@ public class ManagePageActivity extends AppCompatActivity {
             final int appBarInitialTop = appBarLayout != null ? appBarLayout.getPaddingTop() : 0;
             ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
                 Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
                 if (appBarLayout != null) {
                     appBarLayout.setPadding(appBarLayout.getPaddingLeft(), appBarInitialTop + systemBars.top, appBarLayout.getPaddingRight(), appBarLayout.getPaddingBottom());
                 }
-                View scrollContent = findViewById(R.id.scroll_content);
-                if (scrollContent != null) {
-                    scrollContent.setPadding(scrollContent.getPaddingLeft(), scrollContent.getPaddingTop(), scrollContent.getPaddingRight(), systemBars.bottom);
+                View buttonContainer = findViewById(R.id.button_container);
+                if (buttonContainer != null) {
+                    int bottomInset = Math.max(systemBars.bottom, ime.bottom);
+                    buttonContainer.setPadding(buttonContainer.getPaddingLeft(), buttonContainer.getPaddingTop(), buttonContainer.getPaddingRight(), bottomInset);
                 }
                 return insets;
             });

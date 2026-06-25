@@ -217,6 +217,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         }
 
         applyFilter();
+        updateProjectFilesJson();
     }
 
     private void applyFilter() {
@@ -340,14 +341,32 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             holder.itemView.setOnLongClickListener(null);
         }
 
-        // Selection highlight overlay
-        if (file != null && selectedPaths.contains(file.getAbsolutePath())) {
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(0x331A73E8);
-            bg.setCornerRadius(dp(10));
-            holder.itemView.setBackground(bg);
-        } else {
-            holder.itemView.setBackgroundResource(android.R.drawable.list_selector_background);
+        // Selection highlight using CardView stroke and container color
+        if (holder.card != null) {
+            if (file != null && selectedPaths.contains(file.getAbsolutePath())) {
+                int colorSelectedBg = com.google.android.material.color.MaterialColors.getColor(context, com.google.android.material.R.attr.colorSecondaryContainer, 0x331A73E8);
+                int colorPrimary = com.google.android.material.color.MaterialColors.getColor(context, android.R.attr.colorPrimary, 0xFF1A73E8);
+                holder.card.setCardBackgroundColor(android.content.res.ColorStateList.valueOf(colorSelectedBg));
+                holder.card.setStrokeColor(android.content.res.ColorStateList.valueOf(colorPrimary));
+                holder.card.setStrokeWidth(dp(2));
+            } else {
+                int colorBg = com.google.android.material.color.MaterialColors.getColor(context, com.google.android.material.R.attr.colorSurfaceContainerLow, 0xFF1F2329);
+                holder.card.setCardBackgroundColor(android.content.res.ColorStateList.valueOf(colorBg));
+                holder.card.setStrokeColor(android.content.res.ColorStateList.valueOf(Color.TRANSPARENT));
+                holder.card.setStrokeWidth(dp(0));
+            }
+        }
+
+        // Show lock icon for project-generated files
+        if (holder.lockIcon != null) {
+            if (isSystemFile(file)) {
+                holder.lockIcon.setVisibility(View.VISIBLE);
+                holder.lockIcon.setImageTintList(android.content.res.ColorStateList.valueOf(
+                    com.google.android.material.color.MaterialColors.getColor(context, android.R.attr.textColorSecondary, 0x80FFFFFF)
+                ));
+            } else {
+                holder.lockIcon.setVisibility(View.GONE);
+            }
         }
     }
 
@@ -358,19 +377,15 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         holder.thumb.setVisibility(View.GONE);
         holder.placeholder.setVisibility(View.VISIBLE);
 
-        GradientDrawable cardBg = new GradientDrawable();
-        cardBg.setCornerRadius(dp(14));
-        cardBg.setColor(Color.parseColor("#1F2329"));
-        cardBg.setStroke(dp(1), 0x22FFFFFF);
-        holder.card.setBackground(cardBg);
-
+        int iconColor = Color.WHITE;
         if (file == null) {
+            iconColor = Color.parseColor("#5F6368");
             holder.placeholder.setImageResource(R.drawable.icon_arrow_back_round);
             holder.name.setText(".. up");
             holder.itemView.setOnClickListener(v -> goUp());
         } else if (file.isDirectory()) {
+            iconColor = Color.parseColor("#1A73E8");
             holder.placeholder.setImageResource(R.drawable.icon_folder_round);
-            cardBg.setColor(Color.parseColor("#202833"));
             holder.name.setText(file.getName());
             holder.itemView.setOnClickListener(v -> {
                 if (multiSelectEnabled) toggleSelection(file);
@@ -380,6 +395,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
                 }
             });
         } else {
+            iconColor = getFileColor(file.getName());
             holder.placeholder.setImageResource(getFileIconResource(file.getName()));
             attachThumbnailIfImage(holder.thumb, holder.placeholder, file);
             holder.name.setText(file.getName());
@@ -388,6 +404,8 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
                 else if (clickListener != null) clickListener.onFileClick(file);
             });
         }
+
+        holder.placeholder.setColorFilter(iconColor);
 
         if (file != null) {
             holder.itemView.setOnLongClickListener(v -> {
@@ -399,8 +417,32 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             holder.itemView.setOnLongClickListener(null);
         }
 
-        if (file != null && selectedPaths.contains(file.getAbsolutePath())) {
-            cardBg.setStroke(dp(2), Color.parseColor("#1A73E8"));
+        // Selection styling via MaterialCardView
+        if (holder.card != null) {
+            if (file != null && selectedPaths.contains(file.getAbsolutePath())) {
+                int colorSelectedBg = com.google.android.material.color.MaterialColors.getColor(context, com.google.android.material.R.attr.colorSecondaryContainer, 0x331A73E8);
+                int colorPrimary = com.google.android.material.color.MaterialColors.getColor(context, android.R.attr.colorPrimary, 0xFF1A73E8);
+                holder.card.setCardBackgroundColor(android.content.res.ColorStateList.valueOf(colorSelectedBg));
+                holder.card.setStrokeColor(android.content.res.ColorStateList.valueOf(colorPrimary));
+                holder.card.setStrokeWidth(dp(2));
+            } else {
+                int colorBg = com.google.android.material.color.MaterialColors.getColor(context, com.google.android.material.R.attr.colorSurfaceContainerLow, 0xFF1F2329);
+                holder.card.setCardBackgroundColor(android.content.res.ColorStateList.valueOf(colorBg));
+                holder.card.setStrokeColor(android.content.res.ColorStateList.valueOf(Color.TRANSPARENT));
+                holder.card.setStrokeWidth(dp(0));
+            }
+        }
+
+        // Show lock icon for project-generated files
+        if (holder.lockIcon != null) {
+            if (isSystemFile(file)) {
+                holder.lockIcon.setVisibility(View.VISIBLE);
+                holder.lockIcon.setImageTintList(android.content.res.ColorStateList.valueOf(
+                    com.google.android.material.color.MaterialColors.getColor(context, android.R.attr.textColorSecondary, 0x80FFFFFF)
+                ));
+            } else {
+                holder.lockIcon.setVisibility(View.GONE);
+            }
         }
     }
 
@@ -410,6 +452,74 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         if (!selectedPaths.add(key)) selectedPaths.remove(key);
         notifySelectionChanged();
         notifyDataSetChanged();
+    }
+
+    public boolean isSystemFile(File file) {
+        if (file == null) return false;
+        try {
+            String rootPath = rootDir.getCanonicalPath();
+            String filePath = file.getCanonicalPath();
+            if (!filePath.startsWith(rootPath)) {
+                return false;
+            }
+            String relative = filePath.substring(rootPath.length());
+            if (relative.startsWith("/")) {
+                relative = relative.substring(1);
+            }
+            if (relative.equals("css") || relative.equals("js")) {
+                return true;
+            }
+            if (relative.equals("css/style.css") || relative.equals("js/script.js")) {
+                return true;
+            }
+            if (!relative.contains("/") && (relative.endsWith(".html") || relative.endsWith(".htm"))) {
+                return true;
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    public void updateProjectFilesJson() {
+        if (rootDir == null || !rootDir.exists()) return;
+        try {
+            java.util.List<java.util.Map<String, String>> fileList = new java.util.ArrayList<>();
+            scanDirForManifest(rootDir, rootDir, fileList);
+
+            java.util.Map<String, Object> manifest = new java.util.HashMap<>();
+            manifest.put("files", fileList);
+
+            String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(manifest);
+            File manifestFile = new File(rootDir.getParentFile(), "project_files.json");
+            FileUtil.writeFile(manifestFile.getAbsolutePath(), json);
+        } catch (Exception e) {
+            android.util.Log.w("FileExplorer", "Failed to update project_files.json: " + e.getMessage());
+        }
+    }
+
+    private void scanDirForManifest(File dir, File root, java.util.List<java.util.Map<String, String>> list) {
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File f : files) {
+            try {
+                String rootPath = root.getCanonicalPath();
+                String filePath = f.getCanonicalPath();
+                String relative = filePath.substring(rootPath.length());
+                if (relative.startsWith("/")) {
+                    relative = relative.substring(1);
+                }
+                if (relative.isEmpty()) continue;
+                if (relative.equals("project_files.json")) continue;
+
+                java.util.Map<String, String> item = new java.util.HashMap<>();
+                item.put("path", relative);
+                item.put("type", isSystemFile(f) ? "project" : "external");
+                list.add(item);
+
+                if (f.isDirectory()) {
+                    scanDirForManifest(f, root, list);
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     private void attachThumbnailIfImage(View target, View placeholder, File file) {
@@ -516,6 +626,9 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
+        com.google.android.material.card.MaterialCardView card;
+        ImageView lockIcon;
+
         // List mode views
         FrameLayout iconContainer;
         ImageView iconView;
@@ -523,15 +636,15 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         TextView detailView;
 
         // Grid mode views
-        View card;
         ImageView thumb;
         ImageView placeholder;
         TextView name;
 
         ViewHolder(View v, int viewType) {
             super(v);
+            card = (com.google.android.material.card.MaterialCardView) v.findViewById(R.id.card);
+            lockIcon = v.findViewById(R.id.lock_icon);
             if (viewType == VIEW_MODE_GRID) {
-                card = v.findViewById(R.id.card);
                 thumb = v.findViewById(R.id.thumb);
                 placeholder = v.findViewById(R.id.placeholder);
                 name = v.findViewById(R.id.name);
