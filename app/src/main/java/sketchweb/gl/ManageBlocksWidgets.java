@@ -77,6 +77,42 @@ public class ManageBlocksWidgets {
         return out;
     }
 
+    public List<String> getBlockCategories() {
+        Set<String> unique = new LinkedHashSet<>();
+        // First read from assets blocks.json
+        try (InputStream is = context.getAssets().open("blocks.json")) {
+            byte[] buf = new byte[is.available()];
+            int read = is.read(buf);
+            if (read > 0) {
+                String json = new String(buf, 0, read, "UTF-8");
+                JsonElement root = JsonParser.parseString(json);
+                if (root.isJsonArray()) {
+                    JsonArray array = root.getAsJsonArray();
+                    for (JsonElement el : array) {
+                        if (el.isJsonObject()) {
+                            JsonObject obj = el.getAsJsonObject();
+                            if (obj.has("category")) {
+                                String cat = obj.get("category").getAsString().trim().toLowerCase();
+                                if (!cat.isEmpty()) unique.add(cat);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading categories from assets blocks.json: " + e.getMessage());
+        }
+
+        // Then read from custom definitions in library
+        loadLibrary();
+        for (CustomBlockDef def : definitions) {
+            if (def.category != null && !def.category.isEmpty()) {
+                unique.add(def.category.trim().toLowerCase());
+            }
+        }
+        return new ArrayList<>(unique);
+    }
+
     public void addDefinition(CustomBlockDef def) {
         if (def == null || def.id == null || def.id.isEmpty()) return;
         loadLibrary();

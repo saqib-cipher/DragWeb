@@ -1,21 +1,29 @@
-<LinearLayout
-	xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
 	android:layout_height="wrap_content"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
 	android:orientation="vertical"
 	android:padding="24dp"
 	android:gravity="center_horizontal">
-
-	<ImageView
-		android:layout_width="72dp"
-		android:layout_height="72dp"
-		android:src="@mipmap/ic_launcher"
-		android:contentDescription="App icon" />
+	<FrameLayout
+		android:layout_width="100dp"
+		android:layout_height="100dp">
+		<View
+			android:layout_width="100dp"
+			android:layout_height="100dp"
+			android:background="@drawable/bg_empty_state_icon" />
+		<ImageView
+			android:layout_width="80dp"
+			android:layout_height="80dp"
+			android:layout_gravity="center"
+			android:src="@drawable/app_logo"
+			app:tint="?attr/colorOnPrimaryContainer" />
+	</FrameLayout>
 
 	<TextView
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:text="DragWeb"
+		android:text="@string/app_name"
 		android:textSize="22sp"
 		android:textStyle="bold"
 		android:textColor="?attr/colorOnSurface"
@@ -24,7 +32,7 @@
 	<TextView
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:text="No-Code Web Builder"
+		android:text="@string/app_description_short"
 		android:textSize="14sp"
 		android:textColor="?attr/colorOnSurfaceVariant"
 		android:paddingTop="4dp" />
@@ -32,7 +40,7 @@
 	<TextView
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:text="Version 1.0"
+		android:text="@string/version_info"
 		android:textSize="12sp"
 		android:textColor="?attr/colorOnSurfaceVariant"
 		android:paddingTop="8dp" />
@@ -60,11 +68,13 @@
 		android:textColor="?attr/colorOnSurfaceVariant"
 		android:paddingTop="12dp" />
 
-	<Button
-		android:id="@+id/btnGithub"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:text="View on GitHub"
-		android:layout_marginTop="16dp"
-		style="?attr/materialButtonOutlinedStyle" />
+		<Button
+			android:id="@+id/btnGithub"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/view_github"
+			android:layout_marginTop="16dp"
+			app:icon="@drawable/brand_github"
+			style="@style/Widget.Material3Expressive.Button.OutlinedButton"/>
+
 </LinearLayout>

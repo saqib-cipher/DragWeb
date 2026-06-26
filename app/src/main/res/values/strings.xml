@@ -9,6 +9,10 @@
 	<string name="export_project" translatable="false">Export</string>
 	<string name="save" translatable="false">Save</string>
 	<string name="no_projects" translatable="false">No projects yet.\nTap + to create one or import a website.</string>
+	<string name="welcome_message" translatable="false">Welcome to DragWeb</string>
+	<string name="app_description_short" translatable="false">No-Code Web Builder</string>
+	<string name="version_info" translatable="false">Version 1.0</string>
+	<string name="view_github" translatable="false">View on GitHub</string>
 	<string name="undo" translatable="false">Undo</string>
 	<string name="redo" translatable="false">Redo</string>
 	<string name="preview" translatable="false">Preview</string>
@@ -27,15 +31,15 @@
 	<string name="my_projects" translatable="false">My Projects</string>
 	<string name="about_dragweb" translatable="false">About DragWeb</string>
 	<string name="backup_all" translatable="false">Backup All Projects</string>
-	<string name="import_zip" translatable="false">Import Project (ZIP)</string>
+	<string name="import_zip" translatable="false">Restore Project (ZIP)</string>
 	<string name="import_website_desc" translatable="false">Import HTML/CSS Website</string>
 	<string name="no_logo" translatable="false">No logo selected</string>
 	<string name="logo_selected" translatable="false">Logo selected</string>
 	<string name="open" translatable="false">Open</string>
 	<string name="backup_project" translatable="false">Backup Project</string>
-	<string name="app_subtitle" translatable="false">No-Code Web Builder</string>
-    <string name="add_new">Add New</string>
-    <string name="common_word_save">Save</string>
-    <string name="common_word_view">View</string>
-    <string name="common_word_custom_view">Custom View</string>
+    <string name="add_new" translatable="false">Add New</string>
+    <string name="common_word_view" translatable="false">View</string>
+    <string name="common_word_custom_view" translatable="false">Custom View</string>
+	<string name="app_subtitle" translatable="false">Build websites on the go</string>
+	<string name="common_word_save" translatable="false">Save</string>
 </resources>

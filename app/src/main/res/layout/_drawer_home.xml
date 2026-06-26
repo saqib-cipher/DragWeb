@@ -19,14 +19,14 @@
 			android:layout_width="56dp"
 			android:layout_height="56dp">
 			<View
-				android:layout_width="56dp"
-				android:layout_height="56dp"
+				android:layout_width="100dp"
+				android:layout_height="100dp"
 				android:background="@drawable/bg_empty_state_icon" />
 			<ImageView
-				android:layout_width="32dp"
-				android:layout_height="32dp"
+				android:layout_width="80dp"
+				android:layout_height="80dp"
 				android:layout_gravity="center"
-				android:src="@drawable/icon_code_round"
+				android:src="@drawable/app_logo"
 				app:tint="?attr/colorOnPrimaryContainer" />
 		</FrameLayout>
 		<TextView
@@ -86,32 +86,8 @@
 		</LinearLayout>
 
 		<!-- Import Website (HTML/CSS) -->
-		<LinearLayout
-			android:id="@+id/menuImportWebsite"
-			android:layout_width="match_parent"
-			android:layout_height="56dp"
-			android:orientation="horizontal"
-			android:paddingStart="16dp"
-			android:paddingEnd="24dp"
-			android:gravity="center_vertical"
-			android:layout_marginStart="12dp"
-			android:layout_marginEnd="12dp"
-			android:background="?attr/selectableItemBackground">
-			<ImageView
-				android:layout_width="24dp"
-				android:layout_height="24dp"
-				android:src="@drawable/icon_code_round"
-				app:tint="?attr/colorOnSurfaceVariant" />
-			<TextView
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="@string/import_website_desc"
-				android:textSize="14sp"
-				android:textColor="?attr/colorOnSurface"
-				android:layout_marginStart="16dp" />
-		</LinearLayout>
 
-		<View
+			<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
 			android:layout_marginTop="8dp"
@@ -121,7 +97,34 @@
 			android:background="?attr/colorOutlineVariant" />
 
 		<!-- Backup All -->
-		<LinearLayout
+			<LinearLayout
+				android:id="@+id/menuImportWebsite"
+				android:layout_width="match_parent"
+				android:layout_height="56dp"
+				android:layout_marginStart="12dp"
+				android:layout_marginEnd="12dp"
+				android:background="?attr/selectableItemBackground"
+				android:gravity="center_vertical"
+				android:orientation="horizontal"
+				android:paddingStart="16dp"
+				android:paddingEnd="24dp">
+
+				<ImageView
+					android:layout_width="24dp"
+					android:layout_height="24dp"
+					android:src="@drawable/icon_code_round"
+					app:tint="?attr/colorOnSurfaceVariant" />
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginStart="16dp"
+					android:text="@string/import_website_desc"
+					android:textColor="?attr/colorOnSurface"
+					android:textSize="14sp" />
+			</LinearLayout>
+
+			<LinearLayout
 			android:id="@+id/menuBackup"
 			android:layout_width="match_parent"
 			android:layout_height="56dp"
@@ -197,7 +200,7 @@
 			<ImageView
 				android:layout_width="24dp"
 				android:layout_height="24dp"
-				android:src="@drawable/icon_edit_round"
+				android:src="@drawable/rounded_dropdown_menu_24"
 				app:tint="?attr/colorOnSurfaceVariant" />
 			<TextView
 				android:layout_width="wrap_content"
@@ -209,32 +212,61 @@
 		</LinearLayout>
 
 		<!-- About -->
-		<LinearLayout
-			android:id="@+id/menuAbout"
-			android:layout_width="match_parent"
-			android:layout_height="56dp"
-			android:orientation="horizontal"
-			android:paddingStart="16dp"
-			android:paddingEnd="24dp"
-			android:gravity="center_vertical"
-			android:layout_marginStart="12dp"
-			android:layout_marginEnd="12dp"
-			android:background="?attr/selectableItemBackground">
-			<ImageView
-				android:layout_width="24dp"
-				android:layout_height="24dp"
-				android:src="@drawable/icon_web_round"
-				app:tint="?attr/colorOnSurfaceVariant" />
-			<TextView
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="@string/about_dragweb"
-				android:textSize="14sp"
-				android:textColor="?attr/colorOnSurface"
-				android:layout_marginStart="16dp" />
-		</LinearLayout>
+			<LinearLayout
+				android:id="@+id/menuCustomManager"
+				android:layout_width="match_parent"
+				android:layout_height="56dp"
+				android:layout_marginStart="12dp"
+				android:layout_marginEnd="12dp"
+				android:background="?attr/selectableItemBackground"
+				android:gravity="center_vertical"
+				android:orientation="horizontal"
+				android:paddingStart="16dp"
+				android:paddingEnd="24dp">
 
-		<View
+				<ImageView
+					android:layout_width="24dp"
+					android:layout_height="24dp"
+					android:src="@drawable/rounded_dashboard_2_edit_24"
+					app:tint="?attr/colorOnSurfaceVariant" />
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginStart="16dp"
+					android:text="Manage Blocks &amp; Widgets"
+					android:textColor="?attr/colorOnSurface"
+					android:textSize="14sp" />
+			</LinearLayout>
+
+			<LinearLayout
+				android:id="@+id/menuEditorSettings"
+				android:layout_width="match_parent"
+				android:layout_height="56dp"
+				android:layout_marginStart="12dp"
+				android:layout_marginEnd="12dp"
+				android:background="?attr/selectableItemBackground"
+				android:gravity="center_vertical"
+				android:orientation="horizontal"
+				android:paddingStart="16dp"
+				android:paddingEnd="24dp">
+
+				<ImageView
+					android:layout_width="24dp"
+					android:layout_height="24dp"
+					android:src="@drawable/icon_code_round"
+					app:tint="?attr/colorOnSurfaceVariant" />
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginStart="16dp"
+					android:text="Text Editor Settings"
+					android:textColor="?attr/colorOnSurface"
+					android:textSize="14sp" />
+			</LinearLayout>
+
+			<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
 			android:layout_marginTop="8dp"
@@ -244,65 +276,36 @@
 			android:background="?attr/colorOutlineVariant" />
 
 		<!-- Custom Blocks & Widgets Manager -->
-		<LinearLayout
-			android:id="@+id/menuCustomManager"
-			android:layout_width="match_parent"
-			android:layout_height="56dp"
-			android:orientation="horizontal"
-			android:paddingStart="16dp"
-			android:paddingEnd="24dp"
-			android:gravity="center_vertical"
-			android:layout_marginStart="12dp"
-			android:layout_marginEnd="12dp"
-			android:background="?attr/selectableItemBackground">
-			<ImageView
-				android:layout_width="24dp"
-				android:layout_height="24dp"
-				android:src="@drawable/icon_widgets_round"
-				app:tint="?attr/colorOnSurfaceVariant" />
-			<TextView
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="Custom Blocks &amp; Widgets"
-				android:textSize="14sp"
-				android:textColor="?attr/colorOnSurface"
-				android:layout_marginStart="16dp" />
-		</LinearLayout>
 
-		<View
-			android:layout_width="match_parent"
-			android:layout_height="1dp"
-			android:layout_marginTop="8dp"
-			android:layout_marginBottom="8dp"
-			android:layout_marginStart="16dp"
-			android:layout_marginEnd="16dp"
-			android:background="?attr/colorOutlineVariant" />
+			<LinearLayout
+				android:id="@+id/menuAbout"
+				android:layout_width="match_parent"
+				android:layout_height="56dp"
+				android:layout_marginStart="12dp"
+				android:layout_marginEnd="12dp"
+				android:background="?attr/selectableItemBackground"
+				android:gravity="center_vertical"
+				android:orientation="horizontal"
+				android:paddingStart="16dp"
+				android:paddingEnd="24dp">
+
+				<ImageView
+					android:layout_width="24dp"
+					android:layout_height="24dp"
+					android:src="@drawable/app_logo"
+					app:tint="?attr/colorOnSurfaceVariant" />
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginStart="16dp"
+					android:text="@string/about_dragweb"
+					android:textColor="?attr/colorOnSurface"
+					android:textSize="14sp" />
+			</LinearLayout>
+
 
 		<!-- Editor Settings Menu Item -->
-		<LinearLayout
-			android:id="@+id/menuEditorSettings"
-			android:layout_width="match_parent"
-			android:layout_height="56dp"
-			android:orientation="horizontal"
-			android:paddingStart="16dp"
-			android:paddingEnd="24dp"
-			android:gravity="center_vertical"
-			android:layout_marginStart="12dp"
-			android:layout_marginEnd="12dp"
-			android:background="?attr/selectableItemBackground">
-			<ImageView
-				android:layout_width="24dp"
-				android:layout_height="24dp"
-				android:src="@drawable/icon_code_round"
-				app:tint="?attr/colorOnSurfaceVariant" />
-			<TextView
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="Editor Settings"
-				android:textSize="14sp"
-				android:textColor="?attr/colorOnSurface"
-				android:layout_marginStart="16dp" />
-		</LinearLayout>
 
 		</LinearLayout>
 	</ScrollView>

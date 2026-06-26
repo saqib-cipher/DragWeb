@@ -44,8 +44,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class ManageBlocksWidgetsActivity extends AppCompatActivity {
 
@@ -165,7 +167,7 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         rvBlocks.setAdapter(blocksAdapter);
         rvWidgets.setAdapter(widgetsAdapter);
 
-        populateCategoryChips(new String[]{"All", "html", "css", "logic", "animation", "asd", "value", "meta"}, selectedBlockCategory, true);
+        populateBlockCategoryChips();
 
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
@@ -183,14 +185,14 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
                     tvEmptyBlocks.setVisibility(blocksAdapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
                     tvEmptyWidgets.setVisibility(View.GONE);
                     fabAddCustom.setText("Add Block");
-                    populateCategoryChips(new String[]{"All", "html", "css", "logic", "animation", "asd", "value", "meta"}, selectedBlockCategory, true);
+                    populateBlockCategoryChips();
                 } else {
                     rvBlocks.setVisibility(View.GONE);
                     rvWidgets.setVisibility(View.VISIBLE);
                     tvEmptyBlocks.setVisibility(View.GONE);
                     tvEmptyWidgets.setVisibility(widgetsAdapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
                     fabAddCustom.setText("Add Widget");
-                    populateCategoryChips(new String[]{"All", "basic", "layout", "form"}, selectedWidgetCategory, false);
+                    populateWidgetCategoryChips();
                 }
             }
 
@@ -232,6 +234,7 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         
         if (activeTab == 0) {
             tvEmptyBlocks.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
+            populateBlockCategoryChips();
         } else {
             tvEmptyBlocks.setVisibility(View.GONE);
         }
@@ -252,6 +255,7 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         
         if (activeTab == 1) {
             tvEmptyWidgets.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
+            populateWidgetCategoryChips();
         } else {
             tvEmptyWidgets.setVisibility(View.GONE);
         }
@@ -266,27 +270,69 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
         }
     }
 
-    private void populateCategoryChips(String[] categories, String selectedCategory, boolean isBlockTab) {
+    private void populateBlockCategoryChips() {
         if (chipGroupCategories == null) return;
         chipGroupCategories.removeAllViews();
-        for (String category : categories) {
+        List<String> categories = customBlockManager.getBlockCategories();
+        // Always show "All" first
+        Chip allChip = new Chip(this);
+        allChip.setText("ALL");
+        allChip.setCheckable(true);
+        allChip.setClickable(true);
+        allChip.setTag("All");
+        if ("All".equalsIgnoreCase(selectedBlockCategory)) allChip.setChecked(true);
+        allChip.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) { selectedBlockCategory = "All"; refreshBlocksList(); }
+        });
+        chipGroupCategories.addView(allChip);
+
+        for (String cat : categories) {
             Chip chip = new Chip(this);
-            chip.setText(category.toUpperCase());
+            chip.setText(cat.toUpperCase());
             chip.setCheckable(true);
             chip.setClickable(true);
-            if (category.equalsIgnoreCase(selectedCategory)) {
-                chip.setChecked(true);
-            }
+            chip.setTag(cat);
+            if (cat.equalsIgnoreCase(selectedBlockCategory)) chip.setChecked(true);
             chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                if (isChecked) {
-                    if (isBlockTab) {
-                        selectedBlockCategory = category;
-                        refreshBlocksList();
-                    } else {
-                        selectedWidgetCategory = category;
-                        refreshWidgetsList();
-                    }
+                if (isChecked) { selectedBlockCategory = cat; refreshBlocksList(); }
+            });
+            chipGroupCategories.addView(chip);
+        }
+    }
+
+    private void populateWidgetCategoryChips() {
+        if (chipGroupCategories == null) return;
+        chipGroupCategories.removeAllViews();
+        Set<String> categories = new LinkedHashSet<>();
+        for (HashMap<String, Object> w : widgetRegistry.getAllWidgets()) {
+            if (w != null && w.containsKey("category")) {
+                String cat = String.valueOf(w.get("category"));
+                if (cat != null && !"null".equals(cat) && !cat.isEmpty()) {
+                    categories.add(cat.toLowerCase());
                 }
+            }
+        }
+        // Always show "All" first
+        Chip allChip = new Chip(this);
+        allChip.setText("ALL");
+        allChip.setCheckable(true);
+        allChip.setClickable(true);
+        allChip.setTag("All");
+        if ("All".equalsIgnoreCase(selectedWidgetCategory)) allChip.setChecked(true);
+        allChip.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) { selectedWidgetCategory = "All"; refreshWidgetsList(); }
+        });
+        chipGroupCategories.addView(allChip);
+
+        for (String cat : categories) {
+            Chip chip = new Chip(this);
+            chip.setText(cat.toUpperCase());
+            chip.setCheckable(true);
+            chip.setClickable(true);
+            chip.setTag(cat);
+            if (cat.equalsIgnoreCase(selectedWidgetCategory)) chip.setChecked(true);
+            chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) { selectedWidgetCategory = cat; refreshWidgetsList(); }
             });
             chipGroupCategories.addView(chip);
         }

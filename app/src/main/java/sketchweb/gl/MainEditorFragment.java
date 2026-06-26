@@ -57,8 +57,10 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class MainEditorFragment extends Fragment {
 
@@ -115,6 +117,7 @@ public class MainEditorFragment extends Fragment {
 	private ChipGroup chipGroupBottom;
 	private TextInputEditText etSearchWidget, etSearchHierarchy;
 	private ChipGroup chipGroupCategories;
+	private ChipGroup chipGroupDrawerCategories;
 
 	private androidx.drawerlayout.widget.DrawerLayout drawerLayout;
 	private View rightPanelCard;
@@ -412,6 +415,7 @@ public class MainEditorFragment extends Fragment {
 		etSearchWidget = view.findViewById(R.id.etSearchWidget);
 		etSearchHierarchy = view.findViewById(R.id.etSearchHierarchy);
 		chipGroupCategories = view.findViewById(R.id.chipGroupCategories);
+		chipGroupDrawerCategories = view.findViewById(R.id.chipGroupDrawerCategories);
 
 		// Drawer button - store reference as field for reliability
 		drawerLayout = view.findViewById(R.id._main);
@@ -502,15 +506,19 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void setupDrawerCategories(View view) {
-		com.google.android.material.chip.ChipGroup chipGroup = view.findViewById(R.id.chipGroupDrawerCategories);
-		if (chipGroup == null) return;
-		chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+		if (chipGroupDrawerCategories == null) return;
+		populateCategoryChips();
+		chipGroupDrawerCategories.setOnCheckedStateChangeListener((group, checkedIds) -> {
 			String filter = "all";
 			if (!checkedIds.isEmpty()) {
 				int checkedId = checkedIds.get(0);
-				if (checkedId == R.id.chipDrawerLayout) filter = "layout";
-				else if (checkedId == R.id.chipDrawerBasic) filter = "basic";
-				else if (checkedId == R.id.chipDrawerForm) filter = "form";
+				for (int i = 0; i < group.getChildCount(); i++) {
+					View child = group.getChildAt(i);
+					if (child.getId() == checkedId && child.getTag() instanceof String) {
+						filter = (String) child.getTag();
+						break;
+					}
+				}
 			}
 			filteredWidgets.clear();
 			for (HashMap<String, Object> w : widgets) {
@@ -522,6 +530,60 @@ public class MainEditorFragment extends Fragment {
 				rvDrawerWidgets.getAdapter().notifyDataSetChanged();
 			}
 		});
+	}
+
+	private void populateCategoryChips() {
+		Set<String> categories = new LinkedHashSet<>();
+		for (HashMap<String, Object> w : widgets) {
+			String cat = String.valueOf(w.get("category"));
+			if (cat != null && !"null".equals(cat) && !cat.isEmpty()) {
+				categories.add(cat);
+			}
+		}
+
+		// Populate hidden chipGroupCategories (used for programmatic access)
+		if (chipGroupCategories != null) {
+			chipGroupCategories.removeAllViews();
+			Chip allChip = new Chip(requireContext());
+			allChip.setText("All");
+			allChip.setCheckable(true);
+			allChip.setChecked(true);
+			allChip.setTag("all");
+			allChip.setId(View.generateViewId());
+			chipGroupCategories.addView(allChip);
+			for (String cat : categories) {
+				Chip chip = new Chip(requireContext());
+				chip.setText(cat.substring(0, 1).toUpperCase() + cat.substring(1));
+				chip.setCheckable(true);
+				chip.setTag(cat);
+				chip.setId(View.generateViewId());
+				chipGroupCategories.addView(chip);
+			}
+		}
+
+		// Populate visible drawer chip group
+		if (chipGroupDrawerCategories != null) {
+			chipGroupDrawerCategories.removeAllViews();
+			Chip allChip = new Chip(requireContext());
+			allChip.setText("All");
+			allChip.setChecked(true);
+			allChip.setCheckable(true);
+			allChip.setClickable(true);
+			allChip.setTextSize(11);
+			allChip.setTag("all");
+			allChip.setId(View.generateViewId());
+			chipGroupDrawerCategories.addView(allChip);
+			for (String cat : categories) {
+				Chip chip = new Chip(requireContext());
+				chip.setText(cat.substring(0, 1).toUpperCase() + cat.substring(1));
+				chip.setCheckable(true);
+				chip.setClickable(true);
+				chip.setTextSize(11);
+				chip.setTag(cat);
+				chip.setId(View.generateViewId());
+				chipGroupDrawerCategories.addView(chip);
+			}
+		}
 	}
 
 	private void initializeLogic() {
@@ -579,6 +641,8 @@ public class MainEditorFragment extends Fragment {
 		widgetRegistry = new WidgetRegistry(requireContext());
 		widgets = widgetRegistry.getAllWidgets();
 		filteredWidgets = new ArrayList<>(widgets);
+
+		populateCategoryChips();
 
 		autoLoadCustomConfigs();
 
@@ -645,6 +709,7 @@ public class MainEditorFragment extends Fragment {
 			refreshHierarchy();
 		});
 
+		setupHierarchyTracker(screen);
 		setupCanvasDragListener();
 
 		// Set up page selector (which loads layout)
@@ -1804,6 +1869,7 @@ public class MainEditorFragment extends Fragment {
 		} catch (Exception e) {
 			Log.w("MainActivity", "Could not load page layout: " + e.getMessage());
 		}
+		setupHierarchyTracker(screen);
 		saveCurrentPageLayout();
 		selector.clearSelection();
 		selector.attachTo(screen);
@@ -1895,11 +1961,39 @@ public class MainEditorFragment extends Fragment {
 		filteredWidgets.clear();
 		filteredWidgets.addAll(widgets);
 		notifyWidgetAdapters();
+		populateCategoryChips();
 	}
 
 	private void refreshHierarchy() {
 		if (hierarchyAdapter != null) {
 			hierarchyAdapter.buildTree(screen);
+		}
+	}
+
+	private final ViewGroup.OnHierarchyChangeListener hierarchyChangeListener = new ViewGroup.OnHierarchyChangeListener() {
+		@Override
+		public void onChildViewAdded(View parent, View child) {
+			if (child instanceof ViewGroup) {
+				setupHierarchyTracker((ViewGroup) child);
+			}
+			refreshHierarchy();
+			updateWidgetSpinnerFromTree();
+		}
+
+		@Override
+		public void onChildViewRemoved(View parent, View child) {
+			refreshHierarchy();
+			updateWidgetSpinnerFromTree();
+		}
+	};
+
+	private void setupHierarchyTracker(ViewGroup vg) {
+		vg.setOnHierarchyChangeListener(hierarchyChangeListener);
+		for (int i = 0; i < vg.getChildCount(); i++) {
+			View child = vg.getChildAt(i);
+			if (child instanceof ViewGroup) {
+				setupHierarchyTracker((ViewGroup) child);
+			}
 		}
 	}
 
@@ -2292,15 +2386,7 @@ public class MainEditorFragment extends Fragment {
 		super.onResume();
 		if (widgetRegistry != null) {
 			try {
-				widgets = widgetRegistry.getAllWidgets();
-				filteredWidgets.clear();
-				filteredWidgets.addAll(widgets);
-				if (recyclerview1 != null && recyclerview1.getAdapter() != null) {
-					recyclerview1.getAdapter().notifyDataSetChanged();
-				}
-				if (rvDrawerWidgets != null && rvDrawerWidgets.getAdapter() != null) {
-					rvDrawerWidgets.getAdapter().notifyDataSetChanged();
-				}
+				refreshWidgetList();
 			} catch (Exception e) {
 				Log.w("MainActivity", "Failed to refresh widgets on resume: " + e.getMessage());
 			}
@@ -2319,15 +2405,7 @@ public class MainEditorFragment extends Fragment {
 	private void autoLoadCustomConfigs() {
 		if (widgetRegistry != null) {
 			try {
-				widgets = widgetRegistry.getAllWidgets();
-				filteredWidgets.clear();
-				filteredWidgets.addAll(widgets);
-				if (recyclerview1 != null && recyclerview1.getAdapter() != null) {
-					recyclerview1.getAdapter().notifyDataSetChanged();
-				}
-				if (rvDrawerWidgets != null && rvDrawerWidgets.getAdapter() != null) {
-					rvDrawerWidgets.getAdapter().notifyDataSetChanged();
-				}
+				refreshWidgetList();
 			} catch (Exception e) {
 				Log.w("MainActivity", "Failed to load custom widgets: " + e.getMessage());
 			}
@@ -2561,6 +2639,9 @@ public class MainEditorFragment extends Fragment {
 		if (pageManager != null && screen.getChildCount() > 0) {
 			saveCurrentPageLayout();
 		}
+
+		refreshHierarchy();
+		updateWidgetSpinnerFromTree();
 	}
 
 	private void registerAllWidgetsForDrag(ViewGroup parent) {
@@ -2583,6 +2664,7 @@ public class MainEditorFragment extends Fragment {
 		for (Map<String, Object> nodeMap : state) {
 			rebuildView(nodeMap, screen);
 		}
+		setupHierarchyTracker(screen);
 		selector.clearSelection();
 		selector.attachTo(screen);
 		textview2.setText("No widget selected");

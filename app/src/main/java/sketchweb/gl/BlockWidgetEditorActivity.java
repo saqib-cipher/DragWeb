@@ -23,6 +23,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import java.util.HashMap;
+import java.util.List;
 
 public class BlockWidgetEditorActivity extends AppCompatActivity {
 
@@ -235,7 +236,12 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
     private void showCategoryPickerDialog() {
         final String[] categories;
         if ("block".equals(type)) {
-            categories = new String[]{"html", "css", "logic", "animation", "asd", "value", "meta"};
+            List<String> list = customBlockManager.getBlockCategories();
+            if (list.isEmpty()) {
+                categories = new String[]{"html", "css", "logic", "animation", "asd", "value", "meta"};
+            } else {
+                categories = list.toArray(new String[0]);
+            }
         } else {
             categories = new String[]{"basic", "layout", "form"};
         }

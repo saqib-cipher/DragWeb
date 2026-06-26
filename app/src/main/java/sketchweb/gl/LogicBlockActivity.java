@@ -28,6 +28,7 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.google.android.material.chip.Chip;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -219,45 +220,53 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         if (categoryListContainer == null) return;
         categoryListContainer.removeAllViews();
         Set<String> available = new LinkedHashSet<>();
+        // Extract unique categories from block definitions dynamically
         if (currentMode == 0) {
-            available.add(CAT_CSS);
-            available.add(CAT_ANIMATION);
-            available.add(CAT_LOGIC);
-            available.add(CAT_VALUE);
-            available.add(CAT_META);
+            for (BlockDef def : allBlockDefs) {
+                if (def.category != null && !def.category.isEmpty() && !"asd".equals(def.category)) {
+                    available.add(def.category);
+                }
+            }
+            if (available.isEmpty()) {
+                available.add(CAT_CSS);
+                available.add(CAT_ANIMATION);
+                available.add(CAT_LOGIC);
+                available.add(CAT_VALUE);
+                available.add(CAT_META);
+            }
         } else {
             available.add(CAT_ASD);
         }
         for (String cat : available) {
-            categoryListContainer.addView(createCategoryButton(cat, prettyName(cat)));
+            categoryListContainer.addView(createCategoryChip(cat, prettyName(cat)));
         }
     }
 
-    private View createCategoryButton(String category, String label) {
-        TextView btn = new TextView(this);
-        btn.setText(label);
-        btn.setTextSize(12);
-        btn.setTextColor(Color.WHITE);
-        btn.setTypeface(null, Typeface.BOLD);
-        btn.setGravity(Gravity.CENTER);
-        btn.setPadding(dp(8), dp(12), dp(8), dp(12));
-
+    private View createCategoryChip(String category, String label) {
+        Chip chip = new Chip(this);
+        chip.setText(label);
+        chip.setCheckable(true);
+        chip.setChecked(category.equals(currentCategory));
+        chip.setTextSize(11);
+        chip.setGravity(Gravity.CENTER);
+        chip.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        
         int color = BlockCategoryPalette.colorIntForCategory(category);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(dp(8));
-        bg.setColor(color);
-        bg.setStroke(dp(2), category.equals(currentCategory) ? Color.WHITE : BlockCategoryPalette.darken(color));
-        btn.setBackground(bg);
-
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(dp(2), dp(3), dp(2), dp(3));
-        btn.setLayoutParams(lp);
-        btn.setOnClickListener(v -> {
+        chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(color));
+        chip.setTextColor(Color.WHITE);
+        chip.setChipStrokeColor(android.content.res.ColorStateList.valueOf(category.equals(currentCategory) ? Color.WHITE : BlockCategoryPalette.darken(color)));
+        chip.setChipStrokeWidth(dp(2));
+        
+        chip.setOnClickListener(v -> {
             showCategory(category);
             setupCategoryButtons();
         });
-        return btn;
+        
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(dp(2), dp(3), dp(2), dp(3));
+        chip.setLayoutParams(lp);
+        return chip;
     }
 
     private String prettyName(String category) {
@@ -319,6 +328,31 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
                 new TypeToken<List<BlockDef>>(){}.getType());
             allBlockDefs.clear();
             if (parsed != null) allBlockDefs.addAll(parsed);
+
+            // Load custom block definitions and update or append
+            if (customBlockManager != null) {
+                for (ManageBlocksWidgets.CustomBlockDef customDef : customBlockManager.getDefinitions()) {
+                    if (customDef != null) {
+                        BlockDef bDef = null;
+                        for (BlockDef existing : allBlockDefs) {
+                            if (customDef.id.equals(existing.id)) {
+                                bDef = existing;
+                                break;
+                            }
+                        }
+                        if (bDef == null) {
+                            bDef = new BlockDef();
+                            bDef.id = customDef.id;
+                            allBlockDefs.add(bDef);
+                        }
+                        bDef.label = customDef.display != null ? customDef.display : customDef.id;
+                        bDef.code = customDef.template;
+                        bDef.template = customDef.template;
+                        bDef.category = customDef.category != null ? customDef.category.toLowerCase() : "html";
+                        bDef.shape = "stack";
+                    }
+                }
+            }
         } catch (Exception e) {
             Log.w("LogicBlockActivity", "Failed to load blocks.json: " + e.getMessage());
         }
