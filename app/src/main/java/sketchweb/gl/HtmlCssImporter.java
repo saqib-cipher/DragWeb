@@ -83,11 +83,11 @@ public class HtmlCssImporter {
                 // Only match JS blocks: js_* categories or standard JS logic blocks
                 if (!cat.startsWith("js_") && !cat.equals("logic") && !cat.equals("meta")) continue;
 
-                // Skip open-ended raw block fallbacks to avoid overriding specific matches
+                // Skip open-ended raw block fallbacks or overly broad blocks
                 if ("asdJs".equals(def.id) || "asdCss".equals(def.id) || "asdHtml".equals(def.id) || "asdHead".equals(def.id) || "asdMeta".equals(def.id)) continue;
-
+                
                 String code = def.resolvedTemplate();
-                if (code == null || code.trim().isEmpty()) continue;
+                if (code == null || code.trim().isEmpty() || code.equals("%s") || code.equals("%n") || code.equals("%b")) continue;
 
                 // Skip container blocks with space tokens - they are handled with custom brace matching in parseJsRules
                 if (code.contains("%m.space")) continue;
@@ -1271,9 +1271,68 @@ public class HtmlCssImporter {
             }
             
             // Try to match complex statements that have braces first
-            // 3. setTimeout(function() { ... }, delay);
             String remaining = js.substring(pos);
             
+            // 3. Braced block (Function, If, For, etc.)
+            int jsBlockOpenBraceIdx = js.indexOf("{", pos);
+            if (jsBlockOpenBraceIdx >= 0) {
+                // Check if there is a semicolon or another brace before the open brace
+                String headerCandidate = js.substring(pos, jsBlockOpenBraceIdx);
+                if (!headerCandidate.contains(";") && !headerCandidate.contains("}") && !headerCandidate.contains("//") && !headerCandidate.contains("/*")) {
+                    int jsBlockCloseBraceIdx = findMatchingBrace(js, jsBlockOpenBraceIdx);
+                    if (jsBlockCloseBraceIdx >= 0) {
+                        String header = headerCandidate.trim();
+                        String body = js.substring(jsBlockOpenBraceIdx + 1, jsBlockCloseBraceIdx).trim();
+                        pos = jsBlockCloseBraceIdx + 1;
+                        
+                        String blockId = "blk_js_block_" + timestamp + "_" + (counterRef[0]++);
+                        Map<String, Object> block = new HashMap<>();
+                        block.put("id", blockId);
+                        block.put("action", "asdJs"); // Using asdJs as base
+                        block.put("category", "asd");
+                        block.put("shape", "cblock");
+                        block.put("spec", header + " { %m.space }");
+                        block.put("labelOverride", header + " {");
+                        block.put("paramValues", new ArrayList<String>());
+                        block.put("params", "");
+                        block.put("event", "immediate");
+                        
+                        String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                        block.put("parentBlockId", parent != null ? parent : "");
+                        
+                        importedLogicBlocks.add(block);
+                        parseJsRules(body, blockId, timestamp, counterRef);
+                        continue;
+                    }
+                }
+            }
+
+            // 4. JS Import / Export statements
+            Pattern importExportPat = Pattern.compile("^(import|export)\\s+[\\s\\S]*?;");
+            Matcher importExportMat = importExportPat.matcher(remaining);
+            if (importExportMat.find()) {
+                String val = importExportMat.group(0).trim();
+                pos += importExportMat.end();
+                
+                String blockId = "blk_js_ie_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "asdJs");
+                block.put("category", "asd");
+                block.put("shape", "stack");
+                block.put("spec", "%s");
+                block.put("paramValues", java.util.Arrays.asList(val));
+                block.put("params", val);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(block);
+                continue;
+            }
+
+            // 4. setTimeout(function() { ... }, delay);
             Pattern timeoutPat = Pattern.compile("^setTimeout\\s*\\(\\s*function\\s*\\(\\s*\\)\\s*\\{");
             Matcher timeoutMat = timeoutPat.matcher(remaining);
             if (timeoutMat.find()) {
@@ -1599,7 +1658,7 @@ public class HtmlCssImporter {
                 continue;
             }
             
-            // 12. Fallback to asdJs
+            // 13. Fallback to asdJs
             int nextSemi = js.indexOf(";", pos);
             int nextBrace = js.indexOf("{", pos);
             int nextCloseBrace = js.indexOf("}", pos);
@@ -1613,7 +1672,8 @@ public class HtmlCssImporter {
             if (nextComment1 >= 0) nextEnd = Math.min(nextEnd, nextComment1);
             if (nextComment2 >= 0) nextEnd = Math.min(nextEnd, nextComment2);
             
-            if (nextEnd == pos) {
+            if (nextEnd <= pos) {
+                // If we are at a special character, take it so we don't loop forever
                 nextEnd = pos + 1;
             }
             
@@ -1621,6 +1681,15 @@ public class HtmlCssImporter {
             pos = nextEnd;
             
             if (fallbackCode.isEmpty() || fallbackCode.equals(";")) continue;
+            
+            // If the fallback is just a single character and it's not a brace or semi, 
+            // try to consume more characters to avoid single-letter blocks.
+            if (fallbackCode.length() == 1 && Character.isLetterOrDigit(fallbackCode.charAt(0))) {
+                while (pos < len && Character.isLetterOrDigit(js.charAt(pos))) {
+                    fallbackCode += js.charAt(pos);
+                    pos++;
+                }
+            }
             
             String blockId = "blk_asd_js_" + timestamp + "_" + (counterRef[0]++);
             Map<String, Object> block = new HashMap<>();

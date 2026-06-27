@@ -106,7 +106,7 @@ public class WorkspaceView extends ScrollView {
         stack.removeAllViews();
         viewByBlockId.clear();
         if (logicBlockManager == null) return;
-        renderChildrenInto(stack, null);
+        renderTopLevelBlocks();
     }
 
     /** Back-compat: behaves identically to {@link #rebuild()}. */
@@ -144,8 +144,7 @@ public class WorkspaceView extends ScrollView {
         return computeInsertIndexAbsolute(stack, content);
     }
 
-    int indexInSlotFromY(BlockView container, float y) {
-        LinearLayout slot = container.getStackSlot();
+    int indexInSlotFromY(BlockView container, LinearLayout slot, float y) {
         if (slot == null) return 0;
         // y comes from a drag listener attached to the slot itself, so it is
         // already in slot-local coordinates.
@@ -180,6 +179,10 @@ public class WorkspaceView extends ScrollView {
     }
 
     void insertNewBlock(BlockDef def, @Nullable BlockView containerView, int siblingIndex) {
+        insertNewBlock(def, containerView, 0, siblingIndex);
+    }
+
+    void insertNewBlock(BlockDef def, @Nullable BlockView containerView, int slotIndex, int siblingIndex) {
         if (logicBlockManager == null || def == null) return;
         LogicBlockManager.LogicBlock block = new LogicBlockManager.LogicBlock();
         block.id = "blk_" + System.currentTimeMillis();
@@ -191,13 +194,18 @@ public class WorkspaceView extends ScrollView {
         block.targetMode = LogicBlockManager.TARGET_MODE_ID;
         block.targetWidget = "";
         block.parentBlockId = containerView != null ? containerView.getBlock().id : null;
+        block.parentSlotIndex = slotIndex;
         block.paramValues = defaultParamValues(def);
         block.params = joinPipe(block.paramValues);
-        insertIntoMaster(block, containerView, siblingIndex);
+        insertIntoMaster(block, containerView, slotIndex, siblingIndex);
         rebuild();
     }
 
     void moveBlockTo(String blockId, @Nullable BlockView containerView, int siblingIndex) {
+        moveBlockTo(blockId, containerView, 0, siblingIndex);
+    }
+
+    void moveBlockTo(String blockId, @Nullable BlockView containerView, int slotIndex, int siblingIndex) {
         if (logicBlockManager == null) return;
         LogicBlockManager.LogicBlock target = findBlockById(blockId);
         if (target == null) return;
@@ -210,8 +218,9 @@ public class WorkspaceView extends ScrollView {
         all.removeAll(chain);
 
         target.parentBlockId = containerView != null ? containerView.getBlock().id : null;
+        target.parentSlotIndex = slotIndex;
 
-        insertChainAt(chain, target.parentBlockId, siblingIndex);
+        insertChainAt(chain, target.parentBlockId, slotIndex, siblingIndex);
         rebuild();
     }
 
@@ -250,17 +259,45 @@ public class WorkspaceView extends ScrollView {
     // Internals
     // -------------------------------------------------------------------
 
-    private void renderChildrenInto(LinearLayout host, @Nullable String parentId) {
+    private void renderTopLevelBlocks() {
         for (LogicBlockManager.LogicBlock b : logicBlockManager.getBlocks()) {
-            if (!sameParent(b.parentBlockId, parentId)) continue;
+            if (b.parentBlockId != null && !b.parentBlockId.isEmpty()) continue;
+            
             BlockDef def = findDef(b.action);
             BlockView view = new BlockView(getContext(), b, def, chipFactory, dragDropManager, this::onBlockMutated);
             viewByBlockId.put(b.id, view);
-            host.addView(view);
+            stack.addView(view);
             if (view.isContainer()) {
-                renderChildrenInto(view.getStackSlot(), b.id);
-                if (dragDropManager != null) {
-                    dragDropManager.attachContainerSlot(view.getStackSlot(), view);
+                List<LinearLayout> slots = view.getStackSlots();
+                for (int i = 0; i < slots.size(); i++) {
+                    LinearLayout slot = slots.get(i);
+                    renderChildrenIntoSlot(slot, b.id, i);
+                    if (dragDropManager != null) {
+                        dragDropManager.attachContainerSlot(slot, view);
+                    }
+                }
+            }
+            if (dragDropManager != null) dragDropManager.attachWorkspaceSource(view);
+        }
+    }
+
+    private void renderChildrenIntoSlot(LinearLayout slotHost, String parentId, int slotIndex) {
+        for (LogicBlockManager.LogicBlock b : logicBlockManager.getBlocks()) {
+            if (!sameParent(b.parentBlockId, parentId)) continue;
+            if (b.parentSlotIndex != slotIndex) continue;
+            
+            BlockDef def = findDef(b.action);
+            BlockView view = new BlockView(getContext(), b, def, chipFactory, dragDropManager, this::onBlockMutated);
+            viewByBlockId.put(b.id, view);
+            slotHost.addView(view);
+            if (view.isContainer()) {
+                List<LinearLayout> slots = view.getStackSlots();
+                for (int i = 0; i < slots.size(); i++) {
+                    LinearLayout slot = slots.get(i);
+                    renderChildrenIntoSlot(slot, b.id, i);
+                    if (dragDropManager != null) {
+                        dragDropManager.attachContainerSlot(slot, view);
+                    }
                 }
             }
             if (dragDropManager != null) dragDropManager.attachWorkspaceSource(view);
@@ -317,29 +354,32 @@ public class WorkspaceView extends ScrollView {
 
     private void insertIntoMaster(LogicBlockManager.LogicBlock block,
                                   @Nullable BlockView containerView,
+                                  int slotIndex,
                                   int siblingIndex) {
         String parentId = containerView != null ? containerView.getBlock().id : null;
         List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
-        int target = resolveMasterIndex(parentId, siblingIndex);
+        int target = resolveMasterIndex(parentId, slotIndex, siblingIndex);
         all.add(Math.min(target, all.size()), block);
     }
 
     private void insertChainAt(List<LogicBlockManager.LogicBlock> chain,
                                @Nullable String parentId,
+                               int slotIndex,
                                int siblingIndex) {
         List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
-        int target = resolveMasterIndex(parentId, siblingIndex);
+        int target = resolveMasterIndex(parentId, slotIndex, siblingIndex);
         for (int i = 0; i < chain.size(); i++) {
             int pos = Math.min(target + i, all.size());
             all.add(pos, chain.get(i));
         }
     }
 
-    private int resolveMasterIndex(@Nullable String parentId, int siblingIndex) {
+    private int resolveMasterIndex(@Nullable String parentId, int slotIndex, int siblingIndex) {
         List<LogicBlockManager.LogicBlock> all = logicBlockManager.getBlocks();
         int seen = 0;
         for (int i = 0; i < all.size(); i++) {
-            if (sameParent(all.get(i).parentBlockId, parentId)) {
+            LogicBlockManager.LogicBlock b = all.get(i);
+            if (sameParent(b.parentBlockId, parentId) && b.parentSlotIndex == slotIndex) {
                 if (seen == siblingIndex) return i;
                 seen++;
             }

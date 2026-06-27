@@ -130,7 +130,8 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         if (btnSaveToCollection != null) dragDropManager.attachSaveBar(btnSaveToCollection);
 
         setupCategoryButtons();
-        showCategory(CAT_CSS);
+        currentCategory = (pageName != null && pageName.endsWith(".js")) ? "js_events" : CAT_CSS;
+        showCategory(currentCategory);
         seedDefaultBlockIfEmpty();
         workspaceView.rebuild();
         refreshCollectionList();
@@ -165,7 +166,8 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
 
     private void seedDefaultBlockIfEmpty() {
         if (!logicBlockManager.getBlocks().isEmpty()) return;
-        BlockDef def = findDef("cssSelector");
+        String defaultId = (pageName != null && pageName.endsWith(".js")) ? "jsOnLoad" : "cssSelector";
+        BlockDef def = findDef(defaultId);
         if (def == null) return;
         workspaceView.insertNewBlock(def, null, 0);
     }
@@ -190,7 +192,13 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
                 @Override public void onTabSelected(TabLayout.Tab tab) {
                     currentMode = tab.getPosition();
                     setupCategoryButtons();
-                    showCategory(currentMode == 0 ? CAT_CSS : CAT_ASD);
+                    String cat;
+                    if (currentMode == 0) {
+                        cat = (pageName != null && pageName.endsWith(".js")) ? "js_events" : CAT_CSS;
+                    } else {
+                        cat = CAT_ASD;
+                    }
+                    showCategory(cat);
                 }
                 @Override public void onTabUnselected(TabLayout.Tab tab) {}
                 @Override public void onTabReselected(TabLayout.Tab tab) {}
@@ -220,19 +228,31 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         if (categoryListContainer == null) return;
         categoryListContainer.removeAllViews();
         Set<String> available = new LinkedHashSet<>();
+        boolean isJsMode = (pageName != null && pageName.endsWith(".js"));
         // Extract unique categories from block definitions dynamically
         if (currentMode == 0) {
             for (BlockDef def : allBlockDefs) {
                 if (def.category != null && !def.category.isEmpty() && !"asd".equals(def.category)) {
-                    available.add(def.category);
+                    boolean isJsCategory = def.category.startsWith("js_") || "js".equals(def.category);
+                    if (isJsMode == isJsCategory) {
+                        available.add(def.category);
+                    }
                 }
             }
             if (available.isEmpty()) {
-                available.add(CAT_CSS);
-                available.add(CAT_ANIMATION);
-                available.add(CAT_LOGIC);
-                available.add(CAT_VALUE);
-                available.add(CAT_META);
+                if (isJsMode) {
+                    available.add("js_events");
+                    available.add("js_dom");
+                    available.add("js_logic");
+                    available.add("js_loop");
+                    available.add("js_math");
+                } else {
+                    available.add(CAT_CSS);
+                    available.add(CAT_ANIMATION);
+                    available.add(CAT_LOGIC);
+                    available.add(CAT_VALUE);
+                    available.add(CAT_META);
+                }
             }
         } else {
             available.add(CAT_ASD);
@@ -250,6 +270,8 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         chip.setTextSize(11);
         chip.setGravity(Gravity.CENTER);
         chip.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        chip.setEnsureMinTouchTargetSize(false);
+        chip.setChipMinHeight((float) dp(28));
         
         int color = BlockCategoryPalette.colorIntForCategory(category);
         chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(color));
@@ -264,12 +286,13 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(dp(2), dp(3), dp(2), dp(3));
+        lp.setMargins(dp(2), dp(1), dp(2), dp(1));
         chip.setLayoutParams(lp);
         return chip;
     }
 
     private String prettyName(String category) {
+        if (category == null) return "";
         switch (category) {
             case CAT_CSS: return "CSS";
             case CAT_VALUE: return "Value";
@@ -277,7 +300,16 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
             case CAT_ANIMATION: return "Anim";
             case CAT_META: return "Group";
             case CAT_ASD: return "ASD";
-            default: return category;
+            case "js_events": return "Events";
+            case "js_dom": return "DOM";
+            case "js_logic": return "Logic";
+            case "js_loop": return "Loop";
+            case "js_math": return "Math";
+            default:
+                if (category.startsWith("js_")) {
+                    return category.substring(3).substring(0, 1).toUpperCase() + category.substring(4);
+                }
+                return category;
         }
     }
 
@@ -309,6 +341,9 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         copy.subStackId = orig.subStackId;
         copy.id = orig.id; // Keep old ID temporarily for remapping
         if (orig.paramValues != null) copy.paramValues = new ArrayList<>(orig.paramValues);
+        copy.labelOverride = orig.labelOverride;
+        if (orig.inputsOverride != null) copy.inputsOverride = new ArrayList<>(orig.inputsOverride);
+        copy.collapsed = orig.collapsed;
         return copy;
     }
 
@@ -746,11 +781,11 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
                     String asdJs = logicBlockManager.generateAsdSource("js");
                     StringBuilder compiledJs = new StringBuilder();
                     compiledJs.append("/* Compiled by DragWeb */\n\n");
+                    if (asdJs != null && !asdJs.trim().isEmpty()) {
+                        compiledJs.append(asdJs).append("\n\n");
+                    }
                     if (jsBlocks != null && !jsBlocks.trim().isEmpty()) {
                         compiledJs.append(jsBlocks).append("\n");
-                    }
-                    if (asdJs != null && !asdJs.trim().isEmpty()) {
-                        compiledJs.append(asdJs).append("\n");
                     }
 
                     File targetJsFile = new File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
@@ -765,8 +800,14 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
     }
 
     private void showCodePreview() {
-        final String cssCode = (logicBlockManager.generateBaseCssRules() + "\n" + logicBlockManager.generateCssPseudoRules()).trim();
-        final String jsCode = logicBlockManager.generateJavaScript();
+        final String cssCode = (logicBlockManager.generateBaseCssRules() + "\n" + logicBlockManager.generateCssPseudoRules() + "\n" + logicBlockManager.generateAsdSource("css")).trim();
+        
+        String jsBlocks = logicBlockManager.generateJavaScript();
+        String asdJs = logicBlockManager.generateAsdSource("js");
+        StringBuilder sbJs = new StringBuilder();
+        if (asdJs != null && !asdJs.trim().isEmpty()) sbJs.append(asdJs).append("\n\n");
+        if (jsBlocks != null && !jsBlocks.trim().isEmpty()) sbJs.append(jsBlocks);
+        final String jsCode = sbJs.toString().trim();
 
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);

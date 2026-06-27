@@ -182,7 +182,7 @@ final class BlockDragDropManager {
     private static boolean isValueDef(BlockDef def) {
         if (def == null) return false;
         if (def.isReporter()) return true;
-        return "value".equals(def.category);
+        return "value".equals(def.category) || "value".equals(def.resolvedShape());
     }
 
     private BlockDef resolveDefFromPayload(String payload) {
@@ -288,7 +288,7 @@ final class BlockDragDropManager {
                 return true;
             case DragEvent.ACTION_DROP:
                 hideInsertionIndicator();
-                return performDrop(workspace, event, null);
+                return performDrop(workspace, event, null, null);
             default:
                 return true;
         }
@@ -307,15 +307,27 @@ final class BlockDragDropManager {
                 return true;
             case DragEvent.ACTION_DROP:
                 slot.setAlpha(1f);
-                return performDrop(host.getWorkspace(), event, slotOwner);
+                return performDrop(host.getWorkspace(), event, slotOwner, slot);
             default:
                 return true;
         }
     }
 
-    private boolean performDrop(WorkspaceView workspace, DragEvent event, BlockView slotOwner) {
+    private boolean performDrop(WorkspaceView workspace, DragEvent event, BlockView slotOwner, LinearLayout slot) {
         String payload = readPayload(event);
         if (payload == null) return false;
+
+        int slotIndex = 0;
+        if (slot != null) {
+            Object tag = slot.getTag(BlockView.TAG_BLOCK_VIEW);
+            if (tag instanceof String && ((String) tag).startsWith("stack_")) {
+                try {
+                    slotIndex = Integer.parseInt(((String) tag).substring(6));
+                } catch (NumberFormatException e) {
+                    slotIndex = 0;
+                }
+            }
+        }
 
         if (payload.startsWith(SOURCE_PALETTE)) {
             String defId = payload.substring(SOURCE_PALETTE.length());
@@ -323,8 +335,8 @@ final class BlockDragDropManager {
             if (def == null) return false;
             int index = slotOwner == null
                 ? indexFromY(workspace, event.getY())
-                : workspace.indexInSlotFromY(slotOwner, event.getY());
-            workspace.insertNewBlock(def, slotOwner, index);
+                : workspace.indexInSlotFromY(slotOwner, slot, event.getY());
+            workspace.insertNewBlock(def, slotOwner, slotIndex, index);
             host.onWorkspaceMutated();
             return true;
         }
@@ -333,8 +345,8 @@ final class BlockDragDropManager {
             String id = payload.substring(SOURCE_WORKSPACE.length());
             int index = slotOwner == null
                 ? indexFromY(workspace, event.getY())
-                : workspace.indexInSlotFromY(slotOwner, event.getY());
-            workspace.moveBlockTo(id, slotOwner, index);
+                : workspace.indexInSlotFromY(slotOwner, slot, event.getY());
+            workspace.moveBlockTo(id, slotOwner, slotIndex, index);
             host.onWorkspaceMutated();
             return true;
         }

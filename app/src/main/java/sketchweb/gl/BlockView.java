@@ -83,14 +83,134 @@ class BlockView extends LinearLayout {
         setLayoutParams(lp);
 
         applyShape();
-        buildHeader();
-        if (def != null && def.isContainer()) {
-            buildStackSlot();
-            // All container blocks (groups, loops, conditions) get the unified
-            // toggle + drag-expand logic.
+        buildViewHierarchy();
+
+        if (!stackSlots.isEmpty()) {
             attachContainerExpandBehavior();
             applyCollapsedState(block.collapsed, false);
         }
+    }
+
+    private final List<LinearLayout> stackSlots = new ArrayList<>();
+    private LinearLayout firstHeaderRow;
+
+    private void buildViewHierarchy() {
+        stackSlots.clear();
+        removeAllViews();
+
+        String label = block.labelOverride != null ? block.labelOverride : (def != null && def.label != null ? def.label : (block.action != null ? block.action : "block"));
+        List<ChipInput> inputs = block.inputsOverride != null ? block.inputsOverride : (def != null ? def.resolvedInputs() : new ArrayList<>());
+        ensureParamCapacity(inputs.size());
+
+        boolean templateHasSpace = label.contains("%m.space");
+        boolean isContainer = (def != null && def.isContainer()) || (block != null && block.spec != null && block.spec.contains("%m.space"));
+
+        Pattern p = Pattern.compile("%(?:(?:(\\d+)\\$)?(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))|(selector))");
+        Matcher m = p.matcher(label);
+        
+        int last = 0;
+        int chipIdx = 0;
+        int slotIdx = 0;
+
+        LinearLayout currentRow = createHeaderRow();
+        firstHeaderRow = currentRow;
+        addDragHandle(currentRow);
+        addView(currentRow);
+
+        while (m.find()) {
+            String pre = label.substring(last, m.start());
+            if (!pre.isEmpty()) {
+                currentRow.addView(buildText(pre));
+            }
+
+            String mType = m.group(2);
+            if ("space".equals(mType)) {
+                LinearLayout slot = createSlotView(slotIdx);
+                addView(slot);
+                stackSlots.add(slot);
+                slotIdx++;
+                
+                currentRow = createHeaderRow();
+                addView(currentRow);
+            } else {
+                if (chipIdx < inputs.size()) {
+                    currentRow.addView(buildChip(inputs.get(chipIdx), chipIdx));
+                }
+                chipIdx++;
+            }
+            last = m.end();
+        }
+
+        String tail = label.substring(last);
+        if (!tail.isEmpty()) {
+            currentRow.addView(buildText(tail));
+        }
+
+        for (int i = chipIdx; i < inputs.size(); i++) {
+            ChipInput ci = inputs.get(i);
+            if ("container".equals(ci.type)) continue;
+            currentRow.addView(buildChip(ci, i));
+        }
+
+        if (isContainer && !templateHasSpace) {
+            LinearLayout slot = createSlotView(slotIdx);
+            addView(slot);
+            stackSlots.add(slot);
+        }
+        
+        for (int i = getChildCount() - 1; i >= 0; i--) {
+            View child = getChildAt(i);
+            if (child instanceof LinearLayout && child != firstHeaderRow) {
+                LinearLayout row = (LinearLayout) child;
+                Object tag = row.getTag(TAG_BLOCK_VIEW);
+                if (tag instanceof String && ((String) tag).startsWith("stack_")) continue;
+                if (row.getChildCount() == 0) {
+                    removeViewAt(i);
+                }
+            }
+        }
+
+        headerRow = firstHeaderRow;
+    }
+
+    private LinearLayout createHeaderRow() {
+        LinearLayout row = new LinearLayout(getContext());
+        row.setOrientation(HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(8), dp(10), dp(8));
+        row.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        return row;
+    }
+
+    private void addDragHandle(LinearLayout row) {
+        dragHandle = new TextView(getContext());
+        boolean hasSlots = (def != null && def.isContainer()) || (block != null && block.spec != null && block.spec.contains("%m.space")) || !stackSlots.isEmpty();
+        dragHandle.setText(hasSlots ? (block.collapsed ? "▶" : "▼") : "☰");
+        dragHandle.setTextColor(0x99FFFFFF);
+        dragHandle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        dragHandle.setPadding(dp(4), 0, dp(10), 0);
+        row.addView(dragHandle);
+    }
+
+    private LinearLayout createSlotView(int slotIndex) {
+        LinearLayout slot = new LinearLayout(getContext());
+        slot.setOrientation(VERTICAL);
+
+        int slotColor = 0x33000000;
+        GradientDrawable slotBg = new GradientDrawable();
+        slotBg.setColor(slotColor);
+        slotBg.setCornerRadius(dp(8));
+        slot.setBackground(slotBg);
+
+        int margin = dp(8);
+        LayoutParams slp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+        slp.setMargins(dp(28), margin / 2, margin, margin);
+        slot.setLayoutParams(slp);
+        slot.setMinimumHeight(dp(36));
+        slot.setPadding(dp(4), dp(4), dp(4), dp(4));
+        slot.setTag(TAG_BLOCK_VIEW, "stack_" + slotIndex);
+
+        return slot;
     }
 
     /**
@@ -98,19 +218,17 @@ class BlockView extends LinearLayout {
      * Click the drag handle to toggle, or hover over while dragging to auto-expand.
      */
     private void attachContainerExpandBehavior() {
-        if (headerRow == null || stackSlot == null) return;
+        if (headerRow == null) return;
 
         applyCollapsedState(block.collapsed, false);
 
-        // Tap the drag handle (the icon on the left) to toggle expansion.
-        // This avoids conflicts with chip editing in the rest of the header.
         if (dragHandle != null) {
             dragHandle.setOnClickListener(v -> {
                 block.collapsed = !block.collapsed;
                 applyCollapsedState(block.collapsed, true);
                 if (onChange != null) onChange.onBlockChanged(block);
             });
-            dragHandle.setText(block.collapsed ? "▸" : "▾");
+            dragHandle.setText(block.collapsed ? "▶" : "▼");
         }
 
         headerRow.setOnDragListener(new android.view.View.OnDragListener() {
@@ -157,8 +275,8 @@ class BlockView extends LinearLayout {
             }
         });
 
-        if (stackSlot != null) {
-            stackSlot.setOnDragListener(new android.view.View.OnDragListener() {
+        for (LinearLayout slot : stackSlots) {
+            slot.setOnDragListener(new android.view.View.OnDragListener() {
                 @Override
                 public boolean onDrag(android.view.View v, android.view.DragEvent event) {
                     switch (event.getAction()) {
@@ -187,37 +305,25 @@ class BlockView extends LinearLayout {
         }
     }
 
-    private void attachContainerDragExpandOnly() {
-        // Obsolete, merged into attachContainerExpandBehavior
-    }
-
-    /**
-     * Tap-to-toggle and drag-over auto-expand for any container block.
-     *
-     * <p>The drag-over flow is conservative: if the user enters this header
-     * while dragging, expand the slot so a drop target is visible. If the
-     * user then drops outside the container <i>and</i> we were the one who
-     * just opened it, collapse back so the workspace doesn't end up with
-     * every container popped open after a single drag.
-     */
-
-
     /** Animate the show/hide transition so the workspace doesn't snap. */
     private void applyCollapsedState(boolean collapsed, boolean animate) {
-        if (stackSlot == null) return;
-        if (animate && stackSlot.getVisibility() == (collapsed ? VISIBLE : GONE)) {
-            stackSlot.setAlpha(collapsed ? 1f : 0f);
-            stackSlot.setVisibility(VISIBLE);
-            stackSlot.animate()
-                .alpha(collapsed ? 0f : 1f)
-                .setDuration(140)
-                .withEndAction(() -> stackSlot.setVisibility(collapsed ? GONE : VISIBLE))
-                .start();
-        } else {
-            stackSlot.setVisibility(collapsed ? GONE : VISIBLE);
-            stackSlot.setAlpha(1f);
+        int childCount = getChildCount();
+        for (int i = 1; i < childCount; i++) {
+            View child = getChildAt(i);
+            if (animate && child.getVisibility() == (collapsed ? VISIBLE : GONE)) {
+                child.setAlpha(collapsed ? 1f : 0f);
+                child.setVisibility(VISIBLE);
+                child.animate()
+                    .alpha(collapsed ? 0f : 1f)
+                    .setDuration(140)
+                    .withEndAction(() -> child.setVisibility(collapsed ? GONE : VISIBLE))
+                    .start();
+            } else {
+                child.setVisibility(collapsed ? GONE : VISIBLE);
+                child.setAlpha(1f);
+            }
         }
-        if (dragHandle != null) dragHandle.setText(collapsed ? "▸" : "▾");
+        if (dragHandle != null) dragHandle.setText(collapsed ? "▶" : "▼");
     }
 
     private void setHeaderHighlight(boolean on) {
@@ -234,11 +340,15 @@ class BlockView extends LinearLayout {
     }
 
     LinearLayout getStackSlot() {
-        return stackSlot;
+        return stackSlots.isEmpty() ? null : stackSlots.get(0);
+    }
+
+    List<LinearLayout> getStackSlots() {
+        return stackSlots;
     }
 
     boolean isContainer() {
-        return stackSlot != null;
+        return !stackSlots.isEmpty();
     }
 
     /** Highlight when a drop is hovering directly above/below this block. */
@@ -276,95 +386,6 @@ class BlockView extends LinearLayout {
         setElevation(dp(2));
     }
 
-    private void buildHeader() {
-        headerRow = new LinearLayout(getContext());
-        headerRow.setOrientation(HORIZONTAL);
-        headerRow.setGravity(Gravity.CENTER_VERTICAL);
-        headerRow.setPadding(dp(10), dp(8), dp(10), dp(8));
-        addView(headerRow, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
-
-        buildHeaderRowContents();
-    }
-
-    private void buildHeaderRowContents() {
-        // Drag handle on the left – long-press to drag, short-press to toggle expansion if container.
-        dragHandle = new TextView(getContext());
-        dragHandle.setText(def != null && def.isContainer() ? (block.collapsed ? "▶" : "▼") : "☰");
-        dragHandle.setTextColor(0x99FFFFFF);
-        dragHandle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        dragHandle.setPadding(dp(4), 0, dp(10), 0);
-        headerRow.addView(dragHandle);
-
-        renderTemplate(headerRow);
-    }
-
-    private void buildStackSlot() {
-        stackSlot = new LinearLayout(getContext());
-        stackSlot.setOrientation(VERTICAL);
-
-        int slotColor = 0x33000000;
-        GradientDrawable slotBg = new GradientDrawable();
-        slotBg.setColor(slotColor);
-        slotBg.setCornerRadius(dp(8));
-        stackSlot.setBackground(slotBg);
-
-        int margin = dp(8);
-        LayoutParams slp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        slp.setMargins(dp(28), margin / 2, margin, margin);
-        stackSlot.setLayoutParams(slp);
-        stackSlot.setMinimumHeight(dp(36));
-        stackSlot.setPadding(dp(4), dp(4), dp(4), dp(4));
-        stackSlot.setTag(TAG_BLOCK_VIEW, "stack");
-
-        addView(stackSlot);
-    }
-
-    /**
-     * Render the block label, splicing inline chips wherever the label or
-     * template carries a token. Label tokens win over template tokens so we
-     * get human-readable copy like "Set Width %n%m.unit" when present.
-     */
-    private void renderTemplate(LinearLayout into) {
-        String label = block.labelOverride != null ? block.labelOverride : (def != null && def.label != null ? def.label : (block.action != null ? block.action : "block"));
-        List<ChipInput> inputs = block.inputsOverride != null ? block.inputsOverride : (def != null ? def.resolvedInputs() : new ArrayList<>());
-        ensureParamCapacity(inputs.size());
-
-        // Token positions inside the *label* if it has any; otherwise we just
-        // append chips after the label text.
-        Pattern p = Pattern.compile("%(?:m\\.[a-zA-Z]+|[nsbd]|(\\d+)\\$[sd])");
-        Matcher m = p.matcher(label);
-        int last = 0;
-        int chipIdx = 0;
-        boolean anyToken = false;
-        while (m.find()) {
-            anyToken = true;
-            String pre = label.substring(last, m.start());
-            if (!pre.isEmpty()) into.addView(buildText(pre));
-            if (chipIdx < inputs.size()) {
-                into.addView(buildChip(inputs.get(chipIdx), chipIdx));
-            }
-            chipIdx++;
-            last = m.end();
-        }
-        if (!anyToken) {
-            into.addView(buildText(label));
-            for (int i = 0; i < inputs.size(); i++) {
-                ChipInput ci = inputs.get(i);
-                if ("container".equals(ci.type)) continue;
-                into.addView(buildChip(ci, i));
-            }
-        } else {
-            String tail = label.substring(last);
-            if (!tail.isEmpty()) into.addView(buildText(tail));
-            // Append any chips not consumed by tokens.
-            for (int i = chipIdx; i < inputs.size(); i++) {
-                ChipInput ci = inputs.get(i);
-                if ("container".equals(ci.type)) continue;
-                into.addView(buildChip(ci, i));
-            }
-        }
-    }
-
     private TextView buildText(String text) {
         TextView tv = new TextView(getContext());
         tv.setText(text.trim());
@@ -385,8 +406,6 @@ class BlockView extends LinearLayout {
             syncLegacyParams();
             if (onChange != null) onChange.onBlockChanged(block);
         });
-        // Allow value-shaped blocks (valueString / valueNumber / valueBoolean
-        // / valueColor) to be dropped onto this chip as a quick-fill source.
         if (dragDropManager != null) {
             dragDropManager.attachChipTarget(chip, (accepted, droppedDef) -> {
                 if (droppedDef != null && droppedDef.label != null && droppedDef.label.contains("%")) {
@@ -406,7 +425,7 @@ class BlockView extends LinearLayout {
         String currentLabel = block.labelOverride != null ? block.labelOverride : (def != null && def.label != null ? def.label : (block.action != null ? block.action : "block"));
         List<ChipInput> currentInputs = block.inputsOverride != null ? new ArrayList<>(block.inputsOverride) : (def != null ? new ArrayList<>(def.resolvedInputs()) : new ArrayList<>());
         
-        Pattern p = Pattern.compile("%(?:m\\.[a-zA-Z]+|[nsbd]|(\\d+)\\$[sd])");
+        Pattern p = Pattern.compile("%(?:(?:(\\d+)\\$)?(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))|(selector))");
         Matcher m = p.matcher(currentLabel);
         int currentChipIdx = 0;
         int tokenStart = -1;
@@ -461,8 +480,7 @@ class BlockView extends LinearLayout {
             block.inputsOverride = currentInputs;
             syncLegacyParams();
             
-            headerRow.removeAllViews();
-            buildHeaderRowContents();
+            buildViewHierarchy();
             if (onChange != null) onChange.onBlockChanged(block);
         }
     }

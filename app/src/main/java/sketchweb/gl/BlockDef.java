@@ -65,7 +65,10 @@ public class BlockDef {
 
     public boolean isContainer() {
         String s = resolvedShape();
-        return "cblock".equals(s) || "loop".equals(s) || "condition".equals(s);
+        if ("cblock".equals(s) || "loop".equals(s) || "condition".equals(s)) return true;
+        // Also treat as container if template contains %m.space token
+        String t = resolvedTemplate();
+        return t != null && t.contains("%m.space");
     }
 
     public boolean isReporter() {
@@ -85,32 +88,61 @@ public class BlockDef {
      * parsed and converted to implicit chip inputs in declaration order.
      */
     public List<ChipInput> resolvedInputs() {
-        if (inputs != null && !inputs.isEmpty()) return inputs;
         if (derivedInputs != null) return derivedInputs;
         derivedInputs = new ArrayList<>();
         String src = resolvedTemplate();
         if (src.isEmpty()) return derivedInputs;
 
-        Pattern p = Pattern.compile("%(?:m\\.([a-zA-Z]+)|([nsbd]))");
+        Pattern p = Pattern.compile("%(?:(?:(\\d+)\\$)?(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))|(selector))");
         Matcher m = p.matcher(src);
         int idx = 0;
         while (m.find()) {
             ChipInput chip = new ChipInput();
-            chip.id = "p" + idx;
-            if (m.group(1) != null) {
-                String selector = m.group(1);
-                chip.type = mapSelectorToType(selector);
-                chip.selector = selector;
+            
+            String pos = m.group(1);
+            String mType = m.group(2);
+            String letterType = m.group(3);
+            String selectorLiteral = m.group(4);
+            
+            chip.id = (pos != null) ? "p" + pos : "p" + idx;
+            
+            if (mType != null) {
+                chip.type = mapSelectorToType(mType);
+                chip.selector = mType;
+            } else if (letterType != null) {
+                if ("n".equals(letterType) || "d".equals(letterType)) {
+                    chip.type = "number";
+                } else if ("b".equals(letterType)) {
+                    chip.type = "boolean";
+                } else {
+                    chip.type = "text";
+                }
+            } else if (selectorLiteral != null) {
+                chip.type = "selector";
+                chip.selector = "any";
             } else {
-                String t = m.group(2);
-                if ("n".equals(t) || "d".equals(t)) chip.type = "number";
-                else if ("b".equals(t)) chip.type = "boolean";
-                else chip.type = "text";
+                chip.type = "text";
             }
-            chip.defaultValue = defaultForType(chip.type);
+            
+            if (inputs != null && idx < inputs.size()) {
+                ChipInput original = inputs.get(idx);
+                if (original.defaultValue != null) chip.defaultValue = original.defaultValue;
+                if (original.options != null) chip.options = original.options;
+                if (original.placeholder != null) chip.placeholder = original.placeholder;
+                if (original.paramType != null) chip.paramType = original.paramType;
+            }
+            
+            if (chip.defaultValue == null) {
+                chip.defaultValue = defaultForType(chip.type);
+            }
             derivedInputs.add(chip);
             idx++;
         }
+
+        if (derivedInputs.isEmpty() && inputs != null) {
+            derivedInputs.addAll(inputs);
+        }
+
         return derivedInputs;
     }
 

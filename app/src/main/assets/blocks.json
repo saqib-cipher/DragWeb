@@ -34,8 +34,8 @@
     "category": "css",
     "shape": "cblock",
     "color": "#1976D2",
-    "label": "%s {",
-    "code": "%s { %m.space }",
+    "label": "%selector {",
+    "code": "%selector { %m.space }",
     "inputs": [
       {
         "id": "selector",
@@ -50,8 +50,8 @@
     "category": "css",
     "shape": "cblock",
     "color": "#1976D2",
-    "label": "%s :hover {",
-    "code": "%s:hover { %m.space }",
+    "label": "%selector :hover {",
+    "code": "%selector:hover { %m.space }",
     "inputs": [
       {
         "id": "selector",
@@ -66,8 +66,8 @@
     "category": "css",
     "shape": "cblock",
     "color": "#1976D2",
-    "label": "%s :focus {",
-    "code": "%s:focus { %m.space }",
+    "label": "%selector :focus {",
+    "code": "%selector:focus { %m.space }",
     "inputs": [
       {
         "id": "selector",
@@ -82,8 +82,8 @@
     "category": "css",
     "shape": "cblock",
     "color": "#1976D2",
-    "label": "%s :active {",
-    "code": "%s:active { %m.space }",
+    "label": "%selector :active {",
+    "code": "%selector:active { %m.space }",
     "inputs": [
       {
         "id": "selector",
@@ -98,8 +98,8 @@
     "category": "css",
     "shape": "cblock",
     "color": "#1976D2",
-    "label": "%s :visited {",
-    "code": "%s:visited { %m.space }",
+    "label": "%selector :visited {",
+    "code": "%selector:visited { %m.space }",
     "inputs": [
       {
         "id": "selector",
@@ -114,8 +114,8 @@
     "category": "css",
     "shape": "cblock",
     "color": "#1976D2",
-    "label": "%s ::before {",
-    "code": "%s::before { %m.space }",
+    "label": "%selector ::before {",
+    "code": "%selector::before { %m.space }",
     "inputs": [
       {
         "id": "selector",
@@ -130,8 +130,8 @@
     "category": "css",
     "shape": "cblock",
     "color": "#1976D2",
-    "label": "%s ::after {",
-    "code": "%s::after { %m.space }",
+    "label": "%selector ::after {",
+    "code": "%selector::after { %m.space }",
     "inputs": [
       {
         "id": "selector",
@@ -146,8 +146,8 @@
     "category": "css",
     "shape": "cblock",
     "color": "#1976D2",
-    "label": "%s :first-child {",
-    "code": "%s:first-child { %m.space }",
+    "label": "%selector :first-child {",
+    "code": "%selector:first-child { %m.space }",
     "inputs": [
       {
         "id": "selector",
@@ -162,8 +162,8 @@
     "category": "css",
     "shape": "cblock",
     "color": "#1976D2",
-    "label": "%s :last-child {",
-    "code": "%s:last-child { %m.space }",
+    "label": "%selector :last-child {",
+    "code": "%selector:last-child { %m.space }",
     "inputs": [
       {
         "id": "selector",
@@ -178,8 +178,8 @@
     "category": "css",
     "shape": "cblock",
     "color": "#1976D2",
-    "label": "%s :nth-child(%n) {",
-    "code": "%s:nth-child(%n) { %m.space }",
+    "label": "%selector :nth-child(%n) {",
+    "code": "%selector:nth-child(%n) { %m.space }",
     "inputs": [
       {
         "id": "selector",
@@ -1713,8 +1713,8 @@
     "category": "js_dom",
     "shape": "value",
     "color": "#F57C00",
-    "label": "query %s",
-    "code": "document.querySelector('%s')",
+    "label": "query %selector",
+    "code": "document.querySelector('%selector')",
     "inputs": [
       {
         "id": "selector",
@@ -1728,8 +1728,8 @@
     "category": "js_dom",
     "shape": "value",
     "color": "#F57C00",
-    "label": "queryAll %s",
-    "code": "document.querySelectorAll('%s')",
+    "label": "queryAll %selector",
+    "code": "document.querySelectorAll('%selector')",
     "inputs": [
       {
         "id": "selector",
@@ -1758,8 +1758,8 @@
     "category": "js_dom",
     "shape": "value",
     "color": "#F57C00",
-    "label": "%s .querySelector %s",
-    "code": "%s.querySelector('%s')",
+    "label": "%s .querySelector %selector",
+    "code": "%s.querySelector('%selector')",
     "inputs": [
       {
         "id": "parent",
@@ -1778,8 +1778,8 @@
     "category": "js_dom",
     "shape": "value",
     "color": "#F57C00",
-    "label": "%s .querySelectorAll %s",
-    "code": "%s.querySelectorAll('%s')",
+    "label": "%s .querySelectorAll %selector",
+    "code": "%s.querySelectorAll('%selector')",
     "inputs": [
       {
         "id": "parent",
@@ -1813,8 +1813,8 @@
     "category": "js_dom",
     "shape": "value",
     "color": "#F57C00",
-    "label": "%s .closest %s",
-    "code": "%s.closest('%s')",
+    "label": "%s .closest %selector",
+    "code": "%s.closest('%selector')",
     "inputs": [
       {
         "id": "el",
@@ -2855,8 +2855,8 @@
     "category": "js_events",
     "shape": "cblock",
     "color": "#0277BD",
-    "label": "%s on click {",
-    "code": "document.querySelector('%s').addEventListener('click', function(e) { %m.space });",
+    "label": "%selector on click {",
+    "code": "document.querySelector('%selector').addEventListener('click', function(e) { %m.space });",
     "inputs": [
       {
         "id": "selector",
@@ -2870,8 +2870,8 @@
     "category": "js_events",
     "shape": "cblock",
     "color": "#0277BD",
-    "label": "%s on input {",
-    "code": "document.querySelector('%s').addEventListener('input', function(e) { %m.space });",
+    "label": "%selector on input {",
+    "code": "document.querySelector('%selector').addEventListener('input', function(e) { %m.space });",
     "inputs": [
       {
         "id": "selector",
@@ -2885,8 +2885,8 @@
     "category": "js_events",
     "shape": "cblock",
     "color": "#0277BD",
-    "label": "%s on change {",
-    "code": "document.querySelector('%s').addEventListener('change', function(e) { %m.space });",
+    "label": "%selector on change {",
+    "code": "document.querySelector('%selector').addEventListener('change', function(e) { %m.space });",
     "inputs": [
       {
         "id": "selector",
@@ -2900,8 +2900,8 @@
     "category": "js_events",
     "shape": "cblock",
     "color": "#0277BD",
-    "label": "%s on submit {",
-    "code": "document.querySelector('%s').addEventListener('submit', function(e) { e.preventDefault(); %m.space });",
+    "label": "%selector on submit {",
+    "code": "document.querySelector('%selector').addEventListener('submit', function(e) { e.preventDefault(); %m.space });",
     "inputs": [
       {
         "id": "selector",
@@ -2915,8 +2915,8 @@
     "category": "js_events",
     "shape": "cblock",
     "color": "#0277BD",
-    "label": "%s on keydown {",
-    "code": "document.querySelector('%s').addEventListener('keydown', function(e) { %m.space });",
+    "label": "%selector on keydown {",
+    "code": "document.querySelector('%selector').addEventListener('keydown', function(e) { %m.space });",
     "inputs": [
       {
         "id": "selector",
@@ -2930,8 +2930,8 @@
     "category": "js_events",
     "shape": "cblock",
     "color": "#0277BD",
-    "label": "%s on mouseenter {",
-    "code": "document.querySelector('%s').addEventListener('mouseenter', function(e) { %m.space });",
+    "label": "%selector on mouseenter {",
+    "code": "document.querySelector('%selector').addEventListener('mouseenter', function(e) { %m.space });",
     "inputs": [
       {
         "id": "selector",
@@ -2945,8 +2945,8 @@
     "category": "js_events",
     "shape": "cblock",
     "color": "#0277BD",
-    "label": "%s on mouseleave {",
-    "code": "document.querySelector('%s').addEventListener('mouseleave', function(e) { %m.space });",
+    "label": "%selector on mouseleave {",
+    "code": "document.querySelector('%selector').addEventListener('mouseleave', function(e) { %m.space });",
     "inputs": [
       {
         "id": "selector",

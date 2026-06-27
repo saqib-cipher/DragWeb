@@ -343,17 +343,31 @@ public class LogicBlockManager {
         if (rendered.contains("@@CHILDREN@@")) {
             StringBuilder children = new StringBuilder();
             for (LogicBlock c : blocks) {
-                if (b.id != null && b.id.equals(c.parentBlockId)) {
+                if (b.id != null && b.id.equals(c.parentBlockId) && c.parentSlotIndex == 0) {
                     emitCssBlock(children, c, depth + 1);
                 }
             }
             String childIndent = repeatStr("  ", depth);
-            String filled = rendered.replace("@@CHILDREN@@",
+            rendered = rendered.replace("@@CHILDREN@@",
                 "\n" + children.toString() + childIndent);
-            out.append(indent).append(filled).append("\n");
-        } else {
-            out.append(indent).append(rendered).append("\n");
         }
+
+        for (int i = 0; i < 10; i++) {
+            String marker = "@@CHILDREN_" + i + "@@";
+            if (rendered.contains(marker)) {
+                StringBuilder children = new StringBuilder();
+                for (LogicBlock c : blocks) {
+                    if (b.id != null && b.id.equals(c.parentBlockId) && c.parentSlotIndex == i) {
+                        emitCssBlock(children, c, depth + 1);
+                    }
+                }
+                String childIndent = repeatStr("  ", depth);
+                rendered = rendered.replace(marker,
+                    "\n" + children.toString() + childIndent);
+            }
+        }
+
+        out.append(indent).append(rendered).append("\n");
     }
 
     /**
@@ -367,16 +381,22 @@ public class LogicBlockManager {
         String tmpl = b.spec;
         if (tmpl == null || tmpl.isEmpty()) return "";
         java.util.regex.Pattern p = java.util.regex.Pattern.compile(
-            "%(?:m\\.([a-zA-Z_]+)|([nsbd]))");
+            "%(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))");
         java.util.regex.Matcher m = p.matcher(tmpl);
         StringBuilder sb = new StringBuilder();
         int last = 0;
         int idx = 0;
+        int slotIdx = 0;
         while (m.find()) {
             sb.append(tmpl, last, m.start());
             String selectorKind = m.group(1);
             if ("space".equals(selectorKind)) {
-                sb.append("@@CHILDREN@@");
+                if (slotIdx == 0) {
+                    sb.append("@@CHILDREN@@");
+                } else {
+                    sb.append("@@CHILDREN_").append(slotIdx).append("@@");
+                }
+                slotIdx++;
             } else if (selectorKind != null && "selector".equals(selectorKind)) {
                 String value = paramAt(b, idx);
                 sb.append(value != null ? value : "");
@@ -503,66 +523,8 @@ public class LogicBlockManager {
             js.append("  // ").append(eventName != null ? eventName : "immediate")
               .append(" -> ").append(block.action).append("\n");
 
-            // Immediate blocks (logic/variable) - execute inline
-            if ("immediate".equals(eventName)) {
-                js.append("  ").append(generateActionJs(block, "document.body"));
-                js.append("\n");
-            }
-            // Page-based events
-            else if (EVENT_PAGE_LOAD.equals(eventName) || EVENT_LOAD.equals(eventName)) {
-                js.append("  // Page Load - execute immediately in DOMContentLoaded\n");
-                js.append("  (function() {\n");
-                String el = resolveElement(block);
-                js.append("    ").append(generateActionJs(block, el));
-                js.append("  })();\n\n");
-            }
-            else if (EVENT_VISIBLE.equals(eventName)) {
-                js.append("  document.addEventListener('visibilitychange', function() {\n");
-                js.append("    if (!document.hidden) {\n");
-                String el = resolveElement(block);
-                js.append("      ").append(generateActionJs(block, el));
-                js.append("    }\n");
-                js.append("  });\n\n");
-            }
-            else if (EVENT_HIDDEN.equals(eventName)) {
-                js.append("  document.addEventListener('visibilitychange', function() {\n");
-                js.append("    if (document.hidden) {\n");
-                String el = resolveElement(block);
-                js.append("      ").append(generateActionJs(block, el));
-                js.append("    }\n");
-                js.append("  });\n\n");
-            }
-            else if (EVENT_DESTROY.equals(eventName)) {
-                js.append("  window.addEventListener('beforeunload', function() {\n");
-                String el = resolveElement(block);
-                js.append("    ").append(generateActionJs(block, el));
-                js.append("  });\n\n");
-            }
-            else if (EVENT_PAGE_SCROLL.equals(eventName)) {
-                js.append("  window.addEventListener('scroll', function() {\n");
-                String el = resolveElement(block);
-                js.append("    ").append(generateActionJs(block, el));
-                js.append("  });\n\n");
-            }
-            else if (EVENT_PAGE_INPUT.equals(eventName)) {
-                js.append("  document.querySelectorAll('input, textarea, select').forEach(function(el) {\n");
-                js.append("    el.addEventListener('input', function(event) {\n");
-                js.append("      ").append(generateActionJs(block, "el"));
-                js.append("    });\n");
-                js.append("  });\n\n");
-            }
-            // Element-scoped events
-            else {
-                String selector = buildSelector(block);
-                String jsEvent = eventName;
-                if ("hover".equals(eventName)) jsEvent = "mouseenter";
-
-                js.append("  document.querySelectorAll('").append(selector).append("').forEach(function(el) {\n");
-                js.append("    el.addEventListener('").append(jsEvent).append("', function(event) {\n");
-                js.append("      ").append(generateActionJs(block, "el"));
-                js.append("    });\n");
-                js.append("  });\n\n");
-            }
+            js.append(emitJsBlock(block, resolveElement(block), 1));
+            js.append("\n");
         }
 
         if (!emittedAny) return "";
@@ -574,6 +536,54 @@ public class LogicBlockManager {
             + "document.addEventListener('DOMContentLoaded', function() {\n"
             + js.toString()
             + "});\n";
+    }
+
+    private String emitJsBlock(LogicBlock b, String elVar, int depth) {
+        if (b == null) return "";
+        String indent = repeatStr("  ", depth);
+        String rendered = generateActionJs(b, elVar);
+        if (rendered == null || rendered.isEmpty()) return "";
+
+        // Remove trailing newlines to format nicely
+        while (rendered.endsWith("\n")) {
+            rendered = rendered.substring(0, rendered.length() - 1);
+        }
+
+        // Apply indentation to all lines of the rendered code
+        String[] lines = rendered.split("\n");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            if (i > 0) sb.append("\n");
+            sb.append(indent).append(lines[i]);
+        }
+        rendered = sb.toString();
+
+        // 1. Replace legacy @@CHILDREN@@ (slot index 0)
+        if (rendered.contains("@@CHILDREN@@")) {
+            StringBuilder children = new StringBuilder();
+            for (LogicBlock c : blocks) {
+                if (b.id != null && b.id.equals(c.parentBlockId) && c.parentSlotIndex == 0) {
+                    children.append(emitJsBlock(c, elVar, depth + 1));
+                }
+            }
+            rendered = rendered.replace("@@CHILDREN@@", children.toString());
+        }
+
+        // 2. Replace slot-specific @@CHILDREN_X@@
+        for (int i = 0; i < 10; i++) {
+            String marker = "@@CHILDREN_" + i + "@@";
+            if (rendered.contains(marker)) {
+                StringBuilder children = new StringBuilder();
+                for (LogicBlock c : blocks) {
+                    if (b.id != null && b.id.equals(c.parentBlockId) && c.parentSlotIndex == i) {
+                        children.append(emitJsBlock(c, elVar, depth + 1));
+                    }
+                }
+                rendered = rendered.replace(marker, children.toString());
+            }
+        }
+
+        return rendered + "\n";
     }
 
     /**
@@ -942,6 +952,7 @@ public class LogicBlockManager {
         public String spec; // Advanced rendering template (e.g., "set %m.view to %s")
         public String nextBlockId; // ID of the block attached below
         public String parentBlockId; // ID of the block it's attached to
+        public int parentSlotIndex; // Index of the slot in the parent container
         public String subStackId;  // ID of the first block inside a C-shape
         public String id; // Unique ID for referencing
         public List<String> paramValues = new ArrayList<>(); // Values for tokens in spec
