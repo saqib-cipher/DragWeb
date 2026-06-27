@@ -105,7 +105,7 @@ class BlockView extends LinearLayout {
         boolean templateHasSpace = label.contains("%m.space");
         boolean isContainer = (def != null && def.isContainer()) || (block != null && block.spec != null && block.spec.contains("%m.space"));
 
-        Pattern p = Pattern.compile("%(?:(?:(\\d+)\\$)?(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))|(selector))");
+        Pattern p = Pattern.compile("%(?:(selector)|(?:(?:(\\d+)\\$)?(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))))");
         Matcher m = p.matcher(label);
         
         int last = 0;
@@ -123,7 +123,7 @@ class BlockView extends LinearLayout {
                 currentRow.addView(buildText(pre));
             }
 
-            String mType = m.group(2);
+            String mType = m.group(3);
             if ("space".equals(mType)) {
                 LinearLayout slot = createSlotView(slotIdx);
                 addView(slot);
@@ -425,7 +425,7 @@ class BlockView extends LinearLayout {
         String currentLabel = block.labelOverride != null ? block.labelOverride : (def != null && def.label != null ? def.label : (block.action != null ? block.action : "block"));
         List<ChipInput> currentInputs = block.inputsOverride != null ? new ArrayList<>(block.inputsOverride) : (def != null ? new ArrayList<>(def.resolvedInputs()) : new ArrayList<>());
         
-        Pattern p = Pattern.compile("%(?:(?:(\\d+)\\$)?(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))|(selector))");
+        Pattern p = Pattern.compile("%(?:(selector)|(?:(?:(\\d+)\\$)?(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))))");
         Matcher m = p.matcher(currentLabel);
         int currentChipIdx = 0;
         int tokenStart = -1;

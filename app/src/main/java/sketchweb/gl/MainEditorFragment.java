@@ -96,6 +96,7 @@ public class MainEditorFragment extends Fragment {
 	private LinearLayout main;
 	private LinearLayout topBar;
 	private LinearLayout screen;
+	private View layoutLoading;
 	private LinearLayout rightPanel;
 	private LinearLayout bottomPanel;
 	private LinearLayout eventPanel;
@@ -373,6 +374,7 @@ public class MainEditorFragment extends Fragment {
 		main = view.findViewById(R.id.main);
 		topBar = view.findViewById(R.id.topBar);
 		screen = view.findViewById(R.id.screen);
+		layoutLoading = view.findViewById(R.id.layoutLoading);
 		rightPanel = view.findViewById(R.id.rightPanel);
 		bottomPanel = view.findViewById(R.id.bottomPanel);
 		vscroll2 = view.findViewById(R.id.vscroll2);
@@ -1856,6 +1858,7 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void loadCurrentPageLayout() {
+		if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
 		String json = pageManager.loadPageLayout(pageManager.getCurrentPage());
 		screen.removeAllViews();
 		try {
@@ -1879,6 +1882,9 @@ public class MainEditorFragment extends Fragment {
 		saveUndoState();
 		refreshHierarchy();
 		updateWidgetSpinnerFromTree();
+		if (layoutLoading != null) {
+			layoutLoading.postDelayed(() -> layoutLoading.setVisibility(View.GONE), 300);
+		}
 	}
 
 	// ---- Widget Search ----

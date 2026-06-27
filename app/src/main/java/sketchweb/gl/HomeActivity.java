@@ -164,7 +164,10 @@ public class HomeActivity extends AppCompatActivity {
 		// Empty state import button
 		MaterialButton btnEmptyImport = findViewById(R.id.btnEmptyImport);
 		if (btnEmptyImport != null) {
-			btnEmptyImport.setOnClickListener(v -> showImportWebsiteDialog());
+			btnEmptyImport.setOnClickListener(v -> {
+				Intent intent = new Intent(HomeActivity.this, ImportSiteActivity.class);
+				startActivity(intent);
+			});
 		}
 
 		// Register activity result launchers
@@ -275,7 +278,8 @@ public class HomeActivity extends AppCompatActivity {
 		if (menuImportWebsite != null) {
 			menuImportWebsite.setOnClickListener(v -> {
 				drawer.closeDrawer(GravityCompat.START);
-				showImportWebsiteDialog();
+				Intent intent = new Intent(HomeActivity.this, ImportSiteActivity.class);
+				startActivity(intent);
 			});
 		}
 
@@ -296,33 +300,8 @@ public class HomeActivity extends AppCompatActivity {
 		}
 	}
 
-	/** Generate a short unique project ID using a numeric system */
 	private String generateProjectId() {
-		File dir = new File(getFilesDir(), "projects");
-		int maxNumber = 0;
-		if (dir.exists() && dir.isDirectory()) {
-			File[] files = dir.listFiles();
-			if (files != null) {
-				for (File file : files) {
-					if (file.getName().endsWith(".json")) {
-						String fileId = file.getName().replace(".json", "");
-						if (fileId.startsWith("project_")) {
-							try {
-								String numStr = fileId.substring("project_".length());
-								int num = Integer.parseInt(numStr);
-								if (num > maxNumber) {
-									maxNumber = num;
-								}
-							} catch (NumberFormatException e) {
-								// ignore
-							}
-						}
-					}
-				}
-			}
-		}
-		int nextNumber = maxNumber + 1;
-		return String.format(Locale.US, "project_%02d", nextNumber);
+		return ProjectDataManager.generateProjectId(this);
 	}
 
 	private void backupAllProjects() {
@@ -413,6 +392,30 @@ public class HomeActivity extends AppCompatActivity {
 					if (file.getName().endsWith(".json")) {
 						String fileId = file.getName().replace(".json", "");
 						if (fileId.equals("widgets") || fileId.equals("params")) {
+							continue;
+						}
+						// Check if corresponding external directory exists. If not, this project was deleted from storage.
+						String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
+							+ "/.dragweb/projects/" + fileId;
+						File extDir = new File(extPath);
+						if (!extDir.exists()) {
+							// Delete internal project files so they don't remain in list
+							file.delete();
+							new File(dir, fileId + ".meta").delete();
+							new File(dir, fileId + ".theme").delete();
+							new File(dir, fileId + ".icons").delete();
+							new File(dir, fileId + ".components.json").delete();
+							new File(dir, fileId + ".animations").delete();
+							new File(dir, fileId + ".breakpoints.json").delete();
+							File logicDir = new File(dir, "logic");
+							File[] logicFiles = logicDir.listFiles();
+							if (logicFiles != null) {
+								for (File lf : logicFiles) {
+									if (lf.getName().startsWith(fileId + "_") || lf.getName().startsWith(fileId + ".")) {
+										lf.delete();
+									}
+								}
+							}
 							continue;
 						}
 						int lastUnderscore = fileId.lastIndexOf('_');
@@ -761,6 +764,17 @@ public class HomeActivity extends AppCompatActivity {
 					for (File f : files) {
 						if (f.getName().startsWith(projectId + "_")) {
 							f.delete();
+						}
+					}
+				}
+
+				// Delete page logic files inside projects/logic/
+				File logicDir = new File(dir, "logic");
+				File[] logicFiles = logicDir.listFiles();
+				if (logicFiles != null) {
+					for (File lf : logicFiles) {
+						if (lf.getName().startsWith(projectId + "_") || lf.getName().startsWith(projectId + ".")) {
+							lf.delete();
 						}
 					}
 				}

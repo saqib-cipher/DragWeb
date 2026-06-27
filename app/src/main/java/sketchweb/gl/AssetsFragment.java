@@ -20,6 +20,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.graphics.Insets;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import java.io.File;
@@ -39,6 +40,7 @@ public class AssetsFragment extends Fragment {
     private Button btnImportImage;
     private Button btnNewFolder;
     private Button btnRefresh;
+    private Button btnToggleViewMode;
     private android.widget.ProgressBar progressAssets;
 
     public static AssetsFragment newInstance(String projectId) {
@@ -88,6 +90,7 @@ public class AssetsFragment extends Fragment {
         btnImportImage = view.findViewById(R.id.btnImportImage);
         btnNewFolder = view.findViewById(R.id.btnNewFolder);
         btnRefresh = view.findViewById(R.id.btnRefresh);
+        btnToggleViewMode = view.findViewById(R.id.btnToggleViewMode);
         progressAssets = view.findViewById(R.id.progressAssets);
 
         btnImportImage.setOnClickListener(v -> {
@@ -109,6 +112,10 @@ public class AssetsFragment extends Fragment {
 
         if (btnRefresh != null) {
             btnRefresh.setOnClickListener(v -> loadFilesWithProgress());
+        }
+
+        if (btnToggleViewMode != null) {
+            btnToggleViewMode.setOnClickListener(v -> toggleViewMode());
         }
 
         setupFileExplorer();
@@ -171,7 +178,44 @@ public class AssetsFragment extends Fragment {
         fileExplorerAdapter.setOnFileLongClickListener(this::showFileContextMenu);
 
         rvAssets.setAdapter(fileExplorerAdapter);
-        rvAssets.setLayoutManager(new LinearLayoutManager(getContext()));
+        
+        // Restore layout manager mode state
+        int mode = fileExplorerAdapter.getViewMode();
+        if (mode == FileExplorerAdapter.VIEW_MODE_GRID) {
+            rvAssets.setLayoutManager(new GridLayoutManager(getContext(), 3));
+        } else {
+            rvAssets.setLayoutManager(new LinearLayoutManager(getContext()));
+        }
+
+        if (btnToggleViewMode != null) {
+            if (btnToggleViewMode instanceof com.google.android.material.button.MaterialButton) {
+                ((com.google.android.material.button.MaterialButton) btnToggleViewMode).setIconResource(
+                    mode == FileExplorerAdapter.VIEW_MODE_LIST ? R.drawable.icon_widgets_round : R.drawable.ic_list_view
+                );
+            }
+        }
+    }
+
+    private void toggleViewMode() {
+        if (fileExplorerAdapter == null || getContext() == null) return;
+        int currentMode = fileExplorerAdapter.getViewMode();
+        if (currentMode == FileExplorerAdapter.VIEW_MODE_LIST) {
+            fileExplorerAdapter.setViewMode(FileExplorerAdapter.VIEW_MODE_GRID);
+            rvAssets.setLayoutManager(new GridLayoutManager(getContext(), 3));
+            if (btnToggleViewMode != null) {
+                if (btnToggleViewMode instanceof com.google.android.material.button.MaterialButton) {
+                    ((com.google.android.material.button.MaterialButton) btnToggleViewMode).setIconResource(R.drawable.ic_list_view);
+                }
+            }
+        } else {
+            fileExplorerAdapter.setViewMode(FileExplorerAdapter.VIEW_MODE_LIST);
+            rvAssets.setLayoutManager(new LinearLayoutManager(getContext()));
+            if (btnToggleViewMode != null) {
+                if (btnToggleViewMode instanceof com.google.android.material.button.MaterialButton) {
+                    ((com.google.android.material.button.MaterialButton) btnToggleViewMode).setIconResource(R.drawable.icon_widgets_round);
+                }
+            }
+        }
     }
 
     private void updateAssetsPath() {

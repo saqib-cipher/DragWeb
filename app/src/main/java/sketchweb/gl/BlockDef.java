@@ -93,20 +93,23 @@ public class BlockDef {
         String src = resolvedTemplate();
         if (src.isEmpty()) return derivedInputs;
 
-        Pattern p = Pattern.compile("%(?:(?:(\\d+)\\$)?(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))|(selector))");
+        Pattern p = Pattern.compile("%(?:(selector)|(?:(?:(\\d+)\\$)?(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))))");
         Matcher m = p.matcher(src);
         int idx = 0;
         while (m.find()) {
             ChipInput chip = new ChipInput();
             
-            String pos = m.group(1);
-            String mType = m.group(2);
-            String letterType = m.group(3);
-            String selectorLiteral = m.group(4);
+            String selectorLiteral = m.group(1);
+            String pos = m.group(2);
+            String mType = m.group(3);
+            String letterType = m.group(4);
             
             chip.id = (pos != null) ? "p" + pos : "p" + idx;
             
-            if (mType != null) {
+            if (selectorLiteral != null) {
+                chip.type = "selector";
+                chip.selector = "any";
+            } else if (mType != null) {
                 chip.type = mapSelectorToType(mType);
                 chip.selector = mType;
             } else if (letterType != null) {
@@ -117,9 +120,6 @@ public class BlockDef {
                 } else {
                     chip.type = "text";
                 }
-            } else if (selectorLiteral != null) {
-                chip.type = "selector";
-                chip.selector = "any";
             } else {
                 chip.type = "text";
             }

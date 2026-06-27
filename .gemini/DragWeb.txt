@@ -1,0 +1,1066 @@
+================================================================================
+DRAGWEB — COMPLETE CODEBASE REFERENCE FOR AI AGENTS
+================================================================================
+Package: sketchweb.gl
+Language: Java (Android, minSdk implied by API usage ~24+)
+Build: Gradle (app/build.gradle), Material Design 3 (M3) components
+Storage: Dual — internal (getFilesDir()/projects/) + external (/.dragweb/)
+Serialization: Gson (all JSON)
+Key external deps: Material3, Gson, CodeMirror (WebView asset)
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1. App Overview & Architecture
+2. Activity / Fragment Flow
+3. Data Model (Widget Tree)
+4. File System Layout
+5. Core Classes — detailed
+6. Widget Lifecycle (drag → drop → serialize → save → export)
+7. Logic Block System
+8. Code Generation Pipeline
+9. Import Pipeline (HTML/CSS → Widget Tree)
+10. Export Pipeline (Widget Tree → ZIP)
+11. Theme System
+12. Page System
+13. Assets System
+14. blocks.json Schema
+15. widgets.json Schema
+16. Key Patterns & Conventions
+17. Known Edge Cases & Gotchas
+
+================================================================================
+1. APP OVERVIEW & ARCHITECTURE
+================================================================================
+DragWeb is an Android no-code website builder. Users drag HTML widgets onto a
+canvas, configure styles, attach logic blocks (CSS/JS), then export a multi-page
+static website (HTML + CSS + JS) as a ZIP or live folder.
+
+High-level flow:
+  HomeActivity → (open project) → MainActivity
+  MainActivity holds ViewPager2 with 3 tabs:
+    Tab 0 — MainEditorFragment  (visual canvas + property panel)
+    Tab 1 — EventsFragment      (logic blocks list per page)
+    Tab 2 — AssetsFragment      (file browser for project assets)
+
+Separate activity:
+  LogicBlockActivity — block-based code editor (Scratch-style, vertical stack)
+  PreviewActivity    — WebView preview of compiled HTML
+  ManagePageActivity — rename/delete a page
+  ManageBlocksWidgetsActivity — manage custom blocks/widgets
+  EditorSettingsActivity
+  BlockParamManagerActivity
+  TextEditorActivity — CodeMirror-based raw code editor
+  DebugActivity
+
+================================================================================
+2. ACTIVITY / FRAGMENT FLOW
+================================================================================
+
+SplashActivity → HomeActivity
+
+HomeActivity
+  - Lists projects from getFilesDir()/projects/*.json + .meta files
+  - Also scans /.dragweb/projects/ (external)
+  - Create: generateProjectId() → "project_01", "project_02", ...
+  - Files created on new project:
+      {filesDir}/projects/{id}.json  (empty widget tree "[]")
+      {filesDir}/projects/{id}.meta  (name, description, created)
+      /.dragweb/projects/{id}/               (ext dir)
+      /.dragweb/projects/{id}/assets/        (ext assets dir)
+      /.dragweb/projects/{id}/project.config.json
+  - Backup: ZIP via ProjectDataManager.exportSingleProjectAsZip / exportAllProjectsAsZip
+  - Import: ProjectDataManager.importProjectsFromZip
+  - Import HTML/CSS: HtmlCssImporter → createProjectFromImport()
+  - Opens project → Intent to MainActivity with extras "project_id", "project_name"
+
+MainActivity
+  - Receives project_id, project_name
+  - Creates ViewPager2 with 3 fragments
+  - On back/nav-up: calls mainEditorFragment.saveProject() then finish()
+  - Fragment access: getMainEditorFragment(), useFileAsImageSource(File)
+
+MainEditorFragment (core editor)
+  - Fields: engine, widgetUpdater, codeGenerator, projectDataManager,
+            selector, dropZoneManager, undoRedoManager, themeManager,
+            exportManager, widgetRegistry, logicBlockManager,
+            customBlockManager, hierarchyAdapter, pageManager
+  - Widget list: ArrayList<HashMap<String,Object>> widgets (from WidgetRegistry)
+  - Canvas: LinearLayout 'screen' (the drop target / widget container)
+  - Design panel: RecyclerView recyclerview3 (horizontal chips)
+  - Widget palette: RecyclerView recyclerview1 + rvDrawerWidgets (drawer)
+  - Hierarchy: RecyclerView recyclerviewRightPanel → HierarchyTreeAdapter
+  - Undo state: serialized via UndoRedoManager (saves screen's widget tree)
+
+LogicBlockActivity
+  - Receives "project_id" + "page_name" (e.g. "index", "css/style.css")
+  - Loads .logic file from {filesDir}/projects/logic/{id}_{safeName}.logic
+  - WorkspaceView (vertical block stack)
+  - Block palette drawn from allBlockDefs (loaded from blocks.json)
+  - Saves on back → writes .logic file → MainEditorFragment re-reads on resume
+
+================================================================================
+3. DATA MODEL (WIDGET TREE)
+================================================================================
+
+Each widget on the canvas is a Map<String,Object> stored as View.setTag():
+
+{
+  "tag": "div",               // HTML tag (div, p, h1, button, img, input, ...)
+  "function": {
+    "id":          "my-btn",  // HTML id attribute
+    "class":       "btn primary", // CSS class string
+    "text":        "Click Me",   // text content (for text-capable tags)
+    "style": {                   // CSS properties (camelCase keys)
+      "backgroundColor": "#FF5722",
+      "padding": "8px 16px",
+      "fontSize": "16px",
+      "width": "100%"
+      // ... any CSS property as camelCase
+    },
+    "href":        "https://...",  // <a> only
+    "target":      "_blank",       // <a> only
+    "src":         "data:...",     // <img> only (can be base64 or file path)
+    "placeholder": "...",          // <input>/<textarea>
+    "type":        "email",        // <input>/<textarea>
+    "items":       ["item1","item2"], // <ul>/<ol>/<select>
+    "onclick":     "alert('hi')", // any on* JS event handler
+    "onmouseover": "...",
+    // any on* key is treated as a JS event attribute
+    "controls":    "true"          // <video>/<audio>
+  },
+  "locked": false,            // if true, long-press drag is blocked
+  "hidden": false,            // if true, View.GONE in editor
+  "children": [               // nested widget maps (same schema recursively)
+    { "tag": "p", "function": {...} },
+    ...
+  ]
+}
+
+NOTES:
+- "tag" key is always present; "function" is always present.
+- "children" only present for container tags (div, section, nav, header,
+  footer, main, article, aside, form, ul, ol, li, a, table).
+- The Android View.getTag() always holds this map.
+- Serialization: serializeChildren(ViewGroup) → List<Map<String,Object>>
+  Deserialization: rebuildView(Map, ViewGroup)
+- style keys are camelCase in the map; converted to kebab-case in HTML output
+  via camelToKebab() (e.g. "backgroundColor" → "background-color").
+
+================================================================================
+4. FILE SYSTEM LAYOUT
+================================================================================
+
+INTERNAL (context.getFilesDir()):
+  files/
+  └── projects/
+      ├── {id}.json             ← index page widget tree (legacy compat)
+      ├── {id}_{pageName}.json  ← per-page widget tree
+      ├── {id}.meta             ← project metadata (name, description, created)
+      ├── {id}.theme            ← ThemeManager JSON (colors, css vars, flags)
+      ├── {id}.icons            ← IconLibraryManager config
+      ├── {id}.animations       ← AnimationLibraryManager config
+      └── logic/
+          ├── {id}_{pageName}.logic    ← LogicBlockManager JSON array
+          ├── {id}_css_style_css.logic ← CSS stylesheet logic blocks
+          └── {id}_js_script_js.logic  ← JS file logic blocks
+
+EXTERNAL (Environment.getExternalStorageDirectory()):
+  /.dragweb/
+  ├── projects/
+  │   └── {id}/
+  │       ├── project.config.json
+  │       ├── layout.json         ← mirror of index page (compat)
+  │       ├── theme.json          ← mirror of theme
+  │       ├── {pageName}_logic.json ← mirror of logic (for each page)
+  │       ├── pages/
+  │       │   └── {pageName}.json ← canonical page layout storage
+  │       └── assets/
+  │           ├── css/
+  │           │   └── style.css   ← compiled + synced on every save
+  │           ├── js/
+  │           │   └── script.js   ← compiled + synced on every save
+  │           └── (user images, fonts, etc.)
+  └── custom/
+      ├── widgets.json    ← merged custom widget definitions
+      └── blocks.json     ← (not auto-written, manual override)
+
+EXPORT (from ExportManager):
+  {filesDir}/exports/{projectName}/
+      {pageName}.html    ← one per page
+      css/style.css
+      js/script.js
+      (mirrored assets)
+
+ZIP (from exportAsZip):
+  /.DragWeb/export/{name}_{id}.zip
+    OR {filesDir}/exports/{name}.zip (fallback)
+
+ZIP INTERNAL STRUCTURE (ProjectDataManager canonical):
+  pages/        ← {id}.json, {id}_{page}.json
+  styles/       ← {id}.theme
+  logic/        ← {id}_{page}.logic
+  meta/         ← {id}.meta
+  icons/        ← {id}.icons
+  components/   ← {id}.components.json
+  animations/   ← {id}.animations
+  breakpoints/  ← {id}.breakpoints.json
+  assets/{id}/  ← project assets tree
+  widgets/      ← custom.json
+  custom/       ← params.json
+  (legacy: data/, external/, internal/ also handled on import)
+
+================================================================================
+5. CORE CLASSES — DETAILED
+================================================================================
+
+--- WidgetBuilderEngine ---
+  createWidget(String tag) → View
+    Switches on tag: p/h1-h6/span/label/pre/blockquote/i → TextView
+    button → Button (text transformation disabled)
+    img → ImageView (FIT_CENTER scale type)
+    input/textarea → TextInputEditText
+    div/section/nav/header/footer/main/article/aside/form/ul/ol/li/a/table
+        → LinearLayout (VERTICAL orientation, minHeight 60dp, padding 8dp)
+    hr → plain View with gray background
+    video/audio → TextView placeholder
+    canvas/svg/iframe → TextView placeholder
+    default → TextView
+    All views get tag={tag:"...",function:{}} set via View.setTag()
+    All views get default LinearLayout.LayoutParams
+
+  applyPropertiesToView(View, Map<String,Object>)
+    Reads "function" from widgetMap, applies text/src/placeholder.
+    Calls applyStyles(View, Map) for the "style" sub-map.
+
+  applyStyles(View, Map<String,Object>)
+    Sets LayoutParams (width/height/margin from style keys)
+    Builds GradientDrawable for background (color, radius, border)
+    Per-corner radius if borderTopLeftRadius etc. are set
+    Applies: padding, opacity (setAlpha), elevation, transform (rotation only)
+    LinearLayout: sets HORIZONTAL/VERTICAL for flexDirection, gravity for
+    justifyContent+alignItems
+    TextView: color, fontSize (px via parseDimension), fontWeight, textAlign,
+    textDecoration, lineHeight, letterSpacing
+
+  parseDimension(String) → int
+    Strips non-numeric chars, parses float, converts dp→px. No unit awareness
+    (all values treated as dp).
+
+  parseShorthandDimension(String) → int[4]  (top, right, bottom, left)
+    CSS shorthand: 1/2/3/4 space-separated values.
+
+--- WidgetUpdater ---
+  updateWidget(View, String text, Map<String,Object> styleAndAttrs)
+    Merges styleAndAttrs into the view's tag map (function sub-map for
+    attrs, function.style for style keys), then calls engine
+    .applyPropertiesToView.
+    Special keys handled: "text", "src", "class", "id", "href", "target",
+    "placeholder", "type", "items", "src" (image base64), all "on*" events.
+
+--- WidgetRegistry ---
+  Source priority:
+    1. /.dragweb/custom/widgets.json (external, user-editable)
+    2. assets/widgets.json (bundled fallback)
+    3. Hardcoded defaults (Text/Heading/Button/Image/Input/Container)
+  getAllWidgets() → always reloads from disk first
+  importCustomWidgets(String json) → parses array / single obj / keyed map,
+    merges by name (case-insensitive), saves back to disk.
+  saveCustomWidgets(ArrayList) → writes to external custom/widgets.json,
+    then triggers loadWidgets().
+
+--- WidgetSelector ---
+  Maintains a single "selected" View reference.
+  registerView(View) → attaches onClick that calls selector.select(view)
+  select(View) → highlights via blue border (GradientDrawable stroke)
+  clearSelection() → removes border
+  attachTo(ViewGroup) → recursively registers all children
+
+--- DropZoneManager ---
+  Registers container widgets (div, section, nav, etc.) as additional drag
+  drop targets (nested drops).
+  registerWidgetAsDropZoneIfContainer(View) → if tag is layout tag, sets
+    OnDragListener that allows dropping new widgets and reordering inside.
+  setOnTreeChangedListener(Runnable) → called after every drop to trigger
+    saveUndoState + refreshHierarchy.
+
+--- UndoRedoManager ---
+  saveState(ViewGroup screen) → serializes current tree to JSON, pushes to
+    undo stack (max 30 states), clears redo stack.
+  undo() → pops from undo stack, pushes to redo stack, returns state.
+  redo() → opposite.
+  Listener: setOnStateChangeListener((canUndo, canRedo) → ...) for button
+    enable/disable.
+
+--- HierarchyTreeAdapter ---
+  RecyclerView.Adapter that walks the View tree of 'screen' to build a
+    flat list with indent levels showing nesting.
+  Click → calls selector to select that view.
+  Long-click → shows context menu (Copy/Duplicate/Lock/Hide/Delete).
+  Drag-to-reorder within the hierarchy list (uses ItemTouchHelper).
+  setFilter(String) → filters by tag/id/class.
+  setSelectedView(View) → highlights the selected row.
+
+--- PageManager ---
+  Manages list of pages for a project (stored in pages.json on external).
+  In-memory cache: Map<String,String> pageLayoutCache
+  loadPageLayout(pageName) → cache → external pages/ → layout.json → internal
+  savePageLayout(pageName, json) → cache + internal + external + layout.json
+    (for "index" page extra copies are written to maintain compat)
+  saveAllPages() → flush all cached pages to disk
+  addPage / removePage / renamePage → updates pages list + files
+  Default page is always "index".
+
+--- LogicBlockManager ---
+  Maintains List<LogicBlock> blocks.
+  LogicBlock fields:
+    id, category, shape, event, action, params, spec, targetWidget,
+    targetMode ("id"/"class"/"tag"), parentBlockId, parentSlotIndex,
+    paramValues (List<String>), labelOverride, inputsOverride, x, y,
+    nextBlockId, subStackId, collapsed
+  
+  toJson() / fromJson(String) — serialize/deserialize full block list.
+    fromJson rejects maps (custom block format), rejects template+display
+    payloads. Backfills nulls (event→"immediate", params→"", etc.)
+  
+  CODE GENERATION:
+  generateBaseCssRules() → CSS for blocks with category="css", "animation",
+    "groupBlock", "commentBlock", and legacy ACTION_CHANGE_STYLE on page-load.
+    Groups rules by selector, emits { property: value; } blocks.
+  
+  generateCssPseudoRules() → CSS for blocks with event starting "css:"
+    (css:hover, css:focus, css:active, css:visited).
+    Groups by "selector:pseudoclass" → { rules }.
+  
+  generateJavaScript() → wraps all JS-emitting blocks in
+    document.addEventListener('DOMContentLoaded', ...).
+    Skips: css: events, asd events, static CSS blocks, CSS/animation/meta/asd
+    categories, groupBlock/commentBlock, child blocks (parentBlockId set).
+  
+  generateAsdSource(spec) → collects raw source from blocks with
+    action = "asd" + capitalize(spec) (e.g. "asdHtml", "asdCss", "asdJs",
+    "asdHead", "asdMeta"). Emits verbatim. Used for raw HTML/CSS/JS injection.
+  
+  applyChipTemplate(LogicBlock) → substitutes %n/%s/%b/%m.xxx tokens in
+    spec with paramValues[i]. %m.space → "@@CHILDREN@@" marker.
+  
+  generateActionJs(LogicBlock, elVar) → switch on block.action:
+    changeStyle → el.style.prop = val;
+    animate → el.style.animation = ...;
+    navigate → window.location.href = ...;
+    show/hide toggle → display none/''
+    setText → el.textContent = ...;
+    addClass/removeClass/toggleClass → el.classList.*
+    alert → alert(...)
+    consoleLog → console.log(...)
+    setAttribute → el.setAttribute(...)
+    setValue → el.value = ...;
+    setHTML → el.innerHTML = ...;
+    appendChild/prependChild → insertAdjacentHTML
+    createElement → createElement + appendChild
+    removeElement → .remove()
+    customJs → raw params string
+    fetchApi → fetch(url, {method, body}).then(r=>r.json())
+    localStorage → setItem/getItem
+    scrollTo → window.scrollTo / scrollIntoView
+    copyClipboard → navigator.clipboard.writeText
+    delay → setTimeout
+    goToPage → location.href = page.html
+    openPage → window.open(page.html, _blank)
+    focusInput / blurInput → .focus() / .blur()
+    setHref → setAttribute('href', ...)
+    setTransform → el.style.transform = ...
+    setTransition → el.style.transition = ...
+    ifBlock → if (left op right) { then }
+    ifElseBlock → if/else
+    loop → for (var i=0; i<count; i++) { code }
+    createVar / setVar / getVar → var x = val; / x = val; / console.log(x)
+    default → applyChipTemplate() output
+
+--- ThemeManager ---
+  Manages light + dark theme variants.
+  Styles: primaryColor, secondaryColor, accentColor, bodyBackground, bodyColor,
+    linkColor, borderColor, fontFamily (per theme variant).
+  Flags: useInlineStyles (bool), disableDefaultStyles (bool).
+  Custom CSS vars: Map<String,String> (user-defined --var-name: value pairs).
+  
+  generateGlobalCss() → emits :root { --var: val; } block + @media
+    prefers-color-scheme:dark override.
+  
+  toJson() / fromJson(String) — persisted as {id}.theme.
+  setTheme(THEME_LIGHT/THEME_DARK), getCurrentTheme().
+  camelToKebab(String) — static utility.
+  
+  When useInlineStyles=true: ExportManager writes element styles as
+    generated CSS classes (el-div-1234 { ... }) in style.css.
+  When disableDefaultStyles=true: base resets (* {margin:0}, body {font...})
+    are omitted from export.
+
+--- ExportManager ---
+  generateExportFiles(screen, projectName, logicBlockManager,
+                      customBlockManager, customExportDir)
+    → ExportResult {htmlContent, cssContent, jsContent, exportDir, success}
+  
+  For each page in PageManager.getPages():
+    - Current page: uses live screen View tree
+    - Other pages: deserializes JSON from pageManager.loadPageLayout()
+    - Generates HTML via generateHtml() or generateHtmlFromTree()
+    - Replaces "assets/" with "" in final HTML (so paths are relative)
+  
+  Writes to exportDir: {page}.html, css/style.css, js/script.js
+  Syncs to /.dragweb/projects/{id}/assets/ (css/style.css, js/script.js)
+  Calls copyAssetsClean() to mirror user assets into export dir.
+  
+  HTML structure per page:
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" ...>
+      <meta name="description" content="...">
+      <meta name="generator" content="DragWeb">
+      <!-- ASD meta blocks -->
+      <!-- Icon library CDN tags (Font Awesome, Material Icons, etc.) -->
+      <!-- Animation library CDN tags -->
+      <link rel="stylesheet" href="css/style.css">
+      <!-- ASD head blocks (extra <link>/<script src> tags) -->
+    </head>
+    <body>
+      <!-- widget tree HTML -->
+      <!-- custom block HTML -->
+      <!-- ASD html blocks -->
+      <script src="js/script.js" defer></script>
+    </body>
+    </html>
+  
+  CSS output (style.css):
+    /* Generated by DragWeb */
+    :root { --primary-color: ...; } (ThemeManager)
+    @media prefers-color-scheme:dark { :root { ... } }
+    /* Animation Keyframes */ @keyframes ... (AnimationLibrary)
+    /* CSS Interaction Rules for {page} */ (pseudo rules)
+    /* Logic Block Styles for {page} */ (base CSS rules)
+    /* ASD CSS source for {page} */
+    /* Custom Block Styles */ (ManageBlocksWidgets)
+    /* Element Styles */ (inline styles → classes, el-div-1234 { ... })
+  
+  JS output (script.js):
+    'use strict';
+    var DW = window.DW = { state:{}, components:{} };
+    /* logic blocks for {page} */ document.addEventListener('DOMContent...')
+    /* user JS (ASD) for {page} */
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.feather) feather.replace();
+      if (window.lucide) lucide.createIcons();
+    });
+  
+  exportAsZip() → calls generateExportFiles() first, then zips the exportDir.
+  restoreProjectFromZip(File) → extracts to tempDir, finds projectId from
+    data/ .meta file, moves data files + assets to correct locations.
+
+--- PageCodeGenerator ---
+  Alternative code generator used for preview (not for final export).
+  generateFullCode(View screen, ThemeManager, LogicBlockManager,
+                   ManageBlocksWidgets) → complete single-file HTML string
+  generateFullCodeFromTree(List<Map> widgetTree, ...) → same but from JSON
+  
+  Output is self-contained (inline <style> + <script> inside the HTML).
+  Used in: MainEditorFragment.showPreview() → writes to cacheDir/preview_{id}/
+  
+  Header: DOCTYPE + head with viewport, title, CDN tags, inline <style>
+  Footer: </style> + <script> with DW state object + logic JS + ASD JS
+
+--- HtmlCssImporter ---
+  Converts HTML/CSS/JS files back into DragWeb's widget tree + logic blocks.
+  
+  importHtmlCss(htmlContent, cssContent) → ImportResult {
+    success, message, widgetTree, logicBlocks, cssLogicBlocks,
+    enabledLibraries (FontAwesome, MaterialIcons, Bootstrap, etc.)
+  }
+  
+  importCssOnly(cssContent) → List<Map<String,Object>> CSS logic blocks
+  importJsOnly(jsContent) → List<Map<String,Object>> JS logic blocks
+  
+  HTML parsing: Jsoup (or manual string parsing). Walks DOM tree, creates
+    widget map for each element. Inline styles parsed to style map.
+    Attributes (id, class, href, src, etc.) stored in function map.
+    Text content stored as "text". Children recursively parsed.
+  
+  Detected libraries (from <link> hrefs / <script> srcs):
+    Font Awesome, Material Icons, Bootstrap, Tailwind, Animate.css, etc.
+    → returned in enabledLibraries for IconLibraryManager to enable.
+
+--- ProjectDataManager ---
+  saveProject(View screen, String id) → serializes view tree → internal JSON
+  loadProject(View screen, String id, engine, selector, dropZoneManager)
+    → reads JSON → calls buildViewTree() to reconstruct views
+  
+  exportSingleProjectAsZip(projectId, Uri) → canonical ZIP structure
+  exportAllProjectsAsZip(Uri) → all projects in one ZIP
+  importProjectsFromZip(Uri) → handles canonical + 4 legacy structures
+  
+  loadAllProjectsFromExternal() → scans /.dragweb/projects/ for dirs
+
+--- WorkspaceView (Logic Block Canvas) ---
+  Extends ScrollView. Contains a LinearLayout 'stack' (vertical).
+  No free positioning — blocks stack top-to-bottom.
+  
+  configure(LogicBlockManager, List<BlockDef>, BlockChipFactory,
+            BlockDragDropManager)
+  rebuild() → clears stack, calls renderTopLevelBlocks()
+  renderTopLevelBlocks() → iterates blocks where parentBlockId==null,
+    creates BlockView for each, calls renderChildrenIntoSlot for containers.
+  
+  insertNewBlock(BlockDef, containerView, slotIndex, siblingIndex)
+    → creates LogicBlock with default paramValues, inserts in master list.
+  moveBlockTo(blockId, containerView, slotIndex, siblingIndex)
+    → removes subtree, re-inserts at new position. Cycle detection.
+  deleteBlockChainById(id) → removes block + all descendants.
+  
+  showInsertionIndicator(y) / hideInsertionIndicator()
+    → yellow horizontal bar shown during drag.
+  
+  indexFromY(float y) → converts DragEvent Y (viewport-relative) to
+    insertion index in the stack (adds getScrollY() offset).
+
+--- BlockDef ---
+  Loaded from assets/blocks.json (and any user overrides).
+  Fields: id, label, code/template (same thing), category, shape, color,
+    description, inputs (List<ChipInput>).
+  
+  resolvedShape() → normalizes: "C"→"cblock", "E"→"cblock", "rect"→"stack",
+    "cap"→"event". Event category → "event". Value category → "value".
+  isContainer() → shape in {cblock, loop, condition} OR template has %m.space.
+  isReporter() → shape in {value, reporter, boolean}.
+  resolvedColor() → color field OR BlockCategoryPalette.colorForCategory()
+  resolvedInputs() → explicit inputs OR derived from %n/%s/%b/%m.xxx tokens.
+  resolvedTemplate() → template field if set, else code field.
+
+================================================================================
+6. WIDGET LIFECYCLE
+================================================================================
+
+DRAG FROM PALETTE TO CANVAS:
+  1. User long-presses widget in RecyclerView (Recyclerview1Adapter)
+  2. startDragAndDrop with ClipData containing widget index as string
+  3. screen.setOnDragListener fires ACTION_DROP
+  4. engine.createWidget(tag) creates the View
+  5. applyWidgetDefaults() merges definition's function/style into new view tag
+  6. findDropIndex(screen, dropY) computes insertion position
+  7. screen.addView(newWidget, targetIndex)
+  8. selector.registerView(newWidget) — makes it selectable
+  9. setupWidgetReorderDrag(newWidget) — enables long-press to reorder
+  10. dropZoneManager.registerWidgetAsDropZoneIfContainer(newWidget)
+  11. saveUndoState() / refreshHierarchy() / updateWidgetSpinnerFromTree()
+
+REORDER (drag existing widget):
+  1. Long-press on existing widget → ClipData "reorder:{hashCode}"
+  2. screen.setOnDragListener / drop zone drag listeners detect "reorder:"
+  3. handleReorderDrop() finds view by hashCode, removes from old parent,
+     inserts at new position in screen or a drop zone.
+
+SELECTION:
+  1. Click on any registered view → selector.select(view)
+  2. Selector fires onWidgetSelectedListener(widgetId)
+  3. MainEditorFragment updates textview2, enables delete button
+  4. buildDesignList() or buildLayoutDesignList() populates recyclerview3
+
+PROPERTY EDIT:
+  1. User taps chip in recyclerview3
+  2. handleDesignItemClick(position) → reads editType from design list
+  3. Shows UniversalM3Dialog (text/color/unit/choice/four-value input)
+  4. Callback: widgetUpdater.updateWidget(selected, text, styleMap)
+  5. saveUndoState()
+
+DELETE:
+  1. delete button → ((ViewGroup)selected.getParent()).removeView(selected)
+  OR 2. hierarchy context menu → deleteWidget(widgetView)
+
+SERIALIZE (for save/undo):
+  serializeChildren(ViewGroup parent) → List<Map<String,Object>>
+    For each child: reads View.getTag() (the widget map)
+    Removes "children" key from copy, recurse for ViewGroup children
+    Returns flat list of root nodes (children embedded recursively)
+
+DESERIALIZE (load/undo):
+  rebuildView(Map, ViewGroup parent)
+    engine.createWidget(tag) → new View
+    engine.applyPropertiesToView(view, map)
+    view.setTag(map copy without children)
+    parent.addView(view)
+    selector.registerView, setupWidgetReorderDrag, registerAsDropZone
+    If hidden flag → View.GONE
+    Recurse for "children" list
+
+================================================================================
+7. LOGIC BLOCK SYSTEM
+================================================================================
+
+Logic blocks are stored in {filesDir}/projects/logic/{id}_{page}.logic as a
+JSON array of LogicBlock objects.
+
+Special page names for CSS/JS files (slash/dot → underscore):
+  "css/style.css" → safe name "css_style_css" → file: {id}_css_style_css.logic
+  "js/script.js"  → safe name "js_script_js"  → file: {id}_js_script_js.logic
+
+BLOCK HIERARCHY:
+  Top-level blocks: parentBlockId == null (or empty)
+  Child blocks: parentBlockId = parent's id, parentSlotIndex = slot number
+  Container blocks can have multiple slots (%m.space tokens in template)
+
+CATEGORIES:
+  "css"       → generates CSS rules (via generateBaseCssRules)
+  "animation" → generates CSS keyframe rules
+  "meta"      → groupBlock, commentBlock (structural)
+  "asd"       → raw source injection (HTML/CSS/JS/head/meta)
+  "logic"     → JS control flow (if/loop)
+  "value"     → JS value/expression blocks
+  "js_events" → JS event handlers (for .js files)
+
+SHAPES:
+  "stack"     → regular statement block (most blocks)
+  "cblock"    → container block (C-shape, has inner slot for children)
+  "event"     → event hat block (starts a script)
+  "loop"      → loop container
+  "condition" → if/else container
+  "value"     → inline reporter (embeds in other blocks)
+  "boolean"   → boolean reporter
+  "reporter"  → generic reporter
+
+CSS CODE GENERATION FLOW:
+  1. generateBaseCssRules():
+     a. Walk top-level blocks where isCssEmitting(b) == true
+     b. For each, call emitCssBlock(out, b, 0)
+     c. emitCssBlock: applies applyChipTemplate(b), handles @@CHILDREN@@
+        by recursing into child blocks with same parent
+     d. Legacy changeStyle blocks (params="prop:val") grouped by selector
+  
+  2. generateCssPseudoRules():
+     Walk blocks where event starts "css:", group by "selector:pseudo"
+     Emit { property: value; } per group
+
+JS CODE GENERATION FLOW:
+  1. generateJavaScript():
+     Wrap in DOMContentLoaded
+     Walk blocks skipping: css: events, asd, static CSS, CSS/animation/meta
+     categories, groupBlock/commentBlock, children
+     For each: emit "// event -> action" comment + generateActionJs()
+     Substitute @@CHILDREN@@/@@CHILDREN_N@@ with child block JS
+
+ASD RAW SOURCE:
+  generateAsdSource("html"/"css"/"js"/"head"/"meta"):
+    Find blocks with action="asd"+capitalize(spec)
+    Both category="asd" AND event="asd" accepted
+    paramValues[0] or params field = raw source body
+
+================================================================================
+8. CODE GENERATION PIPELINE
+================================================================================
+
+TWO PATHS:
+
+PATH A — Preview (PageCodeGenerator, self-contained HTML):
+  MainEditorFragment.showPreview()
+  → saveCurrentPageLayout() for current page
+  → save logic blocks to disk
+  → ExportManager.generateExportFiles(screen, ..., previewDir)
+  → PreviewActivity receives previewDir path
+  → PreviewActivity loads {page}.html in WebView via LocalHttpServer
+
+PATH B — Export (ExportManager, separate files):
+  MainEditorFragment.performExport() [runs on background thread]
+  → ExportManager.generateExportFiles() → ExportResult
+  → ExportManager.exportAsZip() → ZIP file
+  Both paths produce same content but PATH B separates CSS/JS.
+
+SAVE (on every save, not just export):
+  MainEditorFragment.saveProject()
+  → saveCurrentPageLayout() (serializes screen → JSON → pageManager)
+  → pageManager.saveAllPages() (flush cache)
+  → projectDataManager.saveProject(screen, projectId) (legacy compat)
+  → write theme file
+  → write current page's .logic file
+  → saveProjectToExternal() (mirrors files to /.dragweb/)
+  → ExportManager.generateExportFiles(screen, ..., assetsDir)
+     ← THIS compiles + writes live css/style.css + js/script.js to assets!
+
+So the assets folder always stays in sync with the latest save.
+
+================================================================================
+9. IMPORT PIPELINE (HTML/CSS → WIDGET TREE)
+================================================================================
+
+HomeActivity.showImportWebsiteDialog() → user picks .html + optional .css/.js
+→ performHtmlCssImport(projectName)
+→ HtmlCssImporter.importHtmlCss(htmlContent, null)
+→ ImportResult: widgetTree (List<Map>), logicBlocks (for JS), cssLogicBlocks
+→ HtmlCssImporter.importCssOnly(cssContent) → cssLogicBlocks
+→ createProjectFromImport(name, widgetTree, logicBlocks, cssLogicBlocks,
+                          jsContent, enabledLibraries)
+  - Saves widgetTree as {id}.json
+  - Saves logicBlocks as {id}_index.logic
+  - Saves cssLogicBlocks as {id}_css_style_css.logic
+  - Sets themeManager.useInlineStyles=false, disableDefaultStyles=true
+  - Enables detected icon libraries via IconLibraryManager
+
+For single-page add via "Add Page" dialog:
+  MainEditorFragment.showAddPageDialog()
+  → user can attach HTML file
+  → HtmlCssImporter.importHtmlCss() → widgetTree + logicBlocks
+  → pageManager.addPage(pageName) + savePageLayout(pageName, json)
+  → logicFile written for new page
+  → switchPage(pageName) loads it into editor
+
+================================================================================
+10. EXPORT PIPELINE (WIDGET TREE → ZIP)
+================================================================================
+
+User clicks Export → MainEditorFragment.showExportDialog() (confirm dialog)
+→ performExport() on background thread:
+
+  Step 1: ExportManager.generateExportFiles(screen, name, logic, custom)
+    - PageManager loads all pages
+    - For current page: walks live View tree via generateElementHtml()
+    - For other pages: deserializes JSON → generateElementHtmlFromNode()
+    - Replaces "assets/" → "" in HTML (relative paths)
+    - Accumulates all CSS rules across pages
+    - Accumulates all JS blocks across pages
+    - Writes {page}.html, css/style.css, js/script.js to exportDir
+    - Syncs compiled CSS/JS back to assets/ folder
+
+  Step 2: ExportManager.exportAsZip(screen, name, id, logic, custom)
+    - Calls generateExportFiles() again (or reuses result)
+    - Creates ZIP of exportDir contents
+    - Saves to /.DragWeb/export/{name}_{id}.zip
+
+  Result shown in dialog with folder path + ZIP path.
+
+================================================================================
+11. THEME SYSTEM
+================================================================================
+
+ThemeManager stores per-theme (light + dark) style maps:
+  THEME_LIGHT: primaryColor, secondaryColor, accentColor, bodyBackground,
+               bodyColor, linkColor, borderColor, fontFamily
+  THEME_DARK:  same keys, different values
+
+Defaults (hard-coded in ThemeManager.resetToDefaults()):
+  light: primary=#1976D2, secondary=#388E3C, accent=#FFC107,
+         bg=#FFFFFF, color=#212121, link=#1565C0, border=#E0E0E0
+  dark:  primary=#90CAF9, secondary=#A5D6A7, accent=#FFD54F,
+         bg=#121212, color=#FFFFFF, link=#90CAF9, border=#424242
+
+CSS variable names (camelCase → kebab for CSS):
+  primaryColor → --primary-color
+  bodyBackground → --body-background, etc.
+  custom vars stored as-is (user provides --name: value)
+
+generateGlobalCss() output:
+  :root { --primary-color: #1976D2; ... }
+  @media (prefers-color-scheme: dark) { :root { --primary-color: #90CAF9; ... } }
+  (+ font-family if set)
+  (+ custom vars: --myvar: myval;)
+
+Flags:
+  useInlineStyles — if true, element styles go to generated CSS classes
+    in style.css (not inline style= attributes). Default: true.
+  disableDefaultStyles — if true, base resets (* {margin:0;...}) omitted.
+    Set to true on HTML/CSS import.
+
+================================================================================
+12. PAGE SYSTEM
+================================================================================
+
+Every project has at least one page: "index".
+Pages stored as:
+  Internal: {id}_{pageName}.json
+  External: .dragweb/projects/{id}/pages/{pageName}.json
+  Page list: .dragweb/projects/{id}/pages.json (JSON array of names)
+
+Logic blocks for each page: {id}_{pageName}.logic in projects/logic/
+  For CSS files: pageName = "css/style.css" → safe = "css_style_css"
+  For JS files:  pageName = "js/script.js"  → safe = "js_script_js"
+
+The "page selector popup" shows three tabs:
+  "View" — HTML pages
+  "CSS"  — .css files in assets (virtual pages)
+  "JS"   — .js files in assets (virtual pages)
+  For CSS/JS: clicking opens LogicBlockActivity (not page switch)
+  For HTML: clicking calls switchPage(name)
+
+switchPage(name):
+  1. saveProject() (to preserve current page)
+  2. pageManager.setCurrentPage(name)
+  3. loadCurrentPageLayout() — rebuilds screen from JSON
+  4. Loads logic blocks for new page
+  5. saveUndoState() / refreshHierarchy() / updatePageSpinner()
+
+================================================================================
+13. ASSETS SYSTEM
+================================================================================
+
+AssetsFragment — file browser for /.dragweb/projects/{id}/assets/
+FileExplorerAdapter — RecyclerView adapter, navigates directories
+  - Shows files/folders
+  - Tap file → use as image source (for selected ImageView widget)
+  - Long-press → rename/delete/copy
+
+Images can be:
+  a) Embedded as base64 data URIs: "data:image/png;base64,..."
+     (stored in widget's function.src)
+  b) Referenced by file path: resolveAssetPath() strips absolute prefix
+     to "assets/..." relative path in exported HTML.
+
+ImportAsset launchers in MainEditorFragment:
+  importAssetLauncher → picks any file, copies to assets/
+  importSvgLauncher → picks SVG, processes via WidgetRegistry.importCustomWidgets
+
+AssetsFragment.refresh() called when tab is selected (from MainActivity's
+  ViewPager2 onPageSelected callback).
+
+================================================================================
+14. BLOCKS.JSON SCHEMA
+================================================================================
+
+Location: app/src/main/assets/blocks.json
+Format: JSON array of block definitions.
+
+Each block:
+{
+  "id":          "setWidth",          // unique block identifier
+  "category":    "css",               // css|animation|meta|asd|logic|value|js_events
+  "shape":       "stack",             // stack|cblock|event|loop|condition|value|boolean|reporter
+  "color":       "#2196F3",           // hex (optional, falls back to category palette)
+  "label":       "set width %n%m.unit", // display text with token placeholders
+  "code":        "width: %n%m.unit;", // output template (same placeholders)
+  "template":    "...",               // alias for code
+  "description": "...",               // optional tooltip
+  "inputs": [                         // optional explicit input definitions
+    {
+      "id":      "value",             // input identifier
+      "type":    "number",            // text|number|color|selector|dropdown|boolean|file|section
+      "default": "100",
+      "options": ["px","%","rem"]     // only for dropdown type
+    }
+  ]
+}
+
+TOKEN TYPES in label/code:
+  %n   → number input (ChipInput type=number)
+  %s   → text input (ChipInput type=text)
+  %b   → boolean/toggle input
+  %d   → number input (alias)
+  %m.unit      → dropdown (options defined in inputs)
+  %m.selector  → CSS selector input
+  %m.space     → nested block slot (becomes @@CHILDREN@@ in generated code)
+  %selector    → selector chip (shorthand for %m.selector)
+
+CATEGORY PALETTE (BlockCategoryPalette):
+  css:       #1976D2 (blue)
+  animation: #7B1FA2 (purple)
+  meta:      #37474F (dark grey)
+  asd:       #004D40 (teal dark)
+  logic:     #E65100 (orange)
+  value:     #558B2F (green)
+  js_events: #E91E63 (pink)
+  default:   #607D8B
+
+SHAPE RENDERING (BlockView, bg drawables):
+  stack → rect bg (bg_block_shape_rect.xml)
+  event → rounded top bg (bg_block_shape_event.xml)
+  cblock → C-shape with nested LinearLayout slot (if_else.9.png NinePatch)
+  logic (conditional) → bg_block_shape_logic.xml
+
+BUILT-IN BLOCK CATEGORIES:
+  meta: groupBlock (cblock), commentBlock (stack)
+  css:  cssSelector, cssHover, cssFocus, cssActive, cssNthChild,
+        setWidth, setHeight, setColor, setBackground, setFontSize,
+        setFontWeight, setPadding, setMargin, setBorderRadius, setBorder,
+        setDisplay, setFlex, setGrid, setPosition, setTransform, setOpacity,
+        setBoxShadow, setTransition, setAnimation, setCustom, ...
+  animation: cssKeyframes, animateElement, ...
+  asd:  asdHtml, asdCss, asdJs, asdHead, asdMeta
+  logic: ifBlock, ifElseBlock, loop, createVar, setVar, getVar, constDefine
+  js_events: jsOnLoad, jsOnClick, jsOnChange, jsCustom, ...
+
+================================================================================
+15. WIDGETS.JSON SCHEMA
+================================================================================
+
+Location: app/src/main/assets/widgets.json (bundled fallback)
+User override: /.dragweb/custom/widgets.json
+Format: JSON array of widget definitions.
+
+Each widget:
+{
+  "name":     "Button",       // display name in palette
+  "tag":      "button",       // HTML tag (any valid HTML tag)
+  "color":    "#FFBB33",      // color indicator in palette
+  "category": "basic",        // basic|layout|form|media|semantic|custom
+  "function": {               // initial properties applied on drop
+    "text":  "Click Me",
+    "style": {
+      "padding":         "10px 20px",
+      "backgroundColor": "#FFBB33",
+      "fontSize":        "16px"
+    },
+    "href":        "...",     // tag-specific attrs
+    "placeholder": "...",
+    "type":        "email"
+  }
+}
+
+STANDARD CATEGORIES:
+  basic:    Text (p), Heading (h1), Button (button), Image (img),
+            Input (input), Textarea (textarea), Link (a), Icon (i)
+  layout:   Container (div), Section (section), Header (header),
+            Footer (footer), Nav (nav), Main (main), Article (article),
+            Aside (aside), Flexbox (div), Grid (div)
+  form:     Form (form), Select (select), Checkbox (input type=checkbox),
+            Radio (input type=radio), Range (input type=range), Label (label)
+  media:    Image (img), Video (video), Audio (audio), IFrame (iframe),
+            Canvas (canvas), SVG (svg)
+  semantic: List (ul), OrderedList (ol), ListItem (li), Table (table),
+            Pre (pre), Blockquote (blockquote), HR (hr), BR (br)
+  custom:   User-defined widgets (merged into global widget list)
+
+IMPORT FORMATS accepted by WidgetRegistry.importAndSaveCustomWidgets():
+  a) JSON array: [{name, tag, ...}, ...]
+  b) Single object: {name, tag, ...}
+  c) Keyed map: {"WidgetName": {tag, ...}}
+  d) Wrapped array: {"widgets": [...]}
+  e) Markdown code blocks stripped automatically
+
+================================================================================
+16. KEY PATTERNS & CONVENTIONS
+================================================================================
+
+WIDGET TAG CONVENTION:
+  Every widget View has View.setTag(Map<String,Object>) where the map always has:
+    - "tag" key → HTML element type
+    - "function" key → attributes/style map
+
+  Container check: isLayoutTag(tag) in WidgetBuilderEngine checks:
+    div, section, nav, header, footer, main, article, aside, form,
+    ul, ol, li, a, table
+
+  Block/inline check: isBlockTag(tag) in WidgetBuilderEngine checks:
+    p, h1-h6, div, section, nav, header, footer, main, article, aside,
+    form, ul, ol, li, blockquote, pre, hr, table → MATCH_PARENT width by default
+    Others → WRAP_CONTENT
+
+LOGIC FILE NAMING:
+  Page name is "sanitized" via: pageName.replace("/","_").replace(".","_")
+  File: {id}_{safeName}.logic
+  So "css/style.css" → "css_style_css" → "{id}_css_style_css.logic"
+  And "js/script.js"  → "js_script_js"  → "{id}_js_script_js.logic"
+
+UNDO/REDO:
+  State = JSON serialization of the screen's widget tree.
+  Max 30 states. On undo: restoreState() rebuilds all views from JSON.
+
+CSS KEY MAPPING (getCssKeyFromItem):
+  "TextSize" → "fontSize", "Color" → "color", "Font" → "fontWeight",
+  "TextAlign" → "textAlign", "Background" → "backgroundColor",
+  "BorderRadius" → "borderRadius", "Padding" → "padding",
+  "Margin" → "margin", "Width" → "width", "Height" → "height",
+  "Display" → "display", "Position" → "position",
+  "FlexDir" → "flexDirection", "FlexWrap" → "flexWrap",
+  "JustifyContent" → "justifyContent", "AlignItems" → "alignItems",
+  ... (full mapping in MainEditorFragment.getCssKeyFromItem())
+
+ASSET PATH RESOLUTION (ExportManager.resolveAssetPath):
+  data:...          → keep as-is (base64)
+  assets/...        → keep as-is
+  contains /assets/ → strip everything before and including /assets/,
+                      prepend "assets/"
+  else              → keep as-is
+  Final HTML output: "assets/" is replaced with "" (relative paths)
+
+FILE UTIL (FileUtil):
+  readFile(path) → String (UTF-8)
+  writeFile(path, content) → creates parent dirs, writes UTF-8
+  deleteFile(path) → recursive delete
+
+CUSTOM DIALOG SYSTEM:
+  UniversalM3Dialog → builder pattern for:
+    showTextInput(callback) — single-line or multi-line text
+    showColorInput(callback) — color picker with hex input + suggestions
+    showUnitInput(prop, callback) — number + unit dropdown
+    showFourValueInput(prop, callback) — top/right/bottom/left
+    showChoiceInput(callback) — option list
+    showIconPicker(callback) — Material Icon / Font Awesome picker
+  
+  UniversalDialog → older dialog helpers (autocomplete, color picker)
+
+PREVIEW SYSTEM:
+  PreviewActivity uses LocalHttpServer (NanoHTTPD-style) to serve files
+  from a temp directory at a local port, loaded in WebView.
+  This avoids file:// cross-origin issues.
+
+================================================================================
+17. KNOWN EDGE CASES & GOTCHAS
+================================================================================
+
+1. ASSET PATH REPLACEMENT IN EXPORT:
+   htmlContent.replace("assets/", "") strips ALL "assets/" occurrences.
+   This means base64 data URIs with literal "assets/" would break, but
+   that scenario is unlikely. More importantly, this makes CSS/JS path
+   references relative to the HTML file root.
+
+2. WIDGET TAG DATA MUTATION:
+   serializeChildren() does new HashMap<>(tagObj) but does NOT deep-copy
+   nested maps (function.style etc.). Mutations to returned maps can affect
+   the View's tag. Always deep-copy before editing serialized data.
+
+3. PAGE MANAGER CACHE vs DISK:
+   pageLayoutCache is the source of truth during editing. Disk is only
+   written on savePageLayout() / saveAllPages(). If app crashes between
+   save calls, unsaved changes in cache are lost.
+
+4. LOGIC FILE SAFE NAME:
+   replace("/","_").replace(".","_") converts ALL dots, not just separators.
+   "v1.2.3/style.css" → "v1_2_3_style_css" — this is intentional but
+   means multiple paths could collide. Enforce unique filenames in assets.
+
+5. EXPORT HTML vs PREVIEW HTML:
+   Export HTML links external css/style.css + js/script.js.
+   Preview HTML is self-contained (inline <style> + <script>).
+   The two are generated by different code paths and may diverge slightly.
+
+6. WIDGET REGISTRY ALWAYS RELOADS:
+   getAllWidgets() calls loadWidgets() every time, reading from disk.
+   This is intentional for fresh data but expensive. Cache invalidation
+   is via saveCustomWidgets() which calls loadWidgets() at the end.
+
+7. INDEX PAGE DOUBLE SAVE:
+   savePageLayout("index", json) writes to 4 places:
+     - internal: {id}_index.json
+     - internal: {id}.json (legacy compat)
+     - external: pages/index.json
+     - external: layout.json (legacy compat)
+   This is intentional for backward compatibility.
+
+8. ELEMENT CSS CLASS NAMES IN EXPORT:
+   When useInlineStyles=true, ExportManager generates class names:
+     "el-{tag}-{hashCode % 10000}"
+   For View-based generation: view.hashCode() (live view's hash).
+   For JSON-based generation: widgetMap.hashCode() (map object's hash).
+   These will differ between live and JSON paths for the same widget,
+   causing different class names in preview vs export.
+
+9. LOGIC BLOCK PARAM DELIMITER:
+   Multi-part params use pipe "|" as separator (e.g. "key|value",
+   "url|method|body"). Single-part params use ":" (e.g. "prop:value").
+   Be careful when params contain literal "|" or ":".
+
+10. BLOCKS.JSON LOADING:
+    allBlockDefs loaded in LogicBlockActivity.loadBlockDefinitions() from
+    assets/blocks.json. User cannot override this file without a custom
+    APK build. Custom block TEMPLATES (ManageBlocksWidgets) are separate
+    from block DEFINITIONS (BlockDef). ManageBlocksWidgets handles custom
+    HTML/CSS template strings, not visual block palette entries.
+
+================================================================================
+END OF REFERENCE
+================================================================================

@@ -100,7 +100,7 @@ public class ExportManager {
         accumulatedCssBuffer.append(themeManager.generateGlobalCss());
 
         // Load default global CSS stylesheet blocks and append
-        File projectsDir = new File(context.getFilesDir(), "projects");
+        File projectsDir = new File(new File(context.getFilesDir(), "projects"), "logic");
         String globalCssSafeName = "css/style.css".replace("/", "_").replace(".", "_");
         File globalCssLogicFile = new File(projectsDir, projectId + "_" + globalCssSafeName + ".logic");
         if (globalCssLogicFile.exists()) {
@@ -133,6 +133,28 @@ public class ExportManager {
         }
         accumulatedCssBuffer.append("\n");
 
+        // Load default global JS logic blocks and append
+        File globalJsDir = new File(new File(context.getFilesDir(), "projects"), "logic");
+        String globalJsSafeName = "js/script.js".replace("/", "_").replace(".", "_");
+        File globalJsLogicFile = new File(globalJsDir, projectId + "_" + globalJsSafeName + ".logic");
+        if (globalJsLogicFile.exists()) {
+            LogicBlockManager globalJsLogic = new LogicBlockManager(context);
+            try {
+                String logicJson = FileUtil.readFile(globalJsLogicFile.getAbsolutePath());
+                globalJsLogic.fromJson(logicJson);
+                String jsBlocks = globalJsLogic.generateJavaScript();
+                String asdJs = globalJsLogic.generateAsdSource("js");
+                if (asdJs != null && !asdJs.trim().isEmpty()) {
+                    accumulatedJsBuffer.append("\n/* Global script ASD JS */\n").append(asdJs).append("\n");
+                }
+                if (jsBlocks != null && !jsBlocks.trim().isEmpty()) {
+                    accumulatedJsBuffer.append("\n/* Global script blocks JS */\n").append(jsBlocks).append("\n");
+                }
+            } catch (Exception e) {
+                Log.w("ExportManager", "Error parsing global JS blocks: " + e.getMessage());
+            }
+        }
+
         // 2. Common JS header
         accumulatedJsBuffer.append("/* ==========================================================\n");
         accumulatedJsBuffer.append(" * DragWeb generated runtime — DO NOT edit by hand.\n");
@@ -156,7 +178,7 @@ public class ExportManager {
                 // Loaded page from json
                 String pageJson = pageManager.loadPageLayout(pageName);
                 pageLogic = new LogicBlockManager(context);
-                File dir = new File(context.getFilesDir(), "projects");
+                File dir = new File(new File(context.getFilesDir(), "projects"), "logic");
                 File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
                 if (logicFile.exists()) {
                     String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
@@ -232,8 +254,8 @@ public class ExportManager {
         accumulatedJsBuffer.append("  if (window.lucide)  try { lucide.createIcons(); } catch (e) {}\n");
         accumulatedJsBuffer.append("});\n");
 
-        String finalCssContent = accumulatedCssBuffer.toString().replace("assets/", "");
-        String finalJsContent = accumulatedJsBuffer.toString().replace("assets/", "");
+        String finalCssContent = accumulatedCssBuffer.toString().replace("assets/", "../");
+        String finalJsContent = accumulatedJsBuffer.toString().replace("assets/", "../");
 
         File exportDir = customExportDir != null ? customExportDir : new File(context.getFilesDir(), "exports/" + sanitizeFileName(projectName));
         if (customExportDir == null && exportDir.exists()) {
@@ -257,7 +279,8 @@ public class ExportManager {
         try {
             // Write HTML files in the root folder
             for (Map.Entry<String, String> entry : pageHtmlMap.entrySet()) {
-                writeFile(new File(exportDir, entry.getKey() + ".html"), entry.getValue());
+                String safeName = sanitizeFileName(entry.getKey());
+                writeFile(new File(exportDir, safeName + ".html"), entry.getValue());
             }
             writeFile(new File(cssDir, "style.css"), finalCssContent);
             writeFile(new File(jsDir, "script.js"), finalJsContent);
@@ -308,11 +331,7 @@ public class ExportManager {
             File[] files = src.listFiles();
             if (files == null) return;
             for (File file : files) {
-                if (file.isDirectory()) {
-                    copyDirectory(file, new File(targetRootDir, file.getName()));
-                } else {
-                    copyDirectory(file, new File(targetRootDir, file.getName()));
-                }
+                copyDirectory(file, new File(targetRootDir, file.getName()), false); // Do NOT overwrite compiled files!
             }
         } catch (Exception e) {
             Log.w("ExportManager", "Could not mirror assets: " + e.getMessage());
@@ -987,7 +1006,7 @@ public class ExportManager {
                                 + "/.dragweb/projects/" + foundProjectId + "/assets";
                             File targetAssetsDir = new File(targetAssetsPath);
                             targetAssetsDir.mkdirs();
-                            copyDirectory(assetsDir, targetAssetsDir);
+                             copyDirectory(assetsDir, targetAssetsDir, true); // Overwrite on restore!
                         }
                         return true;
                     }
@@ -1001,17 +1020,22 @@ public class ExportManager {
         return false;
     }
 
-    private void copyDirectory(File sourceLocation, File targetLocation) throws IOException {
+    private void copyDirectory(File sourceLocation, File targetLocation, boolean overwrite) throws IOException {
         if (sourceLocation.isDirectory()) {
             if (!targetLocation.exists() && !targetLocation.mkdirs()) {
                 throw new IOException("Cannot create dir " + targetLocation.getAbsolutePath());
             }
             String[] children = sourceLocation.list();
-            for (int i = 0; i < children.length; i++) {
-                copyDirectory(new File(sourceLocation, children[i]),
-                        new File(targetLocation, children[i]));
+            if (children != null) {
+                for (int i = 0; i < children.length; i++) {
+                    copyDirectory(new File(sourceLocation, children[i]),
+                            new File(targetLocation, children[i]), overwrite);
+                }
             }
         } else {
+            if (!overwrite && targetLocation.exists()) {
+                return; // Skip overwriting existing files
+            }
             java.io.InputStream in = new FileInputStream(sourceLocation);
             java.io.OutputStream out = new FileOutputStream(targetLocation);
             byte[] buf = new byte[1024];
@@ -1087,7 +1111,7 @@ public class ExportManager {
 
     private String sanitizeFileName(String name) {
         if (name == null) return "project";
-        return name.replaceAll("[^a-zA-Z0-9._-]", "_");
+        return name.replaceAll("[^a-zA-Z0-9_-]", "_").toLowerCase();
     }
 
     private String repeat(String str, int count) {

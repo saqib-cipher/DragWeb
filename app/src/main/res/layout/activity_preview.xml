@@ -133,6 +133,31 @@
 			android:layout_width="match_parent"
 			android:layout_height="match_parent" />
 
+		<!-- Loading state -->
+		<LinearLayout
+			android:id="@+id/layoutLoading"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:gravity="center"
+			android:orientation="vertical"
+			android:background="?attr/colorSurface"
+			android:visibility="gone">
+
+			<com.google.android.material.progressindicator.CircularProgressIndicator
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:indeterminate="true"
+				app:indicatorSize="48dp" />
+
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="16dp"
+				android:text="Loading Preview..."
+				android:textColor="?attr/colorOnSurfaceVariant"
+				android:textSize="14sp" />
+		</LinearLayout>
+
 		<!-- Device frame indicator -->
 		<TextView
 			android:id="@+id/tvDeviceInfo"

@@ -381,7 +381,7 @@ public class LogicBlockManager {
         String tmpl = b.spec;
         if (tmpl == null || tmpl.isEmpty()) return "";
         java.util.regex.Pattern p = java.util.regex.Pattern.compile(
-            "%(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))");
+            "%(?:(selector)|m\\.([a-zA-Z_\\.]+)|([nsbd]))");
         java.util.regex.Matcher m = p.matcher(tmpl);
         StringBuilder sb = new StringBuilder();
         int last = 0;
@@ -389,15 +389,16 @@ public class LogicBlockManager {
         int slotIdx = 0;
         while (m.find()) {
             sb.append(tmpl, last, m.start());
-            String selectorKind = m.group(1);
-            if ("space".equals(selectorKind)) {
+            String selectorLit = m.group(1);
+            String mType = m.group(2);
+            if ("space".equals(mType)) {
                 if (slotIdx == 0) {
                     sb.append("@@CHILDREN@@");
                 } else {
                     sb.append("@@CHILDREN_").append(slotIdx).append("@@");
                 }
                 slotIdx++;
-            } else if (selectorKind != null && "selector".equals(selectorKind)) {
+            } else if ("selector".equals(selectorLit) || "selector".equals(mType)) {
                 String value = paramAt(b, idx);
                 sb.append(value != null ? value : "");
                 idx++;
@@ -412,10 +413,47 @@ public class LogicBlockManager {
         return sb.toString();
     }
 
-    private static String paramAt(LogicBlock b, int idx) {
-        if (b == null || b.paramValues == null || idx < 0 || idx >= b.paramValues.size()) return "";
+    private String paramAt(LogicBlock b, int idx) {
+        if (b == null) return "";
+        // Check if there is a child value block dropped in this slot idx
+        for (LogicBlock c : blocks) {
+            if (b.id != null && b.id.equals(c.parentBlockId) && c.parentSlotIndex == idx) {
+                // Compile the child block recursively!
+                return compileValueBlock(c);
+            }
+        }
+        if (b.paramValues == null || idx < 0 || idx >= b.paramValues.size()) return "";
         String v = b.paramValues.get(idx);
         return v != null ? v : "";
+    }
+
+    private String compileValueBlock(LogicBlock b) {
+        if (b == null) return "";
+        String tmpl = b.spec;
+        if (tmpl == null || tmpl.isEmpty()) return "";
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+            "%(?:(selector)|m\\.([a-zA-Z_\\.]+)|([nsbd]))");
+        java.util.regex.Matcher m = p.matcher(tmpl);
+        StringBuilder sb = new StringBuilder();
+        int last = 0;
+        int idx = 0;
+        while (m.find()) {
+            sb.append(tmpl, last, m.start());
+            String selectorLit = m.group(1);
+            String mType = m.group(2);
+            if ("space".equals(mType)) {
+                sb.append("");
+            } else if ("selector".equals(selectorLit) || "selector".equals(mType)) {
+                sb.append(paramAt(b, idx));
+                idx++;
+            } else {
+                sb.append(paramAt(b, idx));
+                idx++;
+            }
+            last = m.end();
+        }
+        sb.append(tmpl.substring(last));
+        return sb.toString();
     }
 
     private static String repeatStr(String s, int n) {

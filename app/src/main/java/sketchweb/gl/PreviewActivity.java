@@ -12,6 +12,13 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceResponse;
+import android.net.Uri;
+import android.webkit.WebChromeClient;
+import android.webkit.ConsoleMessage;
+import androidx.webkit.WebViewAssetLoader;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -54,6 +61,9 @@ public class PreviewActivity extends AppCompatActivity {
     private String projectId = null;
     private String assetBasePath = null;
 
+    /** Base URL for virtual preview origin */
+    private static final String PREVIEW_BASE_URL = "https://preview.local/";
+
     /** Temp directory holding per-page HTML files served via local HTTP. */
     private File tempPreviewDir = null;
 
@@ -70,7 +80,7 @@ public class PreviewActivity extends AppCompatActivity {
         loadIntentData();
         setupWebView();
         preparePageFiles();       // Write pages to temp dir for the local HTTP server
-        startLocalServer();       // Serve them over http://127.0.0.1:PORT/
+        // startLocalServer();       // Server socket no longer used, handled via shouldInterceptRequest
         setupResponsiveToggle();
         setupPageTabs();
         setupButtons();
@@ -336,10 +346,56 @@ public class PreviewActivity extends AppCompatActivity {
         settings.setLoadWithOverviewMode(true);
         settings.setDomStorageEnabled(true);
 
+        // Disable cache to ensure live edits apply instantly
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+
         // Local server uses http://127.0.0.1:PORT/, so file:// access is no
         // longer required — but harmless to allow for any leftover assets.
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowUniversalAccessFromFileURLs(true);
+
+        final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
+                .setDomain("preview.local")
+                .addPathHandler("/", new WebViewAssetLoader.PathHandler() {
+                    @Nullable
+                    @Override
+                    public WebResourceResponse handle(@NonNull String path) {
+                        if (tempPreviewDir == null) return null;
+                        if (path.startsWith("/")) path = path.substring(1);
+                        if (path.isEmpty()) path = "index.html";
+
+                        File file = new File(tempPreviewDir, path);
+                        if (!file.exists()) {
+                            if (path.startsWith("assets/")) {
+                                file = new File(tempPreviewDir, path.substring(7));
+                            }
+                        }
+
+                        if (file.exists() && file.isFile()) {
+                            try {
+                                String mimeType = mimeFor(file.getName());
+                                String encoding = encodingFor(mimeType);
+                                java.io.InputStream data = new java.io.FileInputStream(file);
+                                return new WebResourceResponse(mimeType, encoding, data);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Failed to resolve file via AssetLoader: " + path, e);
+                            }
+                        }
+                        return null;
+                    }
+                })
+                .build();
+
+        webviewPreview.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+                Log.d(TAG, "Console: " + consoleMessage.message() + " -- Line "
+                        + consoleMessage.lineNumber() + " of " + consoleMessage.sourceId());
+                return true;
+            }
+        });
 
         webviewPreview.setWebViewClient(new WebViewClient() {
 
@@ -352,6 +408,13 @@ public class PreviewActivity extends AppCompatActivity {
                 if (url.startsWith("file://")) return false;
                 // Block external URLs from loading inside the preview
                 return true;
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                WebResourceResponse response = assetLoader.shouldInterceptRequest(request.getUrl());
+                if (response != null) return response;
+                return super.shouldInterceptRequest(view, request);
             }
 
             @Override
@@ -414,23 +477,11 @@ public class PreviewActivity extends AppCompatActivity {
             return;
         }
 
-        // Preferred path: load over the local HTTP server so the page runs
-        // on a real http://127.0.0.1 origin (matches a localhost workflow).
-        if (localServer != null && tempPreviewDir != null && currentPageIndex < pageNames.size()) {
-            String name = pageNames.get(currentPageIndex);
-            File pageFile = new File(tempPreviewDir, sanitizeName(name) + ".html");
-            if (pageFile.exists()) {
-                webviewPreview.loadUrl(localServer.urlFor(sanitizeName(name) + ".html"));
-                return;
-            }
-        }
-
-        // Fallback if the server failed to start: file:// from temp dir.
         if (tempPreviewDir != null && currentPageIndex < pageNames.size()) {
             String name = pageNames.get(currentPageIndex);
             File pageFile = new File(tempPreviewDir, sanitizeName(name) + ".html");
             if (pageFile.exists()) {
-                webviewPreview.loadUrl("file://" + pageFile.getAbsolutePath());
+                webviewPreview.loadUrl(PREVIEW_BASE_URL + sanitizeName(name) + ".html");
                 return;
             }
         }
@@ -445,9 +496,37 @@ public class PreviewActivity extends AppCompatActivity {
 
     /** True when the URL points at our local preview server. */
     private boolean isLocalPreviewUrl(String url) {
-        if (url == null || localServer == null) return false;
-        return url.startsWith("http://127.0.0.1:" + localServer.getPort() + "/")
-            || url.startsWith("http://localhost:" + localServer.getPort() + "/");
+        return url != null && url.startsWith(PREVIEW_BASE_URL);
+    }
+
+    private String mimeFor(String name) {
+        int dot = name.lastIndexOf('.');
+        if (dot < 0) return "application/octet-stream";
+        String ext = name.substring(dot + 1).toLowerCase();
+        switch (ext) {
+            case "html": case "htm": return "text/html";
+            case "css": return "text/css";
+            case "js": case "mjs": return "application/javascript";
+            case "json": return "application/json";
+            case "svg": return "image/svg+xml";
+            case "png": return "image/png";
+            case "jpg": case "jpeg": return "image/jpeg";
+            case "gif": return "image/gif";
+            case "webp": return "image/webp";
+            case "ico": return "image/x-icon";
+            case "ttf": return "font/ttf";
+            case "otf": return "font/otf";
+            case "woff": return "font/woff";
+            case "woff2": return "font/woff2";
+            default: return "application/octet-stream";
+        }
+    }
+
+    private String encodingFor(String mimeType) {
+        if (mimeType != null && (mimeType.startsWith("text/") || mimeType.equals("application/javascript") || mimeType.equals("application/json"))) {
+            return "UTF-8";
+        }
+        return null;
     }
 
     /**

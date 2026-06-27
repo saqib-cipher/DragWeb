@@ -303,6 +303,26 @@ public class EventsFragment extends Fragment {
                 holder.tvPreview.setText(cssPath.endsWith(".js") ? "JS" : "CSS");
             }
 
+            // Set rounded backgrounds with margin between items
+            if (holder.cardView != null) {
+                holder.cardView.setBackgroundResource(R.drawable.item_single_bg);
+                if (holder.cardView instanceof com.google.android.material.card.MaterialCardView) {
+                    com.google.android.material.card.MaterialCardView mcv = (com.google.android.material.card.MaterialCardView) holder.cardView;
+                    mcv.setStrokeWidth(0);
+                    mcv.setCardElevation(0);
+                }
+            }
+
+            // Adjust vertical margins dynamically so they have space between them
+            ViewGroup.LayoutParams layoutParams = holder.itemView.getLayoutParams();
+            if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
+                ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) layoutParams;
+                int marginHorizontal = dp(16);
+                int marginTop = (position == 0) ? dp(12) : dp(6);
+                int marginBottom = (position == items.size() - 1) ? dp(12) : dp(6);
+                lp.setMargins(marginHorizontal, marginTop, marginHorizontal, marginBottom);
+                holder.itemView.setLayoutParams(lp);
+            }
 
             holder.itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(getContext(), LogicBlockActivity.class);

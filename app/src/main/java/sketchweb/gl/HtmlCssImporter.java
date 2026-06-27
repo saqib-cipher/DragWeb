@@ -103,7 +103,7 @@ public class HtmlCssImporter {
     }
 
     private JsBlockMatcher buildMatcherFromTemplate(BlockDef def, String template) {
-        Pattern tokenPat = Pattern.compile("%(?:m\\.([a-zA-Z]+)|([nsbd]))");
+        Pattern tokenPat = Pattern.compile("%(?:(selector)|m\\.([a-zA-Z]+)|([nsbd]))");
         Matcher m = tokenPat.matcher(template);
 
         StringBuilder regex = new StringBuilder();
@@ -117,16 +117,22 @@ public class HtmlCssImporter {
             String literal = template.substring(last, m.start());
             regex.append(escapeLiteralWithFlexibleQuotes(literal));
 
-            String menuKind = m.group(1);
-            String basicType = m.group(2);
+            String selectorLiteral = m.group(1);
+            String menuKind = m.group(2);
+            String basicType = m.group(3);
 
-            matcher.tokenTypes.add(menuKind != null ? "m." + menuKind : basicType);
-            if ("n".equals(basicType)) {
-                regex.append("(\\d+)");
-            } else if ("b".equals(basicType)) {
-                regex.append("(true|false)");
+            if (selectorLiteral != null) {
+                matcher.tokenTypes.add("selector");
+                regex.append("((?:['\"].*?['\"])|(?:[^\\s,;\\)]+))");
             } else {
-                regex.append("([^;{}]+?)");
+                matcher.tokenTypes.add(menuKind != null ? "m." + menuKind : basicType);
+                if ("n".equals(basicType)) {
+                    regex.append("(\\d+)");
+                } else if ("b".equals(basicType)) {
+                    regex.append("(true|false)");
+                } else {
+                    regex.append("((?:['\"].*?['\"])|(?:[^\\s,;\\)]+))");
+                }
             }
             last = m.end();
         }
@@ -1151,6 +1157,7 @@ public class HtmlCssImporter {
      * Parse JS content ONLY and convert it into a list of logic block maps.
      */
     public List<Map<String, Object>> importJsOnly(String jsContent) {
+        initJsMatchers();
         importedLogicBlocks.clear();
         if (jsContent != null && !jsContent.trim().isEmpty()) {
             long timestamp = System.currentTimeMillis();
@@ -1356,10 +1363,10 @@ public class HtmlCssImporter {
                     String blockId = "blk_js_timeout_" + timestamp + "_" + (counterRef[0]++);
                     Map<String, Object> timeoutBlock = new HashMap<>();
                     timeoutBlock.put("id", blockId);
-                    timeoutBlock.put("action", "jsSetTimeout");
-                    timeoutBlock.put("category", "logic");
+                    timeoutBlock.put("action", "jsSetTimeout2");
+                    timeoutBlock.put("category", "js_timing");
                     timeoutBlock.put("shape", "cblock");
-                    timeoutBlock.put("spec", "run after %n ms");
+                    timeoutBlock.put("spec", "after %n ms {");
                     timeoutBlock.put("paramValues", java.util.Arrays.asList(delay));
                     timeoutBlock.put("params", delay);
                     timeoutBlock.put("event", "immediate");
@@ -1399,15 +1406,46 @@ public class HtmlCssImporter {
                         pos = closeBraceIdx + 1;
                     }
                     
+                    String actionId = "jsOnClick";
+                    String spec = "%selector on click {";
+                    List<String> paramValues = java.util.Arrays.asList(selector);
+
+                    if ("click".equals(event)) {
+                        actionId = "jsOnClick";
+                        spec = "%selector on click {";
+                    } else if ("input".equals(event)) {
+                        actionId = "jsOnInput";
+                        spec = "%selector on input {";
+                    } else if ("change".equals(event)) {
+                        actionId = "jsOnChange";
+                        spec = "%selector on change {";
+                    } else if ("submit".equals(event)) {
+                        actionId = "jsOnSubmit";
+                        spec = "%selector on submit {";
+                    } else if ("keydown".equals(event)) {
+                        actionId = "jsOnKeyDown";
+                        spec = "%selector on keydown {";
+                    } else if ("mouseenter".equals(event)) {
+                        actionId = "jsOnMouseEnter";
+                        spec = "%selector on mouseenter {";
+                    } else if ("mouseleave".equals(event)) {
+                        actionId = "jsOnMouseLeave";
+                        spec = "%selector on mouseleave {";
+                    } else {
+                        actionId = "jsAddEventOnVar";
+                        spec = "%s addEventListener %s {";
+                        paramValues = java.util.Arrays.asList("document.querySelector('" + selector + "')", event);
+                    }
+
                     String blockId = "blk_js_event_" + timestamp + "_" + (counterRef[0]++);
                     Map<String, Object> eventBlock = new HashMap<>();
                     eventBlock.put("id", blockId);
-                    eventBlock.put("action", "jsAddEvent");
-                    eventBlock.put("category", "logic");
+                    eventBlock.put("action", actionId);
+                    eventBlock.put("category", "js_events");
                     eventBlock.put("shape", "cblock");
-                    eventBlock.put("spec", "on element %s add event listener %s");
-                    eventBlock.put("paramValues", java.util.Arrays.asList(selector, event));
-                    eventBlock.put("params", selector + "|" + event);
+                    eventBlock.put("spec", spec);
+                    eventBlock.put("paramValues", paramValues);
+                    eventBlock.put("params", joinPipe(paramValues));
                     eventBlock.put("event", "immediate");
                     
                     String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
@@ -1430,7 +1468,7 @@ public class HtmlCssImporter {
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
                 block.put("action", "jsAlert");
-                block.put("category", "logic");
+                block.put("category", "js_logic");
                 block.put("shape", "stack");
                 block.put("spec", "alert %s");
                 block.put("paramValues", java.util.Arrays.asList(val));
@@ -1454,8 +1492,8 @@ public class HtmlCssImporter {
                 String blockId = "blk_js_log_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
-                block.put("action", "jsConsoleLog");
-                block.put("category", "logic");
+                block.put("action", "jsConsoleLog2");
+                block.put("category", "js_logic");
                 block.put("shape", "stack");
                 block.put("spec", "console.log %s");
                 block.put("paramValues", java.util.Arrays.asList(val));
@@ -1479,10 +1517,10 @@ public class HtmlCssImporter {
                 String blockId = "blk_js_loc_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
-                block.put("action", "jsWindowLocation");
-                block.put("category", "logic");
+                block.put("action", "jsWindowRedirect");
+                block.put("category", "js_window");
                 block.put("shape", "stack");
-                block.put("spec", "redirect to url %s");
+                block.put("spec", "redirect to %s");
                 block.put("paramValues", java.util.Arrays.asList(val));
                 block.put("params", val);
                 block.put("event", "immediate");
@@ -1505,8 +1543,8 @@ public class HtmlCssImporter {
                 String blockId = "blk_js_const_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
-                block.put("action", "constDefine");
-                block.put("category", "logic");
+                block.put("action", "jsVarConst");
+                block.put("category", "js_logic");
                 block.put("shape", "stack");
                 block.put("spec", "const %s = %s");
                 block.put("paramValues", java.util.Arrays.asList(name, val));
@@ -1533,21 +1571,38 @@ public class HtmlCssImporter {
                     selector = "#" + selector;
                 }
                 
+                String selBlockId = "blk_js_sel_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> selBlock = new HashMap<>();
+                selBlock.put("id", selBlockId);
+                selBlock.put("action", "jsQuerySelector");
+                selBlock.put("category", "js_dom");
+                selBlock.put("shape", "value");
+                selBlock.put("spec", "query %selector");
+                selBlock.put("paramValues", java.util.Arrays.asList(selector));
+                selBlock.put("params", selector);
+                selBlock.put("event", "immediate");
+                selBlock.put("parentBlockId", "");
+                selBlock.put("parentSlotIndex", 0);
+
                 String blockId = "blk_js_html_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
-                block.put("action", "jsSetInnerHTML");
-                block.put("category", "logic");
+                block.put("action", "jsSetInnerHTML2");
+                block.put("category", "js_dom");
                 block.put("shape", "stack");
-                block.put("spec", "set innerHTML of element %s to %s");
-                block.put("paramValues", java.util.Arrays.asList(selector, val));
-                block.put("params", selector + "|" + val);
+                block.put("spec", "%s .innerHTML = %s");
+                block.put("paramValues", java.util.Arrays.asList("", val));
+                block.put("params", "|" + val);
                 block.put("event", "immediate");
                 
                 String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
                 block.put("parentBlockId", parent != null ? parent : "");
-                
+
+                selBlock.put("parentBlockId", blockId);
+                selBlock.put("parentSlotIndex", 0);
+
                 importedLogicBlocks.add(block);
+                importedLogicBlocks.add(selBlock);
                 continue;
             }
             
@@ -1565,21 +1620,38 @@ public class HtmlCssImporter {
                     selector = "#" + selector;
                 }
                 
+                String selBlockId = "blk_js_sel_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> selBlock = new HashMap<>();
+                selBlock.put("id", selBlockId);
+                selBlock.put("action", "jsQuerySelector");
+                selBlock.put("category", "js_dom");
+                selBlock.put("shape", "value");
+                selBlock.put("spec", "query %selector");
+                selBlock.put("paramValues", java.util.Arrays.asList(selector));
+                selBlock.put("params", selector);
+                selBlock.put("event", "immediate");
+                selBlock.put("parentBlockId", "");
+                selBlock.put("parentSlotIndex", 0);
+
                 String blockId = "blk_js_style_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
-                block.put("action", "jsSetStyle");
-                block.put("category", "logic");
+                block.put("action", "jsSetStyleProp");
+                block.put("category", "js_dom");
                 block.put("shape", "stack");
-                block.put("spec", "on element %s set style %s to %s");
-                block.put("paramValues", java.util.Arrays.asList(selector, prop, val));
-                block.put("params", selector + "|" + prop + "|" + val);
+                block.put("spec", "%s .style %s = %s");
+                block.put("paramValues", java.util.Arrays.asList("", prop, val));
+                block.put("params", "|" + prop + "|" + val);
                 block.put("event", "immediate");
                 
                 String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
                 block.put("parentBlockId", parent != null ? parent : "");
-                
+
+                selBlock.put("parentBlockId", blockId);
+                selBlock.put("parentSlotIndex", 0);
+
                 importedLogicBlocks.add(block);
+                importedLogicBlocks.add(selBlock);
                 continue;
             }
             
@@ -1614,7 +1686,6 @@ public class HtmlCssImporter {
             }
             
             // Try dynamic JS block matchers
-            initJsMatchers();
             boolean matchedDynamic = false;
             for (JsBlockMatcher matcher : jsMatchers) {
                 Matcher m = matcher.pattern.matcher(remaining);
@@ -1634,11 +1705,6 @@ public class HtmlCssImporter {
                         String captured = m.group(g);
                         if (captured != null) {
                             captured = captured.trim();
-                            if (captured.length() >= 2 && 
-                                ((captured.startsWith("'") && captured.endsWith("'")) || 
-                                 (captured.startsWith("\"") && captured.endsWith("\"")))) {
-                                captured = captured.substring(1, captured.length() - 1);
-                            }
                         }
                         paramValues.add(captured != null ? captured : "");
                     }
@@ -1680,7 +1746,7 @@ public class HtmlCssImporter {
             String fallbackCode = js.substring(pos, nextEnd).trim();
             pos = nextEnd;
             
-            if (fallbackCode.isEmpty() || fallbackCode.equals(";")) continue;
+            if (fallbackCode.isEmpty() || fallbackCode.equals(";") || fallbackCode.equals("}")) continue;
             
             // If the fallback is just a single character and it's not a brace or semi, 
             // try to consume more characters to avoid single-letter blocks.
@@ -1757,6 +1823,13 @@ public class HtmlCssImporter {
             String value = decl.substring(colonIdx + 1).trim();
             // Remove !important
             value = value.replaceAll("\\s*!important\\s*$", "");
+            
+            // Adjust relative URLs if they don't start with assets/ or / or http or data:
+            // Since we move CSS into css/ subfolder, we must prepend ../ to relative paths.
+            if (value.contains("url(")) {
+                value = value.replaceAll("url\\(['\"]?(?!(?:assets/|/|https?:|data:))([^'\"]+)['\"]?\\)", "url('../$1')");
+            }
+
             if (property.isEmpty() || value.isEmpty()) continue;
 
             if (property.startsWith("--")) {

@@ -126,6 +126,28 @@
 							android:minHeight="540dp" />
 					</androidx.core.widget.NestedScrollView>
 
+					<!-- Loading state -->
+					<LinearLayout
+						android:id="@+id/layoutLoading"
+						android:layout_width="match_parent"
+						android:layout_height="match_parent"
+						android:gravity="center"
+						android:orientation="vertical"
+						android:background="?attr/colorSurface"
+						android:visibility="gone">
+						<com.google.android.material.progressindicator.CircularProgressIndicator
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:indeterminate="true" />
+						<TextView
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:layout_marginTop="12dp"
+							android:text="Loading page..."
+							android:textSize="12sp"
+							android:textColor="?attr/colorOnSurfaceVariant" />
+					</LinearLayout>
+
 				</FrameLayout>
 			</LinearLayout>
 

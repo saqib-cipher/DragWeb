@@ -87,6 +87,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
     private LinearLayout btnSaveToCollection;
     private LinearLayout collectionList;
     private TextView tvBlockCount;
+    private View layoutLoading;
 
     private String currentCategory = CAT_CSS;
     private final List<BlockDef> allBlockDefs = new ArrayList<>();
@@ -117,6 +118,8 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         dragDropManager = new BlockDragDropManager(this);
 
         initViews();
+        if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
+
         setupToolbar();
         setupFab();
         setupCollectionDrawer();
@@ -137,6 +140,10 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         refreshCollectionList();
         refreshHud();
         saveUndoState();
+
+        if (layoutLoading != null) {
+            layoutLoading.postDelayed(() -> layoutLoading.setVisibility(View.GONE), 500);
+        }
 
         final int toolbarInitialTop = toolbar != null ? toolbar.getPaddingTop() : 0;
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -185,6 +192,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         btnSaveToCollection = (LinearLayout) findViewById(R.id.btnSaveToCollection);
         collectionList = findViewById(R.id.collectionList);
         tvBlockCount = findViewById(R.id.tvBlockCount);
+        layoutLoading = findViewById(R.id.layoutLoading);
 
         TabLayout tabLayoutMode = findViewById(R.id.tabLayoutMode);
         if (tabLayoutMode != null) {

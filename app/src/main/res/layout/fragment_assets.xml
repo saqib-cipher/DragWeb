@@ -47,6 +47,14 @@
             app:icon="@drawable/ic_refresh"
             android:layout_marginStart="4dp"
             style="?attr/materialIconButtonStyle" />
+
+        <Button
+            android:id="@+id/btnToggleViewMode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:icon="@drawable/icon_widgets_round"
+            android:layout_marginStart="4dp"
+            style="?attr/materialIconButtonStyle" />
     </LinearLayout>
 
     <TextView
