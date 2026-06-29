@@ -218,6 +218,16 @@ public final class UniversalDialog {
      */
     public static void colorPicker(Context ctx, String title, String initialHex,
                                    List<String> suggestions, OnColorResult onResult) {
+        if (ctx instanceof androidx.fragment.app.FragmentActivity) {
+            androidx.fragment.app.FragmentActivity activity = (androidx.fragment.app.FragmentActivity) ctx;
+            sketchweb.gl.colorpicker.ColorPickerDialogFragment dialog = new sketchweb.gl.colorpicker.ColorPickerDialogFragment();
+            dialog.setOnColorSelectedListener(hex -> {
+                if (onResult != null) onResult.onColor(hex);
+            });
+            dialog.show(activity.getSupportFragmentManager(), "color_picker");
+            return;
+        }
+
         int[] rgb = parseColor(initialHex);
 
         LinearLayout root = new LinearLayout(ctx);

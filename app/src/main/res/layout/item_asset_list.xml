@@ -42,7 +42,7 @@
                 android:padding="8dp"
                 android:scaleType="fitCenter"
                 app:tint="#FFFFFF"
-                tools:src="@drawable/icon_folder_round" />
+                tools:src="@drawable/folder" />
 
         </FrameLayout>
 
@@ -77,7 +77,7 @@
             android:layout_height="20dp"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="8dp"
-            android:src="@drawable/ic_lock"
+            android:src="@drawable/lock"
             app:tint="?attr/colorOnSurfaceVariant"
             android:visibility="gone"
             tools:visibility="visible" />

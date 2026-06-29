@@ -39,7 +39,7 @@
                 android:padding="24dp"
                 android:scaleType="fitCenter"
                 app:tint="#FFFFFF"
-                tools:src="@drawable/icon_folder_round" />
+                tools:src="@drawable/folder" />
 
             <ImageView
                 android:id="@+id/lock_icon"
@@ -47,7 +47,7 @@
                 android:layout_height="18dp"
                 android:layout_gravity="top|end"
                 android:layout_margin="4dp"
-                android:src="@drawable/ic_lock"
+                android:src="@drawable/lock"
                 app:tint="?attr/colorOnSurfaceVariant"
                 android:visibility="gone"
                 tools:visibility="visible" />

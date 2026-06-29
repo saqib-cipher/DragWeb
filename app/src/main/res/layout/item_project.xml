@@ -39,7 +39,7 @@
 				android:layout_width="28dp"
 				android:layout_height="28dp"
 				android:layout_gravity="center"
-				android:src="@drawable/icon_web_round"
+				android:src="@drawable/box"
 				app:tint="?attr/colorOnPrimaryContainer" />
 		</FrameLayout>
 
@@ -109,7 +109,7 @@
 			android:layout_width="40dp"
 			android:layout_height="40dp"
 			android:padding="8dp"
-			android:src="@drawable/icon_more_vert_round"
+			android:src="@drawable/dots_vertical"
 			app:tint="?attr/colorOnSurfaceVariant"
 			android:background="?attr/selectableItemBackgroundBorderless"
 			android:contentDescription="Options" />

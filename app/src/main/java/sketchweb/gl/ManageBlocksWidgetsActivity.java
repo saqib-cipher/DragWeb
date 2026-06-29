@@ -397,7 +397,7 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
 
             // Edit / Customize
             String editLabel = def.isCustom ? "Edit" : "Customize";
-            MaterialButton btnEdit = createM3Button(editLabel, R.drawable.icon_edit_round, themePrimaryColor, v -> {
+            MaterialButton btnEdit = createM3Button(editLabel, R.drawable.pencil, themePrimaryColor, v -> {
                 android.content.Intent intent = new android.content.Intent(ManageBlocksWidgetsActivity.this, BlockWidgetEditorActivity.class);
                 intent.putExtra("extra_type", "block");
                 intent.putExtra("extra_id", def.id);
@@ -406,18 +406,18 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
             holder.layoutActions.addView(btnEdit);
 
             // Duplicate
-            MaterialButton btnDuplicate = createM3Button("Duplicate", R.drawable.icon_copy_all_round, themePrimaryColor, v -> duplicateBlock(def));
+            MaterialButton btnDuplicate = createM3Button("Duplicate", R.drawable.copy_plus, themePrimaryColor, v -> duplicateBlock(def));
             holder.layoutActions.addView(btnDuplicate);
 
             // Copy
-            MaterialButton btnCopy = createM3Button("Copy", R.drawable.icon_code_round, themePrimaryColor, v -> {
+            MaterialButton btnCopy = createM3Button("Copy", R.drawable.code_plus, themePrimaryColor, v -> {
                 String json = new GsonBuilder().setPrettyPrinting().create().toJson(def);
                 copyToClipboard("Block JSON", json);
             });
             holder.layoutActions.addView(btnCopy);
 
             // Export
-            MaterialButton btnExport = createM3Button("Export", R.drawable.icon_export_round, themePrimaryColor, v -> {
+            MaterialButton btnExport = createM3Button("Export", R.drawable.file_export, themePrimaryColor, v -> {
                 pendingExportBlock = def;
                 List<ManageBlocksWidgets.CustomBlockDef> singleList = new ArrayList<>();
                 singleList.add(def);
@@ -429,7 +429,7 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
 
             // Delete (only visible for custom blocks)
             if (def.isCustom) {
-                MaterialButton btnDelete = createM3Button("Delete", R.drawable.icon_delete_round, themePrimaryColor, v -> showBlockDeleteConfirmation(def));
+                MaterialButton btnDelete = createM3Button("Delete", R.drawable.trash, themePrimaryColor, v -> showBlockDeleteConfirmation(def));
                 holder.layoutActions.addView(btnDelete);
             }
         }
@@ -522,7 +522,7 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
             holder.layoutActions.removeAllViews();
 
             // Edit
-            MaterialButton btnEdit = createM3Button("Edit", R.drawable.icon_edit_round, themePrimaryColor, v -> {
+            MaterialButton btnEdit = createM3Button("Edit", R.drawable.pencil, themePrimaryColor, v -> {
                 android.content.Intent intent = new android.content.Intent(ManageBlocksWidgetsActivity.this, BlockWidgetEditorActivity.class);
                 intent.putExtra("extra_type", "widget");
                 intent.putExtra("extra_id", name);
@@ -531,18 +531,18 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
             holder.layoutActions.addView(btnEdit);
 
             // Duplicate
-            MaterialButton btnDuplicate = createM3Button("Duplicate", R.drawable.icon_copy_all_round, themePrimaryColor, v -> duplicateWidget(widget));
+            MaterialButton btnDuplicate = createM3Button("Duplicate", R.drawable.copy_plus, themePrimaryColor, v -> duplicateWidget(widget));
             holder.layoutActions.addView(btnDuplicate);
 
             // Copy
-            MaterialButton btnCopy = createM3Button("Copy", R.drawable.icon_code_round, themePrimaryColor, v -> {
+            MaterialButton btnCopy = createM3Button("Copy", R.drawable.code_plus, themePrimaryColor, v -> {
                 String json = new GsonBuilder().setPrettyPrinting().create().toJson(widget);
                 copyToClipboard("Widget JSON", json);
             });
             holder.layoutActions.addView(btnCopy);
 
             // Export
-            MaterialButton btnExport = createM3Button("Export", R.drawable.icon_export_round, themePrimaryColor, v -> {
+            MaterialButton btnExport = createM3Button("Export", R.drawable.file_export, themePrimaryColor, v -> {
                 pendingExportWidget = widget;
                 List<HashMap<String, Object>> singleList = new ArrayList<>();
                 singleList.add(widget);
@@ -553,7 +553,7 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
             holder.layoutActions.addView(btnExport);
 
             // Delete
-            MaterialButton btnDelete = createM3Button("Delete", R.drawable.icon_delete_round, themePrimaryColor, v -> showWidgetDeleteConfirmation(widget));
+            MaterialButton btnDelete = createM3Button("Delete", R.drawable.trash, themePrimaryColor, v -> showWidgetDeleteConfirmation(widget));
             holder.layoutActions.addView(btnDelete);
         }
 

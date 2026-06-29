@@ -97,7 +97,7 @@ public class TextEditorActivity extends AppCompatActivity {
 
         // Add save icon to toolbar
         toolbar.getMenu().add(0, 1, 0, "Save")
-               .setIcon(R.drawable.icon_save_round)
+               .setIcon(R.drawable.device_floppy)
                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
 
         toolbar.setOnMenuItemClickListener(item -> {

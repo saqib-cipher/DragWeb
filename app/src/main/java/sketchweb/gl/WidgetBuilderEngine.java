@@ -246,10 +246,10 @@ public class WidgetBuilderEngine {
                         if (bmp != null) {
                             iv.setImageBitmap(bmp);
                         } else {
-                            iv.setImageResource(R.drawable.default_image);
+                            iv.setImageResource(R.drawable.photo);
                         }
                     } catch (Exception e) {
-                        iv.setImageResource(R.drawable.default_image);
+                        iv.setImageResource(R.drawable.photo);
                     }
                 } else {
                     try {
@@ -257,14 +257,14 @@ public class WidgetBuilderEngine {
                         if (bmp != null) {
                             iv.setImageBitmap(bmp);
                         } else {
-                            iv.setImageResource(R.drawable.default_image);
+                            iv.setImageResource(R.drawable.photo);
                         }
                     } catch (Exception e) {
-                        iv.setImageResource(R.drawable.default_image);
+                        iv.setImageResource(R.drawable.photo);
                     }
                 }
             } else {
-                iv.setImageResource(R.drawable.default_image);
+                iv.setImageResource(R.drawable.photo);
             }
         }
 
@@ -283,6 +283,19 @@ public class WidgetBuilderEngine {
     }
 
     private void applyStyles(View view, Map<String, Object> style) {
+        // Create a copy of style map with !important stripped from values to prevent Android view parse exceptions
+        Map<String, Object> cleanStyle = new HashMap<>();
+        for (Map.Entry<String, Object> entry : style.entrySet()) {
+            Object val = entry.getValue();
+            if (val != null) {
+                String valStr = val.toString().replaceAll("(?i)\\s*!\\s*important\\s*$", "").trim();
+                cleanStyle.put(entry.getKey(), valStr);
+            } else {
+                cleanStyle.put(entry.getKey(), null);
+            }
+        }
+        style = cleanStyle;
+
         // Layout params
         ViewGroup.LayoutParams params = view.getLayoutParams();
         if (params == null) {

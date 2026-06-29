@@ -27,7 +27,7 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:layout_marginStart="8dp"
-		android:src="@drawable/icon_delete_round"
+		android:src="@drawable/trash"
 		app:tint="@color/colorError"
 		android:background="?attr/selectableItemBackgroundBorderless"
 		android:padding="12dp"

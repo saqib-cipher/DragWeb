@@ -42,4 +42,19 @@
     <string name="common_word_custom_view" translatable="false">Custom View</string>
 	<string name="app_subtitle" translatable="false">Build websites on the go</string>
 	<string name="common_word_save" translatable="false">Save</string>
+	<string name="settings_appearance_theme_light" translatable="false">%1$s Light</string>
+	<string name="settings_appearance_theme_dark" translatable="false">%1$s Dark</string>
+	<string name="settings_appearance_surface_colors" translatable="false">Theme Colors</string>
+	<string name="invalid_hex_color" translatable="false">Invalid HEX color</string>
+	<string name="color_added" translatable="false">Color added</string>
+	<string name="color_already_exists" translatable="false">Color already exists</string>
+	<string name="color_not_selected" translatable="false">No color selected</string>
+	<string name="copied_value" translatable="false">Copied: %1$s</string>
+	<string name="btn_copy" translatable="false">Copy</string>
+	<string name="btn_close" translatable="false">Close</string>
+	<string name="btn_add" translatable="false">Add</string>
+	<string name="dialog_delete_title" translatable="false">Delete color?</string>
+	<string name="dialog_delete_message" translatable="false">Are you sure you want to delete this color?</string>
+	<string name="dialog_button_yes" translatable="false">Yes</string>
+	<string name="dialog_button_no" translatable="false">No</string>
 </resources>

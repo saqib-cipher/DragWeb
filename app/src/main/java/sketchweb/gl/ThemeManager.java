@@ -121,7 +121,7 @@ public class ThemeManager {
         }
     }
 
-    private String generateVarsBlock(Map<String, String> styles) {
+    private String generateVarsBlock(Map<String, String> styles, boolean isDark) {
         StringBuilder css = new StringBuilder();
         for (Map.Entry<String, String> entry : styles.entrySet()) {
             String cssVar = "--" + camelToKebab(entry.getKey());
@@ -133,7 +133,13 @@ public class ThemeManager {
             if (!varName.startsWith("--")) {
                 varName = "--" + varName;
             }
-            css.append("  ").append(varName).append(": ").append(entry.getValue()).append(";\n");
+            String value = entry.getValue();
+            String resolvedValue = value;
+            if (value != null && value.contains("|")) {
+                String[] parts = value.split("\\|", 2);
+                resolvedValue = isDark ? parts[1] : parts[0];
+            }
+            css.append("  ").append(varName).append(": ").append(resolvedValue).append(";\n");
         }
         return css.toString();
     }
@@ -142,7 +148,7 @@ public class ThemeManager {
         StringBuilder css = new StringBuilder();
         // Light theme as default :root
         css.append(":root {\n");
-        css.append(generateVarsBlock(lightStyles));
+        css.append(generateVarsBlock(lightStyles, false));
         css.append("}\n\n");
 
         // Dark theme via prefers-color-scheme AND a .dark-theme class
@@ -156,16 +162,30 @@ public class ThemeManager {
                 css.append("    ").append(cssVar).append(": ").append(entry.getValue()).append(";\n");
             }
         }
+        // Output custom dark variables that differ from light
+        for (Map.Entry<String, String> entry : customCssVars.entrySet()) {
+            String val = entry.getValue();
+            if (val != null && val.contains("|")) {
+                String[] parts = val.split("\\|", 2);
+                if (!parts[0].equals(parts[1])) {
+                    String varName = entry.getKey();
+                    if (!varName.startsWith("--")) {
+                        varName = "--" + varName;
+                    }
+                    css.append("    ").append(varName).append(": ").append(parts[1]).append(";\n");
+                }
+            }
+        }
         css.append("  }\n");
         css.append("}\n\n");
 
         // Also support explicit .dark-theme class on body/html
         css.append(".dark-theme {\n");
-        css.append(generateVarsBlock(darkStyles));
+        css.append(generateVarsBlock(darkStyles, true));
         css.append("}\n\n");
 
         css.append(".light-theme {\n");
-        css.append(generateVarsBlock(lightStyles));
+        css.append(generateVarsBlock(lightStyles, false));
         css.append("}\n");
 
         return css.toString();

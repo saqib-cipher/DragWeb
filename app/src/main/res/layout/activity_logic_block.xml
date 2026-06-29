@@ -80,7 +80,7 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/icon_save_round"
+                    android:src="@drawable/folder_check"
                     app:tint="#FFFFFF" />
             </LinearLayout>
 
@@ -95,7 +95,7 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/icon_copy_all_round"
+                    android:src="@drawable/copy"
                     app:tint="#FFFFFF" />
             </LinearLayout>
 
@@ -114,7 +114,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_marginEnd="8dp"
-                    android:src="@drawable/icon_delete_round"
+                    android:src="@drawable/trash"
                     app:tint="#FFFFFF" />
 
                 <TextView
@@ -153,7 +153,7 @@
                 android:layout_marginBottom="20dp"
                 app:backgroundTint="?attr/colorPrimary"
                 android:contentDescription="Toggle palette"
-                app:srcCompat="@drawable/icon_widgets_round"
+                app:srcCompat="@drawable/puzzle"
                 app:fabSize="normal"
                 app:tint="?attr/colorOnPrimary" />
         </FrameLayout>

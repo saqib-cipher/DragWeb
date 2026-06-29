@@ -201,7 +201,7 @@ public class LogicBlockManager {
         } else if (TARGET_MODE_TAG.equals(mode)) {
             return target;
         }
-        return "[data-widget='" + target + "']";
+        return "#" + target;
     }
 
     /**
@@ -293,6 +293,7 @@ public class LogicBlockManager {
         if (b == null) return false;
         if ("css".equals(b.category)) return true;
         if ("animation".equals(b.category)) return true;
+        if ("asdCss".equals(b.action)) return true;
         // Group / comment blocks are passthroughs that wrap their children's
         // CSS output – they only contribute when their first child does.
         if ("groupBlock".equals(b.action) || "commentBlock".equals(b.action)) return true;
@@ -418,6 +419,10 @@ public class LogicBlockManager {
         // Check if there is a child value block dropped in this slot idx
         for (LogicBlock c : blocks) {
             if (b.id != null && b.id.equals(c.parentBlockId) && c.parentSlotIndex == idx) {
+                // Skip statement blocks (which belong inside substack slots, not value parameter inputs)
+                if ("stack".equals(c.shape) || "cblock".equals(c.shape) || "event".equals(c.shape)) {
+                    continue;
+                }
                 // Compile the child block recursively!
                 return compileValueBlock(c);
             }
@@ -558,22 +563,18 @@ public class LogicBlockManager {
             if (block.parentBlockId != null && !block.parentBlockId.isEmpty()) continue;
 
             emittedAny = true;
-            js.append("  // ").append(eventName != null ? eventName : "immediate")
+            js.append("// ").append(eventName != null ? eventName : "immediate")
               .append(" -> ").append(block.action).append("\n");
 
-            js.append(emitJsBlock(block, resolveElement(block), 1));
+            js.append(emitJsBlock(block, resolveElement(block), 0));
             js.append("\n");
         }
 
         if (!emittedAny) return "";
-        // Wrap output with named sections so the export reads cleanly:
-        //   ────── events / page-load / element handlers / api ──────
         return "// =====================================================\n"
             + "// Logic blocks (events / page-load / element handlers)\n"
             + "// =====================================================\n"
-            + "document.addEventListener('DOMContentLoaded', function() {\n"
-            + js.toString()
-            + "});\n";
+            + js.toString();
     }
 
     private String emitJsBlock(LogicBlock b, String elVar, int depth) {
@@ -620,6 +621,15 @@ public class LogicBlockManager {
                 rendered = rendered.replace(marker, children.toString());
             }
         }
+        if ("cblock".equals(b.shape) && !"groupBlock".equals(b.action) && !rendered.contains("@@CHILDREN@@")) {
+            StringBuilder children = new StringBuilder();
+            for (LogicBlock c : blocks) {
+                if (b.id != null && b.id.equals(c.parentBlockId) && c.parentSlotIndex == 0) {
+                    children.append(emitJsBlock(c, elVar, depth + 1));
+                }
+            }
+            rendered = rendered + "\n" + children.toString() + indent + "}";
+        }
 
         return rendered + "\n";
     }
@@ -632,15 +642,12 @@ public class LogicBlockManager {
      */
     public String generateAsdSource(String spec) {
         if (spec == null) return "";
+        if ("css".equals(spec)) return "";
         String wantId = "asd" + Character.toUpperCase(spec.charAt(0))
             + spec.substring(1).toLowerCase();
         StringBuilder out = new StringBuilder();
         for (LogicBlock block : blocks) {
             if (!wantId.equals(block.action)) continue;
-            // Accept both legacy ({@code event=="asd"}) and modern ({@code
-            // category=="asd"}, {@code event=="immediate"}) ASD blocks.
-            boolean isAsd = "asd".equals(block.event) || "asd".equals(block.category);
-            if (!isAsd) continue;
             String body = "";
             // Modern blocks store the source in {@code paramValues[0]}; legacy
             // ones still keep it in {@code params}.
@@ -753,8 +760,41 @@ public class LogicBlockManager {
                 }
                 return "document.querySelector('" + escapeJs(block.params) + "')?.remove();\n";
 
-            case ACTION_CUSTOM_JS:
-                return block.params + "\n";
+            case ACTION_CUSTOM_JS: {
+                String code = "";
+                if (block.paramValues != null && !block.paramValues.isEmpty()) {
+                    String v = block.paramValues.get(0);
+                    if (v != null) code = v;
+                }
+                if (code.isEmpty() && block.params != null) {
+                    code = block.params;
+                }
+                return code + "\n";
+            }
+
+            case "jsFunctionDefine": {
+                String name = paramAt(block, 0);
+                String params = paramAt(block, 1);
+                return "function " + name + "(" + params + ") {\n";
+            }
+
+            case "jsFunctionArrow": {
+                String name = paramAt(block, 0);
+                String params = paramAt(block, 1);
+                return "const " + name + " = (" + params + ") => {\n";
+            }
+
+            case "jsFunctionCall": {
+                String name = paramAt(block, 0);
+                String args = paramAt(block, 1);
+                return name + "(" + args + ");\n";
+            }
+
+            case "jsVarConst": {
+                String name = paramAt(block, 0);
+                String val = paramAt(block, 1);
+                return "const " + name + " = " + val + ";\n";
+            }
 
             case ACTION_FETCH_API: {
                 String[] parts = block.params.split("\\|", 3);

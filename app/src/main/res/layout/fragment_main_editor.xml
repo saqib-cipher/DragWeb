@@ -29,7 +29,7 @@
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				style="?attr/materialIconButtonStyle"
-				app:icon="@drawable/icon_widgets_round" />
+				app:icon="@drawable/layout_grid_add" />
 
 			<!-- Page selector spinner -->
 			<com.google.android.material.card.MaterialCardView
@@ -88,7 +88,7 @@
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				style="?attr/materialIconButtonStyle"
-				app:icon="@drawable/icon_more_vert_round" />
+				app:icon="@drawable/menu_2" />
 		</LinearLayout>
 
 		<!-- Main Area: Canvas + Side Panels -->
@@ -350,7 +350,7 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					style="?attr/materialIconButtonStyle"
-					app:icon="@drawable/icon_copy_all_round" />
+					app:icon="@drawable/copy_plus" />
 
 				<Button
 					android:id="@+id/delete"
@@ -358,28 +358,33 @@
 					android:layout_height="wrap_content"
 					android:enabled="false"
 					style="?attr/materialIconButtonFilledStyle"
-					app:icon="@drawable/icon_delete_round" />
+					app:icon="@drawable/trash" />
 
 				<Button
 					android:id="@+id/button4"
 					style="?attr/materialIconButtonFilledStyle"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					app:icon="@drawable/icon_save_round" />
+					app:icon="@drawable/device_floppy" />
+				<com.google.android.material.progressindicator.CircularProgressIndicator
+					android:id="@+id/progressSave"
+					android:layout_width="40dp"
+					android:layout_height="40dp"
+					android:visibility="gone" />
 
 				<Button
 					android:id="@+id/button5"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					style="?attr/materialIconButtonFilledStyle"
-					app:icon="@drawable/icon_web_round" />
+					app:icon="@drawable/world" />
 
 				<Button
 					android:id="@+id/btnExport"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					style="?attr/materialIconButtonFilledStyle"
-					app:icon="@drawable/icon_export_round" />
+					app:icon="@drawable/file_export" />
 
 			</LinearLayout>
 		</LinearLayout>

@@ -123,7 +123,7 @@ final class BlockChipFactory {
             if (currentVal == null) currentVal = "";
             if (isAsd) {
                 UniversalDialog.multilineInput(context,
-                    input.id != null ? input.id : "Edit ASD",
+                    cleanTitle(input, "Edit ASD"),
                     input.placeholder != null ? input.placeholder : "Enter code...",
                     currentVal,
                     nv -> {
@@ -146,7 +146,7 @@ final class BlockChipFactory {
                     input.id.toLowerCase().contains("desc")
                 ));
                 new UniversalM3Dialog(context)
-                    .setTitle(input.id != null ? input.id : "Edit")
+                    .setTitle(cleanTitle(input, "Edit"))
                     .setHint(input.placeholder != null ? input.placeholder : "Value")
                     .setInitialValue(currentVal)
                     .setMultiline(isMultiline)
@@ -172,7 +172,7 @@ final class BlockChipFactory {
             String currentText = chip.getText().toString();
             String currentVal = currentText.equals("▼") ? "" : currentText.substring(0, currentText.length() - 2);
             new UniversalM3Dialog(context)
-                .setTitle(input.id != null ? input.id : "Choose")
+                .setTitle(cleanTitle(input, "Choose"))
                 .setHint(input.placeholder != null ? input.placeholder : "Custom value")
                 .setInitialValue(currentVal)
                 .showAutocompleteChoice(options, currentVal, chosen -> {
@@ -202,7 +202,7 @@ final class BlockChipFactory {
         chip.setOnClickListener(v -> {
             String currentVal = chip.getText().toString();
             new UniversalM3Dialog(context)
-                .setTitle(input.id != null ? "Color · " + input.id : "Color")
+                .setTitle(cleanTitle(input, "Color"))
                 .setInitialValue(currentVal)
                 .showColorInput(picked -> {
                     chip.setText(picked);
@@ -235,7 +235,7 @@ final class BlockChipFactory {
         // Existing selectors gathered from BlockParamTypeManager show up as
         // radio rows; the custom input row lets the user type a fresh one.
         new UniversalM3Dialog(context)
-            .setTitle(input.id != null ? "Pick selector · " + input.id : "Pick selector")
+            .setTitle(cleanTitle(input, "Pick selector"))
             .setInitialValue(current)
             .showSelectorInput(
                 collectSuggestions("selectors_id"),
@@ -316,5 +316,15 @@ final class BlockChipFactory {
 
     private int dp(int px) {
         return (int) (px * context.getResources().getDisplayMetrics().density);
+    }
+
+    private String cleanTitle(ChipInput input, String fallback) {
+        if (input == null) return fallback;
+        String title = (input.placeholder != null && !input.placeholder.isEmpty()) ? input.placeholder :
+                       (input.id != null && !input.id.matches("p\\d+")) ? input.id : fallback;
+        if (title != null && !title.isEmpty()) {
+            return Character.toUpperCase(title.charAt(0)) + title.substring(1);
+        }
+        return fallback;
     }
 }

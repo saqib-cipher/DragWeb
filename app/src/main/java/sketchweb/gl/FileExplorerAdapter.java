@@ -379,7 +379,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             holder.itemView.setOnClickListener(v -> goUp());
         } else if (file.isDirectory()) {
             iconBg.setColor(Color.parseColor("#1A73E8"));
-            holder.iconView.setImageResource(R.drawable.icon_folder_round);
+            holder.iconView.setImageResource(R.drawable.folder);
             holder.nameView.setText(file.getName());
             holder.nameView.setTypeface(null, Typeface.BOLD);
             holder.detailView.setVisibility(View.VISIBLE);
@@ -473,7 +473,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             holder.itemView.setOnClickListener(v -> goUp());
         } else if (file.isDirectory()) {
             iconColor = Color.parseColor("#1A73E8");
-            holder.placeholder.setImageResource(R.drawable.icon_folder_round);
+            holder.placeholder.setImageResource(R.drawable.folder);
             holder.name.setText(file.getName());
             holder.itemView.setOnClickListener(v -> {
                 if (multiSelectEnabled) toggleSelection(file);
@@ -711,18 +711,18 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
 
     private int getFileIconResource(String name) {
         String lower = name.toLowerCase(Locale.US);
-        if (isImageFile(lower)) return R.drawable.default_image;
-        if (lower.endsWith(".svg")) return R.drawable.icon_theme_round;
-        if (lower.endsWith(".json")) return R.drawable.code_xml_24px;
-        if (lower.endsWith(".html") || lower.endsWith(".htm")) return R.drawable.icon_web_round;
-        if (lower.endsWith(".css")) return R.drawable.icon_theme_round;
-        if (lower.endsWith(".js")) return R.drawable.icon_code_round;
-        if (lower.endsWith(".mp4") || lower.endsWith(".webm")) return R.drawable.icon_widgets_round;
-        if (lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg")) return R.drawable.icon_widgets_round;
-        if (lower.endsWith(".zip") || lower.endsWith(".tar") || lower.endsWith(".gz")) return R.drawable.code_xml_24px;
-        if (lower.endsWith(".ttf") || lower.endsWith(".otf")) return R.drawable.code_xml_24px;
-        if (lower.endsWith(".txt")) return R.drawable.code_xml_24px;
-        return R.drawable.code_xml_24px;
+        if (isImageFile(lower)) return R.drawable.photo;
+        if (lower.endsWith(".svg")) return R.drawable.file_type_svg;
+        if (lower.endsWith(".json")) return R.drawable.file_code;
+        if (lower.endsWith(".html") || lower.endsWith(".htm")) return R.drawable.file_type_html;
+        if (lower.endsWith(".css")) return R.drawable.file_type_css;
+        if (lower.endsWith(".js")) return R.drawable.file_type_js;
+        if (lower.endsWith(".mp4") || lower.endsWith(".webm")) return R.drawable.video;
+        if (lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg")) return R.drawable.file_music;
+        if (lower.endsWith(".zip") || lower.endsWith(".tar") || lower.endsWith(".gz")) return R.drawable.file_type_zip;
+        if (lower.endsWith(".ttf") || lower.endsWith(".otf")) return R.drawable.alphabet_cyrillic;
+        if (lower.endsWith(".txt")) return R.drawable.file_type_txt;
+        return R.drawable.file_unknown;
     }
 
     private String formatFileSize(long size) {

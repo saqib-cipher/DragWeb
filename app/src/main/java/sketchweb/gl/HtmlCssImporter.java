@@ -524,7 +524,7 @@ public class HtmlCssImporter {
                     info.paramValues.add(extractUrl(value));
                 } else {
                     info.action = "setBackground";
-                    info.spec = "background: %m.color;";
+                    info.spec = "background-color: %m.color;";
                     info.paramValues.add(value);
                 }
                 break;
@@ -1291,6 +1291,58 @@ public class HtmlCssImporter {
                         String header = headerCandidate.trim();
                         String body = js.substring(jsBlockOpenBraceIdx + 1, jsBlockCloseBraceIdx).trim();
                         pos = jsBlockCloseBraceIdx + 1;
+
+                        // Check if it's a standard function definition
+                        Pattern funcDefPat = Pattern.compile("^function\\s+([a-zA-Z0-9_$]+)\\s*\\(\\s*(.*?)\\s*\\)");
+                        Matcher funcDefMat = funcDefPat.matcher(header);
+                        if (funcDefMat.find()) {
+                            String funcName = funcDefMat.group(1);
+                            String funcParams = funcDefMat.group(2).trim();
+
+                            String blockId = "blk_js_func_def_" + timestamp + "_" + (counterRef[0]++);
+                            Map<String, Object> block = new HashMap<>();
+                            block.put("id", blockId);
+                            block.put("action", "jsFunctionDefine");
+                            block.put("category", "js_logic");
+                            block.put("shape", "cblock");
+                            block.put("spec", "function %s ( %s ) {");
+                            block.put("paramValues", java.util.Arrays.asList(funcName, funcParams));
+                            block.put("params", funcName + "|" + funcParams);
+                            block.put("event", "immediate");
+
+                            String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                            block.put("parentBlockId", parent != null ? parent : "");
+
+                            importedLogicBlocks.add(block);
+                            parseJsRules(body, blockId, timestamp, counterRef);
+                            continue;
+                        }
+
+                        // Check if it's an arrow function definition
+                        Pattern arrowPat = Pattern.compile("^(const|let|var)?\\s*([a-zA-Z0-9_$]+)\\s*=\\s*\\(\\s*(.*?)\\s*\\)\\s*=>");
+                        Matcher arrowMat = arrowPat.matcher(header);
+                        if (arrowMat.find()) {
+                            String funcName = arrowMat.group(2);
+                            String funcParams = arrowMat.group(3).trim();
+
+                            String blockId = "blk_js_arrow_" + timestamp + "_" + (counterRef[0]++);
+                            Map<String, Object> block = new HashMap<>();
+                            block.put("id", blockId);
+                            block.put("action", "jsFunctionArrow");
+                            block.put("category", "js_logic");
+                            block.put("shape", "cblock");
+                            block.put("spec", "const %s = ( %s ) => {");
+                            block.put("paramValues", java.util.Arrays.asList(funcName, funcParams));
+                            block.put("params", funcName + "|" + funcParams);
+                            block.put("event", "immediate");
+
+                            String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                            block.put("parentBlockId", parent != null ? parent : "");
+
+                            importedLogicBlocks.add(block);
+                            parseJsRules(body, blockId, timestamp, counterRef);
+                            continue;
+                        }
                         
                         String blockId = "blk_js_block_" + timestamp + "_" + (counterRef[0]++);
                         Map<String, Object> block = new HashMap<>();
@@ -1757,6 +1809,31 @@ public class HtmlCssImporter {
                 }
             }
             
+            // Check if fallbackCode is a generic function call: name(args);
+            Pattern funcCallPat = Pattern.compile("^([a-zA-Z0-9_$.]+)\\s*\\(\\s*(.*?)\\s*\\)\\s*;?$");
+            Matcher funcCallMat = funcCallPat.matcher(fallbackCode);
+            if (funcCallMat.find()) {
+                String funcName = funcCallMat.group(1);
+                String funcArgs = funcCallMat.group(2).trim();
+
+                String blockId = "blk_js_func_call_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "jsFunctionCall");
+                block.put("category", "js_logic");
+                block.put("shape", "stack");
+                block.put("spec", "call %s ( %s )");
+                block.put("paramValues", java.util.Arrays.asList(funcName, funcArgs));
+                block.put("params", funcName + "|" + funcArgs);
+                block.put("event", "immediate");
+
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+
+                importedLogicBlocks.add(block);
+                continue;
+            }
+
             String blockId = "blk_asd_js_" + timestamp + "_" + (counterRef[0]++);
             Map<String, Object> block = new HashMap<>();
             block.put("id", blockId);
@@ -1821,8 +1898,10 @@ public class HtmlCssImporter {
             String property = decl.substring(0, colonIdx).trim();
             String lowerProperty = property.toLowerCase();
             String value = decl.substring(colonIdx + 1).trim();
-            // Remove !important
-            value = value.replaceAll("\\s*!important\\s*$", "");
+            // Keep !important if present, and standardise its formatting to " ! important"
+            if (value.toLowerCase().matches(".*!\\s*important\\s*$")) {
+                value = value.replaceAll("(?i)\\s*!\\s*important\\s*$", " ! important");
+            }
             
             // Adjust relative URLs if they don't start with assets/ or / or http or data:
             // Since we move CSS into css/ subfolder, we must prepend ../ to relative paths.
@@ -1837,7 +1916,7 @@ public class HtmlCssImporter {
             } else {
                 String camelProp = kebabToCamel(lowerProperty);
                 if ("border".equals(camelProp)) {
-                    decomposeBorder(value, props);
+                    props.put(camelProp, value);
                 } else if ("background".equals(camelProp)) {
                     if (!value.contains("url")) {
                         props.put("backgroundColor", value);
@@ -2253,6 +2332,17 @@ public class HtmlCssImporter {
         for (Map.Entry<String, String> entry : parsedTag.attributes.entrySet()) {
             if (entry.getKey().startsWith("on")) {
                 function.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        // Extract any other attributes (custom attributes, data-*, aria-*, role, target, etc.)
+        for (Map.Entry<String, String> entry : parsedTag.attributes.entrySet()) {
+            String key = entry.getKey();
+            if (!"id".equals(key) && !"class".equals(key) && !"style".equals(key)
+                && !"href".equals(key) && !"src".equals(key) && !"placeholder".equals(key)
+                && !"type".equals(key) && !"alt".equals(key) && !"value".equals(key)
+                && !"controls".equals(key) && !key.startsWith("on")) {
+                function.put(key, entry.getValue());
             }
         }
 

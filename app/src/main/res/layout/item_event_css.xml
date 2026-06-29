@@ -57,7 +57,7 @@
                     android:layout_height="10dp"
                     android:layout_marginEnd="4dp"
                     app:tint="?attr/colorOnSurfaceVariant"
-                    android:src="@drawable/toys_and_games_24px" />
+                    android:src="@drawable/puzzle" />
                 <TextView
                     android:id="@+id/blockscount"
                     android:layout_width="wrap_content"

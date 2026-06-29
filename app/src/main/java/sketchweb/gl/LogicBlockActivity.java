@@ -107,6 +107,20 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
 
         projectId = getIntent().getStringExtra("project_id");
         if (projectId == null) projectId = "";
+        
+        ThemeManager themeManager = new ThemeManager();
+        File themeDir = new File(getFilesDir(), "projects");
+        File themeFile = new File(themeDir, projectId + ".theme");
+        if (themeFile.exists()) {
+            try {
+                String themeJson = FileUtil.readFile(themeFile.getAbsolutePath());
+                themeManager.fromJson(themeJson);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        ProjectAssetManager.getInstance().setThemeManager(themeManager);
+
         pageName = getIntent().getStringExtra("page_name");
         if (pageName == null || pageName.isEmpty()) pageName = "index";
 
@@ -615,7 +629,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
         row.addView(name);
 
         ImageView deleteBtn = new ImageView(this);
-        deleteBtn.setImageResource(R.drawable.icon_delete_round);
+        deleteBtn.setImageResource(R.drawable.trash);
         int iconSize = dp(24);
         LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(iconSize, iconSize);
         deleteBtn.setLayoutParams(dlp);

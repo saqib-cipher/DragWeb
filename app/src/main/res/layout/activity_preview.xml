@@ -23,7 +23,7 @@
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
 			style="?attr/materialIconButtonStyle"
-			app:icon="@drawable/icon_clear_round" />
+			app:icon="@drawable/x" />
 
 		<TextView
 			android:id="@+id/tvPreviewTitle"

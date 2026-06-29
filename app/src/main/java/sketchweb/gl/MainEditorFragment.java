@@ -97,6 +97,7 @@ public class MainEditorFragment extends Fragment {
 	private LinearLayout topBar;
 	private LinearLayout screen;
 	private View layoutLoading;
+	private View progressSave;
 	private LinearLayout rightPanel;
 	private LinearLayout bottomPanel;
 	private LinearLayout eventPanel;
@@ -380,6 +381,7 @@ public class MainEditorFragment extends Fragment {
 		vscroll2 = view.findViewById(R.id.vscroll2);
 		button5 = view.findViewById(R.id.button5);
 		button4 = view.findViewById(R.id.button4);
+		progressSave = view.findViewById(R.id.progressSave);
 		delete = view.findViewById(R.id.delete);
 		textview2 = view.findViewById(R.id.textview2);
 		recyclerview3 = view.findViewById(R.id.recyclerview3);
@@ -595,6 +597,7 @@ public class MainEditorFragment extends Fragment {
 		codeGenerator.setProjectInfo(projectName, null);
 		projectDataManager = new ProjectDataManager(requireContext());
 		themeManager = new ThemeManager();
+		ProjectAssetManager.getInstance().setThemeManager(themeManager);
 		exportManager = new ExportManager(requireContext(), themeManager);
 		exportManager.setProjectId(projectId);
 
@@ -2164,6 +2167,10 @@ public class MainEditorFragment extends Fragment {
 	private void applyWidgetDefaults(View newWidgetView, Map<String, Object> widgetDefinition) {
 		Map<String, Object> newWidgetMap = (Map<String, Object>) newWidgetView.getTag();
 		if (newWidgetMap != null) {
+			String tag = widgetDefinition.get("tag") != null ? widgetDefinition.get("tag").toString() : "div";
+			int count = countWidgetsWithTag(screen, tag) + 1;
+			String autoClass = tag + "-" + count;
+
 			Map<String, Object> defFunction = (Map<String, Object>) widgetDefinition.get("function");
 			if (defFunction != null) {
 				Map<String, Object> newFunction = (Map<String, Object>) newWidgetMap.get("function");
@@ -2176,6 +2183,8 @@ public class MainEditorFragment extends Fragment {
 						newFunction.put(entry.getKey(), entry.getValue());
 					}
 				}
+				newFunction.put("class", autoClass);
+
 				Map<String, Object> defStyle = (Map<String, Object>) defFunction.get("style");
 				if (defStyle != null) {
 					Map<String, Object> newStyle = (Map<String, Object>) newFunction.get("style");
@@ -2188,6 +2197,26 @@ public class MainEditorFragment extends Fragment {
 			}
 		}
 		engine.applyPropertiesToView(newWidgetView, (Map<String, Object>) newWidgetView.getTag());
+	}
+
+	private int countWidgetsWithTag(View root, String tag) {
+		int count = 0;
+		if (root == null) return 0;
+		Object tagObj = root.getTag();
+		if (tagObj instanceof Map) {
+			Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
+			String childTag = widgetMap.get("tag") != null ? widgetMap.get("tag").toString() : "";
+			if (tag.equalsIgnoreCase(childTag)) {
+				count++;
+			}
+		}
+		if (root instanceof ViewGroup) {
+			ViewGroup vg = (ViewGroup) root;
+			for (int i = 0; i < vg.getChildCount(); i++) {
+				count += countWidgetsWithTag(vg.getChildAt(i), tag);
+			}
+		}
+		return count;
 	}
 
 	private int findDropIndex(ViewGroup parent, float dropY) {
@@ -2282,40 +2311,31 @@ public class MainEditorFragment extends Fragment {
 	// ---- Preview ----
 
 	private void showPreview() {
-		// Save current page first so its layout is up to date
-		saveCurrentPageLayout();
+		// Save project first so all pages, assets, and logics are fully updated
+		saveProject(() -> {
+			File previewDir = new File(requireContext().getCacheDir(), "preview_" + projectId);
+			deleteDir(previewDir);
+			previewDir.mkdirs();
 
-		// Save current logic blocks
-		if (logicBlockManager != null) {
-			File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
-			if (!dir.exists()) dir.mkdirs();
-			String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-			File logicFile = new File(dir, projectId + "_" + currentPageName + ".logic");
-			FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
-		}
+			if (exportManager != null) {
+				exportManager.generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, previewDir, pageManager);
+			}
 
-		File previewDir = new File(requireContext().getCacheDir(), "preview_" + projectId);
-		deleteDir(previewDir);
-		previewDir.mkdirs();
+			List<String> allPages = pageManager != null ? pageManager.getPages() : new ArrayList<>();
+			if (allPages.isEmpty()) allPages.add("index");
+			ArrayList<String> pageNames = new ArrayList<>(allPages);
 
-		if (exportManager != null) {
-			exportManager.generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, previewDir);
-		}
+			String currentPage = pageManager != null ? pageManager.getCurrentPage() : "index";
+			int startIndex = pageNames.indexOf(currentPage);
+			if (startIndex < 0) startIndex = 0;
 
-		List<String> allPages = pageManager != null ? pageManager.getPages() : new ArrayList<>();
-		if (allPages.isEmpty()) allPages.add("index");
-		ArrayList<String> pageNames = new ArrayList<>(allPages);
-
-		String currentPage = pageManager != null ? pageManager.getCurrentPage() : "index";
-		int startIndex = pageNames.indexOf(currentPage);
-		if (startIndex < 0) startIndex = 0;
-
-		Intent previewIntent = new Intent(requireContext(), PreviewActivity.class);
-		previewIntent.putStringArrayListExtra("page_names", pageNames);
-		previewIntent.putExtra("start_page_index", startIndex);
-		previewIntent.putExtra("preview_project_dir", previewDir.getAbsolutePath());
-		previewIntent.putExtra("project_id", projectId);
-		startActivity(previewIntent);
+			Intent previewIntent = new Intent(requireContext(), PreviewActivity.class);
+			previewIntent.putStringArrayListExtra("page_names", pageNames);
+			previewIntent.putExtra("start_page_index", startIndex);
+			previewIntent.putExtra("preview_project_dir", previewDir.getAbsolutePath());
+			previewIntent.putExtra("project_id", projectId);
+			startActivity(previewIntent);
+		});
 	}
 
 	private void deleteDir(File file) {
@@ -2385,6 +2405,12 @@ public class MainEditorFragment extends Fragment {
 					Toast.makeText(requireContext(), "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 				}
 			});
+	}
+
+	@Override
+	public void onPause() {
+		super.onPause();
+		syncProjectAssets();
 	}
 
 	@Override
@@ -2502,6 +2528,37 @@ public class MainEditorFragment extends Fragment {
 	// ---- Project Save/Load ----
 
 	public void saveProject() {
+		saveProject(null);
+	}
+
+	public void saveProject(Runnable onComplete) {
+		if (progressSave != null) progressSave.setVisibility(View.VISIBLE);
+		if (button4 != null) button4.setVisibility(View.GONE);
+
+		new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+			performSaveWork();
+
+			if (progressSave != null) progressSave.setVisibility(View.GONE);
+			if (button4 != null) {
+				button4.setVisibility(View.VISIBLE);
+				if (button4 instanceof com.google.android.material.button.MaterialButton) {
+					((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.rounded_check_24);
+				}
+
+				new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+					if (button4 instanceof com.google.android.material.button.MaterialButton) {
+						((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.device_floppy);
+					}
+				}, 1500);
+			}
+
+			if (onComplete != null) {
+				onComplete.run();
+			}
+		}, 150);
+	}
+
+	private void performSaveWork() {
 		// Save current page layout first
 		saveCurrentPageLayout();
 
@@ -2538,13 +2595,11 @@ public class MainEditorFragment extends Fragment {
 			try {
 				File assetsDir = new File(Environment.getExternalStorageDirectory(), "/.dragweb/projects/" + projectId + "/assets");
 				assetsDir.mkdirs();
-				exportManager.generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, assetsDir);
+				exportManager.generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, assetsDir, pageManager);
 			} catch (Exception e) {
 				Log.w("MainEditor", "Failed to sync compiled files to assets: " + e.getMessage());
 			}
 		}
-
-		Toast.makeText(requireContext(), "Project saved", Toast.LENGTH_SHORT).show();
 	}
 
 	private void saveProjectToExternal() {
@@ -2746,6 +2801,24 @@ public class MainEditorFragment extends Fragment {
 		com.google.android.material.materialswitch.MaterialSwitch switchInlineStyles = dialogView.findViewById(R.id.switchInlineStyles);
 		Button btnResetTheme = dialogView.findViewById(R.id.btnResetTheme);
 
+		// Local custom variables buffer map: key -> {lightVal, darkVal}
+		final Map<String, String[]> dialogCustomVars = new LinkedHashMap<>();
+		for (Map.Entry<String, String> entry : themeManager.getCustomCssVars().entrySet()) {
+			String key = entry.getKey();
+			String value = entry.getValue();
+			String lightVal = "";
+			String darkVal = "";
+			if (value != null && value.contains("|")) {
+				String[] parts = value.split("\\|", 2);
+				lightVal = parts[0];
+				darkVal = parts[1];
+			} else {
+				lightVal = value != null ? value : "";
+				darkVal = lightVal;
+			}
+			dialogCustomVars.put(key, new String[]{lightVal, darkVal});
+		}
+
 		if (switchInlineStyles != null) {
 			switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
 		}
@@ -2762,15 +2835,24 @@ public class MainEditorFragment extends Fragment {
 		setupColorInputField(etBorderColor);
 
 		// Helper to populate fields from a theme
-		Runnable populateFields = () -> {
-			String t = editingTheme[0];
-			etPrimary.setText(themeManager.getStyleForTheme(t, "primaryColor"));
-			etSecondary.setText(themeManager.getStyleForTheme(t, "secondaryColor"));
-			etAccent.setText(themeManager.getStyleForTheme(t, "accentColor"));
-			etBackground.setText(themeManager.getStyleForTheme(t, "bodyBackground"));
-			etBodyColor.setText(themeManager.getStyleForTheme(t, "bodyColor"));
-			etLinkColor.setText(themeManager.getStyleForTheme(t, "linkColor"));
-			etBorderColor.setText(themeManager.getStyleForTheme(t, "borderColor"));
+		Runnable populateFields = new Runnable() {
+			@Override
+			public void run() {
+				String t = editingTheme[0];
+				etPrimary.setText(themeManager.getStyleForTheme(t, "primaryColor"));
+				etSecondary.setText(themeManager.getStyleForTheme(t, "secondaryColor"));
+				etAccent.setText(themeManager.getStyleForTheme(t, "accentColor"));
+				etBackground.setText(themeManager.getStyleForTheme(t, "bodyBackground"));
+				etBodyColor.setText(themeManager.getStyleForTheme(t, "bodyColor"));
+				etLinkColor.setText(themeManager.getStyleForTheme(t, "linkColor"));
+				etBorderColor.setText(themeManager.getStyleForTheme(t, "borderColor"));
+
+				customVarsContainer.removeAllViews();
+				int themeIndex = ThemeManager.THEME_DARK.equals(t) ? 1 : 0;
+				for (Map.Entry<String, String[]> entry : dialogCustomVars.entrySet()) {
+					addCssVarRow(customVarsContainer, entry.getKey(), entry.getValue()[themeIndex], themeIndex, dialogCustomVars, this);
+				}
+			}
 		};
 
 		// Helper to save current field values into the editing theme
@@ -2790,6 +2872,21 @@ public class MainEditorFragment extends Fragment {
 			if (!bodyColor.isEmpty()) themeManager.setStyleForTheme(t, "bodyColor", bodyColor);
 			if (!linkColor.isEmpty()) themeManager.setStyleForTheme(t, "linkColor", linkColor);
 			if (!borderColor.isEmpty()) themeManager.setStyleForTheme(t, "borderColor", borderColor);
+
+			int themeIndex = ThemeManager.THEME_DARK.equals(t) ? 1 : 0;
+			for (int i = 0; i < customVarsContainer.getChildCount(); i++) {
+				View row = customVarsContainer.getChildAt(i);
+				TextInputEditText etValue = row.findViewById(R.id.etCustomVarValue);
+				TextInputLayout til = row.findViewById(R.id.tilCustomVar);
+				if (til != null && etValue != null) {
+					String key = til.getHint() != null ? til.getHint().toString() : "";
+					if (key.startsWith("--")) key = key.substring(2);
+					String valueVal = etValue.getText().toString().trim();
+					if (dialogCustomVars.containsKey(key)) {
+						dialogCustomVars.get(key)[themeIndex] = valueVal;
+					}
+				}
+			}
 		};
 
 		populateFields.run();
@@ -2801,7 +2898,6 @@ public class MainEditorFragment extends Fragment {
 		}
 
 		btnLight.setOnClickListener(v -> {
-			// Save current edits to the theme we were editing
 			saveFieldsToTheme.run();
 			editingTheme[0] = ThemeManager.THEME_LIGHT;
 			themeManager.setTheme(ThemeManager.THEME_LIGHT);
@@ -2814,40 +2910,60 @@ public class MainEditorFragment extends Fragment {
 			populateFields.run();
 		});
 
-		Map<String, String> customVars = themeManager.getCustomCssVars();
-		for (Map.Entry<String, String> entry : customVars.entrySet()) {
-			addCssVarRow(customVarsContainer, entry.getKey(), entry.getValue());
-		}
-
 		if (btnAddCssVar != null) {
-			btnAddCssVar.setOnClickListener(v -> addCssVarRow(customVarsContainer, "", ""));
+			btnAddCssVar.setOnClickListener(v -> {
+				saveFieldsToTheme.run();
+				UniversalDialog.textInput(requireContext(), "Add Custom Variable", "Variable name", "", varName -> {
+					String cleanedName = varName.trim();
+					if (cleanedName.startsWith("--")) {
+						cleanedName = cleanedName.substring(2);
+					}
+					if (cleanedName.isEmpty()) {
+						Toast.makeText(requireContext(), "Variable name cannot be empty", Toast.LENGTH_SHORT).show();
+						return;
+					}
+					if (dialogCustomVars.containsKey(cleanedName)) {
+						Toast.makeText(requireContext(), "Variable already exists", Toast.LENGTH_SHORT).show();
+						return;
+					}
+					dialogCustomVars.put(cleanedName, new String[]{"", ""});
+					populateFields.run();
+				});
+			});
 		}
 
 		if (btnResetTheme != null) {
 			btnResetTheme.setOnClickListener(v -> {
-				new MaterialAlertDialogBuilder(requireContext())
-					.setTitle("Reset Theme")
-					.setMessage("Are you sure you want to reset theme settings to defaults?")
-					.setPositiveButton("Reset", (d, w) -> {
-						themeManager.resetToDefaults();
-						populateFields.run();
-						if (switchInlineStyles != null) {
-							switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
-						}
-						customVarsContainer.removeAllViews();
-						Map<String, String> cv = themeManager.getCustomCssVars();
-						for (Map.Entry<String, String> entry : cv.entrySet()) {
-							addCssVarRow(customVarsContainer, entry.getKey(), entry.getValue());
-						}
-						if (ThemeManager.THEME_DARK.equals(themeManager.getCurrentTheme())) {
-							btnDark.performClick();
+				UniversalDialog.confirm(requireContext(), "Reset Theme", 
+						"Are you sure you want to reset theme settings to defaults?", "Reset", true, () -> {
+					themeManager.resetToDefaults();
+					dialogCustomVars.clear();
+					for (Map.Entry<String, String> entry : themeManager.getCustomCssVars().entrySet()) {
+						String key = entry.getKey();
+						String value = entry.getValue();
+						String lightVal = "";
+						String darkVal = "";
+						if (value != null && value.contains("|")) {
+							String[] parts = value.split("\\|", 2);
+							lightVal = parts[0];
+							darkVal = parts[1];
 						} else {
-							btnLight.performClick();
+							lightVal = value != null ? value : "";
+							darkVal = lightVal;
 						}
-						Toast.makeText(requireContext(), "Theme reset to defaults", Toast.LENGTH_SHORT).show();
-					})
-					.setNegativeButton("Cancel", null)
-					.show();
+						dialogCustomVars.put(key, new String[]{lightVal, darkVal});
+					}
+					populateFields.run();
+					if (switchInlineStyles != null) {
+						switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
+					}
+					if (ThemeManager.THEME_DARK.equals(themeManager.getCurrentTheme())) {
+						btnDark.performClick();
+					} else {
+						btnLight.performClick();
+					}
+					Toast.makeText(requireContext(), "Theme reset to defaults", Toast.LENGTH_SHORT).show();
+				});
 			});
 		}
 
@@ -2855,7 +2971,6 @@ public class MainEditorFragment extends Fragment {
 			.setTitle("Theme Settings")
 			.setView(dialogView)
 			.setPositiveButton("Apply", (dialog, which) -> {
-				// Save final edits
 				saveFieldsToTheme.run();
 
 				if (switchInlineStyles != null) {
@@ -2863,17 +2978,13 @@ public class MainEditorFragment extends Fragment {
 				}
 
 				Map<String, String> newVars = new LinkedHashMap<>();
-				for (int i = 0; i < customVarsContainer.getChildCount(); i++) {
-					View row = customVarsContainer.getChildAt(i);
-					TextInputEditText etName = row.findViewWithTag("varName");
-					TextInputEditText etValue = row.findViewWithTag("varValue");
-					if (etName != null && etValue != null) {
-						String name = etName.getText().toString().trim();
-						String val = etValue.getText().toString().trim();
-						if (!name.isEmpty() && !val.isEmpty()) {
-							newVars.put(name, val);
-						}
-					}
+				for (Map.Entry<String, String[]> entry : dialogCustomVars.entrySet()) {
+					String key = entry.getKey();
+					String lVal = entry.getValue()[0];
+					String dVal = entry.getValue()[1];
+					if (lVal.isEmpty()) lVal = "#FFFFFF";
+					if (dVal.isEmpty()) dVal = lVal;
+					newVars.put(key, lVal + "|" + dVal);
 				}
 				themeManager.setCustomCssVars(newVars);
 
@@ -2928,9 +3039,14 @@ public class MainEditorFragment extends Fragment {
 			@Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
 			@Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
 			@Override public void afterTextChanged(android.text.Editable s) {
-				String color = s.toString();
+				String color = s.toString().trim();
 				try {
-					int parsed = Color.parseColor(color.startsWith("#") ? color : "#000000");
+					int parsed;
+					if (color.isEmpty()) {
+						parsed = Color.TRANSPARENT;
+					} else {
+						parsed = Color.parseColor(color.startsWith("#") ? color : "#000000");
+					}
 					GradientDrawable gd = new GradientDrawable();
 					gd.setShape(GradientDrawable.OVAL);
 					gd.setColor(parsed);
@@ -2939,59 +3055,92 @@ public class MainEditorFragment extends Fragment {
 					gd.setSize(size, size);
 					et.setCompoundDrawablesWithIntrinsicBounds(gd, null, null, null);
 					et.setCompoundDrawablePadding((int)(8 * getResources().getDisplayMetrics().density));
-				} catch (Exception e) {}
+				} catch (Exception e) {
+					try {
+						GradientDrawable gd = new GradientDrawable();
+						gd.setShape(GradientDrawable.OVAL);
+						gd.setColor(Color.TRANSPARENT);
+						gd.setStroke((int)(1 * getResources().getDisplayMetrics().density), Color.LTGRAY);
+						int size = (int)(20 * getResources().getDisplayMetrics().density);
+						gd.setSize(size, size);
+						et.setCompoundDrawablesWithIntrinsicBounds(gd, null, null, null);
+						et.setCompoundDrawablePadding((int)(8 * getResources().getDisplayMetrics().density));
+					} catch (Exception ex) {}
+				}
 			}
 		});
-		// Refresh swatch
-		if (et.getText().length() > 0) {
-			et.setText(et.getText());
-		}
 	}
 
-	private void addCssVarRow(LinearLayout container, String name, String value) {
-		LinearLayout row = new LinearLayout(requireContext());
-		row.setOrientation(LinearLayout.HORIZONTAL);
-		row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-		row.setPadding(0, 8, 0, 8);
+	private void addCssVarRow(LinearLayout container, String name, String value, int themeIndex, 
+			Map<String, String[]> dialogCustomVars, Runnable populateFields) {
+		View row = LayoutInflater.from(requireContext()).inflate(R.layout.item_custom_var, container, false);
 
-		// Name field
-		TextInputLayout tilName = new TextInputLayout(requireContext(), null, com.google.android.material.R.attr.textInputOutlinedStyle);
-		tilName.setHint("Variable");
-		tilName.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-		LinearLayout.LayoutParams lpName = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.2f);
-		lpName.setMarginEnd(8);
-		tilName.setLayoutParams(lpName);
-		
-		TextInputEditText etName = new TextInputEditText(tilName.getContext());
-		etName.setText(name);
-		etName.setTextSize(14);
-		etName.setTag("varName");
-		tilName.addView(etName);
+		TextInputLayout tilCustomVar = row.findViewById(R.id.tilCustomVar);
+		TextInputEditText etCustomVarValue = row.findViewById(R.id.etCustomVarValue);
+		ImageButton btnEditCustomVar = row.findViewById(R.id.btnEditCustomVar);
 
-		// Value field
-		TextInputLayout tilValue = new TextInputLayout(requireContext(), null, com.google.android.material.R.attr.textInputOutlinedStyle);
-		tilValue.setHint("Value");
-		tilValue.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-		LinearLayout.LayoutParams lpValue = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-		tilValue.setLayoutParams(lpValue);
+		setupColorInputField(etCustomVarValue);
+		tilCustomVar.setHint("--" + name);
+		etCustomVarValue.setText(value);
 
-		TextInputEditText etValue = new TextInputEditText(tilValue.getContext());
-		etValue.setText(value);
-		etValue.setTextSize(14);
-		etValue.setTag("varValue");
-		tilValue.addView(etValue);
-		
-		setupColorInputField(etValue);
+		btnEditCustomVar.setOnClickListener(v -> {
+			// Save current input values first so they are not lost when refreshing!
+			for (int i = 0; i < container.getChildCount(); i++) {
+				View child = container.getChildAt(i);
+				TextInputEditText etVal = child.findViewById(R.id.etCustomVarValue);
+				TextInputLayout til = child.findViewById(R.id.tilCustomVar);
+				if (til != null && etVal != null) {
+					String key = til.getHint() != null ? til.getHint().toString() : "";
+					if (key.startsWith("--")) key = key.substring(2);
+					String valueVal = etVal.getText().toString().trim();
+					if (dialogCustomVars.containsKey(key)) {
+						dialogCustomVars.get(key)[themeIndex] = valueVal;
+					}
+				}
+			}
 
-		// Remove button
-		ImageButton btnRemove = new ImageButton(requireContext(), null, com.google.android.material.R.attr.materialIconButtonStyle);
-		// Simple delete icon
-		btnRemove.setImageResource(android.R.drawable.ic_menu_delete);
-		btnRemove.setOnClickListener(v -> container.removeView(row));
+			// Show Dialog with Options: Rename or Delete
+			String[] options = {"Rename Variable", "Delete Variable"};
+			UniversalDialog.singleChoice(requireContext(), "Options: --" + name, options, (dialogIdx, label) -> {
+				if (dialogIdx == 0) {
+					// Rename
+					UniversalDialog.textInput(requireContext(), "Rename Variable", "Variable name", name, newName -> {
+						String cleanedName = newName.trim();
+						if (cleanedName.startsWith("--")) {
+							cleanedName = cleanedName.substring(2);
+						}
+						if (cleanedName.isEmpty()) {
+							Toast.makeText(requireContext(), "Variable name cannot be empty", Toast.LENGTH_SHORT).show();
+							return;
+						}
+						if (dialogCustomVars.containsKey(cleanedName) && !cleanedName.equals(name)) {
+							Toast.makeText(requireContext(), "Variable name already exists", Toast.LENGTH_SHORT).show();
+							return;
+						}
+						// Update key in map preserving values and order
+						Map<String, String[]> updatedVars = new LinkedHashMap<>();
+						for (Map.Entry<String, String[]> entry : dialogCustomVars.entrySet()) {
+							if (entry.getKey().equals(name)) {
+								updatedVars.put(cleanedName, entry.getValue());
+							} else {
+								updatedVars.put(entry.getKey(), entry.getValue());
+							}
+						}
+						dialogCustomVars.clear();
+						dialogCustomVars.putAll(updatedVars);
+						populateFields.run();
+					});
+				} else if (dialogIdx == 1) {
+					// Delete
+					UniversalDialog.confirm(requireContext(), "Delete --" + name, 
+							"Are you sure you want to delete this custom variable?", "Delete", true, () -> {
+						dialogCustomVars.remove(name);
+						populateFields.run();
+					});
+				}
+			});
+		});
 
-		row.addView(tilName);
-		row.addView(tilValue);
-		row.addView(btnRemove);
 		container.addView(row);
 	}
 
@@ -3102,7 +3251,7 @@ public class MainEditorFragment extends Fragment {
 			try {
 				// 1. Generate separate files (Folder export)
 				ExportManager.ExportResult result = exportManager.generateExportFiles(
-						screen, projectName, logicBlockManager, customBlockManager);
+						screen, projectName, logicBlockManager, customBlockManager, null, pageManager);
 				folderOk = result.success;
 				if (folderOk && result.exportDir != null) {
 					folderPath = result.exportDir.getAbsolutePath();
@@ -3177,6 +3326,7 @@ public class MainEditorFragment extends Fragment {
 		
 		items.add("SetId");
 		items.add("SetClass");
+		items.add("Custom Attributes");
 		items.add("JSEvents");
 		items.add("Color");
 		items.add("Background");
@@ -3188,6 +3338,21 @@ public class MainEditorFragment extends Fragment {
 			if (item.equals("Edittext")) value = currentFunction.containsKey("text") ? currentFunction.get("text").toString() : "";
 			else if (item.equals("SetId")) value = currentFunction.containsKey("id") ? currentFunction.get("id").toString() : "";
 			else if (item.equals("SetClass")) value = currentFunction.containsKey("class") ? currentFunction.get("class").toString() : "";
+			else if (item.equals("Custom Attributes")) {
+				StringBuilder sb = new StringBuilder();
+				for (Map.Entry<String, Object> entry : currentFunction.entrySet()) {
+					String key = entry.getKey();
+					if (!"id".equals(key) && !"class".equals(key) && !"style".equals(key)
+						&& !"tag".equals(key) && !"children".equals(key) && !"text".equals(key)
+						&& !"href".equals(key) && !"src".equals(key) && !"placeholder".equals(key)
+						&& !"type".equals(key) && !"alt".equals(key) && !"controls".equals(key)
+						&& !key.startsWith("on") && entry.getValue() != null) {
+						if (sb.length() > 0) sb.append(", ");
+						sb.append(key).append("=\"").append(entry.getValue()).append("\"");
+					}
+				}
+				value = sb.toString();
+			}
 			else if (item.equals("SetHref")) value = currentFunction.containsKey("href") ? currentFunction.get("href").toString() : "";
 			else if (item.equals("SetPlaceholder")) value = currentFunction.containsKey("placeholder") ? currentFunction.get("placeholder").toString() : "";
 			else if (item.equals("JSEvents")) {
@@ -3355,6 +3520,10 @@ public class MainEditorFragment extends Fragment {
 		Object tag = v.getTag();
 		if (tag instanceof Map) {
 			Map<String, Object> wm = (Map<String, Object>) tag;
+			if (wm.containsKey("tag")) {
+				String widgetTag = String.valueOf(wm.get("tag")).trim();
+				if (!widgetTag.isEmpty()) set.add(widgetTag);
+			}
 			Map<String, Object> fn = (Map<String, Object>) wm.get("function");
 			if (fn != null && fn.containsKey("id")) {
 				String s = String.valueOf(fn.get("id")).trim();
@@ -3411,6 +3580,22 @@ public class MainEditorFragment extends Fragment {
 		}
 
 		String editType = design.get(position).get("edit").toString();
+		boolean isStyleProperty = !editType.equals("Edittext") && !editType.equals("SetId") 
+				&& !editType.equals("SetClass") && !editType.equals("Custom Attributes") 
+				&& !editType.equals("JSEvents") && !editType.equals("PickIcon")
+				&& !editType.equals("SetHref") && !editType.equals("SetTarget")
+				&& !editType.equals("SetPlaceholder") && !editType.equals("SetType")
+				&& !editType.equals("ImageSrc") && !editType.equals("ListItems");
+
+		if (isStyleProperty) {
+			Map<String, Object> function = getWidgetFunction(selected);
+			String classVal = function.containsKey("class") ? String.valueOf(function.get("class")).trim() : "";
+			if (classVal.isEmpty()) {
+				Toast.makeText(requireContext(), "Please set a class first before applying styles", Toast.LENGTH_SHORT).show();
+				return;
+			}
+		}
+
 		String initialValue = design.get(position).containsKey("value") ? design.get(position).get("value").toString() : "";
 		syncProjectAssets();
 		UniversalM3Dialog dialog = new UniversalM3Dialog(requireContext()).setTitle(editType).setInitialValue(initialValue);
@@ -3766,7 +3951,142 @@ public class MainEditorFragment extends Fragment {
 					buildLayoutDesignList();
 				});
 				break;
+			case "Custom Attributes":
+				showCustomAttributesDialog(selected);
+				break;
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private void showCustomAttributesDialog(View selected) {
+		Object tag = selected.getTag();
+		if (!(tag instanceof Map)) return;
+		Map<String, Object> wm = (Map<String, Object>) tag;
+		final Map<String, Object> function = (Map<String, Object>) wm.get("function");
+		if (function == null) return;
+
+		View dialogView = getLayoutInflater().inflate(R.layout.dialog_custom_attributes_list, null);
+		LinearLayout container = dialogView.findViewById(R.id.llAttributesContainer);
+		com.google.android.material.button.MaterialButton btnAdd = dialogView.findViewById(R.id.btnAddAttribute);
+
+		final com.google.android.material.dialog.MaterialAlertDialogBuilder builder =
+			new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+				.setTitle("Custom Attributes")
+				.setView(dialogView)
+				.setNegativeButton("Close", null);
+
+		final androidx.appcompat.app.AlertDialog dialog = builder.create();
+
+		container.removeAllViews();
+		for (Map.Entry<String, Object> entry : function.entrySet()) {
+			final String key = entry.getKey();
+			if (!"id".equals(key) && !"class".equals(key) && !"style".equals(key)
+				&& !"tag".equals(key) && !"children".equals(key) && !"text".equals(key)
+				&& !"href".equals(key) && !"src".equals(key) && !"placeholder".equals(key)
+				&& !"type".equals(key) && !"alt".equals(key) && !"controls".equals(key)
+				&& !key.startsWith("on") && entry.getValue() != null) {
+
+				final String val = String.valueOf(entry.getValue());
+				View row = getLayoutInflater().inflate(R.layout.item_dialog_custom_attribute, null);
+				TextView tvKey = row.findViewById(R.id.tvKey);
+				TextView tvValue = row.findViewById(R.id.tvValue);
+				ImageButton btnEdit = row.findViewById(R.id.btnEdit);
+				ImageButton btnDelete = row.findViewById(R.id.btnDelete);
+
+				tvKey.setText(key);
+				tvValue.setText(val);
+
+				btnEdit.setOnClickListener(v -> {
+					dialog.dismiss();
+					showEditCustomAttributeDialog(selected, function, key, val);
+				});
+
+				btnDelete.setOnClickListener(v -> {
+					function.remove(key);
+					saveUndoState();
+					buildDesignList();
+					dialog.dismiss();
+					showCustomAttributesDialog(selected);
+				});
+
+				container.addView(row);
+			}
+		}
+
+		if (btnAdd != null) {
+			btnAdd.setOnClickListener(v -> {
+				dialog.dismiss();
+				showAddCustomAttributeDialog(selected, function);
+			});
+		}
+
+		dialog.show();
+	}
+
+	private void showAddCustomAttributeDialog(View selected, Map<String, Object> function) {
+		View view = getLayoutInflater().inflate(R.layout.dialog_custom_attribute, null);
+		com.google.android.material.textfield.TextInputLayout tilName = view.findViewById(R.id.tilAttrName);
+		com.google.android.material.textfield.TextInputLayout tilValue = view.findViewById(R.id.tilAttrValue);
+		final com.google.android.material.textfield.TextInputEditText etKey = view.findViewById(R.id.etAttrName);
+		final com.google.android.material.textfield.TextInputEditText etVal = view.findViewById(R.id.etAttrValue);
+
+		int dp14 = (int) (14 * getResources().getDisplayMetrics().density);
+		if (tilName != null) tilName.setBoxCornerRadii(dp14, dp14, dp14, dp14);
+		if (tilValue != null) tilValue.setBoxCornerRadii(dp14, dp14, dp14, dp14);
+
+		new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+			.setTitle("Add Custom Attribute")
+			.setView(view)
+			.setPositiveButton("Add", (dialog, which) -> {
+				String key = etKey.getText().toString().trim();
+				String val = etVal.getText().toString().trim();
+				if (!key.isEmpty()) {
+					function.put(key, val);
+					saveUndoState();
+					buildDesignList();
+					showCustomAttributesDialog(selected);
+				}
+			})
+			.setNegativeButton("Cancel", (dialog, which) -> showCustomAttributesDialog(selected))
+			.show();
+	}
+
+	private void showEditCustomAttributeDialog(View selected, Map<String, Object> function, String key, String val) {
+		View view = getLayoutInflater().inflate(R.layout.dialog_custom_attribute, null);
+		com.google.android.material.textfield.TextInputLayout tilName = view.findViewById(R.id.tilAttrName);
+		com.google.android.material.textfield.TextInputLayout tilValue = view.findViewById(R.id.tilAttrValue);
+		final com.google.android.material.textfield.TextInputEditText etKey = view.findViewById(R.id.etAttrName);
+		final com.google.android.material.textfield.TextInputEditText etVal = view.findViewById(R.id.etAttrValue);
+
+		int dp14 = (int) (14 * getResources().getDisplayMetrics().density);
+		if (tilName != null) tilName.setBoxCornerRadii(dp14, dp14, dp14, dp14);
+		if (tilValue != null) tilValue.setBoxCornerRadii(dp14, dp14, dp14, dp14);
+
+		etKey.setText(key);
+		etKey.setEnabled(false);
+		if (tilName != null) {
+			tilName.setEnabled(false);
+		}
+		etVal.setText(val);
+
+		new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+			.setTitle("Edit Attribute")
+			.setView(view)
+			.setPositiveButton("Save", (dialog, which) -> {
+				String newVal = etVal.getText().toString().trim();
+				function.put(key, newVal);
+				saveUndoState();
+				buildDesignList();
+				showCustomAttributesDialog(selected);
+			})
+			.setNegativeButton("Cancel", (dialog, which) -> showCustomAttributesDialog(selected))
+			.setNeutralButton("Delete", (dialog, which) -> {
+				function.remove(key);
+				saveUndoState();
+				buildDesignList();
+				showCustomAttributesDialog(selected);
+			})
+			.show();
 	}
 	// ---- CSS Variable Dialog ----
 
@@ -4102,44 +4422,45 @@ public class MainEditorFragment extends Fragment {
 	private int getDesignIcon(String editType) {
 		switch (editType) {
 			case "Edittext": return R.drawable.cursor_text;
-			case "SetId": case "SetClass": return R.drawable.icon_design_services_round;
-			case "SetHref": case "SetTarget": return R.drawable.icon_web_round;
-			case "SetPlaceholder": case "SetType": return R.drawable.cursor_text;
-			case "ImageSrc": return R.drawable.default_image;
-			case "PickIcon": return R.drawable.emphasis;
-			case "TextSize": return R.drawable.textsize;
+			case "SetId": case "SetClass": return R.drawable.pencil_code;
+			case "SetHref": case "SetTarget": return R.drawable.layers_linked;
+			case "SetPlaceholder": case "SetType": return R.drawable.bulb;
+			case "ImageSrc": return R.drawable.photo;
+			case "PickIcon": return R.drawable.photo;
+			case "TextSize": return R.drawable.text_size;
 			case "TextAlign": return R.drawable.focus_centered;
-			case "Color": return R.drawable.textcolor;
-			case "Font": return R.drawable.alphabet_latin;
+			case "Color": return R.drawable.text_color;
+			case "Font": return R.drawable.alphabet_cyrillic;
 			case "Background": return R.drawable.background;
 			case "BorderRadius": case "RadiusTL": case "RadiusTR": case "RadiusBL": case "RadiusBR":
 				return R.drawable.border_radius;
 			case "BorderWidth": case "BorderTop": case "BorderRight": case "BorderBottom": case "BorderLeft":
 				return R.drawable.border_style;
-			case "BorderColor": return R.drawable.freezerowcolumn;
+			case "BorderColor": return R.drawable.table;
 			case "Padding": return R.drawable.box_padding;
 			case "Margin": return R.drawable.box_margin;
-			case "Elevation": case "BoxShadow": case "ZIndex": return R.drawable.emphasis;
+			case "Elevation": case "BoxShadow": return R.drawable.shadow;
+			case "ZIndex": return R.drawable.stack_2;
 			case "Opacity": return R.drawable.droplet;
-			case "Rotation": return R.drawable.rotate;
+			case "Rotation": return R.drawable.refresh;
 			case "Cursor": return R.drawable.cursor_text;
-			case "Width": case "Height": case "MinWidth": case "MaxWidth": case "MinHeight": case "MaxHeight":
-				return R.drawable.border_sides;
+			case "Width": case "MinWidth": case "MaxWidth": return R.drawable.arrow_autofit_width;
+			case "MinHeight": case "MaxHeight": case "Height": return R.drawable.arrow_autofit_height;
 			case "Display": case "Position": case "Float": case "Clear":
 			case "Top": case "Right": case "Bottom": case "Left":
-				return R.drawable.box_padding;
+				return R.drawable.box_model_2;
 			case "FlexDir": case "FlexWrap": case "JustifyContent": case "AlignItems":
 			case "AlignSelf": case "AlignContent": case "Gap": case "RowGap": case "ColGap":
 			case "GridCols": case "GridRows": case "GridGap":
-				return R.drawable.freezerowcolumn;
-			case "ObjectFit": case "AspectRatio": return R.drawable.resize;
-			case "Overflow": return R.drawable.resize;
+				return R.drawable.columns_3;
+			case "ObjectFit": case "AspectRatio": return R.drawable.box_model_2;
+			case "Overflow": return R.drawable.arrows_move_vertical;
 			case "TextDecor": return R.drawable.cursor_text;
-			case "LineHeight": case "LetterSpace": return R.drawable.textsize;
+			case "LineHeight": case "LetterSpace": return R.drawable.text_size;
 			case "Gradient": return R.drawable.background;
-			case "CssVar": case "CustomStyle": return R.drawable.icon_design_services_round;
-			case "JSEvents": return R.drawable.icon_code_round;
-			default: return R.drawable.cursor_text;
+			case "CssVar": case "CustomStyle": return R.drawable.code_plus;
+			case "JSEvents": return R.drawable.settings_code;
+			default: return R.drawable.pencil_question;
 		}
 	}
 

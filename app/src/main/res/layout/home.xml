@@ -79,7 +79,7 @@
 					android:layout_height="wrap_content"
 					android:layout_marginTop="24dp"
 					android:text="@string/import_website"
-					app:icon="@drawable/icon_code_round"
+					app:icon="@drawable/source_code"
 					app:iconGravity="textStart"
 					style="@style/Widget.Material3.Button.TonalButton" />
 			</LinearLayout>

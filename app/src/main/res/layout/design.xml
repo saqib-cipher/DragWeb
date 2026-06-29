@@ -33,7 +33,7 @@
 				android:focusable="false"
 				android:layout_width="20dp"
 				android:layout_height="20dp"
-				android:src="@drawable/default_image"
+				android:src="@drawable/cursor_text"
 				android:scaleType="fitCenter"
 				app:tint="?attr/colorOnSurfaceVariant" />
 			<TextView

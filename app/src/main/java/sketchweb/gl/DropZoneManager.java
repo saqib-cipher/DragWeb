@@ -147,6 +147,10 @@ public class DropZoneManager {
                                 if (newWidgetView != null) {
                                     Map<String, Object> newWidgetMap = (Map<String, Object>) newWidgetView.getTag();
                                     if (newWidgetMap != null) {
+                                        String tag = widgetDefinition.get("tag") != null ? widgetDefinition.get("tag").toString() : "div";
+                                        int count = countWidgetsWithTag(screen, tag) + 1;
+                                        String autoClass = tag + "-" + count;
+
                                         Map<String, Object> defFunction = (Map<String, Object>) widgetDefinition.get("function");
                                         if (defFunction != null) {
                                             Map<String, Object> newFunction = (Map<String, Object>) newWidgetMap.get("function");
@@ -160,6 +164,7 @@ public class DropZoneManager {
                                                     newFunction.put(entry.getKey(), entry.getValue());
                                                 }
                                             }
+                                            newFunction.put("class", autoClass);
 
                                             Map<String, Object> defStyle = (Map<String, Object>) defFunction.get("style");
                                             if (defStyle != null) {
@@ -174,10 +179,8 @@ public class DropZoneManager {
                                     }
 
                                     engine.applyPropertiesToView(newWidgetView, newWidgetMap);
-
                                     ViewGroup container = (ViewGroup) v;
 
-                                    // Accurate child insertion based on drop position. For
                                     // horizontal containers the helper compares against X.
                                     int targetIndex = findDropIndex(container, event.getX(), event.getY());
                                     container.addView(newWidgetView, Math.min(targetIndex, container.getChildCount()));
@@ -284,5 +287,25 @@ public class DropZoneManager {
                 v.setBackgroundColor(Color.TRANSPARENT);
             }
         }
+    }
+
+    private int countWidgetsWithTag(View root, String tag) {
+        int count = 0;
+        if (root == null) return 0;
+        Object tagObj = root.getTag();
+        if (tagObj instanceof Map) {
+            Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
+            String childTag = widgetMap.get("tag") != null ? widgetMap.get("tag").toString() : "";
+            if (tag.equalsIgnoreCase(childTag)) {
+                count++;
+            }
+        }
+        if (root instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) root;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                count += countWidgetsWithTag(vg.getChildAt(i), tag);
+            }
+        }
+        return count;
     }
 }

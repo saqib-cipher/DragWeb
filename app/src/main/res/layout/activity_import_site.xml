@@ -71,7 +71,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/icon_web_round"
+                        android:src="@drawable/file_type_html"
                         app:tint="?attr/colorPrimary" />
 
                     <TextView
@@ -148,7 +148,7 @@
                         android:id="@+id/btnRemoveCss"
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@drawable/icon_clear_round"
+                        android:src="@drawable/x"
                         android:visibility="gone"
                         app:tint="?attr/colorError" />
                 </LinearLayout>
@@ -175,7 +175,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="false"
-                    app:thumbIcon="@drawable/thumb_icon_selector"/>
+                    app:thumbIcon="@drawable/x"/>
             </LinearLayout>
 
             <!-- JS Section -->
@@ -207,7 +207,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/icon_code_round"
+                        android:src="@drawable/file_type_js"
                         app:tint="?attr/colorPrimary" />
 
                     <TextView
@@ -226,7 +226,7 @@
                         android:id="@+id/btnRemoveJs"
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@drawable/icon_clear_round"
+                        android:src="@drawable/x"
                         android:visibility="gone"
                         app:tint="?attr/colorError" />
                 </LinearLayout>
@@ -253,7 +253,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="false"
-                    app:thumbIcon="@drawable/thumb_icon_selector"/>
+                    app:thumbIcon="@drawable/x"/>
             </LinearLayout>
 
             <!-- Warning Notice Card -->

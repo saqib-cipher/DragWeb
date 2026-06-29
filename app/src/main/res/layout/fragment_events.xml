@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             android:text="Import CSS"
             style="@style/Widget.Material3.Button.TextButton"
-            app:icon="@drawable/icon_export_round"
+            app:icon="@drawable/code_plus"
             android:layout_marginEnd="4dp" />
 
         <Button
@@ -38,7 +38,7 @@
             android:layout_height="wrap_content"
             android:text="Reset"
             style="@style/Widget.Material3.Button.TextButton"
-            app:icon="@drawable/icon_delete_round" />
+            app:icon="@drawable/trash" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView

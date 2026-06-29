@@ -190,7 +190,7 @@ public class AssetsFragment extends Fragment {
         if (btnToggleViewMode != null) {
             if (btnToggleViewMode instanceof com.google.android.material.button.MaterialButton) {
                 ((com.google.android.material.button.MaterialButton) btnToggleViewMode).setIconResource(
-                    mode == FileExplorerAdapter.VIEW_MODE_LIST ? R.drawable.icon_widgets_round : R.drawable.ic_list_view
+                    mode == FileExplorerAdapter.VIEW_MODE_LIST ? R.drawable.layout_grid : R.drawable.ic_list_view
                 );
             }
         }
@@ -212,7 +212,7 @@ public class AssetsFragment extends Fragment {
             rvAssets.setLayoutManager(new LinearLayoutManager(getContext()));
             if (btnToggleViewMode != null) {
                 if (btnToggleViewMode instanceof com.google.android.material.button.MaterialButton) {
-                    ((com.google.android.material.button.MaterialButton) btnToggleViewMode).setIconResource(R.drawable.icon_widgets_round);
+                    ((com.google.android.material.button.MaterialButton) btnToggleViewMode).setIconResource(R.drawable.layout_grid);
                 }
             }
         }

@@ -27,7 +27,7 @@
             android:id="@+id/btnImportImage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:icon="@drawable/file_open_24px"
+            app:icon="@drawable/file_plus"
             android:textSize="12sp"
             style="?attr/materialIconButtonStyle" />
 
@@ -35,7 +35,7 @@
             android:id="@+id/btnNewFolder"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:icon="@drawable/create_new_folder_24px"
+            app:icon="@drawable/folder_plus"
             android:textSize="12sp"
             android:layout_marginStart="4dp"
             style="?attr/materialIconButtonStyle" />
@@ -44,7 +44,7 @@
             android:id="@+id/btnRefresh"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:icon="@drawable/ic_refresh"
+            app:icon="@drawable/reload"
             android:layout_marginStart="4dp"
             style="?attr/materialIconButtonStyle" />
 
@@ -52,7 +52,7 @@
             android:id="@+id/btnToggleViewMode"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:icon="@drawable/icon_widgets_round"
+            app:icon="@drawable/layout_grid"
             android:layout_marginStart="4dp"
             style="?attr/materialIconButtonStyle" />
     </LinearLayout>
