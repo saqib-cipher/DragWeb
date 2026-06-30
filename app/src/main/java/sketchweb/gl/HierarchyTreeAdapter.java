@@ -12,6 +12,7 @@ import android.view.animation.RotateAnimation;
 import android.view.animation.Animation;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.ImageView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -46,6 +47,17 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     private String filterQuery = "";
     private ViewGroup rootScreen;
     private ItemTouchHelper touchHelper;
+    private boolean isLoading = false;
+
+    public void setLoading(boolean isLoading) {
+        this.isLoading = isLoading;
+        if (isLoading) {
+            flatList.clear();
+            notifyDataSetChanged();
+        } else if (rootScreen != null) {
+            buildTree(rootScreen);
+        }
+    }
 
     public HierarchyTreeAdapter(Context context) {
         this.context = context;
@@ -77,8 +89,13 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     public void buildTree(ViewGroup screen) {
         this.rootScreen = screen;
+        if (isLoading) {
+            return;
+        }
         flatList.clear();
-        addNode(screen, 0, "body");
+        for (int i = 0; i < screen.getChildCount(); i++) {
+            addNode(screen.getChildAt(i), 0, null);
+        }
         notifyDataSetChanged();
     }
 
@@ -306,16 +323,51 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
-        TreeNode node = flatList.get(position);
         LinearLayout row = holder.row;
         MaterialCardView card = holder.card;
         row.removeAllViews();
 
-        boolean isSelected = node.view == selectedWidgetView;
-        boolean isRoot = node.depth == 0;
-        int indentPx = node.depth * 24;
+        float density = context.getResources().getDisplayMetrics().density;
 
-        ((LinearLayout.LayoutParams) card.getLayoutParams()).setMargins(8 + indentPx, 4, 8, 4);
+        if (isLoading) {
+            int dp16 = (int) (16 * density);
+            int dp8 = (int) (8 * density);
+            int dp12 = (int) (12 * density);
+
+            ((LinearLayout.LayoutParams) card.getLayoutParams()).setMargins(dp8, dp8, dp8, dp8);
+
+            card.setCardBackgroundColor(Color.parseColor("#1437474F"));
+            card.setStrokeColor(Color.parseColor("#33FFFFFF"));
+            card.setClickable(false);
+            card.setFocusable(false);
+
+            TextView tv = new TextView(context);
+            tv.setText("Loading layout hierarchy...");
+            tv.setTextColor(Color.parseColor("#A8A4AE"));
+            tv.setTextSize(14);
+            tv.setTypeface(null, Typeface.ITALIC);
+            row.addView(tv);
+            return;
+        }
+
+        if (position < 0 || position >= flatList.size()) return;
+
+        TreeNode node = flatList.get(position);
+
+        boolean isSelected = node.view == selectedWidgetView;
+        boolean isRoot = false; // body is excluded, so all cards represent editable child views
+        int indentPx = node.depth * 20; // 20dp indentation per level
+
+        // Keep card width constant to match the hierarchy panel
+        ((LinearLayout.LayoutParams) card.getLayoutParams()).setMargins(8, 4, 8, 4);
+
+        // Apply indentation using row padding instead of card margins
+        row.setPadding(
+            (int)((16 + indentPx) * density), 
+            (int)(14 * density), 
+            (int)(16 * density), 
+            (int)(14 * density)
+        );
 
         // Material 3 card surface — tonal fill + outline + ripple.
         int fill, stroke, textColor;
@@ -323,10 +375,6 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             fill = Color.parseColor("#332196F3");
             stroke = Color.parseColor("#2196F3");
             textColor = Color.parseColor("#2196F3");
-        } else if (isRoot) {
-            fill = Color.parseColor("#266750A4");
-            stroke = Color.parseColor("#6750A4");
-            textColor = Color.parseColor("#D0BCFF");
         } else if (node.isContainer) {
             fill = Color.parseColor("#1437474F");
             stroke = Color.parseColor("#49454F");
@@ -342,45 +390,25 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         card.setClickable(true);
         card.setFocusable(true);
 
-        // Collapse/expand arrow for containers
+        // Collapse/expand arrow using the custom vector icon
         if (node.isContainer && node.childCount > 0) {
-            TextView arrow = new TextView(context);
-            arrow.setText("▶");
-            arrow.setTextSize(12);
-            arrow.setTextColor(getTagColor(node.tag));
-            arrow.setGravity(Gravity.CENTER);
-            arrow.setPadding(0, 0, 0, 0);
-            LinearLayout.LayoutParams arrowParams = new LinearLayout.LayoutParams(28, 28);
-            arrowParams.setMargins(0, 0, 6, 0);
+            ImageView arrow = new ImageView(context);
+            arrow.setImageResource(R.drawable.rounded_arrow_drop_down_24);
+            arrow.setImageTintList(ColorStateList.valueOf(textColor));
+            
+            LinearLayout.LayoutParams arrowParams = new LinearLayout.LayoutParams(
+                (int)(24 * density), (int)(24 * density));
+            arrowParams.setMargins(0, 0, (int)(6 * density), 0);
             arrow.setLayoutParams(arrowParams);
 
             boolean collapsed = collapsedNodes.contains(node.nodeId);
-            arrow.setRotation(collapsed ? 0f : 90f);
-            arrow.setOnClickListener(v -> {
-                boolean nowCollapsed = !collapsedNodes.contains(node.nodeId);
-                if (nowCollapsed) {
-                    collapsedNodes.add(node.nodeId);
-                } else {
-                    collapsedNodes.remove(node.nodeId);
-                }
-                // Animate the arrow rotation, then rebuild the list.
-                RotateAnimation rot = new RotateAnimation(
-                    nowCollapsed ? 90f : 0f,
-                    nowCollapsed ? 0f : 90f,
-                    Animation.RELATIVE_TO_SELF, 0.5f,
-                    Animation.RELATIVE_TO_SELF, 0.5f);
-                rot.setDuration(160);
-                rot.setFillAfter(true);
-                arrow.startAnimation(rot);
-                arrow.postDelayed(() -> {
-                    if (rootScreen != null) buildTree(rootScreen);
-                }, 160);
-            });
+            arrow.setRotation(collapsed ? -90f : 0f);
             row.addView(arrow);
         } else {
             View spacer = new View(context);
-            LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(28, 1);
-            spacerParams.setMargins(0, 0, 6, 0);
+            LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(
+                (int)(24 * density), 1);
+            spacerParams.setMargins(0, 0, (int)(6 * density), 0);
             spacer.setLayoutParams(spacerParams);
             row.addView(spacer);
         }
@@ -396,7 +424,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         badgeBg.setCornerRadius(12);
         badgeBg.setColor(getTagColor(node.tag));
         tagBadge.setBackground(badgeBg);
-        tagBadge.setText(isRoot ? "body" : node.tag);
+        tagBadge.setText(node.tag);
         LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         badgeParams.setMargins(0, 0, 8, 0);
@@ -412,18 +440,12 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
         TextView nameView = new TextView(context);
         StringBuilder displayName = new StringBuilder();
-        if (node.isLocked) displayName.append("🔒 ");
-        if (node.isHidden) displayName.append("👁 ");
-        if (!isRoot) {
-            displayName.append("<").append(node.tag).append(">");
-            if (!node.id.isEmpty()) displayName.append(" #").append(node.id);
-            if (!node.cssClass.isEmpty()) {
-                String shortClass = node.cssClass.length() > 15
-                    ? node.cssClass.substring(0, 15) + ".." : node.cssClass;
-                displayName.append(" .").append(shortClass);
-            }
-        } else {
-            displayName.append("body");
+        displayName.append("<").append(node.tag).append(">");
+        if (!node.id.isEmpty()) displayName.append(" #").append(node.id);
+        if (!node.cssClass.isEmpty()) {
+            String shortClass = node.cssClass.length() > 15
+                ? node.cssClass.substring(0, 15) + ".." : node.cssClass;
+            displayName.append(" .").append(shortClass);
         }
         if (node.isContainer && node.childCount > 0) {
             displayName.append("  (").append(node.childCount).append(")");
@@ -448,31 +470,65 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
         row.addView(nameCol);
 
-        // More options
-        if (!isRoot) {
-            TextView moreBtn = new TextView(context);
-            moreBtn.setText("⋮");
-            moreBtn.setTextSize(18);
-            moreBtn.setTextColor(Color.parseColor("#A8A4AE"));
-            moreBtn.setPadding(10, 2, 10, 2);
-            moreBtn.setGravity(Gravity.CENTER);
-            GradientDrawable moreBg = new GradientDrawable();
-            moreBg.setColor(Color.parseColor("#14363A40"));
-            moreBg.setCornerRadius(10);
-            moreBtn.setBackground(moreBg);
-            moreBtn.setOnClickListener(v -> {
-                if (longClickListener != null) longClickListener.onItemLongClick(node.view);
-            });
-            row.addView(moreBtn);
+        // Lock / Hidden status indicators
+        if (node.isLocked) {
+            ImageView lockIcon = new ImageView(context);
+            lockIcon.setImageResource(R.drawable.lock);
+            lockIcon.setImageTintList(ColorStateList.valueOf(textColor));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                (int)(16 * density), (int)(16 * density));
+            lp.setMarginEnd((int)(8 * density));
+            lockIcon.setLayoutParams(lp);
+            row.addView(lockIcon);
+        }
+        if (node.isHidden) {
+            ImageView eyeIcon = new ImageView(context);
+            eyeIcon.setImageResource(R.drawable.eye_closed);
+            eyeIcon.setImageTintList(ColorStateList.valueOf(textColor));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                (int)(16 * density), (int)(16 * density));
+            lp.setMarginEnd((int)(8 * density));
+            eyeIcon.setLayoutParams(lp);
+            row.addView(eyeIcon);
         }
 
+        // More options
+        TextView moreBtn = new TextView(context);
+        moreBtn.setText("⋮");
+        moreBtn.setTextSize(18);
+        moreBtn.setTextColor(Color.parseColor("#A8A4AE"));
+        moreBtn.setPadding(10, 2, 10, 2);
+        moreBtn.setGravity(Gravity.CENTER);
+        GradientDrawable moreBg = new GradientDrawable();
+        moreBg.setColor(Color.parseColor("#14363A40"));
+        moreBg.setCornerRadius(10);
+        moreBtn.setBackground(moreBg);
+        moreBtn.setOnClickListener(v -> {
+            if (longClickListener != null) longClickListener.onItemLongClick(node.view);
+        });
+        row.addView(moreBtn);
+
         card.setOnClickListener(v -> {
-            if (clickListener != null && !isRoot) clickListener.onItemClick(node.view);
+            if (clickListener != null) {
+                clickListener.onItemClick(node.view);
+            }
+            if (node.isContainer && node.childCount > 0) {
+                boolean nowCollapsed = !collapsedNodes.contains(node.nodeId);
+                if (nowCollapsed) {
+                    collapsedNodes.add(node.nodeId);
+                } else {
+                    collapsedNodes.remove(node.nodeId);
+                }
+                if (rootScreen != null) {
+                    buildTree(rootScreen);
+                }
+            }
         });
     }
 
     @Override
     public int getItemCount() {
+        if (isLoading) return 1;
         return flatList.size();
     }
 

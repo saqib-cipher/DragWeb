@@ -104,7 +104,7 @@ public class MainEditorFragment extends Fragment {
 	private LinearLayout assetsPanel;
 	private NestedScrollView vscroll2;
 	private Button button5, button4, delete, btnImportWidgets, btnImportImage, btnImportSvg;
-	private Button btnDrawer, btnUndo, btnRedo, btnTheme, btnExport;
+	private Button btnDrawer, btnUndo, btnRedo, btnTheme, btnExport, btnHierarchy;
 	private Button btnAddLogicBlock, btnViewAllBlocks, btnResetLogic;
 	private LinearLayout blockEditorContainer;
 	private Button btnNewFolder;
@@ -112,7 +112,10 @@ public class MainEditorFragment extends Fragment {
 	private TextView textview2, tvAssetsPath, pageNameTv;
 	private RecyclerView recyclerview3, recyclerview1, recyclerviewRightPanel, rvAssets;
 	private RecyclerView rvDrawerWidgets;
-	private android.widget.Spinner widgetSpinner;
+	private com.google.android.material.card.MaterialCardView cardSelectedWidget;
+	private android.view.View btnWidgetDropdown;
+	private android.widget.TextView tvSelectedWidgetName;
+	private android.widget.ImageView btnBottomLock, btnBottomHide;
 	private View pageNameContainer;
 	private TabLayout tabLayout;
 	private Chip chipBasic, chipLayout;
@@ -376,12 +379,12 @@ public class MainEditorFragment extends Fragment {
 		topBar = view.findViewById(R.id.topBar);
 		screen = view.findViewById(R.id.screen);
 		layoutLoading = view.findViewById(R.id.layoutLoading);
-		rightPanel = view.findViewById(R.id.rightPanel);
+		rightPanel = null;
 		bottomPanel = view.findViewById(R.id.bottomPanel);
 		vscroll2 = view.findViewById(R.id.vscroll2);
 		button5 = view.findViewById(R.id.button5);
-		button4 = view.findViewById(R.id.button4);
-		progressSave = view.findViewById(R.id.progressSave);
+		button4 = requireActivity().findViewById(R.id.button4);
+		progressSave = requireActivity().findViewById(R.id.progressSave);
 		delete = view.findViewById(R.id.delete);
 		textview2 = view.findViewById(R.id.textview2);
 		recyclerview3 = view.findViewById(R.id.recyclerview3);
@@ -401,17 +404,28 @@ public class MainEditorFragment extends Fragment {
 			@Override
 			public void onRequestDisallowInterceptTouchEvent(boolean disallowIntercept) {}
 		});
-		recyclerview1 = view.findViewById(R.id.recyclerview1);
+		recyclerview1 = null;
 		recyclerviewRightPanel = view.findViewById(R.id.recyclerviewRightPanel);
+		if (recyclerviewRightPanel != null) {
+			recyclerviewRightPanel.setOnTouchListener((v, event) -> {
+				v.getParent().requestDisallowInterceptTouchEvent(true);
+				return false;
+			});
+		}
 		rvDrawerWidgets = view.findViewById(R.id.rvDrawerWidgets);
-		widgetSpinner = view.findViewById(R.id.widgetSpinner);
+		cardSelectedWidget = view.findViewById(R.id.cardSelectedWidget);
+		btnWidgetDropdown = view.findViewById(R.id.btnWidgetDropdown);
+		tvSelectedWidgetName = view.findViewById(R.id.tvSelectedWidgetName);
+		btnBottomLock = view.findViewById(R.id.btnBottomLock);
+		btnBottomHide = view.findViewById(R.id.btnBottomHide);
 		pageNameContainer = view.findViewById(R.id.page_name_container);
 		pageNameTv = view.findViewById(R.id.page_name);
 		btnDrawer = view.findViewById(R.id.btnDrawer);
 		btnUndo = view.findViewById(R.id.btnUndo);
 		btnRedo = view.findViewById(R.id.btnRedo);
-		btnTheme = view.findViewById(R.id.btnTheme);
-		btnExport = view.findViewById(R.id.btnExport);
+		btnTheme = requireActivity().findViewById(R.id.btnTheme);
+		btnHierarchy = view.findViewById(R.id.btnHierarchy);
+		btnExport = requireActivity().findViewById(R.id.btnExport);
 		btnCopyWidget = view.findViewById(R.id.btnCopyWidget);
 		chipBasic = view.findViewById(R.id.chipBasic);
 		chipLayout = view.findViewById(R.id.chipLayout);
@@ -439,6 +453,39 @@ public class MainEditorFragment extends Fragment {
 				Log.w("MainEditorFragment", "Drawer toggle error: " + e.getMessage());
 			}
 		});
+		if (btnHierarchy != null) {
+			btnHierarchy.setOnClickListener(v -> {
+				try {
+					if (drawerLayout != null) {
+						View rightDrawer = view.findViewById(R.id.rightDrawerContent);
+						if (rightDrawer != null) {
+							if (drawerLayout.isDrawerOpen(rightDrawer)) {
+								drawerLayout.closeDrawer(rightDrawer);
+							} else {
+								drawerLayout.openDrawer(rightDrawer);
+							}
+						}
+					}
+				} catch (Exception e) {
+					Log.w("MainEditorFragment", "Hierarchy drawer toggle error: " + e.getMessage());
+				}
+			});
+		}
+		Button btnCloseHierarchy = view.findViewById(R.id.btnCloseHierarchy);
+		if (btnCloseHierarchy != null) {
+			btnCloseHierarchy.setOnClickListener(v -> {
+				try {
+					if (drawerLayout != null) {
+						View rightDrawer = view.findViewById(R.id.rightDrawerContent);
+						if (rightDrawer != null) {
+							drawerLayout.closeDrawer(rightDrawer);
+						}
+					}
+				} catch (Exception e) {
+					Log.w("MainEditorFragment", "Hierarchy drawer close error: " + e.getMessage());
+				}
+			});
+		}
 
 		button5.setOnClickListener(v -> showPreview());
 		button4.setOnClickListener(v -> saveProject());
@@ -480,26 +527,28 @@ public class MainEditorFragment extends Fragment {
 			}
 		});
 
-		btnTheme.setOnClickListener(v -> {
-			android.widget.PopupMenu popup = new android.widget.PopupMenu(requireContext(), v);
-			popup.getMenu().add("Themes");
-			popup.getMenu().add("Font Settings");
-			popup.getMenu().add("Icon Libraries");
-			popup.getMenu().add("Animation Library");
-			popup.setOnMenuItemClickListener(item -> {
-				if (item.getTitle().equals("Themes")) {
-					showThemeDialog();
-				} else if (item.getTitle().equals("Font Settings")) {
-					showFontSettingsDialog();
-				} else if (item.getTitle().equals("Icon Libraries")) {
-					showIconLibrariesDialog();
-				} else if (item.getTitle().equals("Animation Library")) {
-					showAnimationLibraryDialog();
-				}
-				return true;
+		if (btnTheme != null) {
+			btnTheme.setOnClickListener(v -> {
+				android.widget.PopupMenu popup = new android.widget.PopupMenu(requireContext(), v);
+				popup.getMenu().add("Themes");
+				popup.getMenu().add("Font Settings");
+				popup.getMenu().add("Icon Libraries");
+				popup.getMenu().add("Animation Library");
+				popup.setOnMenuItemClickListener(item -> {
+					if (item.getTitle().equals("Themes")) {
+						showThemeDialog();
+					} else if (item.getTitle().equals("Font Settings")) {
+						showFontSettingsDialog();
+					} else if (item.getTitle().equals("Icon Libraries")) {
+						showIconLibrariesDialog();
+					} else if (item.getTitle().equals("Animation Library")) {
+						showAnimationLibraryDialog();
+					}
+					return true;
+				});
+				popup.show();
 			});
-			popup.show();
-		});
+		}
 
 		btnExport.setOnClickListener(v -> showExportDialog());
 
@@ -664,6 +713,7 @@ public class MainEditorFragment extends Fragment {
 			saveUndoState();
 			updateWidgetSpinnerFromTree();
 		});
+
 
 		// Widget selector listeners
 		if (selector != null) {
@@ -2008,38 +2058,111 @@ public class MainEditorFragment extends Fragment {
 	// ---- Widget Spinner ----
 
 	private void updateWidgetSpinnerFromTree() {
-		List<String> items = new ArrayList<>();
-		items.add("body (screen)");
-		collectWidgetNames(screen, items, 0);
+		if (tvSelectedWidgetName == null) return;
 
-		int selectedIndex = 0;
 		View selectedView = selector.getSelectedView();
-		if (selectedView != null) {
-			selectedIndex = findViewIndexInTree(screen, selectedView, new int[]{1});
-			if (selectedIndex < 0 || selectedIndex >= items.size()) {
-				selectedIndex = 0;
-			}
-		}
+		if (selectedView != null && selectedView != screen) {
+			String tag = "unknown";
+			String id = "";
+			String cssClass = "";
+			boolean isLocked = false;
+			boolean isHidden = false;
 
-		android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
-			requireContext(), android.R.layout.simple_spinner_item, items);
-		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-		widgetSpinner.setAdapter(adapter);
-		widgetSpinner.setSelection(selectedIndex);
+			if (selectedView.getTag() instanceof Map) {
+				Map<String, Object> widgetMap = (Map<String, Object>) selectedView.getTag();
+				if (widgetMap.containsKey("tag")) tag = widgetMap.get("tag").toString();
+				if (widgetMap.containsKey("id")) id = widgetMap.get("id").toString();
+				isLocked = Boolean.TRUE.equals(widgetMap.get("locked"));
+				isHidden = Boolean.TRUE.equals(widgetMap.get("hidden"));
 
-		widgetSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-			@Override
-			public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-				if (position == 0) return;
-				View targetView = findViewAtTreeIndex(screen, position, new int[]{1});
-				if (targetView != null && targetView != selector.getSelectedView()) {
-					selector.clearSelection();
-					targetView.performClick();
+				@SuppressWarnings("unchecked")
+				Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
+				if (function != null) {
+					if (function.containsKey("id") && id.isEmpty()) id = function.get("id").toString();
+					if (function.containsKey("class")) cssClass = function.get("class").toString();
 				}
 			}
-			@Override
-			public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-		});
+
+			StringBuilder name = new StringBuilder("<" + tag + ">");
+			if (!id.isEmpty()) name.append(" #").append(id);
+			if (!cssClass.isEmpty()) {
+				String shortClass = cssClass.length() > 10 ? cssClass.substring(0, 10) + ".." : cssClass;
+				name.append(" .").append(shortClass);
+			}
+			tvSelectedWidgetName.setText(name.toString());
+
+			// Show Lock & Hide buttons
+			if (btnBottomLock != null) {
+				btnBottomLock.setVisibility(View.VISIBLE);
+				btnBottomLock.setImageResource(isLocked ? R.drawable.lock : R.drawable.lock_open);
+				btnBottomLock.setImageTintList(android.content.res.ColorStateList.valueOf(isLocked ? Color.parseColor("#F44336") : Color.parseColor("#808080")));
+				btnBottomLock.setAlpha(isLocked ? 1.0f : 0.6f);
+				btnBottomLock.setOnClickListener(v -> {
+					if (selectedView.getTag() instanceof Map) {
+						Map<String, Object> widgetMap = (Map<String, Object>) selectedView.getTag();
+						boolean locked = Boolean.TRUE.equals(widgetMap.get("locked"));
+						widgetMap.put("locked", !locked);
+						selectedView.setTag(widgetMap);
+						saveUndoState();
+						refreshHierarchy();
+						updateWidgetSpinnerFromTree();
+					}
+				});
+			}
+
+			if (btnBottomHide != null) {
+				btnBottomHide.setVisibility(View.VISIBLE);
+				btnBottomHide.setImageResource(isHidden ? R.drawable.eye_closed : R.drawable.eye);
+				btnBottomHide.setImageTintList(android.content.res.ColorStateList.valueOf(isHidden ? Color.parseColor("#808080") : Color.parseColor("#2196F3")));
+				btnBottomHide.setAlpha(isHidden ? 0.3f : 1.0f);
+				btnBottomHide.setOnClickListener(v -> {
+					if (selectedView.getTag() instanceof Map) {
+						Map<String, Object> widgetMap = (Map<String, Object>) selectedView.getTag();
+						boolean hidden = Boolean.TRUE.equals(widgetMap.get("hidden"));
+						widgetMap.put("hidden", !hidden);
+						selectedView.setVisibility(hidden ? View.VISIBLE : View.GONE);
+						selectedView.setTag(widgetMap);
+						saveUndoState();
+						refreshHierarchy();
+						updateWidgetSpinnerFromTree();
+					}
+				});
+			}
+		} else {
+			tvSelectedWidgetName.setText("body (screen)");
+			if (btnBottomLock != null) btnBottomLock.setVisibility(View.GONE);
+			if (btnBottomHide != null) btnBottomHide.setVisibility(View.GONE);
+		}
+
+		if (btnWidgetDropdown != null) {
+			btnWidgetDropdown.setOnClickListener(v -> {
+				android.widget.PopupMenu popup = new android.widget.PopupMenu(requireContext(), v);
+				final List<String> items = new ArrayList<>();
+				items.add("body (screen)");
+				collectWidgetNames(screen, items, 0);
+
+				for (int i = 0; i < items.size(); i++) {
+					popup.getMenu().add(0, i, i, items.get(i));
+				}
+				popup.setOnMenuItemClickListener(item -> {
+					int position = item.getItemId();
+					if (position == 0) {
+						selector.clearSelection();
+						textview2.setText("No selection");
+						delete.setEnabled(false);
+						updateWidgetSpinnerFromTree();
+					} else {
+						View targetView = findViewAtTreeIndex(screen, position, new int[]{1});
+						if (targetView != null && targetView != selector.getSelectedView()) {
+							selector.clearSelection();
+							targetView.performClick();
+						}
+					}
+					return true;
+				});
+				popup.show();
+			});
+		}
 	}
 
 	private void collectWidgetNames(ViewGroup parent, List<String> items, int depth) {
@@ -2185,13 +2308,55 @@ public class MainEditorFragment extends Fragment {
 				newFunction.put("class", autoClass);
 
 				Map<String, Object> defStyle = (Map<String, Object>) defFunction.get("style");
+				Map<String, Object> newStyle = (Map<String, Object>) newFunction.get("style");
+				if (newStyle == null) {
+					newStyle = new java.util.HashMap<>();
+					newFunction.put("style", newStyle);
+				}
 				if (defStyle != null) {
-					Map<String, Object> newStyle = (Map<String, Object>) newFunction.get("style");
-					if (newStyle == null) {
-						newStyle = new HashMap<>();
-						newFunction.put("style", newStyle);
-					}
 					newStyle.putAll(defStyle);
+				}
+
+				// Apply sensible default layouts for different widget tags so they don't collapse on full screen canvas
+				if ("div".equalsIgnoreCase(tag) || "section".equalsIgnoreCase(tag) || "header".equalsIgnoreCase(tag) 
+						|| "footer".equalsIgnoreCase(tag) || "nav".equalsIgnoreCase(tag) || "main".equalsIgnoreCase(tag) 
+						|| "aside".equalsIgnoreCase(tag) || "form".equalsIgnoreCase(tag)) {
+					if (!newStyle.containsKey("min-height") && !newStyle.containsKey("height")) {
+						newStyle.put("min-height", "100px");
+					}
+					if (!newStyle.containsKey("width")) {
+						newStyle.put("width", "100%");
+					}
+					if (!newStyle.containsKey("padding")) {
+						newStyle.put("padding", "16px");
+					}
+					if (!newStyle.containsKey("background-color")) {
+						newStyle.put("background-color", "#f8f9fa");
+					}
+					if (!newStyle.containsKey("border")) {
+						newStyle.put("border", "1px dashed #ced4da");
+					}
+				} else if ("img".equalsIgnoreCase(tag)) {
+					if (!newStyle.containsKey("width")) {
+						newStyle.put("width", "150px");
+					}
+					if (!newStyle.containsKey("height")) {
+						newStyle.put("height", "150px");
+					}
+					if (!newStyle.containsKey("background-color")) {
+						newStyle.put("background-color", "#e9ecef");
+					}
+				} else if ("button".equalsIgnoreCase(tag)) {
+					if (!newStyle.containsKey("padding")) {
+						newStyle.put("padding", "8px 16px");
+					}
+				} else if ("input".equalsIgnoreCase(tag) || "textarea".equalsIgnoreCase(tag) || "select".equalsIgnoreCase(tag)) {
+					if (!newStyle.containsKey("width")) {
+						newStyle.put("width", "100%");
+					}
+					if (!newStyle.containsKey("padding")) {
+						newStyle.put("padding", "8px");
+					}
 				}
 			}
 		}
@@ -2708,6 +2873,10 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void loadProject() {
+		if (hierarchyAdapter != null) {
+			hierarchyAdapter.setLoading(true);
+		}
+
 		// Try loading the current page from PageManager first
 		String pageJson = pageManager.loadPageLayout(pageManager.getCurrentPage());
 		boolean loadedFromPage = false;
@@ -2771,6 +2940,9 @@ public class MainEditorFragment extends Fragment {
 			saveCurrentPageLayout();
 		}
 
+		if (hierarchyAdapter != null) {
+			hierarchyAdapter.setLoading(false);
+		}
 		refreshHierarchy();
 		updateWidgetSpinnerFromTree();
 	}
@@ -2791,6 +2963,9 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void restoreState(List<Map<String, Object>> state) {
+		if (hierarchyAdapter != null) {
+			hierarchyAdapter.setLoading(true);
+		}
 		screen.removeAllViews();
 		for (Map<String, Object> nodeMap : state) {
 			rebuildView(nodeMap, screen);
@@ -2800,6 +2975,10 @@ public class MainEditorFragment extends Fragment {
 		selector.attachTo(screen);
 		textview2.setText("No widget selected");
 		delete.setEnabled(false);
+		if (hierarchyAdapter != null) {
+			hierarchyAdapter.setLoading(false);
+		}
+		refreshHierarchy();
 	}
 
 	private void rebuildView(Map<String, Object> nodeMap, ViewGroup parent) {
