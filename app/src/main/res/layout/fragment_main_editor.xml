@@ -296,7 +296,7 @@
 				android:orientation="horizontal"
 				tools:listitem="@layout/design" />
 
-			<!-- Tabs: Basic / Styles / Layout -->
+			<!-- Tabs: Basic / Layout / Text / More -->
 			<com.google.android.material.chip.ChipGroup
 				android:id="@+id/chipGroupBottom"
 				android:layout_width="match_parent"
@@ -318,6 +318,20 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="Layout"
+					android:textSize="11sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipText"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Text"
+					android:textSize="11sp"
+					style="@style/Widget.Material3.Chip.Filter" />
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chipMore"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="More"
 					android:textSize="11sp"
 					style="@style/Widget.Material3.Chip.Filter" />
 			</com.google.android.material.chip.ChipGroup>

@@ -674,16 +674,7 @@ public class MainEditorFragment extends Fragment {
 				if (hierarchyAdapter != null) {
 					hierarchyAdapter.setSelectedView(selector.getSelectedView());
 				}
-				if (chipGroupBottom != null) {
-					int checkedId = chipGroupBottom.getCheckedChipId();
-					if (checkedId == R.id.chipLayout) {
-						buildLayoutDesignList();
-					} else {
-						buildDesignList();
-					}
-				} else {
-					buildDesignList();
-				}
+				refreshActiveDesignList();
 			});
 			selector.attachTo(screen);
 		}
@@ -783,7 +774,9 @@ public class MainEditorFragment extends Fragment {
 			Toast.makeText(requireContext(), "Nothing to paste", Toast.LENGTH_SHORT).show();
 			return;
 		}
-		rebuildView(new HashMap<>(widgetClipboard), screen);
+		Map<String, Object> pastedMap = deepCopyWidgetMap(widgetClipboard);
+		assignUniqueClassNames(pastedMap, new HashMap<>());
+		rebuildView(pastedMap, screen);
 		saveUndoState();
 		refreshHierarchy();
 		updateWidgetSpinnerFromTree();
@@ -803,7 +796,9 @@ public class MainEditorFragment extends Fragment {
 				}
 			}
 			int index = parent.indexOfChild(widgetView);
-			rebuildViewAt(original, parent, index + 1);
+			Map<String, Object> duplicatedMap = deepCopyWidgetMap(original);
+			assignUniqueClassNames(duplicatedMap, new HashMap<>());
+			rebuildViewAt(duplicatedMap, parent, index + 1);
 			saveUndoState();
 			refreshHierarchy();
 			updateWidgetSpinnerFromTree();
@@ -1961,6 +1956,10 @@ public class MainEditorFragment extends Fragment {
 				buildDesignList();
 			} else if (id == R.id.chipLayout) {
 				buildLayoutDesignList();
+			} else if (id == R.id.chipText) {
+				buildTextDesignList();
+			} else if (id == R.id.chipMore) {
+				buildMoreDesignList();
 			}
 		});
 	}
@@ -2217,6 +2216,77 @@ public class MainEditorFragment extends Fragment {
 			}
 		}
 		return count;
+	}
+
+	private Map<String, Object> deepCopyWidgetMap(Map<String, Object> original) {
+		if (original == null) return null;
+		Map<String, Object> copy = new HashMap<>();
+		for (Map.Entry<String, Object> entry : original.entrySet()) {
+			String key = entry.getKey();
+			Object val = entry.getValue();
+			if ("children".equals(key) && val instanceof List) {
+				List<Map<String, Object>> list = (List<Map<String, Object>>) val;
+				List<Map<String, Object>> listCopy = new ArrayList<>();
+				for (Object item : list) {
+					if (item instanceof Map) {
+						listCopy.add(deepCopyWidgetMap((Map<String, Object>) item));
+					}
+				}
+				copy.put(key, listCopy);
+			} else if ("function".equals(key) && val instanceof Map) {
+				Map<String, Object> func = (Map<String, Object>) val;
+				Map<String, Object> funcCopy = new HashMap<>();
+				for (Map.Entry<String, Object> fEntry : func.entrySet()) {
+					if ("style".equals(fEntry.getKey()) && fEntry.getValue() instanceof Map) {
+						funcCopy.put(fEntry.getKey(), new HashMap<>((Map<String, Object>) fEntry.getValue()));
+					} else {
+						funcCopy.put(fEntry.getKey(), fEntry.getValue());
+					}
+				}
+				copy.put(key, funcCopy);
+			} else {
+				copy.put(key, val);
+			}
+		}
+		return copy;
+	}
+
+	private void assignUniqueClassNames(Map<String, Object> nodeMap, Map<String, Integer> extraCounts) {
+		if (nodeMap == null) return;
+		String tag = nodeMap.get("tag") != null ? nodeMap.get("tag").toString() : "div";
+		
+		int baseCount = countWidgetsWithTag(screen, tag);
+		int extra = extraCounts.containsKey(tag) ? extraCounts.get(tag) : 0;
+		int nextCount = baseCount + extra + 1;
+		extraCounts.put(tag, extra + 1);
+		
+		String autoClass = tag + "-" + nextCount;
+
+		Map<String, Object> function = (Map<String, Object>) nodeMap.get("function");
+		if (function == null) {
+			function = new HashMap<>();
+			nodeMap.put("function", function);
+		} else {
+			function = new HashMap<>(function);
+			nodeMap.put("function", function);
+		}
+		function.put("class", autoClass);
+
+		if (nodeMap.containsKey("children")) {
+			Object childrenObj = nodeMap.get("children");
+			if (childrenObj instanceof List) {
+				List<Map<String, Object>> children = (List<Map<String, Object>>) childrenObj;
+				List<Map<String, Object>> clonedChildren = new ArrayList<>();
+				for (Object child : children) {
+					if (child instanceof Map) {
+						Map<String, Object> childClone = deepCopyWidgetMap((Map<String, Object>) child);
+						assignUniqueClassNames(childClone, extraCounts);
+						clonedChildren.add(childClone);
+					}
+				}
+				nodeMap.put("children", clonedChildren);
+			}
+		}
 	}
 
 	private int findDropIndex(ViewGroup parent, float dropY) {
@@ -3293,6 +3363,23 @@ public class MainEditorFragment extends Fragment {
 
 	// ---- Design Property Lists (removed event items from view section) ----
 
+	private void refreshActiveDesignList() {
+		if (chipGroupBottom == null) {
+			buildDesignList();
+			return;
+		}
+		int checkedId = chipGroupBottom.getCheckedChipId();
+		if (checkedId == R.id.chipLayout) {
+			buildLayoutDesignList();
+		} else if (checkedId == R.id.chipText) {
+			buildTextDesignList();
+		} else if (checkedId == R.id.chipMore) {
+			buildMoreDesignList();
+		} else {
+			buildDesignList();
+		}
+	}
+
 	private void buildDesignList() {
 		design.clear();
 		View selected = selector.getSelectedView();
@@ -3303,9 +3390,8 @@ public class MainEditorFragment extends Fragment {
 		String tag = getSelectedTag();
 		if ("p".equals(tag) || "h1".equals(tag) || "h2".equals(tag) || "h3".equals(tag) || "h4".equals(tag) || "h5".equals(tag) || "h6".equals(tag)
 			|| "span".equals(tag) || "label".equals(tag) || "a".equals(tag) || "button".equals(tag) || "li".equals(tag)) {
-			items.add(0, "Edittext");
+			items.add("Edittext");
 		}
-
 		if ("img".equals(tag)) {
 			items.add("ImageSrc");
 		}
@@ -3326,11 +3412,116 @@ public class MainEditorFragment extends Fragment {
 		
 		items.add("SetId");
 		items.add("SetClass");
-		items.add("Custom Attributes");
-		items.add("JSEvents");
-		items.add("Color");
 		items.add("Background");
+		items.add("Color");
+		items.add("Opacity");
+		items.add("ZIndex");
 
+		populateDesignData(items, currentStyle, currentFunction);
+	}
+
+	private void buildLayoutDesignList() {
+		design.clear();
+		View selected = selector.getSelectedView();
+		Map<String, Object> currentStyle = getWidgetStyle(selected);
+		Map<String, Object> currentFunction = getWidgetFunction(selected);
+
+		List<String> items = new ArrayList<>();
+		// Sizing
+		items.add("Width");
+		items.add("Height");
+		items.add("MinWidth");
+		items.add("MaxWidth");
+		items.add("MinHeight");
+		items.add("MaxHeight");
+		items.add("AspectRatio");
+		// Spacing
+		items.add("Padding");
+		items.add("Margin");
+		// Display & Position
+		items.add("Display");
+		items.add("Position");
+		items.add("Top");
+		items.add("Right");
+		items.add("Bottom");
+		items.add("Left");
+		items.add("Float");
+		items.add("Clear");
+		items.add("Overflow");
+		// Flex / Grid
+		items.add("FlexDir");
+		items.add("FlexWrap");
+		items.add("JustifyContent");
+		items.add("AlignItems");
+		items.add("AlignSelf");
+		items.add("AlignContent");
+		items.add("Gap");
+		items.add("RowGap");
+		items.add("ColGap");
+		items.add("GridCols");
+		items.add("GridRows");
+		items.add("GridGap");
+		items.add("ObjectFit");
+
+		populateDesignData(items, currentStyle, currentFunction);
+	}
+
+	private void buildTextDesignList() {
+		design.clear();
+		View selected = selector.getSelectedView();
+		Map<String, Object> currentStyle = getWidgetStyle(selected);
+		Map<String, Object> currentFunction = getWidgetFunction(selected);
+
+		List<String> items = new ArrayList<>();
+		items.add("Color");
+		items.add("TextSize");
+		items.add("Font");
+		items.add("FontFamily");
+		items.add("TextAlign");
+		items.add("LineHeight");
+		items.add("LetterSpace");
+		items.add("TextDecor");
+		items.add("TextTransform");
+
+		populateDesignData(items, currentStyle, currentFunction);
+	}
+
+	private void buildMoreDesignList() {
+		design.clear();
+		View selected = selector.getSelectedView();
+		Map<String, Object> currentStyle = getWidgetStyle(selected);
+		Map<String, Object> currentFunction = getWidgetFunction(selected);
+
+		List<String> items = new ArrayList<>();
+		// custom advance
+		items.add("HTML Attributes");
+		items.add("JSEvents");
+		items.add("CustomStyle");
+		items.add("Cursor");
+		items.add("CssVar");
+
+		// Borders
+		items.add("BorderWidth");
+		items.add("BorderColor");
+		items.add("BorderRadius");
+		items.add("BorderTop");
+		items.add("BorderRight");
+		items.add("BorderBottom");
+		items.add("BorderLeft");
+		items.add("RadiusTL");
+		items.add("RadiusTR");
+		items.add("RadiusBL");
+		items.add("RadiusBR");
+		// Shadow/effects
+		items.add("BoxShadow");
+		items.add("Elevation");
+		items.add("Rotation");
+		items.add("Gradient");
+
+		populateDesignData(items, currentStyle, currentFunction);
+	}
+
+	private void populateDesignData(List<String> items, Map<String, Object> currentStyle, Map<String, Object> currentFunction) {
 		for (String item : items) {
 			HashMap<String, Object> map = new HashMap<>();
 			map.put("edit", item);
@@ -3366,35 +3557,11 @@ public class MainEditorFragment extends Fragment {
 			}
 			else {
 				String cssKey = getCssKeyFromItem(item);
-				if (currentStyle.containsKey(cssKey)) value = currentStyle.get(cssKey).toString();
+				if (currentStyle.containsKey(cssKey)) {
+					Object o = currentStyle.get(cssKey);
+					value = o != null ? o.toString() : "";
+				}
 			}
-			map.put("value", value);
-			design.add(map);
-		}
-		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
-		recyclerview3.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
-	}
-
-	private void buildLayoutDesignList() {
-		design.clear();
-		View selected = selector.getSelectedView();
-		Map<String, Object> currentStyle = getWidgetStyle(selected);
-
-		String[] items = {
-			"Display", "Position", "FlexDir", "FlexWrap",
-			"JustifyContent", "AlignItems", "AlignSelf", "AlignContent",
-			"Gap", "RowGap", "ColGap",
-			"GridCols", "GridRows", "GridGap",
-			"Float", "Clear",
-			"Top", "Right", "Bottom", "Left",
-			"MinWidth", "MaxWidth", "MinHeight", "MaxHeight",
-			"ObjectFit", "AspectRatio"
-		};
-		for (String item : items) {
-			HashMap<String, Object> map = new HashMap<>();
-			map.put("edit", item);
-			String cssKey = getCssKeyFromItem(item);
-			String value = currentStyle.containsKey(cssKey) ? currentStyle.get(cssKey).toString() : "";
 			map.put("value", value);
 			design.add(map);
 		}
@@ -3607,7 +3774,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("text", value);
 					widgetUpdater.updateWidget(selected, value, style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "SetId":
@@ -3617,7 +3784,7 @@ public class MainEditorFragment extends Fragment {
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 					refreshHierarchy();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "SetClass":
@@ -3627,7 +3794,7 @@ public class MainEditorFragment extends Fragment {
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
 					refreshHierarchy();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "PickIcon":
@@ -3636,7 +3803,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("class", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "SetHref":
@@ -3645,7 +3812,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("href", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "SetTarget":
@@ -3654,7 +3821,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("target", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "SetPlaceholder":
@@ -3663,7 +3830,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("placeholder", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "SetType":
@@ -3672,7 +3839,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("type", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "ImageSrc":
@@ -3681,7 +3848,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("src", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "ListItems":
@@ -3696,7 +3863,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("fontSize", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Color":
@@ -3705,7 +3872,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("color", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Font":
@@ -3714,7 +3881,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("fontWeight", value);
 					widgetUpdater.updateWidget(selected, value, style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "TextAlign":
@@ -3723,7 +3890,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("textAlign", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Background":
@@ -3732,7 +3899,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("backgroundColor", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "BorderRadius":
@@ -3741,7 +3908,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("borderRadius", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "BorderWidth":
@@ -3750,7 +3917,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("borderWidth", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "BorderColor":
@@ -3759,7 +3926,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("borderColor", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Padding":
@@ -3768,7 +3935,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("padding", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Margin":
@@ -3777,7 +3944,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("margin", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Width":
@@ -3786,7 +3953,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("width", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Height":
@@ -3795,7 +3962,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("height", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Display":
@@ -3804,7 +3971,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("display", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Position":
@@ -3813,7 +3980,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("position", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "FlexDir":
@@ -3822,7 +3989,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("flexDirection", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "FlexWrap":
@@ -3831,7 +3998,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("flexWrap", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "JustifyContent":
@@ -3840,7 +4007,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("justifyContent", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "AlignItems":
@@ -3849,7 +4016,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("alignItems", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "AlignSelf":
@@ -3858,7 +4025,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("alignSelf", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "AlignContent":
@@ -3867,7 +4034,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("alignContent", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Gap":
@@ -3876,7 +4043,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("gap", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "RowGap":
@@ -3885,7 +4052,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("rowGap", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "ColGap":
@@ -3894,7 +4061,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("columnGap", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Top":
@@ -3903,7 +4070,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("top", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Right":
@@ -3912,7 +4079,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("right", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Bottom":
@@ -3921,7 +4088,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("bottom", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Left":
@@ -3930,7 +4097,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("left", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "ObjectFit":
@@ -3939,7 +4106,7 @@ public class MainEditorFragment extends Fragment {
 					style.put("objectFit", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "AspectRatio":
@@ -3948,11 +4115,128 @@ public class MainEditorFragment extends Fragment {
 					style.put("aspectRatio", value);
 					widgetUpdater.updateWidget(selected, "", style);
 					saveUndoState();
-					buildLayoutDesignList();
+					refreshActiveDesignList();
 				});
 				break;
 			case "Custom Attributes":
 				showCustomAttributesDialog(selected);
+				break;
+			default:
+				// Determine input type based on the property name dynamically
+				String cssKey = getCssKeyFromItem(editType);
+				if (editType.contains("Color") || editType.equals("Background")) {
+					dialog.setSuggestions(getColorSuggestions()).showColorInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("Display")) {
+					dialog.setOptions(new String[]{"block", "flex", "grid", "inline", "inline-block", "none"}).showChoiceInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("Position")) {
+					dialog.setOptions(new String[]{"static", "relative", "absolute", "fixed", "sticky"}).showChoiceInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("Overflow")) {
+					dialog.setOptions(new String[]{"visible", "hidden", "scroll", "auto"}).showChoiceInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("Cursor")) {
+					dialog.setOptions(new String[]{"default", "pointer", "text", "move", "not-allowed", "wait"}).showChoiceInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("Float")) {
+					dialog.setOptions(new String[]{"none", "left", "right"}).showChoiceInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("Clear")) {
+					dialog.setOptions(new String[]{"none", "left", "right", "both"}).showChoiceInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("TextAlign")) {
+					dialog.setOptions(new String[]{"left", "center", "right", "justify"}).showChoiceInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("TextTransform")) {
+					dialog.setOptions(new String[]{"none", "capitalize", "uppercase", "lowercase"}).showChoiceInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("TextDecor")) {
+					dialog.setOptions(new String[]{"none", "underline", "line-through", "overline"}).showChoiceInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("FontFamily")) {
+					dialog.setOptions(new String[]{"sans-serif", "serif", "monospace", "cursive", "fantasy", "Inter", "Roboto", "Outfit"}).showChoiceInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("ZIndex") || editType.equals("Elevation") || editType.equals("Opacity") || editType.equals("Rotation")) {
+					dialog.setHint("e.g. 1 (number)").showTextInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else if (editType.equals("BoxShadow") || editType.equals("Gradient") || editType.equals("CssVar") || editType.equals("CustomStyle") || editType.equals("GridCols") || editType.equals("GridRows")) {
+					dialog.setHint("Enter value").showTextInput(value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				} else {
+					dialog.setUnits(new String[]{"px", "rem", "%", "em", "vh", "vw", "auto"}).showUnitInput(cssKey, value -> {
+						Map<String, Object> style = new HashMap<>();
+						style.put(cssKey, value);
+						widgetUpdater.updateWidget(selected, "", style);
+						saveUndoState();
+						refreshActiveDesignList();
+					});
+				}
 				break;
 		}
 	}
