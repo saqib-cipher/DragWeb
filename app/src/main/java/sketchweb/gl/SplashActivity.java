@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.annotation.NonNull;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -51,6 +52,20 @@ public class SplashActivity extends AppCompatActivity {
 		initializeLogic();
 	}
 
+	private boolean hasStarted = false;
+
+	private boolean hasPermission() {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+			return Environment.isExternalStorageManager();
+		} else {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+				return checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+					android.content.pm.PackageManager.PERMISSION_GRANTED;
+			}
+			return true;
+		}
+	}
+
 	private void initializeLogic() {
 		textview1.animate()
 			.alpha(1f)
@@ -59,25 +74,79 @@ public class SplashActivity extends AppCompatActivity {
 			.setDuration(800)
 			.setInterpolator(new OvershootInterpolator(4f));
 
+		if (hasPermission()) {
+			go();
+		} else {
+			showPermissionDialog();
+		}
+	}
+
+	private void showPermissionDialog() {
+		new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+			.setTitle("Storage Permission Required")
+			.setMessage("DragWeb needs storage permission to save and load your website design projects. Please grant the permission to continue.")
+			.setCancelable(false)
+			.setPositiveButton("Grant", (dialog, which) -> {
+				requestPermission();
+			})
+			.setNegativeButton("Exit", (dialog, which) -> {
+				finish();
+			})
+			.show();
+	}
+
+	private void requestPermission() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-			if (!Environment.isExternalStorageManager()) {
+			try {
 				Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
 				intent.setData(Uri.parse("package:" + getPackageName()));
 				startActivityForResult(intent, 1000);
-			} else {
-				go();
+			} catch (Exception e) {
+				Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+				startActivityForResult(intent, 1000);
 			}
 		} else {
-			if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
-				android.content.pm.PackageManager.PERMISSION_DENIED) {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 				requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1000);
-			} else {
+			}
+		}
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		if (hasPermission()) {
+			go();
+		}
+	}
+
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+		if (requestCode == 1000) {
+			if (hasPermission()) {
 				go();
+			} else {
+				showPermissionDialog();
+			}
+		}
+	}
+
+	@Override
+	public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+		if (requestCode == 1000) {
+			if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+				go();
+			} else {
+				showPermissionDialog();
 			}
 		}
 	}
 
 	private void go() {
+		if (hasStarted) return;
+		hasStarted = true;
 		t = new TimerTask() {
 			@Override
 			public void run() {
