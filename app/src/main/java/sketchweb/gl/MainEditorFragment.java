@@ -765,7 +765,6 @@ public class MainEditorFragment extends Fragment {
 			main.setOnClickListener(v -> {
 				View selected = selector.getSelectedView();
 				if (selected != null) {
-					selected.setBackgroundColor(Color.TRANSPARENT);
 					selector.clearSelection();
 					textview2.setText("No widget selected");
 					delete.setEnabled(false);
@@ -777,6 +776,7 @@ public class MainEditorFragment extends Fragment {
 			});
 		}
 
+		loadClipboardFromDisk();
 		buildDesignList();
 		saveUndoState();
 		refreshHierarchy();
@@ -815,6 +815,12 @@ public class MainEditorFragment extends Fragment {
 					widgetClipboard.put("children", children);
 				}
 			}
+			try {
+				java.io.File clipboardFile = new java.io.File(requireContext().getFilesDir(), "widget_clipboard.json");
+				FileUtil.writeFile(clipboardFile.getAbsolutePath(), new Gson().toJson(widgetClipboard));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 			Toast.makeText(requireContext(), "Widget copied", Toast.LENGTH_SHORT).show();
 		}
 	}
@@ -825,7 +831,6 @@ public class MainEditorFragment extends Fragment {
 			return;
 		}
 		Map<String, Object> pastedMap = deepCopyWidgetMap(widgetClipboard);
-		assignUniqueClassNames(pastedMap, new HashMap<>());
 		rebuildView(pastedMap, screen);
 		saveUndoState();
 		refreshHierarchy();
@@ -847,7 +852,6 @@ public class MainEditorFragment extends Fragment {
 			}
 			int index = parent.indexOfChild(widgetView);
 			Map<String, Object> duplicatedMap = deepCopyWidgetMap(original);
-			assignUniqueClassNames(duplicatedMap, new HashMap<>());
 			rebuildViewAt(duplicatedMap, parent, index + 1);
 			saveUndoState();
 			refreshHierarchy();
@@ -912,35 +916,45 @@ public class MainEditorFragment extends Fragment {
 		return nodes;
 	}
 
+	private void loadClipboardFromDisk() {
+		try {
+			java.io.File clipboardFile = new java.io.File(requireContext().getFilesDir(), "widget_clipboard.json");
+			if (clipboardFile.exists()) {
+				String json = FileUtil.readFile(clipboardFile.getAbsolutePath());
+				widgetClipboard = new Gson().fromJson(json, Map.class);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
 	// ---- Copy/Paste Menu ----
 
 	private void showCopyPasteMenu() {
 		List<String> options = new ArrayList<>();
-		options.add("Copy Selected Widget");
-		options.add("Paste Widget");
-		options.add("Duplicate Selected Widget");
+		View selected = selector.getSelectedView();
+
+		if (selected != null) {
+			options.add("Copy Selected Widget");
+			if (widgetClipboard != null) {
+				options.add("Paste Widget");
+			}
+			options.add("Duplicate Selected Widget");
+		}
 		options.add("Duplicate Multiple…");
 
 		new MaterialAlertDialogBuilder(requireContext())
 			.setTitle("Copy / Paste")
 			.setItems(options.toArray(new String[0]), (dialog, which) -> {
-				switch (which) {
-					case 0:
-						View selected = selector.getSelectedView();
-						if (selected != null) copyWidget(selected);
-						else Toast.makeText(requireContext(), "Select a widget first", Toast.LENGTH_SHORT).show();
-						break;
-					case 1:
-						pasteWidget();
-						break;
-					case 2:
-						View sel2 = selector.getSelectedView();
-						if (sel2 != null) duplicateWidget(sel2);
-						else Toast.makeText(requireContext(), "Select a widget first", Toast.LENGTH_SHORT).show();
-						break;
-					case 3:
-						showDuplicateMultiPicker();
-						break;
+				String choice = options.get(which);
+				if ("Copy Selected Widget".equals(choice)) {
+					if (selected != null) copyWidget(selected);
+				} else if ("Paste Widget".equals(choice)) {
+					pasteWidget();
+				} else if ("Duplicate Selected Widget".equals(choice)) {
+					if (selected != null) duplicateWidget(selected);
+				} else if ("Duplicate Multiple…".equals(choice)) {
+					showDuplicateMultiPicker();
 				}
 			})
 			.setNegativeButton("Cancel", null)
@@ -4766,11 +4780,26 @@ public class MainEditorFragment extends Fragment {
 			.setNegativeButton("Cancel", null)
 			.create();
 
+		dialog.show();
+
 		if (dialog.getWindow() != null) {
 			dialog.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM);
 			dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
 		}
-		dialog.show();
+
+		dialogView.post(() -> {
+			if (!eventInputFields.isEmpty()) {
+				TextInputEditText et = eventInputFields.values().iterator().next();
+				if (et != null) {
+					et.requestFocus();
+					android.view.inputmethod.InputMethodManager imm = 
+						(android.view.inputmethod.InputMethodManager) requireActivity().getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+					if (imm != null) {
+						imm.showSoftInput(et, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+					}
+				}
+			}
+		});
 	}
 
 	@SuppressWarnings("unchecked")

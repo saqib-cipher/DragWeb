@@ -7,6 +7,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.view.View;
 import android.view.ViewGroup;
+import android.os.Build;
 
 import java.util.Map;
 
@@ -20,6 +21,7 @@ public class WidgetSelector {
     private View selectedView = null;
     private OnWidgetSelectedListener listener;
     private Drawable originalBackground;
+    private Drawable originalForeground;
 
     public WidgetSelector(Context context) {
         this.context = context;
@@ -44,8 +46,11 @@ public class WidgetSelector {
 
     public void clearSelection() {
         if (selectedView != null) {
-            // Restore original alpha
-            selectedView.setAlpha(1.0f);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                selectedView.setForeground(originalForeground);
+            } else {
+                selectedView.setAlpha(1.0f);
+            }
             selectedView = null;
         }
     }
@@ -73,8 +78,16 @@ public class WidgetSelector {
 
         selectedView = view;
 
-        // Highlight selected view with a fade effect
-        view.setAlpha(0.5f);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            originalForeground = view.getForeground();
+            
+            GradientDrawable highlight = new GradientDrawable();
+            highlight.setColor(Color.parseColor("#1A000000")); // Faded dark tint
+            highlight.setStroke(4, Color.parseColor("#80000000")); // Darker outline border
+            view.setForeground(highlight);
+        } else {
+            view.setAlpha(0.6f);
+        }
 
         if (listener != null) {
             String widgetName = "Unknown";
