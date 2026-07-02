@@ -1370,7 +1370,7 @@ public class MainEditorFragment extends Fragment {
 					List<Map<String, Object>> pageWidgets = null;
 					try {
 						pageWidgets = new Gson().fromJson(pageJson, new TypeToken<List<Map<String, Object>>>(){}.getType());
-					} catch (Exception e) {}
+					} catch (Exception e) { android.util.Log.e("MainEditor", "Error", e); }
 
 					if (holder.layoutPreviewContainer != null) {
 						if (pageWidgets != null && !pageWidgets.isEmpty()) {
@@ -2815,7 +2815,7 @@ public class MainEditorFragment extends Fragment {
 		pageManager.saveAllPages();
 
 		// Save main layout (index page for backwards compat)
-		projectDataManager.saveProject(screen, projectId);
+		projectDataManager.saveProject(screen, projectId, null);
 
 		File dir = new File(requireContext().getFilesDir(), "projects");
 		if (!dir.exists()) dir.mkdirs();
@@ -2913,7 +2913,7 @@ public class MainEditorFragment extends Fragment {
 
 		// Fall back to legacy project data if page data is empty
 		if (!loadedFromPage) {
-			projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager);
+			projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager, null);
 		}
 
 
@@ -3328,7 +3328,7 @@ public class MainEditorFragment extends Fragment {
 						gd.setSize(size, size);
 						et.setCompoundDrawablesWithIntrinsicBounds(gd, null, null, null);
 						et.setCompoundDrawablePadding((int)(8 * getResources().getDisplayMetrics().density));
-					} catch (Exception ex) {}
+					} catch (Exception ex) { android.util.Log.e("MainEditor", "Error", ex); }
 				}
 			}
 		});
@@ -3498,10 +3498,14 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void performExport() {
-		final android.app.ProgressDialog progress = new android.app.ProgressDialog(requireContext());
-		progress.setTitle("Exporting Project");
-		progress.setMessage("Exporting ZIP and separate files...");
-		progress.setCancelable(false);
+		View dialogView = getLayoutInflater().inflate(R.layout.dialog_progress_material, null);
+		android.widget.TextView progressMessage = dialogView.findViewById(R.id.progress_message);
+		progressMessage.setText("Exporting ZIP and separate files...");
+		final androidx.appcompat.app.AlertDialog progress = new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+				.setTitle("Exporting Project")
+				.setView(dialogView)
+				.setCancelable(false)
+				.create();
 		progress.show();
 
 		new Thread(() -> {

@@ -501,7 +501,7 @@ public class ImportSiteActivity extends AppCompatActivity {
                 }
                 c.close();
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { android.util.Log.e("ImportSite", "Error", ignored); }
         return null;
     }
 

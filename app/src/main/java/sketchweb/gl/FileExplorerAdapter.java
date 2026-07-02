@@ -128,7 +128,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
                 }
                 return relative;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { android.util.Log.e("FileExplorer", "Error", ignored); }
         return null;
     }
 
@@ -563,7 +563,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             if (!relative.contains("/") && (relative.endsWith(".html") || relative.endsWith(".htm"))) {
                 return true;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { android.util.Log.e("FileExplorer", "Error", ignored); }
         return false;
     }
 
@@ -624,7 +624,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
                 if (f.isDirectory()) {
                     scanDirForManifest(f, root, list);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) { android.util.Log.e("FileExplorer", "Error", ignored); }
         }
     }
 
