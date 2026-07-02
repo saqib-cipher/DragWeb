@@ -897,7 +897,7 @@ public class ManageBlocksWidgetsActivity extends AppCompatActivity {
                         }
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) { android.util.Log.e("ManageBlocks", "Error", ignored); }
         }
         
         final String typeName = (activeTab == 0) ? "Blocks" : "Widgets";

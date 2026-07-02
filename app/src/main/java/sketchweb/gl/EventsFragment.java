@@ -244,7 +244,7 @@ public class EventsFragment extends Fragment {
                         if (parsed != null) {
                             currentBlocks.addAll(parsed);
                         }
-                    } catch (Exception e) {}
+                    } catch (Exception e) { android.util.Log.e("EventsFragment", "Error", e); }
                 }
 
                 currentBlocks.addAll(importedBlocks);

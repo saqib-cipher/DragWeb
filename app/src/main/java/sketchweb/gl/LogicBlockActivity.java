@@ -599,7 +599,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
                     File file = new File(dir, name.replaceAll("[^a-zA-Z0-9_-]", "_") + ".json");
                     FileUtil.writeFile(file.getAbsolutePath(), new Gson().toJson(chain));
                     refreshCollectionList();
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) { android.util.Log.e("LogicBlock", "Error", ignored); }
             })
             .setNegativeButton("Cancel", null)
             .show();
@@ -671,7 +671,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
             }
             workspaceView.rebuild();
             refreshHud();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { android.util.Log.e("LogicBlock", "Error", ignored); }
     }
 
     // ------------------------------------------------------------------
@@ -816,7 +816,7 @@ public class LogicBlockActivity extends AppCompatActivity implements BlockDragDr
                     FileUtil.writeFile(targetJsFile.getAbsolutePath(), compiledJs.toString());
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { android.util.Log.e("LogicBlock", "Error", ignored); }
         setResult(RESULT_OK);
         finish();
     }

@@ -98,45 +98,67 @@ public class ProjectDataManager {
     // Save / Load
     // -------------------------------------------------------------------------
 
-    public void saveProject(View screen, String projectId) {
+    public void saveProject(View screen, String projectId, Runnable onComplete) {
         List<Map<String, Object>> widgetTree = serializeViewTree(screen);
-        String json = gson.toJson(widgetTree);
+        new Thread(() -> {
+            String json = gson.toJson(widgetTree);
 
-        File dir = new File(context.getFilesDir(), "projects");
-        if (!dir.exists()) dir.mkdirs();
+            File dir = new File(context.getFilesDir(), "projects");
+            if (!dir.exists()) dir.mkdirs();
 
-        File file = new File(dir, projectId + ".json");
-        try (FileWriter writer = new FileWriter(file)) {
-            writer.write(json);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+            File file = new File(dir, projectId + ".json");
+            try (FileWriter writer = new FileWriter(file)) {
+                writer.write(json);
+            } catch (Exception e) {
+                Log.e(TAG, "Error saving project", e);
+            }
+            if (onComplete != null) {
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(onComplete);
+            }
+        }).start();
     }
 
     public void loadProject(View screen, String projectId, WidgetBuilderEngine engine,
-                            WidgetSelector selector, DropZoneManager dropZoneManager) {
-        File dir = new File(context.getFilesDir(), "projects");
-        File file = new File(dir, projectId + ".json");
+                            WidgetSelector selector, DropZoneManager dropZoneManager, Runnable onComplete) {
+        new Thread(() -> {
+            File dir = new File(context.getFilesDir(), "projects");
+            File file = new File(dir, projectId + ".json");
 
-        if (!file.exists()) {
-            file = tryLoadFromExternal(projectId, dir);
-        }
-        if (file == null || !file.exists()) return;
+            if (!file.exists()) {
+                file = tryLoadFromExternal(projectId, dir);
+            }
+            if (file == null || !file.exists()) {
+                if (onComplete != null) {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(onComplete);
+                }
+                return;
+            }
 
-        try (FileReader reader = new FileReader(file)) {
-            List<Map<String, Object>> widgetTree = new Gson().fromJson(
-                    reader, new TypeToken<List<Map<String, Object>>>() {}.getType());
+            try (FileReader reader = new FileReader(file)) {
+                final List<Map<String, Object>> widgetTree = new Gson().fromJson(
+                        reader, new TypeToken<List<Map<String, Object>>>() {}.getType());
 
-            if (screen instanceof ViewGroup) {
-                ViewGroup vg = (ViewGroup) screen;
-                vg.removeAllViews();
-                for (Map<String, Object> nodeMap : widgetTree) {
-                    buildViewTree(nodeMap, vg, engine, selector, dropZoneManager);
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    if (screen instanceof ViewGroup) {
+                        ViewGroup vg = (ViewGroup) screen;
+                        vg.removeAllViews();
+                        if (widgetTree != null) {
+                            for (Map<String, Object> nodeMap : widgetTree) {
+                                buildViewTree(nodeMap, vg, engine, selector, dropZoneManager);
+                            }
+                        }
+                    }
+                    if (onComplete != null) {
+                        onComplete.run();
+                    }
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading project", e);
+                if (onComplete != null) {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(onComplete);
                 }
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        }).start();
     }
 
     // -------------------------------------------------------------------------
