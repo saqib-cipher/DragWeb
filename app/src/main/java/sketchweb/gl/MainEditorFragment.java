@@ -831,7 +831,20 @@ public class MainEditorFragment extends Fragment {
 			return;
 		}
 		Map<String, Object> pastedMap = deepCopyWidgetMap(widgetClipboard);
-		rebuildView(pastedMap, screen);
+		View selected = selector.getSelectedView();
+		if (selected != null) {
+			if (selected instanceof ViewGroup) {
+				rebuildView(pastedMap, (ViewGroup) selected);
+			} else if (selected.getParent() instanceof ViewGroup) {
+				ViewGroup parent = (ViewGroup) selected.getParent();
+				int index = parent.indexOfChild(selected);
+				rebuildViewAt(pastedMap, parent, index + 1);
+			} else {
+				rebuildView(pastedMap, screen);
+			}
+		} else {
+			rebuildView(pastedMap, screen);
+		}
 		saveUndoState();
 		refreshHierarchy();
 		updateWidgetSpinnerFromTree();
@@ -936,10 +949,10 @@ public class MainEditorFragment extends Fragment {
 
 		if (selected != null) {
 			options.add("Copy Selected Widget");
-			if (widgetClipboard != null) {
-				options.add("Paste Widget");
-			}
 			options.add("Duplicate Selected Widget");
+		}
+		if (widgetClipboard != null) {
+			options.add("Paste Widget");
 		}
 		options.add("Duplicate Multiple…");
 
