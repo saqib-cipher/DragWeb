@@ -94,7 +94,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           CHANGELOG=$(cat CHANGELOG.txt | head -c 900)
-          CAPTION=$(printf "New Release\n\nVersion: %s\n\nChanges:\n%s \n\n#%s" "$VERSION" "$CHANGELOG" "VERSION")
+          CAPTION=$(printf "New Release\n\nVersion: %s\n\nChanges:\n%s \n\n#%s" "$VERSION" "$CHANGELOG" "$VERSION")
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
             -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -F message_thread_id="${{ secrets.TELEGRAM_THREAD_R_ID }}" \
