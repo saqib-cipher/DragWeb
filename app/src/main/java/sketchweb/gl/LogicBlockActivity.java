@@ -1,943 +1,2178 @@
 package sketchweb.gl;
 
-import android.graphics.Color;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
+import android.animation.ObjectAnimator;
+import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
+import android.content.Intent;
+import android.content.res.Configuration;
+import android.graphics.Rect;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.Gravity;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-
-import androidx.activity.EdgeToEdge;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.GravityCompat;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
-
-import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import android.os.Handler;
+import android.os.Vibrator;
+import androidx.annotation.Nullable;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.tabs.TabLayout;
-import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.google.android.material.chip.Chip;
-
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Context;
-import android.view.MenuItem;
-import android.webkit.WebView;
-import android.widget.Toast;
 import androidx.appcompat.widget.Toolbar;
+import android.util.Pair;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.View.OnTouchListener;
+import android.view.ViewConfiguration;
+import android.view.ViewGroup;
+import android.view.animation.DecelerateInterpolator;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.ImageView.ScaleType;
+import android.widget.LinearLayout;
+import android.widget.LinearLayout.LayoutParams;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
+import android.widget.Toast;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
-
-/**
- * Vertical, JSON-driven block editor activity.
- *
- * <p>The previous canvas-based editor is gone: blocks now stack top-to-bottom
- * in a {@link WorkspaceView}, drag/drop is delegated to
- * {@link BlockDragDropManager}, and inline values are edited via
- * {@link BlockChipFactory}. This file keeps the activity surface compatible
- * with {@code MainActivity} (intent extras, .logic file format) so launches
- * from elsewhere in the app still work unchanged.
- */
-public class LogicBlockActivity extends AppCompatActivity implements BlockDragDropManager.Host {
-
-    private static final String CAT_CSS = "css";
-    private static final String CAT_VALUE = "value";
-    private static final String CAT_LOGIC = "logic";
-    private static final String CAT_ANIMATION = "animation";
-    private static final String CAT_META = "meta";
-    private static final String CAT_ASD = "asd";
-
-    private LogicBlockManager logicBlockManager;
-    private BlockParamTypeManager paramTypeManager;
-    private BlockChipFactory chipFactory;
-    private BlockDragDropManager dragDropManager;
-    private ManageBlocksWidgets customBlockManager;
-
-    private String projectId;
-    private String pageName = "index";
-    private int currentMode = 0;
-
-    private MaterialToolbar toolbar;
-    private DrawerLayout drawerLayout;
-    private LinearLayout palettePanel;
-    private LinearLayout categoryListContainer;
-    private LinearLayout blockPaletteContainer;
-    private WorkspaceView workspaceView;
-    private FloatingActionButton fabBlockPalette;
-    private View btnBlockDelete;
-    private LinearLayout btnBlockDuplicate;
-    private LinearLayout btnSaveToCollection;
-    private LinearLayout collectionList;
-    private TextView tvBlockCount;
-    private View layoutLoading;
-
-    private String currentCategory = CAT_CSS;
-    private final List<BlockDef> allBlockDefs = new ArrayList<>();
-
-    private final List<String> undoStack = new ArrayList<>();
-    private final List<String> redoStack = new ArrayList<>();
-    private static final int MAX_UNDO = 30;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_logic_block);
-
-        paramTypeManager = new BlockParamTypeManager();
-        customBlockManager = new ManageBlocksWidgets(this);
-
-        projectId = getIntent().getStringExtra("project_id");
-        if (projectId == null) projectId = "";
-        
-        ThemeManager themeManager = new ThemeManager();
-        File themeDir = new File(getFilesDir(), "projects");
-        File themeFile = new File(themeDir, projectId + ".theme");
-        if (themeFile.exists()) {
-            try {
-                String themeJson = FileUtil.readFile(themeFile.getAbsolutePath());
-                themeManager.fromJson(themeJson);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        ProjectAssetManager.getInstance().setThemeManager(themeManager);
-
-        pageName = getIntent().getStringExtra("page_name");
-        if (pageName == null || pageName.isEmpty()) pageName = "index";
-
-        logicBlockManager = new LogicBlockManager(this);
-        loadLogicFromDisk();
-
-        loadBlockDefinitions();
-        chipFactory = new BlockChipFactory(this, paramTypeManager, customBlockManager);
-        dragDropManager = new BlockDragDropManager(this);
-
-        initViews();
-        if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
-
-        setupToolbar();
-        setupFab();
-        setupCollectionDrawer();
-
-        workspaceView.configure(logicBlockManager, allBlockDefs, chipFactory, dragDropManager);
-        workspaceView.setOnBlockInteractionListener(() -> { saveUndoState(); refreshHud(); });
-
-        
-        dragDropManager.attachDeleteBar(btnBlockDelete);
-        if (btnBlockDuplicate != null) dragDropManager.attachDuplicateBar(btnBlockDuplicate);
-        if (btnSaveToCollection != null) dragDropManager.attachSaveBar(btnSaveToCollection);
-
-        setupCategoryButtons();
-        currentCategory = (pageName != null && pageName.endsWith(".js")) ? "js_events" : CAT_CSS;
-        showCategory(currentCategory);
-        seedDefaultBlockIfEmpty();
-        workspaceView.rebuild();
-        refreshCollectionList();
-        refreshHud();
-        saveUndoState();
-
-        if (layoutLoading != null) {
-            layoutLoading.postDelayed(() -> layoutLoading.setVisibility(View.GONE), 500);
-        }
-
-        final int toolbarInitialTop = toolbar != null ? toolbar.getPaddingTop() : 0;
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            if (toolbar != null) {
-                toolbar.setPadding(toolbar.getPaddingLeft(), toolbarInitialTop + systemBars.top,
-                    toolbar.getPaddingRight(), toolbar.getPaddingBottom());
-            }
-            v.setPadding(systemBars.left, 0, systemBars.right, systemBars.bottom);
-            return insets;
-        });
-    }
-
-    private void loadLogicFromDisk() {
-        try {
-            File dir = new File(getFilesDir(), "projects/logic");
-            String safePageName = pageName.replace("/", "_").replace(".", "_");
-            File logicFile = new File(dir, projectId + "_" + safePageName + ".logic");
-            if (logicFile.exists()) {
-                String json = FileUtil.readFile(logicFile.getAbsolutePath());
-                if (json != null && !json.isEmpty()) logicBlockManager.fromJson(json);
-            }
-        } catch (Exception e) {
-            Log.w("LogicBlockActivity", "Could not load logic blocks: " + e.getMessage());
-        }
-    }
-
-    private void seedDefaultBlockIfEmpty() {
-        if (!logicBlockManager.getBlocks().isEmpty()) return;
-        String defaultId = (pageName != null && pageName.endsWith(".js")) ? "jsOnLoad" : "cssSelector";
-        BlockDef def = findDef(defaultId);
-        if (def == null) return;
-        workspaceView.insertNewBlock(def, null, 0);
-    }
-
-    private void initViews() {
-        toolbar = findViewById(R.id.toolbarLogic);
-        drawerLayout = findViewById(R.id.drawerLogic);
-        palettePanel = findViewById(R.id.palettePanel);
-        categoryListContainer = findViewById(R.id.categoryListContainer);
-        blockPaletteContainer = findViewById(R.id.blockPaletteContainer);
-        workspaceView = findViewById(R.id.workspaceView);
-        fabBlockPalette = findViewById(R.id.fabBlockPalette);
-        btnBlockDelete = findViewById(R.id.btnBlockDelete);
-        btnBlockDuplicate = (LinearLayout) findViewById(R.id.btnBlockDuplicate);
-        btnSaveToCollection = (LinearLayout) findViewById(R.id.btnSaveToCollection);
-        collectionList = findViewById(R.id.collectionList);
-        tvBlockCount = findViewById(R.id.tvBlockCount);
-        layoutLoading = findViewById(R.id.layoutLoading);
-
-        TabLayout tabLayoutMode = findViewById(R.id.tabLayoutMode);
-        if (tabLayoutMode != null) {
-            tabLayoutMode.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-                @Override public void onTabSelected(TabLayout.Tab tab) {
-                    currentMode = tab.getPosition();
-                    setupCategoryButtons();
-                    String cat;
-                    if (currentMode == 0) {
-                        cat = (pageName != null && pageName.endsWith(".js")) ? "js_events" : CAT_CSS;
-                    } else {
-                        cat = CAT_ASD;
-                    }
-                    showCategory(cat);
-                }
-                @Override public void onTabUnselected(TabLayout.Tab tab) {}
-                @Override public void onTabReselected(TabLayout.Tab tab) {}
-            });
-        }
-    }
-
-    private void setupToolbar() {
-        toolbar.setNavigationOnClickListener(v -> saveAndFinish());
-        toolbar.setOnMenuItemClickListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.action_undo) { undo(); return true; }
-            if (id == R.id.action_redo) { redo(); return true; }
-            if (id == R.id.action_view_code) { showCodePreview(); return true; }
-            if (id == R.id.action_collections) {
-                if (drawerLayout != null) {
-                    if (drawerLayout.isDrawerOpen(GravityCompat.END)) drawerLayout.closeDrawer(GravityCompat.END);
-                    else drawerLayout.openDrawer(GravityCompat.END);
-                }
-                return true;
-            }
-            return false;
-        });
-    }
-
-    private void setupCategoryButtons() {
-        if (categoryListContainer == null) return;
-        categoryListContainer.removeAllViews();
-        Set<String> available = new LinkedHashSet<>();
-        boolean isJsMode = (pageName != null && pageName.endsWith(".js"));
-        // Extract unique categories from block definitions dynamically
-        if (currentMode == 0) {
-            for (BlockDef def : allBlockDefs) {
-                if (def.category != null && !def.category.isEmpty() && !"asd".equals(def.category)) {
-                    boolean isJsCategory = def.category.startsWith("js_") || "js".equals(def.category);
-                    if (isJsMode == isJsCategory) {
-                        available.add(def.category);
-                    }
-                }
-            }
-            if (available.isEmpty()) {
-                if (isJsMode) {
-                    available.add("js_events");
-                    available.add("js_dom");
-                    available.add("js_logic");
-                    available.add("js_loop");
-                    available.add("js_math");
-                } else {
-                    available.add(CAT_CSS);
-                    available.add(CAT_ANIMATION);
-                    available.add(CAT_LOGIC);
-                    available.add(CAT_VALUE);
-                    available.add(CAT_META);
-                }
-            }
-        } else {
-            available.add(CAT_ASD);
-        }
-        for (String cat : available) {
-            categoryListContainer.addView(createCategoryChip(cat, prettyName(cat)));
-        }
-    }
-
-    private View createCategoryChip(String category, String label) {
-        Chip chip = new Chip(this);
-        chip.setText(label);
-        chip.setCheckable(true);
-        chip.setChecked(category.equals(currentCategory));
-        chip.setTextSize(11);
-        chip.setGravity(Gravity.CENTER);
-        chip.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-        chip.setEnsureMinTouchTargetSize(false);
-        chip.setChipMinHeight((float) dp(28));
-        
-        int color = BlockCategoryPalette.colorIntForCategory(category);
-        chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(color));
-        chip.setTextColor(Color.WHITE);
-        chip.setChipStrokeColor(android.content.res.ColorStateList.valueOf(category.equals(currentCategory) ? Color.WHITE : BlockCategoryPalette.darken(color)));
-        chip.setChipStrokeWidth(dp(2));
-        
-        chip.setOnClickListener(v -> {
-            showCategory(category);
-            setupCategoryButtons();
-        });
-        
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(dp(2), dp(1), dp(2), dp(1));
-        chip.setLayoutParams(lp);
-        return chip;
-    }
-
-    private String prettyName(String category) {
-        if (category == null) return "";
-        switch (category) {
-            case CAT_CSS: return "CSS";
-            case CAT_VALUE: return "Value";
-            case CAT_LOGIC: return "Logic";
-            case CAT_ANIMATION: return "Anim";
-            case CAT_META: return "Group";
-            case CAT_ASD: return "ASD";
-            case "js_events": return "Events";
-            case "js_dom": return "DOM";
-            case "js_logic": return "Logic";
-            case "js_loop": return "Loop";
-            case "js_math": return "Math";
-            default:
-                if (category.startsWith("js_")) {
-                    return category.substring(3).substring(0, 1).toUpperCase() + category.substring(4);
-                }
-                return category;
-        }
-    }
-
-    private void setupFab() {
-        if (fabBlockPalette != null && palettePanel != null) {
-            fabBlockPalette.setOnClickListener(v -> {
-                boolean visible = palettePanel.getVisibility() == View.VISIBLE;
-                palettePanel.setVisibility(visible ? View.GONE : View.VISIBLE);
-            });
-        }
-    }
-
-
-
-    private LogicBlockManager.LogicBlock cloneBlock(LogicBlockManager.LogicBlock orig) {
-        LogicBlockManager.LogicBlock copy = new LogicBlockManager.LogicBlock();
-        copy.targetWidget = orig.targetWidget;
-        copy.targetMode = orig.targetMode;
-        copy.event = orig.event;
-        copy.action = orig.action;
-        copy.category = orig.category;
-        copy.params = orig.params;
-        copy.shape = orig.shape;
-        copy.spec = orig.spec;
-        copy.x = orig.x;
-        copy.y = orig.y;
-        copy.nextBlockId = orig.nextBlockId;
-        copy.parentBlockId = orig.parentBlockId;
-        copy.subStackId = orig.subStackId;
-        copy.id = orig.id; // Keep old ID temporarily for remapping
-        if (orig.paramValues != null) copy.paramValues = new ArrayList<>(orig.paramValues);
-        copy.labelOverride = orig.labelOverride;
-        if (orig.inputsOverride != null) copy.inputsOverride = new ArrayList<>(orig.inputsOverride);
-        copy.collapsed = orig.collapsed;
-        return copy;
-    }
-
-    // ------------------------------------------------------------------
-    // Palette rendering
-    // ------------------------------------------------------------------
-
-    private void loadBlockDefinitions() {
-        try {
-            StringBuilder sb = new StringBuilder();
-            java.io.InputStream is = getAssets().open("blocks.json");
-            java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(is));
-            String line;
-            while ((line = br.readLine()) != null) sb.append(line);
-            br.close();
-            List<BlockDef> parsed = new Gson().fromJson(sb.toString(),
-                new TypeToken<List<BlockDef>>(){}.getType());
-            allBlockDefs.clear();
-            if (parsed != null) allBlockDefs.addAll(parsed);
-
-            // Load custom block definitions and update or append
-            if (customBlockManager != null) {
-                for (ManageBlocksWidgets.CustomBlockDef customDef : customBlockManager.getDefinitions()) {
-                    if (customDef != null) {
-                        BlockDef bDef = null;
-                        for (BlockDef existing : allBlockDefs) {
-                            if (customDef.id.equals(existing.id)) {
-                                bDef = existing;
-                                break;
-                            }
-                        }
-                        if (bDef == null) {
-                            bDef = new BlockDef();
-                            bDef.id = customDef.id;
-                            allBlockDefs.add(bDef);
-                        }
-                        bDef.label = customDef.display != null ? customDef.display : customDef.id;
-                        bDef.code = customDef.template;
-                        bDef.template = customDef.template;
-                        bDef.category = customDef.category != null ? customDef.category.toLowerCase() : "html";
-                        bDef.shape = "stack";
-                    }
-                }
-            }
-        } catch (Exception e) {
-            Log.w("LogicBlockActivity", "Failed to load blocks.json: " + e.getMessage());
-        }
-    }
-
-    private void showCategory(String category) {
-        currentCategory = category;
-        blockPaletteContainer.removeAllViews();
-        for (BlockDef def : allBlockDefs) {
-            if (category.equals(def.category)) {
-                blockPaletteContainer.addView(createPaletteEntry(def));
-            }
-        }
-    }
-
-    private View createPaletteEntry(BlockDef def) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.VERTICAL);
-        row.setPadding(dp(12), dp(8), dp(12), dp(10));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(dp(4), dp(3), dp(4), dp(3));
-        row.setLayoutParams(lp);
-
-        int color = Color.parseColor(def.resolvedColor());
-        GradientDrawable gd = new GradientDrawable();
-        gd.setColor(color);
-        gd.setCornerRadius(dp(8));
-        gd.setStroke(dp(2), BlockCategoryPalette.darken(color));
-        row.setBackground(gd);
-
-        TextView name = new TextView(this);
-        name.setText(def.label != null ? def.label : def.id);
-        name.setTextColor(Color.WHITE);
-        name.setTextSize(13);
-        name.setTypeface(null, Typeface.BOLD);
-        row.addView(name);
-
-        // Tap inserts at the bottom of the workspace; long-press starts a drag.
-        row.setOnClickListener(v -> {
-            saveUndoState();
-            int siblingIndex = workspaceView != null
-                ? logicBlockManager.getBlocks().size() : 0;
-            workspaceView.insertNewBlock(def, null, siblingIndex);
-            refreshHud();
-        });
-        dragDropManager.attachPaletteSource(row, def);
-        return row;
-    }
-
-    // ------------------------------------------------------------------
-    // BlockDragDropManager.Host implementation
-    // ------------------------------------------------------------------
-
-    @Override public WorkspaceView getWorkspace() { return workspaceView; }
-    @Override public BlockDef findDef(String id) {
-        if (id == null) return null;
-        for (BlockDef d : allBlockDefs) if (id.equals(d.id)) return d;
-        return null;
-    }
-    @Override public BlockChipFactory getChipFactory() { return chipFactory; }
-    @Override public BlockView.OnBlockChanged getBlockChangedListener() {
-        return block -> { saveUndoState(); refreshHud(); };
-    }
-    @Override public void onWorkspaceMutated() {
-        saveUndoState();
-        refreshHud();
-    }
-
-    @Override
-    public void saveBlockToCollection(String blockId) {
-        LogicBlockManager.LogicBlock root = logicBlockManager.findBlockById(blockId);
-        if (root == null) return;
-        List<LogicBlockManager.LogicBlock> chain = collectChain(root);
-        List<LogicBlockManager.LogicBlock> clones = new ArrayList<>();
-        for (LogicBlockManager.LogicBlock b : chain) clones.add(cloneBlock(b));
-        // Remap IDs in the cloned chain
-        remapChainIds(clones);
-        showSaveCollectionDialog(clones);
-    }
-
-    @Override
-    public void duplicateBlock(String blockId) {
-        LogicBlockManager.LogicBlock root = logicBlockManager.findBlockById(blockId);
-        if (root == null) return;
-        List<LogicBlockManager.LogicBlock> chain = collectChain(root);
-        List<LogicBlockManager.LogicBlock> clones = new ArrayList<>();
-        for (LogicBlockManager.LogicBlock b : chain) clones.add(cloneBlock(b));
-        remapChainIds(clones);
-        
-        // Insert clones into manager
-        for (LogicBlockManager.LogicBlock cb : clones) {
-            logicBlockManager.addBlock(cb);
-        }
-        
-        // Snap the new root to the bottom of the workspace for visibility
-        LogicBlockManager.LogicBlock newRoot = clones.get(0);
-        newRoot.parentBlockId = null;
-        newRoot.y += 100; // Offset slightly
-        
-        workspaceView.rebuild();
-        onWorkspaceMutated();
-    }
-
-    private List<LogicBlockManager.LogicBlock> collectChain(LogicBlockManager.LogicBlock root) {
-        List<LogicBlockManager.LogicBlock> out = new ArrayList<>();
-        out.add(root);
-        // Standard subtree collection: find all blocks that have a parent in our 'out' list
-        for (int i = 0; i < out.size(); i++) {
-            String pid = out.get(i).id;
-            if (pid == null) continue;
-            for (LogicBlockManager.LogicBlock b : logicBlockManager.getBlocks()) {
-                if (pid.equals(b.parentBlockId) && !out.contains(b)) {
-                    out.add(b);
-                }
-            }
-        }
-        return out;
-    }
-
-    private void remapChainIds(List<LogicBlockManager.LogicBlock> chain) {
-        Map<String, String> idMap = new HashMap<>();
-        long timestamp = System.currentTimeMillis();
-        int counter = 0;
-        
-        // First pass: generate new unique IDs and store mapping
-        for (LogicBlockManager.LogicBlock b : chain) {
-            String oldId = b.id;
-            String newId = "blk_" + timestamp + "_" + (counter++) + "_" + (int)(Math.random() * 1000);
-            idMap.put(oldId, newId);
-            b.id = newId;
-        }
-        
-        // Second pass: update all structural pointers using the map
-        for (LogicBlockManager.LogicBlock b : chain) {
-            if (b.nextBlockId != null) {
-                String remapped = idMap.get(b.nextBlockId);
-                if (remapped != null) b.nextBlockId = remapped;
-                else b.nextBlockId = null; // Break link to blocks outside the chain
-            }
-            if (b.parentBlockId != null) {
-                String remapped = idMap.get(b.parentBlockId);
-                if (remapped != null) b.parentBlockId = remapped;
-                else b.parentBlockId = null; // Dragged root becomes independent
-            }
-            if (b.subStackId != null) {
-                String remapped = idMap.get(b.subStackId);
-                if (remapped != null) b.subStackId = remapped;
-                else b.subStackId = null; // Should not happen if collectChain is complete
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // Collection drawer
-    // ------------------------------------------------------------------
-
-    private File getCollectionDir() {
-        File dir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/collections");
-        if (!dir.exists()) dir.mkdirs();
-        return dir;
-    }
-
-
-
-    private void setupCollectionDrawer() {
-        // No manual listeners needed here anymore. 
-        // dragDropManager.attachSaveBar and dragDropManager.attachDuplicateBar 
-        // handle everything in a unified way.
-    }
-
-    private void showSaveCollectionDialog(List<LogicBlockManager.LogicBlock> chain) {
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(dp(20), dp(8), dp(20), 0);
-        TextInputLayout til = createTil("Collection name");
-        TextInputEditText input = (TextInputEditText) til.getEditText();
-        if (input != null) input.setText("collection_" + System.currentTimeMillis());
-        layout.addView(til);
-        new MaterialAlertDialogBuilder(this)
-            .setTitle("Save to Collection")
-            .setView(layout)
-            .setPositiveButton("Save", (d, w) -> {
-                String name = getText(til);
-                try {
-                    File dir = getCollectionDir();
-                    File file = new File(dir, name.replaceAll("[^a-zA-Z0-9_-]", "_") + ".json");
-                    FileUtil.writeFile(file.getAbsolutePath(), new Gson().toJson(chain));
-                    refreshCollectionList();
-                } catch (Exception ignored) { android.util.Log.e("LogicBlock", "Error", ignored); }
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
-    }
-
-    private void refreshCollectionList() {
-        if (collectionList == null) return;
-        collectionList.removeAllViews();
-        File dir = getCollectionDir();
-        File[] files = dir.listFiles((f, n) -> n.endsWith(".json"));
-        if (files == null || files.length == 0) return;
-        for (File f : files) collectionList.addView(createCollectionRow(f));
-    }
-
-    private View createCollectionRow(File file) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(12), dp(10), dp(12), dp(10));
-        
-        TextView name = new TextView(this);
-        name.setText(file.getName().replace(".json", ""));
-        name.setTextColor(Color.parseColor("#0D47A1"));
-        name.setTextSize(14);
-        name.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
-        name.setOnClickListener(v -> loadCollection(file));
-        row.addView(name);
-
-        ImageView deleteBtn = new ImageView(this);
-        deleteBtn.setImageResource(R.drawable.trash);
-        int iconSize = dp(24);
-        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(iconSize, iconSize);
-        deleteBtn.setLayoutParams(dlp);
-        deleteBtn.setPadding(dp(4), dp(4), dp(4), dp(4));
-        deleteBtn.setImageTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#C62828")));
-        deleteBtn.setOnClickListener(v -> {
-            new MaterialAlertDialogBuilder(this)
-                .setTitle("Delete Collection")
-                .setMessage("Are you sure you want to delete '" + name.getText() + "'?")
-                .setPositiveButton("Delete", (d, w) -> {
-                    if (file.delete()) refreshCollectionList();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-        });
-        row.addView(deleteBtn);
-        
-        return row;
-    }
-
-    private void loadCollection(File file) {
-        try {
-            String json = FileUtil.readFile(file.getAbsolutePath());
-            java.lang.reflect.Type type = new TypeToken<List<LogicBlockManager.LogicBlock>>(){}.getType();
-            List<LogicBlockManager.LogicBlock> chain = new Gson().fromJson(json, type);
-            if (chain == null || chain.isEmpty()) return;
-
-            saveUndoState();
-            // Remap IDs so they are unique in the current session
-            remapChainIds(chain);
-            
-            // Position the loaded chain
-            LogicBlockManager.LogicBlock root = chain.get(0);
-            root.parentBlockId = null;
-            root.y += 100;
-
-            for (LogicBlockManager.LogicBlock b : chain) {
-                logicBlockManager.addBlock(b);
-            }
-            workspaceView.rebuild();
-            refreshHud();
-        } catch (Exception ignored) { android.util.Log.e("LogicBlock", "Error", ignored); }
-    }
-
-    // ------------------------------------------------------------------
-    // Misc
-    // ------------------------------------------------------------------
-
-    private void refreshHud() {
-        if (tvBlockCount != null) {
-            tvBlockCount.setText(logicBlockManager.getBlocks().size() + " blocks");
-        }
-    }
-
-    private TextInputLayout createTil(String hint) {
-        TextInputLayout til = new TextInputLayout(this);
-        til.setHint(hint);
-        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        til.setBoxCornerRadii(dp(14), dp(14), dp(14), dp(14));
-        til.addView(new TextInputEditText(this));
-        return til;
-    }
-
-    private String getText(TextInputLayout til) {
-        return til.getEditText() != null ? til.getEditText().getText().toString().trim() : "";
-    }
-
-    private int dp(int px) {
-        return (int) (px * getResources().getDisplayMetrics().density);
-    }
-
-    private void updateUndoRedoMenuState() {
-        if (toolbar == null) return;
-        android.view.Menu menu = toolbar.getMenu();
-        if (menu == null) return;
-        android.view.MenuItem undoItem = menu.findItem(R.id.action_undo);
-        android.view.MenuItem redoItem = menu.findItem(R.id.action_redo);
-
-        boolean canUndo = undoStack.size() > 1;
-        boolean canRedo = !redoStack.isEmpty();
-
-        int colorOnSurface = 0xFF000000;
-        android.util.TypedValue typedValue = new android.util.TypedValue();
-        if (getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)) {
-            colorOnSurface = typedValue.data;
-        }
-
-        int activeColor = colorOnSurface;
-        int inactiveColor = (colorOnSurface & 0x00FFFFFF) | (76 << 24); // 30% alpha
-
-        if (undoItem != null) {
-            undoItem.setEnabled(canUndo);
-            android.graphics.drawable.Drawable icon = undoItem.getIcon();
-            if (icon != null) {
-                icon = icon.mutate();
-                icon.setTint(canUndo ? activeColor : inactiveColor);
-                undoItem.setIcon(icon);
-            }
-        }
-
-        if (redoItem != null) {
-            redoItem.setEnabled(canRedo);
-            android.graphics.drawable.Drawable icon = redoItem.getIcon();
-            if (icon != null) {
-                icon = icon.mutate();
-                icon.setTint(canRedo ? activeColor : inactiveColor);
-                redoItem.setIcon(icon);
-            }
-        }
-    }
-
-    private void saveUndoState() {
-        if (undoStack.size() >= MAX_UNDO) undoStack.remove(0);
-        undoStack.add(logicBlockManager.toJson());
-        redoStack.clear();
-        updateUndoRedoMenuState();
-    }
-
-    private void undo() {
-        if (undoStack.size() <= 1) return;
-        redoStack.add(undoStack.remove(undoStack.size() - 1));
-        logicBlockManager.fromJson(undoStack.get(undoStack.size() - 1));
-        workspaceView.rebuild();
-        refreshHud();
-        updateUndoRedoMenuState();
-    }
-
-    private void redo() {
-        if (redoStack.isEmpty()) return;
-        String state = redoStack.remove(redoStack.size() - 1);
-        undoStack.add(state);
-        logicBlockManager.fromJson(state);
-        workspaceView.rebuild();
-        refreshHud();
-        updateUndoRedoMenuState();
-    }
-
-
-    private void saveAndFinish() {
-        try {
-            File dir = new File(getFilesDir(), "projects/logic");
-            if (!dir.exists()) dir.mkdirs();
-            String safePageName = pageName.replace("/", "_").replace(".", "_");
-            File logicFile = new File(dir, projectId + "_" + safePageName + ".logic");
-            FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
-
-            // Compile the logic blocks and save compiled stylesheet to external assets
-            if (pageName != null) {
-                if (pageName.endsWith(".css")) {
-                    String baseRules = logicBlockManager.generateBaseCssRules();
-                    String pseudoRules = logicBlockManager.generateCssPseudoRules();
-                    String asdCss = logicBlockManager.generateAsdSource("css");
-                    StringBuilder compiledCss = new StringBuilder();
-                    compiledCss.append("/* Compiled by DragWeb */\n\n");
-                    if (baseRules != null && !baseRules.trim().isEmpty()) {
-                        compiledCss.append(baseRules).append("\n");
-                    }
-                    if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
-                        compiledCss.append(pseudoRules).append("\n");
-                    }
-                    if (asdCss != null && !asdCss.trim().isEmpty()) {
-                        compiledCss.append(asdCss).append("\n");
-                    }
-
-                    File targetStyleFile = new File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
-                        + "/.dragweb/projects/" + projectId + "/assets/" + pageName);
-                    targetStyleFile.getParentFile().mkdirs();
-                    FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCss.toString());
-                } else if (pageName.endsWith(".js")) {
-                    String jsBlocks = logicBlockManager.generateJavaScript();
-                    String asdJs = logicBlockManager.generateAsdSource("js");
-                    StringBuilder compiledJs = new StringBuilder();
-                    compiledJs.append("/* Compiled by DragWeb */\n\n");
-                    if (asdJs != null && !asdJs.trim().isEmpty()) {
-                        compiledJs.append(asdJs).append("\n\n");
-                    }
-                    if (jsBlocks != null && !jsBlocks.trim().isEmpty()) {
-                        compiledJs.append(jsBlocks).append("\n");
-                    }
-
-                    File targetJsFile = new File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
-                        + "/.dragweb/projects/" + projectId + "/assets/" + pageName);
-                    targetJsFile.getParentFile().mkdirs();
-                    FileUtil.writeFile(targetJsFile.getAbsolutePath(), compiledJs.toString());
-                }
-            }
-        } catch (Exception ignored) { android.util.Log.e("LogicBlock", "Error", ignored); }
-        setResult(RESULT_OK);
-        finish();
-    }
-
-    private void showCodePreview() {
-        final String cssCode = (logicBlockManager.generateBaseCssRules() + "\n" + logicBlockManager.generateCssPseudoRules() + "\n" + logicBlockManager.generateAsdSource("css")).trim();
-        
-        String jsBlocks = logicBlockManager.generateJavaScript();
-        String asdJs = logicBlockManager.generateAsdSource("js");
-        StringBuilder sbJs = new StringBuilder();
-        if (asdJs != null && !asdJs.trim().isEmpty()) sbJs.append(asdJs).append("\n\n");
-        if (jsBlocks != null && !jsBlocks.trim().isEmpty()) sbJs.append(jsBlocks);
-        final String jsCode = sbJs.toString().trim();
-
-        LinearLayout container = new LinearLayout(this);
-        container.setOrientation(LinearLayout.VERTICAL);
-
-        Toolbar dialogToolbar = new Toolbar(this);
-        dialogToolbar.setTitle("Generated Code");
-        dialogToolbar.setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFFE0E0E0));
-        dialogToolbar.setTitleTextColor(com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
-        
-        container.addView(dialogToolbar);
-
-        final WebView webView = new WebView(this);
-        webView.getSettings().setJavaScriptEnabled(true);
-        
-        LinearLayout.LayoutParams webViewParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(400));
-        webView.setLayoutParams(webViewParams);
-        container.addView(webView);
-
-        // Keep track of active section for copy
-        final String[] activeCode = { cssCode };
-        final String[] activeLang = { "css" };
-
-        // Set up menu inside toolbar
-        MenuItem itemCss = dialogToolbar.getMenu().add(0, 1, 0, "CSS");
-        itemCss.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-        MenuItem itemJs = dialogToolbar.getMenu().add(0, 2, 0, "JS");
-        itemJs.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-
-        // Initial highlights
-        updateToolbarMenu(dialogToolbar, true);
-        loadHighlightedCode(webView, cssCode.isEmpty() ? "/* No CSS generated */" : cssCode, "css");
-
-        dialogToolbar.setOnMenuItemClickListener(item -> {
-            int id = item.getItemId();
-            if (id == 1) { // CSS
-                updateToolbarMenu(dialogToolbar, true);
-                activeCode[0] = cssCode;
-                activeLang[0] = "css";
-                loadHighlightedCode(webView, cssCode.isEmpty() ? "/* No CSS generated */" : cssCode, "css");
-                return true;
-            } else if (id == 2) { // JS
-                updateToolbarMenu(dialogToolbar, false);
-                activeCode[0] = jsCode;
-                activeLang[0] = "javascript";
-                loadHighlightedCode(webView, jsCode.isEmpty() ? "/* No Javascript generated */" : jsCode, "javascript");
-                return true;
-            }
-            return false;
-        });
-
-        new MaterialAlertDialogBuilder(this)
-            .setView(container)
-            .setPositiveButton("Copy", (dialog, which) -> {
-                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                clipboard.setPrimaryClip(ClipData.newPlainText(activeLang[0], activeCode[0]));
-                Toast.makeText(this, "Source copied", Toast.LENGTH_SHORT).show();
-            })
-            .setNegativeButton("Close", null)
-            .show();
-    }
-
-    private void updateToolbarMenu(Toolbar toolbar, boolean isCssSelected) {
-        MenuItem itemCss = toolbar.getMenu().findItem(1);
-        MenuItem itemJs = toolbar.getMenu().findItem(2);
-        if (itemCss != null && itemJs != null) {
-            if (isCssSelected) {
-                itemCss.setTitle(android.text.Html.fromHtml("<b><font color='#2196F3'>CSS</font></b>", android.text.Html.FROM_HTML_MODE_LEGACY));
-                itemJs.setTitle(android.text.Html.fromHtml("<font color='#888888'>JS</font>", android.text.Html.FROM_HTML_MODE_LEGACY));
-            } else {
-                itemCss.setTitle(android.text.Html.fromHtml("<font color='#888888'>CSS</font>", android.text.Html.FROM_HTML_MODE_LEGACY));
-                itemJs.setTitle(android.text.Html.fromHtml("<b><font color='#2196F3'>JS</font></b>", android.text.Html.FROM_HTML_MODE_LEGACY));
-            }
-        }
-    }
-
-    private void loadHighlightedCode(WebView webView, String code, String language) {
-        String escapedCode = escapeHtml(code);
-        String html = "<!DOCTYPE html>\n" +
-                "<html>\n" +
-                "<head>\n" +
-                "  <meta charset=\"UTF-8\">\n" +
-                "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\">\n" +
-                "  <style>\n" +
-                "    body { margin: 0; padding: 12px; background: #2d2d2d; font-family: monospace; font-size: 13px; }\n" +
-                "    pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; }\n" +
-                "  </style>\n" +
-                "</head>\n" +
-                "<body>\n" +
-                "  <pre><code class=\"language-" + language + "\">" + escapedCode + "</code></pre>\n" +
-                "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js\"></script>\n" +
-                "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js\"></script>\n" +
-                "</body>\n" +
-                "</html>";
-        webView.loadDataWithBaseURL("https://localhost", html, "text/html", "UTF-8", null);
-    }
-
-    private String escapeHtml(String text) {
-        if (text == null) return "";
-        return text.replace("&", "&amp;")
-                   .replace("<", "&lt;")
-                   .replace(">", "&gt;")
-                   .replace("\"", "&quot;")
-                   .replace("'", "&#39;");
-    }
-
-    @Override
-    public void onBackPressed() {
-        saveAndFinish();
-    }
+import androidx.appcompat.app.AppCompatActivity;
+import android.animation.Animator;
+import android.content.Context;
+import java.util.Arrays;
+import android.text.TextWatcher;
+import android.text.Editable;
+import android.content.DialogInterface;
+
+public class LogicBlockActivity extends AppCompatActivity implements OnClickListener, OnBlockCategorySelectListener, OnTouchListener {
+		public static final String LOGIC_NAME_SEPARATOR = "_";
+		private static final int PALETTE_SIZE_HORIZONTAL = 320;
+		private static final int PALETTE_SIZE_VERTICAL = 240;
+		public static String filename = "";
+		public static String projectId = "";
+		public static String pageName = "";
+
+		public static boolean isCssEvent() {
+				return filename != null && (filename.toLowerCase().endsWith(".css") || filename.toLowerCase().contains("css"));
+		}
+		
+		private Context context;
+		
+		private ObjectAnimator aniHideIconDelete;
+		private ObjectAnimator aniHidePalette;
+		private ObjectAnimator aniShowIconDelete;
+		private ObjectAnimator aniShowPalette;
+		private LinearLayout areaPalette;
+		private boolean bActiveIconDelete = false;
+		private boolean bInitIconDeleteAnimation = false;
+		private boolean bInitPaletteAnimation = false;
+		private boolean bShowIconDelete = false;
+		private BlockCopyInterface blockCopyInterface;
+		private VariableNameValidator booleanValidator;
+		private View currentTouchedView = null;
+		private ViewDummy dummy;
+		private ViewLogicEditor editor;
+		private String eventName = "";
+		private FloatingActionButton fab;
+		private final Handler handler = new Handler();
+		private ImageView iconDelete;
+		private LinearLayout layoutDragActions;
+		private ImageView iconSave;
+		private ImageView iconDuplicate;
+		private boolean bActiveIconSave = false;
+		private boolean bActiveIconDuplicate = false;
+		private String id = "";
+		private boolean isDragged = false;
+		private boolean isPaletteOpened = false;
+		private LinearLayout layoutPalette;
+		private Runnable longPressed = new Runnable() {
+				@Override
+				public void run() {
+						dragStart();
+				}
+		};
+		private AlertDialog mDlg;
+		private Menu menu;
+		private int minDist = 0;
+		private VariableNameValidator numberValidator;
+		private int originalArgIndex;
+		private int originalInsertOption;
+		private Block originalParent;
+		private PaletteBlock paletteBlock;
+		private PaletteSelector paletteSelector;
+		private BlockPane pane;
+		private int[] posDummy = new int[2];
+		private float posInitX = 0.0f;
+		private float posInitY = 0.0f;
+		private int[] posOriginal = new int[2];
+		private SharedPreferenceUtil prefBackup;
+		private SharedPreferenceUtil prefInstall;
+		private VariableNameValidator stringValidator;
+		private Toolbar toolbar;
+		private boolean useVibrate;
+		private Vibrator vibrator;
+		
+		//new
+		public int BLOCK_DRAG_X = 0;
+		public int BLOCK_DRAG_Y = -30;
+		
+		private void activeIconDelete(boolean z) {
+				if (this.bActiveIconDelete != z) {
+						this.bActiveIconDelete = z;
+						if (this.bActiveIconDelete) {
+								this.iconDelete.setImageResource(R.drawable.icon_delete_active);
+						} else {
+								this.iconDelete.setImageResource(R.drawable.icon_delete);
+						}
+				}
+		}
+
+		private void activeIconSave(boolean z) {
+				if (this.bActiveIconSave != z) {
+						this.bActiveIconSave = z;
+						if (this.iconSave != null) {
+								if (this.bActiveIconSave) {
+										this.iconSave.setColorFilter(android.graphics.Color.parseColor("#FF4CAF50"));
+								} else {
+										this.iconSave.setColorFilter(android.graphics.Color.parseColor("#FF888888"));
+								}
+						}
+				}
+		}
+
+		private void activeIconDuplicate(boolean z) {
+				if (this.bActiveIconDuplicate != z) {
+						this.bActiveIconDuplicate = z;
+						if (this.iconDuplicate != null) {
+								if (this.bActiveIconDuplicate) {
+										this.iconDuplicate.setColorFilter(android.graphics.Color.parseColor("#FFFF9800"));
+								} else {
+										this.iconDuplicate.setColorFilter(android.graphics.Color.parseColor("#FF888888"));
+								}
+						}
+				}
+		}
+		
+		private void addBlockToPalette(String str, String str2, String str3, int i, Object... objArr) {
+				BlockBase addBlock = this.paletteBlock.addBlock(str, str2, str3, i, objArr);
+				addBlock.setClickable(true);
+				addBlock.setOnTouchListener(this);
+		}
+		
+		private void addButtonToPalette(String str, String str2) {
+				View addButton = this.paletteBlock.addButton(str);
+				addButton.setTag(str2);
+				addButton.setSoundEffectsEnabled(true);
+				addButton.setOnClickListener(this);
+		}
+		
+		private void addFunctions() {
+				Iterator it = DesignDataManager.getFunctions(filename).iterator();
+				while (it.hasNext()) {
+						addBlockToPalette((String) ((Pair) it.next()).second, " ", "definedFunc", -7711273, new Object[0]);
+				}
+		}
+		
+		private void addLists() {
+				Iterator it = DesignDataManager.getLists(filename).iterator();
+				int i = 0;
+				int i2 = 0;
+				while (it.hasNext()) {
+						if (((Integer) ((Pair) it.next()).first).intValue() == 1) {
+								i2++;
+						} else {
+								i++;
+						}
+				}
+				if (i2 > 0) {
+						ArrayList arrayList = new ArrayList();
+						addBlockToPalette("", " ", "addListInt", -3384542, new Object[0]);
+						addBlockToPalette("", " ", "insertListInt", -3384542, new Object[0]);
+						addBlockToPalette("", "d", "getAtListInt", -3384542, new Object[0]);
+						addBlockToPalette("", "d", "indexListInt", -3384542, new Object[0]);
+						addBlockToPalette("", "b", "containListInt", -3384542, new Object[0]);
+				}
+				if (i > 0) {
+						addBlockToPalette("", " ", "addListStr", -3384542, new Object[0]);
+						addBlockToPalette("", " ", "insertListStr", -3384542, new Object[0]);
+						addBlockToPalette("", "s", "getAtListStr", -3384542, new Object[0]);
+						addBlockToPalette("", "d", "indexListStr", -3384542, new Object[0]);
+						addBlockToPalette("", "b", "containListStr", -3384542, new Object[0]);
+				}
+				if (i2 > 0 || i > 0) {
+						addBlockToPalette("", " ", "deleteList", -3384542, new Object[0]);
+						addBlockToPalette("", "d", "lengthList", -3384542, new Object[0]);
+						addBlockToPalette("", " ", "clearList", -3384542, new Object[0]);
+				}
+		}
+		
+		private void addVariables() {
+				Iterator it = DesignDataManager.getVariables(filename).iterator();
+				int i = 0;
+				int i2 = 0;
+				int i3 = 0;
+				while (it.hasNext()) {
+						Pair pair = (Pair) it.next();
+						if (((Integer) pair.first).intValue() == 0) {
+								addBlockToPalette((String) pair.second, "b", "getVar", -1147626, new Object[0]);
+								i3++;
+						} else if (((Integer) pair.first).intValue() == 1) {
+								addBlockToPalette((String) pair.second, "d", "getVar", -1147626, new Object[0]);
+								i2++;
+						} else {
+								addBlockToPalette((String) pair.second, "s", "getVar", -1147626, new Object[0]);
+								i++;
+						}
+				}
+				if (i3 > 0) {
+						addBlockToPalette("", " ", "setVarBoolean", -1147626, new Object[0]);
+				}
+				if (i2 > 0) {
+						addBlockToPalette("", " ", "setVarInt", -1147626, new Object[0]);
+						addBlockToPalette("", " ", "increaseInt", -1147626, new Object[0]);
+						addBlockToPalette("", " ", "decreaseInt", -1147626, new Object[0]);
+				}
+				if (i > 0) {
+						addBlockToPalette("", " ", "setVarString", -1147626, new Object[0]);
+				}
+		}
+		
+		private void allocateBlockArea(int i) {
+				int i2 = -1;
+				if (this.isPaletteOpened) {
+						int i3 = getResources().getDisplayMetrics().widthPixels;
+						int i4 = getResources().getDisplayMetrics().heightPixels;
+						if (i3 <= i4) {
+								i3 = i4;
+						}
+						if (2 == i) {
+								i3 -= (int) LayoutUtil.getDip(this, 320.0f);
+						} else {
+								int height = ((i3 - getSupportActionBar().getHeight()) - SysUtil.getStatusBarHeight(this.context)) - ((int) LayoutUtil.getDip(this, 240.0f));
+								i3 = -1;
+								i2 = height;
+						}
+						this.blockCopyInterface.setLayoutParams(new LayoutParams(i3, i2));
+						this.blockCopyInterface.requestLayout();
+						return;
+				}
+				this.blockCopyInterface.setLayoutParams(new LayoutParams(-1, -1));
+				this.blockCopyInterface.requestLayout();
+		}
+		
+		private void allocatePalette(int var1) {
+				if(2 == var1) {
+						LayoutParams var2 = new LayoutParams((int)LayoutUtil.getDip(this, 320.0F), -1);
+						this.areaPalette.setLayoutParams(var2);
+						LayoutParams var3 = new LayoutParams(-2, -2);
+						var3.gravity = 81;
+						int var4 = (int)LayoutUtil.getDip(this, 8.0F);
+						var3.setMargins(var4, var4, var4, var4);
+						this.fab.setLayoutParams(var3);
+						android.widget.RelativeLayout.LayoutParams var5 = new android.widget.RelativeLayout.LayoutParams(-2, -1);
+						var5.addRule(10);
+						var5.addRule(11);
+						var5.topMargin = this.getSupportActionBar().getHeight();
+						this.layoutPalette.setOrientation(0);
+						this.layoutPalette.setLayoutParams(var5);
+				} else {
+						LayoutParams var6 = new LayoutParams(-1, (int)LayoutUtil.getDip(this, 240.0F));
+						this.areaPalette.setLayoutParams(var6);
+						LayoutParams var7 = new LayoutParams(-2, -2);
+						var7.gravity = 21;
+						int var8 = (int)LayoutUtil.getDip(this, 8.0F);
+						var7.setMargins(var8, var8, var8, var8);
+						this.fab.setLayoutParams(var7);
+						android.widget.RelativeLayout.LayoutParams var9 = new android.widget.RelativeLayout.LayoutParams(-1, -2);
+						var9.addRule(9);
+						var9.addRule(12);
+						this.layoutPalette.setOrientation(1);
+						this.layoutPalette.setLayoutParams(var9);
+				}
+				
+				this.initPaletteAnimation(var1);
+				this.allocateBlockArea(var1);
+		}
+		
+		private void backupCurrentData(Bundle bundle) {
+		}
+		
+		private void cancelIconDeleteAnimation() {
+				if (this.aniShowIconDelete.isRunning()) {
+						this.aniShowIconDelete.cancel();
+				}
+				if (this.aniHideIconDelete.isRunning()) {
+						this.aniHideIconDelete.cancel();
+				}
+		}
+		
+		private void cancelPaletteAnimation() {
+				if (this.aniShowPalette.isRunning()) {
+						this.aniShowPalette.cancel();
+				}
+				if (this.aniHidePalette.isRunning()) {
+						this.aniHidePalette.cancel();
+				}
+		}
+		
+		private RadioButton createSingleItem(String str) {
+				RadioButton radioButton = new RadioButton(this);
+				radioButton.setText(str);
+				ViewGroup.LayoutParams layoutParams = new LayoutParams(-1, (int) (40.0f * LayoutUtil.getDip(this.context, 1.0f)));
+				radioButton.setGravity(19);
+				radioButton.setLayoutParams(layoutParams);
+				return radioButton;
+		}
+		
+		private void dragStart() {
+				if (this.currentTouchedView != null) {
+						this.paletteBlock.setDragEnabled(false);
+						this.editor.setScrollEnabled(false);
+						if (this.useVibrate) {
+								this.vibrator.vibrate(100);
+						}
+						this.isDragged = true;
+						if (((Block) this.currentTouchedView).getBlockType() == 0) {
+								getOriginalState((Block) this.currentTouchedView);
+								showIconDelete(true);
+								this.dummy.makeDummyWithBlock((Block) this.currentTouchedView);
+								this.pane.setVisibleBlock((Block) this.currentTouchedView, 8);
+								this.pane.removeRelation((Block) this.currentTouchedView);
+						} else {
+								this.dummy.makeDummyWithBlock((Block) this.currentTouchedView);
+						}
+						this.pane.prepareToDrag((Block) this.currentTouchedView);
+						this.dummy.moveDummy(this.currentTouchedView, this.posInitX, this.posInitY, this.posInitX, this.posInitY, (float)BLOCK_DRAG_X, (float)BLOCK_DRAG_Y);
+						this.dummy.getDummyPosition(this.posDummy);
+						if (this.editor.hitTest((float) this.posDummy[0], (float) this.posDummy[1])) {
+								this.dummy.setAllow(true);
+								this.pane.updateFeedbackFor((Block) this.currentTouchedView, this.posDummy[0], this.posDummy[1]);
+								return;
+						}
+						this.dummy.setAllow(false);
+						this.pane.hideFeedbackShape();
+				}
+		}
+		
+		private int getLabelWidth(TextView textView) {
+				Rect rect = new Rect();
+				textView.getPaint().getTextBounds(textView.getText().toString(), 0, textView.getText().length(), rect);
+				return rect.width();
+		}
+		
+		private void getOriginalState(Block block) {
+				this.originalParent = null;
+				this.originalArgIndex = -1;
+				this.originalInsertOption = 0;
+				this.posOriginal = new int[2];
+				block.getLocationOnScreen(this.posOriginal);
+				if (block.parentBlock != null) {
+						this.originalParent = block.parentBlock;
+				}
+				if (this.originalParent != null) {
+						if (this.originalParent.nextBlock == ((Integer) block.getTag()).intValue()) {
+								this.originalInsertOption = 0;
+						} else if (this.originalParent.subStack1 == ((Integer) block.getTag()).intValue()) {
+								this.originalInsertOption = 2;
+						} else if (this.originalParent.subStack2 == ((Integer) block.getTag()).intValue()) {
+								this.originalInsertOption = 3;
+						} else if (this.originalParent.args.contains(block)) {
+								this.originalInsertOption = 5;
+								this.originalArgIndex = this.originalParent.args.indexOf(block);
+						}
+				}
+		}
+		
+		private boolean hitTestIcon(View view, float f, float f2) {
+				if (view == null || view.getVisibility() != View.VISIBLE) return false;
+				int[] iArr = new int[2];
+				view.getLocationOnScreen(iArr);
+				return f > ((float) iArr[0]) && f < ((float) (iArr[0] + view.getWidth())) && f2 > ((float) iArr[1]) && f2 < ((float) (iArr[1] + view.getHeight()));
+		}
+
+		private boolean hitTestIconDelete(float f, float f2) {
+				return hitTestIcon(this.iconDelete, f, f2);
+		}
+		
+		private void initIconDeleteAnimation() {
+				if (this.layoutDragActions == null) return;
+				this.aniShowIconDelete = ObjectAnimator.ofFloat(this.layoutDragActions, "TranslationY", new float[]{0.0f});
+				this.aniShowIconDelete.setDuration(500);
+				this.aniShowIconDelete.setInterpolator(new DecelerateInterpolator());
+				this.aniHideIconDelete = ObjectAnimator.ofFloat(this.layoutDragActions, "TranslationY", new float[]{(float) LayoutUtil.getDip(this, 80.0f)});
+				this.aniHideIconDelete.setDuration(300);
+				this.aniHideIconDelete.setInterpolator(new DecelerateInterpolator());
+				this.bInitIconDeleteAnimation = true;
+		}
+		
+		private void initPaletteAnimation(int i) {
+				if (2 == i) {
+						if (this.isPaletteOpened) {
+								this.layoutPalette.setTranslationX(0.0f);
+								this.layoutPalette.setTranslationY(0.0f);
+						} else {
+								this.layoutPalette.setTranslationX((float) ((int) LayoutUtil.getDip(this, 320.0f)));
+								this.layoutPalette.setTranslationY(0.0f);
+						}
+				} else if (this.isPaletteOpened) {
+						this.layoutPalette.setTranslationX(0.0f);
+						this.layoutPalette.setTranslationY(0.0f);
+				} else {
+						this.layoutPalette.setTranslationX(0.0f);
+						this.layoutPalette.setTranslationY((float) ((int) LayoutUtil.getDip(this, 240.0f)));
+				}
+				if (2 == i) {
+						this.aniShowPalette = ObjectAnimator.ofFloat(this.layoutPalette, "TranslationX", new float[]{0.0f});
+						this.aniHidePalette = ObjectAnimator.ofFloat(this.layoutPalette, "TranslationX", new float[]{(float) ((int) LayoutUtil.getDip(this, 320.0f))});
+				} else {
+						this.aniShowPalette = ObjectAnimator.ofFloat(this.layoutPalette, "TranslationY", new float[]{0.0f});
+						this.aniHidePalette = ObjectAnimator.ofFloat(this.layoutPalette, "TranslationY", new float[]{(float) ((int) LayoutUtil.getDip(this, 240.0f))});
+				}
+				this.aniShowPalette.removeAllListeners();
+				this.aniHidePalette.removeAllListeners();
+				this.aniShowPalette.addListener(new Animator.AnimatorListener() {
+						public void onAnimationCancel(Animator var1) {
+						}
+						
+						public void onAnimationEnd(Animator var1) {
+								updateIconDeletePosition();
+						}
+						
+						public void onAnimationRepeat(Animator var1) {
+						}
+						
+						public void onAnimationStart(Animator var1) {
+						}
+				});
+				this.aniHidePalette.addListener(new Animator.AnimatorListener() {
+						public void onAnimationCancel(Animator var1) {
+						}
+						
+						public void onAnimationEnd(Animator var1) {
+						}
+						
+						public void onAnimationRepeat(Animator var1) {
+						}
+						
+						public void onAnimationStart(Animator var1) {
+								updateIconDeletePosition();
+						}
+				});
+				this.aniShowPalette.setDuration(500);
+				this.aniShowPalette.setInterpolator(new DecelerateInterpolator());
+				this.aniHidePalette.setDuration(300);
+				this.aniHidePalette.setInterpolator(new DecelerateInterpolator());
+				this.bInitPaletteAnimation = true;
+		}
+		
+		private void loadLogic() {
+				Map hashMap = new HashMap();
+				ArrayList blocks = DesignDataManager.getBlocks(filename, this.id + LOGIC_NAME_SEPARATOR + this.eventName);
+				if (blocks != null) {
+						Iterator it = blocks.iterator();
+						int i = 1;
+						while (it.hasNext()) {
+								Block makeBlockFromBean = makeBlockFromBean((BlockBean) it.next());
+								hashMap.put(Integer.valueOf(((Integer) makeBlockFromBean.getTag()).intValue()), makeBlockFromBean);
+								this.pane.blockId = Math.max(this.pane.blockId, ((Integer) makeBlockFromBean.getTag()).intValue() + 1);
+								this.pane.addBlock(makeBlockFromBean, 0, 0);
+								makeBlockFromBean.setOnTouchListener(this);
+								if (i != 0) {
+										this.pane.getRoot().insertBlock(makeBlockFromBean);
+										i = 0;
+								}
+						}
+						Iterator it2 = blocks.iterator();
+						while (it2.hasNext()) {
+								BlockBean blockBean = (BlockBean) it2.next();
+								Block block = (Block) hashMap.get(Integer.valueOf(blockBean.id));
+								if (block != null) {
+										Block block2;
+										if (blockBean.subStack1 >= 0) {
+												block2 = (Block) hashMap.get(Integer.valueOf(blockBean.subStack1));
+												if (block2 != null) {
+														block.insertBlockSub1(block2);
+												}
+										}
+										if (blockBean.subStack2 >= 0) {
+												block2 = (Block) hashMap.get(Integer.valueOf(blockBean.subStack2));
+												if (block2 != null) {
+														block.insertBlockSub2(block2);
+												}
+										}
+										if (blockBean.nextBlock >= 0) {
+												block2 = (Block) hashMap.get(Integer.valueOf(blockBean.nextBlock));
+												if (block2 != null) {
+														block.insertBlock(block2);
+												}
+										}
+										int size = blockBean.parameters.size();
+										for (int i2 = 0; i2 < size; i2++) {
+												String str = (String) blockBean.parameters.get(i2);
+												if (str != null && str.length() > 0) {
+														if (str.charAt(0) == '@') {
+																block2 = (Block) hashMap.get(Integer.valueOf(Integer.valueOf(str.substring(1)).intValue()));
+																if (block2 != null) {
+																		block.replaceArgWithBlock((BlockBase) block.args.get(i2), block2);
+																}
+														} else {
+																((BlockArg) block.args.get(i2)).setArgValue(str);
+																block.recalcWidthToParent();
+														}
+												}
+										}
+								}
+						}
+						this.pane.getRoot().fixLayout();
+						this.pane.calculateWidthHeight();
+				}
+		}
+		
+		private void makeBlockWithSpec(ViewGroup viewGroup, ViewGroup viewGroup2, Block block, String str, ArrayList<Pair<String, String>> arrayList) {
+				int i;
+				int i2;
+				viewGroup.removeAllViews();
+				viewGroup.addView(block);
+				Iterator it = arrayList.iterator();
+				String str2 = str;
+				while (it.hasNext()) {
+						Pair pair = (Pair) it.next();
+						str2 = ((String) pair.first).equals("b") ? str2 + " %b." + ((String) pair.second) : ((String) pair.first).equals("d") ? str2 + " %d." + ((String) pair.second) : ((String) pair.first).equals("s") ? str2 + " %s." + ((String) pair.second) : str2 + " " + ((String) pair.second);
+				}
+				block.setSpec(str2, null);
+				int size = arrayList.size();
+				int i3 = 0;
+				for (i = 0; i < size; i++) {
+						Pair pair = (Pair) arrayList.get(i);
+						Block block2;
+						int i4;
+						if (((String) pair.first).equals("b")) {
+								block2 = new Block(getApplicationContext(), arrayList.indexOf(pair) + 1, (String) pair.second, "b", "getParam", new Object[]{Integer.valueOf(-7711273), ""});
+								viewGroup.addView(block2);
+								i4 = i3 + 1;
+								block.replaceArgWithBlock((BlockBase) block.args.get(i3), block2);
+								i2 = i4;
+						} else if (((String) pair.first).equals("d")) {
+								block2 = new Block(getApplicationContext(), arrayList.indexOf(pair) + 1, (String) pair.second, "d", "getParam", new Object[]{Integer.valueOf(-7711273), ""});
+								viewGroup.addView(block2);
+								i4 = i3 + 1;
+								block.replaceArgWithBlock((BlockBase) block.args.get(i3), block2);
+								i2 = i4;
+						} else if (((String) pair.first).equals("s")) {
+								block2 = new Block(getApplicationContext(), arrayList.indexOf(pair) + 1, (String) pair.second, "s", "getParam", new Object[]{Integer.valueOf(-7711273), ""});
+								viewGroup.addView(block2);
+								i4 = i3 + 1;
+								block.replaceArgWithBlock((BlockBase) block.args.get(i3), block2);
+								i2 = i4;
+						} else {
+								i2 = i3;
+						}
+						i3 = i2;
+				}
+				block.fixLayout();
+				viewGroup2.removeAllViews();
+				i = block.labelsAndArgs.size();
+				for (i3 = 0; i3 < i; i3++) {
+						View view = (View) block.labelsAndArgs.get(i3);
+						int i5 = 0;
+						if (((String) block.argTypes.get(i3)).equals("label")) {
+								i5 = getLabelWidth((TextView) view);
+						}
+						if (view instanceof Block) {
+								i5 = ((Block) view).getWidthSum();
+						}
+						i2 = (int) (((float) i5) + LayoutUtil.getDip(getApplicationContext(), 4.0f));
+						ImageView imageView = new ImageView(this);
+						imageView.setImageResource(R.drawable.ic_remove_grey600_24dp);
+						imageView.setScaleType(ScaleType.CENTER_INSIDE);
+						imageView.setPadding(0, (int) LayoutUtil.getDip(getApplicationContext(), 4.0f), 0, (int) LayoutUtil.getDip(getApplicationContext(), 4.0f));
+						imageView.setLayoutParams(new LayoutParams(i2, -1));
+						viewGroup2.addView(imageView);
+						if (i3 == 0) {
+								imageView.setVisibility(4);
+								imageView.setEnabled(false);
+						} else {
+								imageView.setOnClickListener(new LogicBlockActivity$18(this, arrayList, viewGroup2, viewGroup, block, str));
+						}
+				}
+		}
+		
+		
+		
+		class LogicBlockActivity$18 implements OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final ArrayList val$args;
+				// $FF: synthetic field
+				final Block val$b;
+				// $FF: synthetic field
+				final ViewGroup val$removeArea;
+				// $FF: synthetic field
+				final String val$spec;
+				// $FF: synthetic field
+				final ViewGroup val$v;
+				
+				LogicBlockActivity$18(LogicBlockActivity var1, ArrayList var2, ViewGroup var3, ViewGroup var4, Block var5, String var6) {
+						this.this$0 = var1;
+						this.val$args = var2;
+						this.val$removeArea = var3;
+						this.val$v = var4;
+						this.val$b = var5;
+						this.val$spec = var6;
+				}
+				
+				public void onClick(View var1) {
+						this.val$args.remove(-1 + this.val$removeArea.indexOfChild(var1));
+						ArrayList var3 = new ArrayList(Arrays.asList(new String[0]/*DefineSource.getUsedWord(DesignActivity.getScId())*/));
+						Iterator var4 = this.val$args.iterator();
+						
+						while(var4.hasNext()) {
+								Pair var5 = (Pair)var4.next();
+								if(!((String)var5.first).equals("t")) {
+										var3.add(var5.second);
+								}
+						}
+						
+						booleanValidator.setUsedWords((String[])var3.toArray(new String[var3.size()]));
+						numberValidator.setUsedWords((String[])var3.toArray(new String[var3.size()]));
+						stringValidator.setUsedWords((String[])var3.toArray(new String[var3.size()]));
+						makeBlockWithSpec(this.val$v, this.val$removeArea, this.val$b, this.val$spec, this.val$args);
+				}
+		}
+		
+		
+		
+		
+		private void openPalette(boolean z) {
+				if (!this.bInitPaletteAnimation) {
+						initPaletteAnimation(getResources().getConfiguration().orientation);
+				}
+				if (this.isPaletteOpened != z) {
+						this.isPaletteOpened = z;
+						cancelPaletteAnimation();
+						if (z) {
+								this.aniShowPalette.start();
+						} else {
+								this.aniHidePalette.start();
+						}
+						allocateBlockArea(getResources().getConfiguration().orientation);
+				}
+		}
+		
+		private void pasteCopiedBlocks() {
+				if (DesignDataManager.isExistClipboard(filename)) {
+						int i;
+						BlockBean blockBean;
+						int i2;
+						int i3;
+						Block makeBlockFromBean;
+						Map hashMap = new HashMap();
+						Map hashMap2 = new HashMap();
+						ArrayList clipboard = DesignDataManager.getClipboard(filename);
+						Iterator it = clipboard.iterator();
+						while (it.hasNext()) {
+								Integer valueOf = Integer.valueOf(((BlockBean) it.next()).id);
+								BlockPane blockPane = this.pane;
+								i = blockPane.blockId;
+								blockPane.blockId = i + 1;
+								hashMap2.put(valueOf, Integer.valueOf(i));
+						}
+						Iterator it2 = clipboard.iterator();
+						while (it2.hasNext()) {
+								blockBean = (BlockBean) it2.next();
+								if (blockBean.opCode.equals("getArg")) {
+										i = 0;
+										i2 = 0;
+										while (i < this.pane.getRoot().args.size()) {
+												View view = (View) this.pane.getRoot().args.get(i);
+												i3 = ((view instanceof Block) && blockBean.type.equals(((Block) view).mType) && blockBean.spec.equals(((Block) view).mSpec)) ? 1 : i2;
+												i++;
+												i2 = i3;
+										}
+										if (i2 == 0) {
+												hashMap2.put(Integer.valueOf(blockBean.id), Integer.valueOf(0));
+										}
+								}
+						}
+						Iterator it3 = clipboard.iterator();
+						while (it3.hasNext()) {
+								blockBean = (BlockBean) it3.next();
+								blockBean.id = String.valueOf(hashMap2.get(Integer.valueOf(blockBean.id)));
+								i2 = blockBean.parameters.size();
+								for (i3 = 0; i3 < i2; i3++) {
+										String str = (String) blockBean.parameters.get(i3);
+										if (str != null && str.length() > 0 && str.charAt(0) == '@') {
+												Integer num = (Integer) hashMap2.get(Integer.valueOf(Integer.valueOf(str.substring(1)).intValue()));
+												if (num == null) {
+														blockBean.parameters.set(i3, "");
+												} else {
+														blockBean.parameters.set(i3, '@' + String.valueOf(num));
+												}
+										}
+								}
+								if (blockBean.subStack1 >= 0) {
+										blockBean.subStack1 = ((Integer) hashMap2.get(Integer.valueOf(blockBean.subStack1))).intValue();
+								}
+								if (blockBean.subStack2 >= 0) {
+										blockBean.subStack2 = ((Integer) hashMap2.get(Integer.valueOf(blockBean.subStack2))).intValue();
+								}
+								if (blockBean.nextBlock >= 0) {
+										blockBean.nextBlock = ((Integer) hashMap2.get(Integer.valueOf(blockBean.nextBlock))).intValue();
+								}
+						}
+						int[] iArr = new int[2];
+						this.editor.getLocationOnScreen(iArr);
+						int width = iArr[0] + (this.editor.getWidth() / 2);
+						i3 = ((int) LayoutUtil.getDip(getApplicationContext(), 4.0f)) + iArr[1];
+						it3 = clipboard.iterator();
+						Block block = null;
+						while (it3.hasNext()) {
+								blockBean = (BlockBean) it3.next();
+								if (!blockBean.id.equals("0")) {
+										makeBlockFromBean = makeBlockFromBean(blockBean);
+										hashMap.put(Integer.valueOf(makeBlockFromBean.getTag().toString()), makeBlockFromBean);
+										this.pane.addBlock(makeBlockFromBean, width, i3);
+										makeBlockFromBean.setOnTouchListener(this);
+										block = makeBlockFromBean;
+								}
+						}
+						Iterator it4 = clipboard.iterator();
+						while (it4.hasNext()) {
+								blockBean = (BlockBean) it4.next();
+								if (!blockBean.id.equals("0")) {
+										Block block2 = (Block) hashMap.get(Integer.valueOf(blockBean.id));
+										if (block2 != null) {
+												Block block3;
+												int size = blockBean.parameters.size();
+												for (int i4 = 0; i4 < size; i4++) {
+														String str2 = (String) blockBean.parameters.get(i4);
+														if (str2 != null && str2.length() > 0) {
+																if (str2.charAt(0) == '@') {
+																		block3 = (Block) hashMap.get(Integer.valueOf(Integer.valueOf(str2.substring(1)).intValue()));
+																		if (block3 != null) {
+																				block2.replaceArgWithBlock((BlockBase) block2.args.get(i4), block3);
+																		}
+																} else {
+																		((BlockArg) block2.args.get(i4)).setArgValue(str2);
+																		block2.recalcWidthToParent();
+																}
+														}
+												}
+												if (blockBean.subStack1 >= 0) {
+														block3 = (Block) hashMap.get(Integer.valueOf(blockBean.subStack1));
+														if (block3 != null) {
+																block2.insertBlockSub1(block3);
+														}
+												}
+												if (blockBean.subStack2 >= 0) {
+														block3 = (Block) hashMap.get(Integer.valueOf(blockBean.subStack2));
+														if (block3 != null) {
+																block2.insertBlockSub2(block3);
+														}
+												}
+												if (blockBean.nextBlock >= 0) {
+														makeBlockFromBean = (Block) hashMap.get(Integer.valueOf(blockBean.nextBlock));
+														if (makeBlockFromBean != null) {
+																block2.insertBlock(makeBlockFromBean);
+														}
+												}
+										}
+								}
+						}
+						block.topBlock().fixLayout();
+						this.pane.calculateWidthHeight();
+						return;
+				}
+				Toast.makeText(this, "No block for copying (for debug)", 0).show();
+		}
+		
+		private void saveLogic() {
+				DesignDataManager.setBlocks(filename, this.id + LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
+		}
+		
+		private void showAddBlockPopup() {
+				View inflate = LayoutUtil.inflate(this, R.layout.logic_popup_add_block);
+				Builder builder = new Builder(this);
+				builder.setView(inflate);
+				builder.setTitle(getString(R.string.logic_popup_title_make_block));
+				ArrayList arrayList = new ArrayList();
+				RelativeLayout relativeLayout = (RelativeLayout) inflate.findViewById(R.id.block_area);
+				LinearLayout linearLayout = (LinearLayout) inflate.findViewById(R.id.remove_area);
+				Block block = new Block(getApplicationContext(), 0, "", " ", "definedFunc", new Object[]{Integer.valueOf(-7711273)});
+				relativeLayout.addView(block);
+				TextInputLayout textInputLayout = (TextInputLayout) inflate.findViewById(R.id.ti_boolean);
+				TextInputLayout textInputLayout2 = (TextInputLayout) inflate.findViewById(R.id.ti_number);
+				TextInputLayout textInputLayout3 = (TextInputLayout) inflate.findViewById(R.id.ti_string);
+				VariableNameValidator variableNameValidator = new VariableNameValidator(this.context, (TextInputLayout) inflate.findViewById(R.id.ti_name), DefineSource.RESERVED_WORD, DefineSource.getUsedWord(DesignActivity.getScId()), DesignDataManager.getAllNamesForValid(filename));
+				this.booleanValidator = new VariableNameValidator(this.context, textInputLayout, DefineSource.RESERVED_WORD, DefineSource.getUsedWord(DesignActivity.getScId()), new ArrayList());
+				this.numberValidator = new VariableNameValidator(this.context, textInputLayout2, DefineSource.RESERVED_WORD, DefineSource.getUsedWord(DesignActivity.getScId()), new ArrayList());
+				this.stringValidator = new VariableNameValidator(this.context, textInputLayout3, DefineSource.RESERVED_WORD, DefineSource.getUsedWord(DesignActivity.getScId()), new ArrayList());
+				EditText editText = (EditText) inflate.findViewById(R.id.ed_name);
+				EditText editText2 = (EditText) inflate.findViewById(R.id.ed_boolean);
+				EditText editText3 = (EditText) inflate.findViewById(R.id.ed_number);
+				EditText editText4 = (EditText) inflate.findViewById(R.id.ed_string);
+				EditText editText5 = (EditText) inflate.findViewById(R.id.ed_label);
+				editText.setPrivateImeOptions("defaultInputmode=english;");
+				editText2.setPrivateImeOptions("defaultInputmode=english;");
+				editText3.setPrivateImeOptions("defaultInputmode=english;");
+				editText4.setPrivateImeOptions("defaultInputmode=english;");
+				editText5.setPrivateImeOptions("defaultInputmode=english;");
+				editText.addTextChangedListener(new LogicBlockActivity$12(this, relativeLayout, linearLayout, block, arrayList));
+				((Button) inflate.findViewById(R.id.add_boolean)).setOnClickListener(new LogicBlockActivity$13(this, arrayList, editText2, relativeLayout, linearLayout, block, editText, editText3, editText4));
+				((Button) inflate.findViewById(R.id.add_number)).setOnClickListener(new LogicBlockActivity$14(this, arrayList, editText3, relativeLayout, linearLayout, block, editText, editText2, editText4));
+				((Button) inflate.findViewById(R.id.add_string)).setOnClickListener(new LogicBlockActivity$15(this, arrayList, editText4, relativeLayout, linearLayout, block, editText, editText2, editText3));
+				((Button) inflate.findViewById(R.id.add_label)).setOnClickListener(new LogicBlockActivity$16(this, arrayList, editText5, relativeLayout, linearLayout, block, editText));
+				builder.setNegativeButton(R.string.btn_cancel, null);
+				builder.setPositiveButton(R.string.btn_accept, null);
+				this.mDlg = builder.create();
+				this.mDlg.setOnShowListener(new LogicBlockActivity$17(this, variableNameValidator, editText, block));
+				this.mDlg.show();
+		}
+		
+		
+		class LogicBlockActivity$17 implements DialogInterface.OnShowListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final Block val$block;
+				// $FF: synthetic field
+				final EditText val$edName;
+				// $FF: synthetic field
+				final VariableNameValidator val$varNameValidator;
+				
+				LogicBlockActivity$17(LogicBlockActivity var1, VariableNameValidator var2, EditText var3, Block var4) {
+						this.this$0 = var1;
+						this.val$varNameValidator = var2;
+						this.val$edName = var3;
+						this.val$block = var4;
+				}
+				
+				public void onShow(DialogInterface var1) {
+						LogicBlockActivity.access$800(this.this$0).getButton(-1).setOnClickListener(new LogicBlockActivity$17$1(this));
+				}
+		}
+		
+		class LogicBlockActivity$17$1 implements OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity$17 this$1;
+				
+				LogicBlockActivity$17$1(LogicBlockActivity$17 var1) {
+						this.this$1 = var1;
+				}
+				
+				public void onClick(View var1) {
+						if(this.this$1.val$varNameValidator.isValid()) {
+								DesignDataManager.addFunction(LogicBlockActivity.filename, this.this$1.val$edName.getText().toString(), this.this$1.val$block.mSpec);
+								this.this$1.this$0.onBlockCategorySelect(5, -7711273);
+								LogicBlockActivity.access$800(this.this$1.this$0).dismiss();
+						}
+				}
+		}
+		
+		
+		
+		class LogicBlockActivity$16 implements OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final ArrayList val$args;
+				// $FF: synthetic field
+				final Block val$block;
+				// $FF: synthetic field
+				final RelativeLayout val$blockArea;
+				// $FF: synthetic field
+				final EditText val$edLabel;
+				// $FF: synthetic field
+				final EditText val$edName;
+				// $FF: synthetic field
+				final LinearLayout val$removeArea;
+				
+				LogicBlockActivity$16(LogicBlockActivity var1, ArrayList var2, EditText var3, RelativeLayout var4, LinearLayout var5, Block var6, EditText var7) {
+						this.this$0 = var1;
+						this.val$args = var2;
+						this.val$edLabel = var3;
+						this.val$blockArea = var4;
+						this.val$removeArea = var5;
+						this.val$block = var6;
+						this.val$edName = var7;
+				}
+				
+				public void onClick(View var1) {
+						this.val$args.add(new Pair("t", this.val$edLabel.getText().toString()));
+						LogicBlockActivity.access$1200(this.this$0, this.val$blockArea, this.val$removeArea, this.val$block, this.val$edName.getText().toString(), this.val$args);
+				}
+		}
+		
+		
+		
+		
+		class LogicBlockActivity$15 implements OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final ArrayList val$args;
+				// $FF: synthetic field
+				final Block val$block;
+				// $FF: synthetic field
+				final RelativeLayout val$blockArea;
+				// $FF: synthetic field
+				final EditText val$edBoolean;
+				// $FF: synthetic field
+				final EditText val$edName;
+				// $FF: synthetic field
+				final EditText val$edNumber;
+				// $FF: synthetic field
+				final EditText val$edString;
+				// $FF: synthetic field
+				final LinearLayout val$removeArea;
+				
+				LogicBlockActivity$15(LogicBlockActivity var1, ArrayList var2, EditText var3, RelativeLayout var4, LinearLayout var5, Block var6, EditText var7, EditText var8, EditText var9) {
+						this.this$0 = var1;
+						this.val$args = var2;
+						this.val$edString = var3;
+						this.val$blockArea = var4;
+						this.val$removeArea = var5;
+						this.val$block = var6;
+						this.val$edName = var7;
+						this.val$edBoolean = var8;
+						this.val$edNumber = var9;
+				}
+				
+				public void onClick(View var1) {
+						if(LogicBlockActivity.access$1500(this.this$0).isValid()) {
+								this.val$args.add(new Pair("s", this.val$edString.getText().toString()));
+								LogicBlockActivity.access$1200(this.this$0, this.val$blockArea, this.val$removeArea, this.val$block, this.val$edName.getText().toString(), this.val$args);
+								ArrayList var3 = new ArrayList(Arrays.asList(DefineSource.getUsedWord(DesignActivity.getScId())));
+								Iterator var4 = this.val$args.iterator();
+								
+								while(var4.hasNext()) {
+										Pair var5 = (Pair)var4.next();
+										if(!((String)var5.first).equals("t")) {
+												var3.add(var5.second);
+										}
+								}
+								
+								LogicBlockActivity.access$1300(this.this$0).setUsedWords((String[])var3.toArray(new String[var3.size()]));
+								LogicBlockActivity.access$1300(this.this$0).setText(this.val$edBoolean.getText().toString());
+								LogicBlockActivity.access$1400(this.this$0).setUsedWords((String[])var3.toArray(new String[var3.size()]));
+								LogicBlockActivity.access$1400(this.this$0).setText(this.val$edNumber.getText().toString());
+								LogicBlockActivity.access$1500(this.this$0).setUsedWords((String[])var3.toArray(new String[var3.size()]));
+								this.val$edString.setText("");
+						}
+				}
+		}
+		
+		
+		
+		
+		class LogicBlockActivity$14 implements OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final ArrayList val$args;
+				// $FF: synthetic field
+				final Block val$block;
+				// $FF: synthetic field
+				final RelativeLayout val$blockArea;
+				// $FF: synthetic field
+				final EditText val$edBoolean;
+				// $FF: synthetic field
+				final EditText val$edName;
+				// $FF: synthetic field
+				final EditText val$edNumber;
+				// $FF: synthetic field
+				final EditText val$edString;
+				// $FF: synthetic field
+				final LinearLayout val$removeArea;
+				
+				LogicBlockActivity$14(LogicBlockActivity var1, ArrayList var2, EditText var3, RelativeLayout var4, LinearLayout var5, Block var6, EditText var7, EditText var8, EditText var9) {
+						this.this$0 = var1;
+						this.val$args = var2;
+						this.val$edNumber = var3;
+						this.val$blockArea = var4;
+						this.val$removeArea = var5;
+						this.val$block = var6;
+						this.val$edName = var7;
+						this.val$edBoolean = var8;
+						this.val$edString = var9;
+				}
+				
+				public void onClick(View var1) {
+						if(LogicBlockActivity.access$1400(this.this$0).isValid()) {
+								this.val$args.add(new Pair("d", this.val$edNumber.getText().toString()));
+								LogicBlockActivity.access$1200(this.this$0, this.val$blockArea, this.val$removeArea, this.val$block, this.val$edName.getText().toString(), this.val$args);
+								ArrayList var3 = new ArrayList(Arrays.asList(DefineSource.getUsedWord(DesignActivity.getScId())));
+								Iterator var4 = this.val$args.iterator();
+								
+								while(var4.hasNext()) {
+										Pair var5 = (Pair)var4.next();
+										if(!((String)var5.first).equals("t")) {
+												var3.add(var5.second);
+										}
+								}
+								
+								LogicBlockActivity.access$1300(this.this$0).setUsedWords((String[])var3.toArray(new String[var3.size()]));
+								LogicBlockActivity.access$1300(this.this$0).setText(this.val$edBoolean.getText().toString());
+								LogicBlockActivity.access$1400(this.this$0).setUsedWords((String[])var3.toArray(new String[var3.size()]));
+								LogicBlockActivity.access$1500(this.this$0).setUsedWords((String[])var3.toArray(new String[var3.size()]));
+								LogicBlockActivity.access$1500(this.this$0).setText(this.val$edString.getText().toString());
+								this.val$edNumber.setText("");
+						}
+				}
+		}
+		
+		
+		
+		class LogicBlockActivity$12 implements TextWatcher {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final ArrayList val$args;
+				// $FF: synthetic field
+				final Block val$block;
+				// $FF: synthetic field
+				final RelativeLayout val$blockArea;
+				// $FF: synthetic field
+				final LinearLayout val$removeArea;
+				
+				LogicBlockActivity$12(LogicBlockActivity var1, RelativeLayout var2, LinearLayout var3, Block var4, ArrayList var5) {
+						this.this$0 = var1;
+						this.val$blockArea = var2;
+						this.val$removeArea = var3;
+						this.val$block = var4;
+						this.val$args = var5;
+				}
+				
+				public void afterTextChanged(Editable var1) {
+						makeBlockWithSpec(this.val$blockArea, this.val$removeArea, this.val$block, var1.toString(), this.val$args);
+				}
+				
+				public void beforeTextChanged(CharSequence var1, int var2, int var3, int var4) {
+				}
+				
+				public void onTextChanged(CharSequence var1, int var2, int var3, int var4) {
+				}
+		}
+		
+		
+		class LogicBlockActivity$13 implements OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final ArrayList val$args;
+				// $FF: synthetic field
+				final Block val$block;
+				// $FF: synthetic field
+				final RelativeLayout val$blockArea;
+				// $FF: synthetic field
+				final EditText val$edBoolean;
+				// $FF: synthetic field
+				final EditText val$edName;
+				// $FF: synthetic field
+				final EditText val$edNumber;
+				// $FF: synthetic field
+				final EditText val$edString;
+				// $FF: synthetic field
+				final LinearLayout val$removeArea;
+				
+				LogicBlockActivity$13(LogicBlockActivity var1, ArrayList var2, EditText var3, RelativeLayout var4, LinearLayout var5, Block var6, EditText var7, EditText var8, EditText var9) {
+						this.this$0 = var1;
+						this.val$args = var2;
+						this.val$edBoolean = var3;
+						this.val$blockArea = var4;
+						this.val$removeArea = var5;
+						this.val$block = var6;
+						this.val$edName = var7;
+						this.val$edNumber = var8;
+						this.val$edString = var9;
+				}
+				
+				public void onClick(View var1) {
+						if(LogicBlockActivity.access$1300(this.this$0).isValid()) {
+								this.val$args.add(new Pair("b", this.val$edBoolean.getText().toString()));
+								LogicBlockActivity.access$1200(this.this$0, this.val$blockArea, this.val$removeArea, this.val$block, this.val$edName.getText().toString(), this.val$args);
+								ArrayList var3 = new ArrayList(Arrays.asList(DefineSource.getUsedWord(DesignActivity.getScId())));
+								Iterator var4 = this.val$args.iterator();
+								
+								while(var4.hasNext()) {
+										Pair var5 = (Pair)var4.next();
+										if(!((String)var5.first).equals("t")) {
+												var3.add(var5.second);
+										}
+								}
+								
+								LogicBlockActivity.access$1300(this.this$0).setUsedWords((String[])var3.toArray(new String[var3.size()]));
+								LogicBlockActivity.access$1400(this.this$0).setUsedWords((String[])var3.toArray(new String[var3.size()]));
+								LogicBlockActivity.access$1400(this.this$0).setText(this.val$edNumber.getText().toString());
+								LogicBlockActivity.access$1500(this.this$0).setUsedWords((String[])var3.toArray(new String[var3.size()]));
+								LogicBlockActivity.access$1500(this.this$0).setText(this.val$edString.getText().toString());
+								this.val$edBoolean.setText("");
+						}
+				}
+		}
+		
+		// $FF: synthetic method
+		static boolean access$000(LogicBlockActivity var0) {
+				return var0.isPaletteOpened;
+		}
+		
+		// $FF: synthetic method
+		static void access$100(LogicBlockActivity var0, boolean var1) {
+				var0.openPalette(var1);
+		}
+		
+		// $FF: synthetic method
+		static String access$1000(LogicBlockActivity var0) {
+				return var0.id;
+		}
+		
+		// $FF: synthetic method
+		static String access$1100(LogicBlockActivity var0) {
+				return var0.eventName;
+		}
+		
+		// $FF: synthetic method
+		static void access$1200(LogicBlockActivity var0, ViewGroup var1, ViewGroup var2, Block var3, String var4, ArrayList var5) {
+				var0.makeBlockWithSpec(var1, var2, var3, var4, var5);
+		}
+		
+		// $FF: synthetic method
+		static VariableNameValidator access$1300(LogicBlockActivity var0) {
+				return var0.booleanValidator;
+		}
+		
+		// $FF: synthetic method
+		static VariableNameValidator access$1400(LogicBlockActivity var0) {
+				return var0.numberValidator;
+		}
+		
+		// $FF: synthetic method
+		static VariableNameValidator access$1500(LogicBlockActivity var0) {
+				return var0.stringValidator;
+		}
+		
+		// $FF: synthetic method
+		static void access$200(LogicBlockActivity var0) {
+				var0.updateIconDeletePosition();
+		}
+		
+		// $FF: synthetic method
+		static void access$300(LogicBlockActivity var0) {
+				var0.dragStart();
+		}
+		
+		// $FF: synthetic method
+		static void access$400(LogicBlockActivity var0) {
+				var0.saveLogic();
+		}
+		
+		/*   // $FF: synthetic method
+static void access$500(LogicBlockActivity var0) {
+var0.dismissProgress();
+}
+
+// $FF: synthetic method
+static void access$600(LogicBlockActivity var0) {
+var0.dismissProgress();
+}
+*/
+		// $FF: synthetic method
+		static Context access$700(LogicBlockActivity var0) {
+				return var0.context;
+		}
+		
+		// $FF: synthetic method
+		static AlertDialog access$800(LogicBlockActivity var0) {
+				return var0.mDlg;
+		}
+		
+		// $FF: synthetic method
+		static BlockPane access$900(LogicBlockActivity var0) {
+				return var0.pane;
+		}
+		
+		
+		
+		
+		
+		private void showAddListPopup() {
+				View inflate = LayoutUtil.inflate(this, R.layout.logic_popup_add_list);
+				Builder builder = new Builder(this);
+				builder.setView(inflate);
+				builder.setTitle(getString(R.string.logic_popup_title_add_list));
+				RadioGroup radioGroup = (RadioGroup) inflate.findViewById(R.id.rg_type);
+				EditText editText = (EditText) inflate.findViewById(R.id.ed_input);
+				VariableNameValidator variableNameValidator = new VariableNameValidator(this.context, (TextInputLayout) inflate.findViewById(R.id.ti_input), DefineSource.RESERVED_WORD, DefineSource.getUsedWord(DesignActivity.getScId()), DesignDataManager.getAllNamesForValid(filename));
+				editText.setPrivateImeOptions("defaultInputmode=english;");
+				builder.setNegativeButton(R.string.btn_cancel, new LogicBlockActivity$9(this));
+				builder.setPositiveButton(R.string.btn_accept, null);
+				this.mDlg = builder.create();
+				this.mDlg.setOnShowListener(new LogicBlockActivity$10(this, variableNameValidator, radioGroup, editText));
+				this.mDlg.show();
+		}
+		
+		
+		
+		
+		class LogicBlockActivity$10 implements DialogInterface.OnShowListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final EditText val$edInput;
+				// $FF: synthetic field
+				final RadioGroup val$rgType;
+				// $FF: synthetic field
+				final VariableNameValidator val$varNameValidator;
+				
+				LogicBlockActivity$10(LogicBlockActivity var1, VariableNameValidator var2, RadioGroup var3, EditText var4) {
+						this.this$0 = var1;
+						this.val$varNameValidator = var2;
+						this.val$rgType = var3;
+						this.val$edInput = var4;
+				}
+				
+				public void onShow(DialogInterface var1) {
+						LogicBlockActivity.access$800(this.this$0).getButton(-1).setOnClickListener(new LogicBlockActivity$10$1(this));
+				}
+		}
+		
+		
+		
+		class LogicBlockActivity$10$1 implements OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity$10 this$1;
+				
+				LogicBlockActivity$10$1(LogicBlockActivity$10 var1) {
+						this.this$1 = var1;
+				}
+				
+				public void onClick(View var1) {
+						if(this.this$1.val$varNameValidator.isValid()) {
+								byte var2 = 1;
+								if(this.this$1.val$rgType.getCheckedRadioButtonId() == R.id.rb_int) {
+										var2 = 1;
+								} else if(this.this$1.val$rgType.getCheckedRadioButtonId() == R.id.rb_string) {
+										var2 = 2;
+								}
+								
+								String var3 = this.this$1.val$edInput.getText().toString();
+								DesignDataManager.addList(LogicBlockActivity.filename, var2, var3);
+								this.this$1.this$0.onBlockCategorySelect(1, -3384542);
+								LogicBlockActivity.access$800(this.this$1.this$0).dismiss();
+						}
+				}
+		}
+		
+		
+		
+		
+		
+		class LogicBlockActivity$9 implements DialogInterface.OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				
+				LogicBlockActivity$9(LogicBlockActivity var1) {
+						this.this$0 = var1;
+				}
+				
+				public void onClick(DialogInterface var1, int var2) {
+						LogicBlockActivity.access$800(this.this$0).dismiss();
+				}
+		}
+		
+		
+		
+		
+		
+		private void showAddVarPopup() {
+				View inflate = LayoutUtil.inflate(this, R.layout.logic_popup_add_variable);
+				Builder builder = new Builder(this);
+				builder.setView(inflate);
+				builder.setTitle(getString(R.string.logic_popup_title_add_variable));
+				RadioGroup radioGroup = (RadioGroup) inflate.findViewById(R.id.rg_type);
+				EditText editText = (EditText) inflate.findViewById(R.id.ed_input);
+				editText.setPrivateImeOptions("defaultInputmode=english;");
+				VariableNameValidator variableNameValidator = new VariableNameValidator(this.context, (TextInputLayout) inflate.findViewById(R.id.ti_input), DefineSource.RESERVED_WORD, DefineSource.getUsedWord(DesignActivity.getScId()), DesignDataManager.getAllNamesForValid(filename));
+				builder.setNegativeButton(R.string.btn_cancel, null);
+				builder.setPositiveButton(R.string.btn_accept, null);
+				this.mDlg = builder.create();
+				this.mDlg.setOnShowListener(new LogicBlockActivity$7(this, radioGroup, editText, variableNameValidator));
+				this.mDlg.show();
+		}
+		
+		
+		
+		
+		class LogicBlockActivity$7 implements DialogInterface.OnShowListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final EditText val$edInput;
+				// $FF: synthetic field
+				final RadioGroup val$rgType;
+				// $FF: synthetic field
+				final VariableNameValidator val$varNameValidator;
+				
+				LogicBlockActivity$7(LogicBlockActivity var1, RadioGroup var2, EditText var3, VariableNameValidator var4) {
+						this.this$0 = var1;
+						this.val$rgType = var2;
+						this.val$edInput = var3;
+						this.val$varNameValidator = var4;
+				}
+				
+				public void onShow(DialogInterface var1) {
+						LogicBlockActivity.access$800(this.this$0).getButton(-1).setOnClickListener(new LogicBlockActivity$7$1(this));
+				}
+		}
+		
+		
+		class LogicBlockActivity$7$1 implements OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity$7 this$1;
+				
+				LogicBlockActivity$7$1(LogicBlockActivity$7 var1) {
+						this.this$1 = var1;
+				}
+				
+				public void onClick(View var1) {
+						byte var2 = 1;
+						if(this.this$1.val$rgType.getCheckedRadioButtonId() == R.id.rb_boolean) {
+								var2 = 0;
+						} else if(this.this$1.val$rgType.getCheckedRadioButtonId() == R.id.rb_int) {
+								var2 = 1;
+						} else if(this.this$1.val$rgType.getCheckedRadioButtonId() == R.id.rb_string) {
+								var2 = 2;
+						}
+						
+						String var3 = this.this$1.val$edInput.getText().toString();
+						if(this.this$1.val$varNameValidator.isValid()) {
+								DesignDataManager.addVariable(LogicBlockActivity.filename, var2, var3);
+								this.this$1.this$0.onBlockCategorySelect(0, -1147626);
+								LogicBlockActivity.access$800(this.this$1.this$0).dismiss();
+						}
+				}
+		}
+		
+		
+		
+		
+		
+		private void showIconDelete(boolean z) {
+				if (!this.bInitIconDeleteAnimation) {
+						initIconDeleteAnimation();
+				}
+				if (this.bShowIconDelete != z) {
+						this.bShowIconDelete = z;
+						cancelIconDeleteAnimation();
+						if (z) {
+								this.aniShowIconDelete.start();
+						} else {
+								this.aniHideIconDelete.start();
+						}
+				}
+		}
+		
+		private void showRemoveListPopup() {
+				View inflate = LayoutUtil.inflate(this, R.layout.property_popup_selector_single);
+				Builder builder = new Builder(this);
+				builder.setView(inflate);
+				builder.setTitle(getString(R.string.logic_popup_title_remove_list));
+				ViewGroup viewGroup = (ViewGroup) inflate.findViewById(R.id.rg_content);
+				ArrayList arrayList = new ArrayList();
+				Iterator it = DesignDataManager.getLists(filename).iterator();
+				while (it.hasNext()) {
+						viewGroup.addView(createSingleItem((String) ((Pair) it.next()).second));
+				}
+				builder.setNegativeButton(R.string.btn_cancel, null);
+				builder.setPositiveButton(R.string.btn_accept, null);
+				this.mDlg = builder.create();
+				this.mDlg.setOnShowListener(new LogicBlockActivity$11(this, viewGroup));
+				this.mDlg.show();
+		}
+		
+		
+		class LogicBlockActivity$11 implements DialogInterface.OnShowListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final ViewGroup val$content;
+				
+				LogicBlockActivity$11(LogicBlockActivity var1, ViewGroup var2) {
+						this.this$0 = var1;
+						this.val$content = var2;
+				}
+				
+				public void onShow(DialogInterface var1) {
+						LogicBlockActivity.access$800(this.this$0).getButton(-1).setOnClickListener(new LogicBlockActivity$11$1(this));
+				}
+		}
+		
+		
+		
+		
+		class LogicBlockActivity$11$1 implements OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity$11 this$1;
+				
+				LogicBlockActivity$11$1(LogicBlockActivity$11 var1) {
+						this.this$1 = var1;
+				}
+				
+				public void onClick(View var1) {
+						int var2 = this.this$1.val$content.getChildCount();
+						int var3 = 0;
+						
+						while(true) {
+								if(var3 < var2) {
+										RadioButton var4 = (RadioButton)this.this$1.val$content.getChildAt(var3);
+										if(!var4.isChecked()) {
+												++var3;
+												continue;
+										}
+										
+										if(LogicBlockActivity.access$900(this.this$1.this$0).isExistListBlock(var4.getText().toString()) || DesignDataManager.isExistListBlock(LogicBlockActivity.filename, var4.getText().toString(), LogicBlockActivity.access$1000(this.this$1.this$0) + "_" + LogicBlockActivity.access$1100(this.this$1.this$0))) {
+												Toast.makeText(this.this$1.this$0.getApplicationContext(), this.this$1.this$0.getString(R.string.err_currently_used_list), 0).show();
+												return;
+										}
+										
+										DesignDataManager.removeList(LogicBlockActivity.filename, var4.getText().toString());
+										this.this$1.this$0.onBlockCategorySelect(1, -3384542);
+								}
+								
+								LogicBlockActivity.access$800(this.this$1.this$0).dismiss();
+								return;
+						}
+				}
+		}
+		
+		
+		
+		
+		
+		private void showRemoveVarPopup() {
+				View inflate = LayoutUtil.inflate(this, R.layout.property_popup_selector_single);
+				Builder builder = new Builder(this);
+				builder.setView(inflate);
+				builder.setTitle(getString(R.string.logic_popup_title_remove_variable));
+				ViewGroup viewGroup = (ViewGroup) inflate.findViewById(R.id.rg_content);
+				ArrayList arrayList = new ArrayList();
+				Iterator it = DesignDataManager.getVariables(filename).iterator();
+				while (it.hasNext()) {
+						viewGroup.addView(createSingleItem((String) ((Pair) it.next()).second));
+				}
+				builder.setNegativeButton(R.string.btn_cancel, null);
+				builder.setPositiveButton(R.string.btn_accept, null);
+				this.mDlg = builder.create();
+				this.mDlg.setOnShowListener(new LogicBlockActivity$8(this, viewGroup));
+				this.mDlg.show();
+		}
+		
+		
+		
+		class LogicBlockActivity$8 implements DialogInterface.OnShowListener {
+				// $FF: synthetic field
+				final LogicBlockActivity this$0;
+				// $FF: synthetic field
+				final ViewGroup val$content;
+				
+				LogicBlockActivity$8(LogicBlockActivity var1, ViewGroup var2) {
+						this.this$0 = var1;
+						this.val$content = var2;
+				}
+				
+				public void onShow(DialogInterface var1) {
+						LogicBlockActivity.access$800(this.this$0).getButton(-1).setOnClickListener(new LogicBlockActivity$8$1(this));
+				}
+		}
+		
+		
+		class LogicBlockActivity$8$1 implements OnClickListener {
+				// $FF: synthetic field
+				final LogicBlockActivity$8 this$1;
+				
+				LogicBlockActivity$8$1(LogicBlockActivity$8 var1) {
+						this.this$1 = var1;
+				}
+				
+				public void onClick(View var1) {
+						int var2 = this.this$1.val$content.getChildCount();
+						int var3 = 0;
+						
+						while(true) {
+								if(var3 < var2) {
+										RadioButton var4 = (RadioButton)this.this$1.val$content.getChildAt(var3);
+										if(!var4.isChecked()) {
+												++var3;
+												continue;
+										}
+										
+										if(LogicBlockActivity.access$900(this.this$1.this$0).isExistVariableBlock(var4.getText().toString()) || DesignDataManager.isExistVariableBlock(LogicBlockActivity.filename, var4.getText().toString(), LogicBlockActivity.access$1000(this.this$1.this$0) + "_" + LogicBlockActivity.access$1100(this.this$1.this$0))) {
+												Toast.makeText(this.this$1.this$0.getApplicationContext(), this.this$1.this$0.getString(R.string.err_currently_used_variable), 0).show();
+												return;
+										}
+										
+										DesignDataManager.removeVariable(LogicBlockActivity.filename, var4.getText().toString());
+										this.this$1.this$0.onBlockCategorySelect(0, -1147626);
+								}
+								
+								LogicBlockActivity.access$800(this.this$1.this$0).dismiss();
+								return;
+						}
+				}
+		}
+		
+		
+		
+		
+		
+		
+		
+		private void startBlockCopyInterface() {
+				this.blockCopyInterface.setCopyMode(!this.blockCopyInterface.getCopyMode());
+		}
+		
+		/*   private void startLogicTutorialActivity() {
+Intent intent = new Intent(this.context, LogicTutorialActivity.class);
+intent.setFlags(536870912);
+intent.putExtra("sc_id", DesignActivity.getScId());
+startActivity(intent);
+}
+
+private void startManageImageActivity() {
+Intent intent = new Intent(getApplicationContext(), ManageImageActivity.class);
+intent.setFlags(536870912);
+intent.putExtra("sc_id", DesignActivity.getScId());
+startActivityForResult(intent, 209);
+}*/
+		
+		private void updateIconDeletePosition() {
+				if (this.layoutDragActions == null) return;
+				if (this.isPaletteOpened && 1 == getResources().getConfiguration().orientation) {
+						((RelativeLayout.LayoutParams) this.layoutDragActions.getLayoutParams()).bottomMargin = (int) LayoutUtil.getDip(this, 240.0f);
+						this.layoutDragActions.requestLayout();
+						return;
+				}
+				((RelativeLayout.LayoutParams) this.layoutDragActions.getLayoutParams()).bottomMargin = 0;
+				this.layoutDragActions.requestLayout();
+		}
+		
+		public boolean checkValidForever() {
+				int childCount = this.pane.getChildCount();
+				int i = 0;
+				while (i < childCount) {
+						View childAt = this.pane.getChildAt(i);
+						i = (!(childAt instanceof Block) || ((Block) childAt).mOpCode.equals("Forever")) ? i + 1 : i + 1;
+				}
+				return true;
+		}
+		
+		public boolean checkValidZero() {
+				return true;
+		}
+		
+		public Block makeBlockFromBean(BlockBean blockBean) {
+				return new Block(this, Integer.valueOf(blockBean.id).intValue(), blockBean.spec, blockBean.type, blockBean.opCode, new Object[]{Integer.valueOf(blockBean.color)});
+		}
+		
+		private void saveAndFinish() {
+				try {
+						saveLogic();
+						DesignDataManager.saveSavedLogic(filename);
+
+						if (this.projectId != null && !this.projectId.isEmpty() && this.pageName != null && !this.pageName.isEmpty()) {
+								java.io.File dir = new java.io.File(getFilesDir(), "projects/logic");
+								if (!dir.exists()) dir.mkdirs();
+								String safePageName = this.pageName.replace("/", "_").replace(".", "_");
+								java.io.File logicFile = new java.io.File(dir, this.projectId + "_" + safePageName + ".logic");
+								
+								String json = new com.google.gson.Gson().toJson(this.pane.getBlocks());
+								FileUtil.writeFile(logicFile.getAbsolutePath(), json);
+
+								if (this.pageName.endsWith(".css")) {
+										BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
+										String compiledCode = jsm.getSource(0, this.pane.getBlocks());
+
+										java.io.File targetStyleFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
+												+ "/.dragweb/projects/" + this.projectId + "/assets/" + this.pageName);
+										targetStyleFile.getParentFile().mkdirs();
+										FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCode);
+								} else if (this.pageName.endsWith(".js")) {
+										BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
+										String compiledCode = jsm.getSource(0, this.pane.getBlocks());
+
+										java.io.File targetJsFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
+												+ "/.dragweb/projects/" + this.projectId + "/assets/" + this.pageName);
+										targetJsFile.getParentFile().mkdirs();
+										FileUtil.writeFile(targetJsFile.getAbsolutePath(), compiledCode);
+								}
+						}
+				} catch (Exception e) {
+						e.printStackTrace();
+				}
+				setResult(RESULT_OK);
+		}
+
+		public void onBackPressed() {
+				if (this.isPaletteOpened) {
+						openPalette(!this.isPaletteOpened);
+						return;
+				}
+				if (checkValidForever() && checkValidZero()) {
+						saveAndFinish();
+						super.onBackPressed();
+				}
+		}
+		
+		public void onBlockCategorySelect(int i, int i2) {
+				this.paletteBlock.removeAllBlocks();
+				PaletteSelector.CategoryItem selectedCat = null;
+				for (PaletteSelector.CategoryItem cat : PaletteSelector.categoriesList) {
+						if (cat.index == i) {
+								selectedCat = cat;
+								break;
+						}
+				}
+				if (selectedCat == null) return;
+
+				if (selectedCat.type == 0) {
+						addButtonToPalette(getString(R.string.logic_btn_add_variable), "variableAdd");
+						addButtonToPalette(getString(R.string.logic_btn_remove_variable), "variableRemove");
+						addVariables();
+				} else if (selectedCat.type == 1) {
+						addButtonToPalette(getString(R.string.logic_btn_add_list), "listAdd");
+						addButtonToPalette(getString(R.string.logic_btn_remove_list), "listRemove");
+						addLists();
+				} else if (selectedCat.type == 4) {
+						addButtonToPalette(getString(R.string.logic_btn_make_block), "blockAdd");
+						addFunctions();
+				} else if (selectedCat.type == 2) {
+						for (BlockDef def : BlockDef.getDefinitions(this.context)) {
+								if (def.category != null && def.category.equalsIgnoreCase(selectedCat.originalCategory)) {
+										addBlockToPalette(def.getSpec(), def.getType(), def.getOpCode(), i2, new Object[0]);
+								}
+						}
+				} else if (selectedCat.type == 3) {
+						try {
+								String json = FileUtil.readFile(selectedCat.blockJsonPath);
+								if (json != null && !json.isEmpty()) {
+										java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BlockDef>>(){}.getType();
+										ArrayList<BlockDef> list = new com.google.gson.Gson().fromJson(json, listType);
+										if (list != null) {
+												for (BlockDef def : list) {
+														addBlockToPalette(def.getSpec(), def.getType(), def.getOpCode(), i2, new Object[0]);
+												}
+										}
+								}
+						} catch (Exception e) {
+								e.printStackTrace();
+						}
+				}
+		}
+		
+		public void onClick(View view) {
+				if (view.getTag() != null) {
+						if (view.getTag().equals("variableAdd")) {
+								showAddVarPopup();
+						} else if (view.getTag().equals("variableRemove")) {
+								showRemoveVarPopup();
+						} else if (view.getTag().equals("listAdd")) {
+								showAddListPopup();
+						} else if (view.getTag().equals("listRemove")) {
+								showRemoveListPopup();
+						} else if (view.getTag().equals("blockAdd")) {
+								showAddBlockPopup();
+						}
+				}
+				/*     switch (view.getId()) {
+case R.id.btn_cancel:
+setResult(0);
+finish();
+return;
+case R.id.btn_accept:
+setResult(-1, new Intent());
+finish();
+return;
+default:
+return;
+}*/
+		}
+		
+		public void onConfigurationChanged(Configuration configuration) {
+				super.onConfigurationChanged(configuration);
+				allocatePalette(configuration.orientation);
+				updateIconDeletePosition();
+		}
+		
+		protected void onCreate(Bundle bundle) {
+				androidx.activity.EdgeToEdge.enable(this);
+				super.onCreate(bundle);
+				setContentView(R.layout.logic_editor);
+				
+				View rootLayout = findViewById(R.id.layout);
+				if (rootLayout != null) {
+						androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
+								androidx.core.graphics.Insets systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+								v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+								return insets;
+						});
+				}
+				
+				this.context = this.getApplicationContext();
+				
+				this.projectId = getIntent().getStringExtra("project_id");
+				this.pageName = getIntent().getStringExtra("page_name");
+
+				if (this.projectId != null && !this.projectId.isEmpty() && this.pageName != null && !this.pageName.isEmpty()) {
+						this.id = this.pageName;
+						this.eventName = "initializeLogic";
+						filename = this.pageName;
+				} else {
+						this.id = getIntent().getStringExtra("id");
+						if (this.id == null) this.id = "onCreate";
+						this.eventName = getIntent().getStringExtra("event");
+						if (this.eventName == null) this.eventName = "initializeLogic";
+						filename = getIntent().getStringExtra("filename");
+						if (filename == null) filename = "index";
+				}
+
+				if (!DesignDataManager.isInitialized) {
+						String initProjId = (this.projectId != null && !this.projectId.isEmpty()) ? this.projectId : "default_project";
+						DesignDataManager.initialize(this.context, initProjId);
+						DesignDataManager.loadSavedLogic();
+				}
+
+				if (this.projectId != null && !this.projectId.isEmpty() && this.pageName != null && !this.pageName.isEmpty()) {
+						try {
+								java.io.File dir = new java.io.File(getFilesDir(), "projects/logic");
+								String safePageName = this.pageName.replace("/", "_").replace(".", "_");
+								java.io.File logicFile = new java.io.File(dir, this.projectId + "_" + safePageName + ".logic");
+								if (logicFile.exists()) {
+										String json = FileUtil.readFile(logicFile.getAbsolutePath());
+										if (json != null && !json.isEmpty()) {
+												if (DesignDataManager.getBlocks(filename, this.id + LOGIC_NAME_SEPARATOR + this.eventName) == null) {
+														java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<BlockBean>>(){}.getType();
+														ArrayList<BlockBean> list = new com.google.gson.Gson().fromJson(json, type);
+														if (list != null) {
+																DesignDataManager.setBlocks(filename, this.id + LOGIC_NAME_SEPARATOR + this.eventName, list);
+														}
+												}
+										}
+								}
+						} catch (Exception e) {
+								e.printStackTrace();
+						}
+				}
+
+				if (DesignDataManager.isInitialized) {
+						this.prefInstall = new SharedPreferenceUtil(this.context, "P1");
+						/* if (this.prefInstall.getBoolean("P1I5" + DesignActivity.getScId(), true) && !ScDefine.isCustomEditMode(DesignActivity.getScId())) {
+startLogicTutorialActivity();
+}*/
+						this.toolbar = (Toolbar) findViewById(R.id.toolbar);
+						setSupportActionBar(this.toolbar);
+						findViewById(R.id.layout_main_logo).setVisibility(8);
+						getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+						getSupportActionBar().setHomeButtonEnabled(true);
+						this.toolbar.setNavigationOnClickListener(new View.OnClickListener() {
+								public void onClick(View v) {
+										onBackPressed();
+								}
+						});
+						
+						BLOCK_DRAG_Y = (int)LayoutUtil.getDip(this, BLOCK_DRAG_Y);
+						
+						//    this.toolbar.setPopupTheme(R.style.ThemeOverlay.ToolbarMenu);
+						this.useVibrate = new SharedPreferenceUtil(this.context, "P12").getBoolean("P12I0", true);
+						this.minDist = ViewConfiguration.get(this.context).getScaledTouchSlop();
+						this.vibrator = (Vibrator) getSystemService("vibrator");
+						String stringExtra = getIntent().getStringExtra("event_text");
+						if (this.id.equals("onCreate")) {
+								getSupportActionBar().setTitle(stringExtra);
+						} else {
+								getSupportActionBar().setTitle(this.id + " : " + stringExtra);
+						}
+						this.paletteSelector = (PaletteSelector) findViewById(R.id.palette_selector);
+						this.paletteSelector.setOnBlockCategorySelectListener(this);
+						this.paletteBlock = (PaletteBlock) findViewById(R.id.palette_block);
+						this.dummy = (ViewDummy) findViewById(R.id.dummy);
+						this.iconDelete = (ImageView) findViewById(R.id.icon_delete);
+						this.layoutDragActions = (LinearLayout) findViewById(R.id.layout_drag_actions);
+						this.iconSave = (ImageView) findViewById(R.id.icon_save);
+						this.iconDuplicate = (ImageView) findViewById(R.id.icon_duplicate);
+						this.editor = (ViewLogicEditor) findViewById(R.id.editor);
+						this.pane = this.editor.getBlockPane();
+						onBlockCategorySelect(0, -1147626);
+						this.blockCopyInterface = (BlockCopyInterface) findViewById(R.id.block_copy_interface);
+						this.blockCopyInterface.activity = this;
+						this.layoutPalette = (LinearLayout) findViewById(R.id.layout_palette);
+						this.areaPalette = (LinearLayout) findViewById(R.id.area_palette);
+						this.fab = (FloatingActionButton) findViewById(R.id.fab_toggle_palette);
+						this.fab.setOnClickListener(new View.OnClickListener() {
+								public void onClick(View v) {
+										openPalette(!isPaletteOpened);
+								}
+						});
+						return;
+				}
+				if (bundle != null) {
+						backupCurrentData(bundle);
+				}
+				finish();
+		}
+		
+		public boolean onCreateOptionsMenu(Menu menu) {
+				getMenuInflater().inflate(R.menu.logic_menu, menu);
+				this.menu = menu;
+				refreshPasteIcon();
+				/* if (ScDefine.isCustomEditMode(DesignActivity.getScId())) {
+menu.removeItem(R.id.menu_logic_tutorial);
+}*/
+				return true;
+		}
+		
+		protected void onDestroy() {
+				super.onDestroy();
+		}
+		
+		public boolean onOptionsItemSelected(MenuItem menuItem) {
+				/*   if (menuItem.getItemId() == R.id.menu_block_helper) {
+Intent intent = new Intent(this, BlockHelperActivity.class);
+intent.setFlags(536870912);
+startActivity(intent);
+return true;
+}
+if (menuItem.getItemId() == R.id.menu_logic_tutorial) {
+startLogicTutorialActivity();
+}*/
+				if (menuItem.getItemId() == R.id.menu_block_copy) {
+						startBlockCopyInterface();
+				}
+				if (menuItem.getItemId() == R.id.menu_block_paste) {
+						pasteCopiedBlocks();
+				}
+				if (menuItem.getItemId() == R.id.menu_show_source) {
+						showSourceCode();
+				}
+				/* if (menuItem.getItemId() == R.id.menu_mng_image) {
+startManageImageActivity();
+}*/
+				return super.onOptionsItemSelected(menuItem);
+		}
+		
+		
+		private void showSourceCode() {
+				BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
+				final String result = jsm.getSource(0, pane.getBlocks());
+				
+				final boolean isCss = isCssEvent();
+				final String language = isCss ? "css" : "javascript";
+
+				android.widget.LinearLayout container = new android.widget.LinearLayout(this);
+				container.setOrientation(android.widget.LinearLayout.VERTICAL);
+
+				androidx.appcompat.widget.Toolbar dialogToolbar = new androidx.appcompat.widget.Toolbar(this);
+				dialogToolbar.setTitle(isCss ? "Compiled CSS Source" : "Compiled JS Source");
+				dialogToolbar.setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFFE0E0E0));
+				dialogToolbar.setTitleTextColor(com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
+				container.addView(dialogToolbar);
+
+				android.webkit.WebView webView = new android.webkit.WebView(this);
+				webView.getSettings().setJavaScriptEnabled(true);
+				
+				int heightPx = (int) (400 * getResources().getDisplayMetrics().density);
+				android.widget.LinearLayout.LayoutParams webViewParams = new android.widget.LinearLayout.LayoutParams(
+						android.widget.LinearLayout.LayoutParams.MATCH_PARENT, heightPx);
+				webView.setLayoutParams(webViewParams);
+				container.addView(webView);
+
+				loadHighlightedCode(webView, result.isEmpty() ? (isCss ? "/* No CSS generated */" : "/* No JS generated */") : result, language);
+
+				new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+						.setView(container)
+						.setPositiveButton("Copy", (dialog, which) -> {
+								android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+								clipboard.setPrimaryClip(android.content.ClipData.newPlainText(language, result));
+								Toast.makeText(this, "Source copied", Toast.LENGTH_SHORT).show();
+						})
+						.setNegativeButton("Close", null)
+						.show();
+		}
+
+		private void loadHighlightedCode(android.webkit.WebView webView, String code, String language) {
+				String escapedCode = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+				String html = "<!DOCTYPE html><html><head>" +
+						"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" +
+						"<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\">" +
+						"<script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>" +
+						(language.equals("css") ? "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js\"></script>" : "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js\"></script>") +
+						"<style>body{margin:0;background:#1d1d1d;color:#fff;font-family:monospace;} pre{margin:0;padding:12px;box-sizing:border-box;font-size:12px;line-height:1.4;}</style>" +
+						"</head><body><pre><code class=\"language-" + language + "\">" + escapedCode + "</code></pre></body></html>";
+				webView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
+		}
+		
+		
+		protected void onPostCreate(@Nullable Bundle var1) {
+				super.onPostCreate(var1);
+				String var2;
+				if(this.eventName.equals("initializeLogic")) {
+						var2 = this.getString(R.string.root_spec_initialize);
+				} else if(this.eventName.equals("moreBlock")) {
+						String var20 = DesignDataManager.getFunctionSpec(filename, this.id);
+						var2 = this.getString(R.string.root_spec_define) + " " + var20;
+				} else if(this.eventName.equals("onClick")) {
+						var2 = this.getString(R.string.root_spec_when) + " " + this.id + " " + this.getString(R.string.root_spec_onclicked);
+				} else if(this.eventName.equals("onCheckedChange")) {
+						var2 = this.getString(R.string.root_spec_when) + " " + this.id + " " + this.getString(R.string.root_spec_oncheckchanged);
+				} else if(this.eventName.equals("onItemSelected")) {
+						var2 = this.getString(R.string.root_spec_when) + " " + this.id + " " + this.getString(R.string.root_spec_onitemselected);
+				} else if(this.eventName.equals("onItemClicked")) {
+						var2 = this.getString(R.string.root_spec_when) + " " + this.id + " " + this.getString(R.string.root_spec_onitemclicked);
+				} else if(this.eventName.equals("onTextChanged")) {
+						var2 = this.getString(R.string.root_spec_when) + " " + this.id + " " + " " + this.getString(R.string.root_spec_ontextchanged);
+				} else {
+						var2 = this.getString(R.string.root_spec_when) + " " + this.id + " " + this.eventName;
+				}
+				
+				this.pane.addRoot(var2, this.eventName);
+				ArrayList var3 = StringUtil.tokenize(var2);
+				int var4 = 0;
+				
+				for(int var5 = 0; var5 < var3.size(); ++var5) {
+						String var6 = (String)var3.get(var5);
+						if(var6.charAt(0) == 37) {
+								Block var11;
+								if(var6.charAt(1) == 98) {
+										Context var16 = this.getApplicationContext();
+										int var17 = var4 + 1;
+										String var18 = var6.substring(3);
+										Object[] var19 = new Object[]{Integer.valueOf(-7711273)};
+										var11 = new Block(var16, var17, var18, "b", "getArg", var19);
+								} else if(var6.charAt(1) == 100) {
+										Context var12 = this.getApplicationContext();
+										int var13 = var4 + 1;
+										String var14 = var6.substring(3);
+										Object[] var15 = new Object[]{Integer.valueOf(-7711273)};
+										var11 = new Block(var12, var13, var14, "d", "getArg", var15);
+								} else {
+										if(var6.charAt(1) != 115) {
+												continue;
+										}
+										
+										Context var7 = this.getApplicationContext();
+										int var8 = var4 + 1;
+										String var9 = var6.substring(3);
+										Object[] var10 = new Object[]{Integer.valueOf(-7711273)};
+										var11 = new Block(var7, var8, var9, "s", "getArg", var10);
+								}
+								
+								var11.setBlockType(1);
+								this.pane.addView(var11);
+								this.pane.getRoot().replaceArgWithBlock((BlockBase)this.pane.getRoot().args.get(var4), var11);
+								var11.setOnTouchListener(this);
+								++var4;
+						}
+				}
+				
+				this.pane.getRoot().fixLayout();
+				this.loadLogic();
+				this.allocatePalette(this.getResources().getConfiguration().orientation);
+		}
+		
+		protected void onResume() {
+				super.onResume();
+				//     this.mTracker.setScreenName(getClass().getSimpleName().toString());
+				//      this.mTracker.send(new ScreenViewBuilder().build());
+		}
+		
+		protected void onSaveInstanceState(Bundle bundle) {
+				super.onSaveInstanceState(bundle);
+		}
+		
+		public boolean onTouch(View view, MotionEvent motionEvent) {
+				int action = motionEvent.getAction();
+				if (action == 0) {
+						this.isDragged = false;
+						this.handler.postDelayed(this.longPressed, (long) (ViewConfiguration.getLongPressTimeout() / 2));
+						this.posInitX = motionEvent.getX();
+						this.posInitY = motionEvent.getY();
+						this.currentTouchedView = view;
+						return true;
+				} else if (action == 2) {
+						if (this.isDragged) {
+								this.handler.removeCallbacks(this.longPressed);
+								this.dummy.moveDummy(view, motionEvent.getX(), motionEvent.getY(), this.posInitX, this.posInitY, (float)BLOCK_DRAG_X, (float)BLOCK_DRAG_Y);
+								if (hitTestIcon(this.iconDelete, motionEvent.getRawX(), motionEvent.getRawY())) {
+										this.dummy.setAllow(true);
+										activeIconDelete(true);
+										activeIconSave(false);
+										activeIconDuplicate(false);
+										return true;
+								} else if (hitTestIcon(this.iconSave, motionEvent.getRawX(), motionEvent.getRawY())) {
+										this.dummy.setAllow(true);
+										activeIconDelete(false);
+										activeIconSave(true);
+										activeIconDuplicate(false);
+										return true;
+								} else if (hitTestIcon(this.iconDuplicate, motionEvent.getRawX(), motionEvent.getRawY())) {
+										this.dummy.setAllow(true);
+										activeIconDelete(false);
+										activeIconSave(false);
+										activeIconDuplicate(true);
+										return true;
+								}
+								activeIconDelete(false);
+								activeIconSave(false);
+								activeIconDuplicate(false);
+								this.dummy.getDummyPosition(this.posDummy);
+								if (this.editor.hitTest((float) this.posDummy[0], (float) this.posDummy[1])) {
+										this.dummy.setAllow(true);
+										this.pane.updateFeedbackFor((Block) view, this.posDummy[0], this.posDummy[1]);
+								} else {
+										this.dummy.setAllow(false);
+										this.pane.hideFeedbackShape();
+								}
+								return true;
+						} else if (Math.abs(this.posInitX - motionEvent.getX()) < ((float) this.minDist) && Math.abs(this.posInitY - motionEvent.getY()) < ((float) this.minDist)) {
+								return false;
+						} else {
+								this.currentTouchedView = null;
+								this.handler.removeCallbacks(this.longPressed);
+								return false;
+						}
+				} else if (action == 1) {
+						this.currentTouchedView = null;
+						this.handler.removeCallbacks(this.longPressed);
+						if (this.isDragged) {
+								this.paletteBlock.setDragEnabled(true);
+								this.editor.setScrollEnabled(true);
+								this.dummy.setDummyVisibility(8);
+								if (this.dummy.getAllow()) {
+										if (this.bActiveIconDelete) {
+												activeIconDelete(false);
+												this.pane.removeBlock((Block) view);
+										} else if (this.bActiveIconSave) {
+												activeIconSave(false);
+												this.pane.setVisibleBlock((Block) view, 0);
+												if (view instanceof Block) saveBlockToCollection((Block) view);
+										} else if (this.bActiveIconDuplicate) {
+												activeIconDuplicate(false);
+												this.pane.setVisibleBlock((Block) view, 0);
+												if (view instanceof Block) duplicateBlock((Block) view);
+										} else if (view instanceof Block) {
+												this.dummy.getDummyPosition(this.posDummy);
+												if (((Block) view).getBlockType() == 1) {
+														this.pane.blockDropped((Block) view, this.posDummy[0], this.posDummy[1], false).setOnTouchListener(this);
+												} else {
+														this.pane.setVisibleBlock((Block) view, 0);
+														this.pane.blockDropped((Block) view, this.posDummy[0], this.posDummy[1], true);
+												}
+												this.pane.draggingDone();
+										}
+								} else if (((Block) view).getBlockType() == 0) {
+										this.pane.setVisibleBlock((Block) view, 0);
+										if (this.originalParent != null) {
+												if (this.originalInsertOption == 0) {
+														this.originalParent.nextBlock = ((Integer) view.getTag()).intValue();
+												}
+												if (this.originalInsertOption == 2) {
+														this.originalParent.subStack1 = ((Integer) view.getTag()).intValue();
+												}
+												if (this.originalInsertOption == 3) {
+														this.originalParent.subStack2 = ((Integer) view.getTag()).intValue();
+												}
+												if (this.originalInsertOption == 5) {
+														this.originalParent.replaceArgWithBlock((BlockBase) this.originalParent.args.get(this.originalArgIndex), (Block) view);
+												}
+												((Block) view).parentBlock = this.originalParent;
+												this.originalParent.topBlock().fixLayout();
+										} else {
+												((Block) view).topBlock().fixLayout();
+										}
+								}
+								this.dummy.setAllow(false);
+								showIconDelete(false);
+								this.isDragged = false;
+								return true;
+						}
+						if ((view instanceof Block) && ((Block) view).getBlockType() == 0) {
+								((Block) view).actionClick(motionEvent.getX(), motionEvent.getY());
+						}
+						return false;
+				} else if (action == 3) {
+						this.handler.removeCallbacks(this.longPressed);
+						this.isDragged = false;
+						return false;
+				} else if (action != 8) {
+						return true;
+				} else {
+						this.handler.removeCallbacks(this.longPressed);
+						this.isDragged = false;
+						return false;
+				}
+		}
+		
+		private void duplicateBlock(Block block) {
+				if (block == null) return;
+				ArrayList<Block> list = new ArrayList<>();
+				list.add(block);
+				DesignDataManager.copyBlocks(filename, list);
+				pasteCopiedBlocks();
+				Toast.makeText(this, "Block duplicated", Toast.LENGTH_SHORT).show();
+		}
+
+		private void saveBlockToCollection(final Block block) {
+				if (block == null) return;
+				UniversalM3Dialog dialog = new UniversalM3Dialog(this);
+				dialog.setTitle("Save to Collection")
+				      .setHint("Collection Name")
+				      .setInitialValue("My Collection")
+				      .showTextInput(name -> {
+				          if (name == null || name.trim().isEmpty()) return;
+				          String safeName = name.trim();
+				          java.io.File dir = new java.io.File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/resources/block/" + safeName);
+				          if (!dir.exists()) dir.mkdirs();
+
+				          java.io.File paletteFile = new java.io.File(dir, "palette.json");
+				          String paletteJson = "[{\"name\":\"" + safeName + "\",\"color\":\"#FF2196F3\"}]";
+				          FileUtil.writeFile(paletteFile.getAbsolutePath(), paletteJson);
+
+				          java.io.File blockFile = new java.io.File(dir, "block.json");
+				          ArrayList<BlockDef> defs = new ArrayList<>();
+				          try {
+				              String existing = FileUtil.readFile(blockFile.getAbsolutePath());
+				              if (existing != null && !existing.isEmpty()) {
+				                  java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<BlockDef>>(){}.getType();
+				                  ArrayList<BlockDef> list = new com.google.gson.Gson().fromJson(existing, type);
+				                  if (list != null) defs.addAll(list);
+				              }
+				          } catch (Exception e) {}
+
+				          BlockDef def = new BlockDef();
+				          def.spec = block.mSpec;
+				          def.type = block.mType;
+				          def.id = block.mOpCode;
+				          def.color = String.format("#%06X", (0xFFFFFF & block.mColor));
+				          defs.add(def);
+
+				          FileUtil.writeFile(blockFile.getAbsolutePath(), new com.google.gson.Gson().toJson(defs));
+				          Toast.makeText(this, "Saved block to " + safeName, Toast.LENGTH_SHORT).show();
+				          if (paletteSelector != null) {
+				              paletteSelector.refresh();
+				          }
+				      });
+		}
+
+		public void refreshPasteIcon() {
+				if (DesignDataManager.isExistClipboard(filename)) {
+						this.menu.getItem(1).setIcon(R.drawable.ic_content_paste_white_24dp);
+						this.menu.getItem(1).setEnabled(true);
+						return;
+				}
+				this.menu.getItem(1).setIcon(R.drawable.ic_content_paste_grey600_24dp);
+				this.menu.getItem(1).setEnabled(false);
+		}
 }

@@ -328,6 +328,10 @@ public class EventsFragment extends Fragment {
                 Intent intent = new Intent(getContext(), LogicBlockActivity.class);
                 intent.putExtra("project_id", projectId);
                 intent.putExtra("page_name", cssPath);
+                intent.putExtra("id", displayName);
+                intent.putExtra("event", "initializeLogic");
+                intent.putExtra("filename", cssPath);
+                intent.putExtra("event_text", "CSS Initialization");
                 logicBlockLauncher.launch(intent);
             });
         }

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <!-- Dummy view for layout_main_logo to prevent NullPointerException -->
+            <View
+                android:id="@+id/layout_main_logo"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+        </androidx.appcompat.widget.Toolbar>
+
+        <sketchweb.gl.BlockCopyInterface
+            android:id="@+id/block_copy_interface"
+            android:background="#ffffffff"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <View
+                android:id="@+id/dim_bg"
+                android:background="#ff555555"
+                android:visibility="gone"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:alpha="0.5" />
+
+            <sketchweb.gl.ViewLogicEditor
+                android:id="@+id/editor"
+                android:background="#ffffffff"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_margin="4dp" />
+        </sketchweb.gl.BlockCopyInterface>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_drag_actions"
+        android:orientation="horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginLeft="8dp"
+        android:gravity="bottom"
+        android:translationY="66dp">
+
+        <ImageView
+            android:id="@+id/icon_delete"
+            android:paddingBottom="8dp"
+            android:layout_width="50dp"
+            android:layout_height="58dp"
+            android:src="@drawable/icon_delete"
+            android:scaleType="fitXY"
+            android:contentDescription="@null" />
+
+        <ImageView
+            android:id="@+id/icon_save"
+            android:paddingBottom="8dp"
+            android:layout_width="50dp"
+            android:layout_height="58dp"
+            android:layout_marginLeft="8dp"
+            android:src="@drawable/device_floppy"
+            android:scaleType="fitCenter"
+            android:tint="#888888"
+            android:contentDescription="@null" />
+
+        <ImageView
+            android:id="@+id/icon_duplicate"
+            android:paddingBottom="8dp"
+            android:layout_width="50dp"
+            android:layout_height="58dp"
+            android:layout_marginLeft="8dp"
+            android:src="@drawable/copy"
+            android:scaleType="fitCenter"
+            android:tint="#888888"
+            android:contentDescription="@null" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:id="@+id/layout_palette"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_toggle_palette"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:src="@drawable/block_flled_white" />
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:id="@+id/area_palette"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <sketchweb.gl.PaletteBlock
+                android:id="@+id/palette_block"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <sketchweb.gl.ViewDummy
+        android:id="@+id/dummy"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+</RelativeLayout>

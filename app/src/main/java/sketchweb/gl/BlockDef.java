@@ -40,6 +40,32 @@ public class BlockDef {
     public String description;
     public List<ChipInput> inputs;
 
+    // Sketchware blocks.json compatibility fields
+    public String name;
+    public String spec;
+    public String palette;
+    public String type;
+    public String blockType;
+
+    public String getOpCode() {
+        return name != null && !name.isEmpty() ? name : id;
+    }
+
+    public String getSpec() {
+        return spec != null && !spec.isEmpty() ? spec : label;
+    }
+
+    public String getType() {
+        if (type != null && !type.isEmpty()) return type;
+        if (blockType != null && !blockType.isEmpty()) {
+            if (blockType.equals("normal") || blockType.equals("v") || blockType.equals(" ")) {
+                return " ";
+            }
+            return blockType;
+        }
+        return " ";
+    }
+
     private transient List<ChipInput> derivedInputs;
 
     public String resolvedTemplate() {
@@ -171,4 +197,28 @@ public class BlockDef {
             default: return "";
         }
     }
+
+    private static List<BlockDef> cacheDefs;
+
+    public static List<BlockDef> getDefinitions(android.content.Context context) {
+        if (cacheDefs != null) return cacheDefs;
+        try {
+            java.io.InputStream is = context.getAssets().open("blocks.json");
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = is.read(buf)) != -1) {
+                bos.write(buf, 0, len);
+            }
+            is.close();
+            String json = bos.toString("UTF-8");
+            cacheDefs = new com.google.gson.Gson().fromJson(json,
+                new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
+        } catch (Exception e) {
+            e.printStackTrace();
+            cacheDefs = new ArrayList<>();
+        }
+        return cacheDefs;
+    }
 }
+

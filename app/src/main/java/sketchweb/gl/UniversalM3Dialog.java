@@ -346,6 +346,8 @@ public final class UniversalM3Dialog {
             .show();
     }
 
+
+
     private static String lastSelectedIconLib = "Tabler";
 
     public void showIconPicker(OnText cb) {
@@ -469,6 +471,7 @@ public final class UniversalM3Dialog {
 
         // 1. Mode selection chips
         ChipGroup modeGroup = createChipGroup();
+        modeGroup.setPadding(0, 0, 0, dp(4));
         final int idId = View.generateViewId(), classId = View.generateViewId(), tagId = View.generateViewId();
         modeGroup.addView(createModeChip("ID (#)", idId));
         modeGroup.addView(createModeChip("Class (.)", classId));
@@ -478,6 +481,7 @@ public final class UniversalM3Dialog {
         // 2. Suggestion chips (dynamic)
         android.widget.HorizontalScrollView suggestionScroll = createChipScroll();
         final ChipGroup suggestionChips = createChipGroup();
+        suggestionChips.setPadding(0, 0, 0, dp(4));
         suggestionScroll.addView(suggestionChips);
         root.addView(suggestionScroll);
 
@@ -485,7 +489,9 @@ public final class UniversalM3Dialog {
         TextInputLayout til = createTextInputLayout("Name");
         final MaterialAutoCompleteTextView edit = createEditor(til, "", null);
         til.addView(edit);
-        root.addView(til);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(4);
+        root.addView(til, lp);
 
         final boolean[] isInternal = {false};
 
@@ -623,7 +629,7 @@ public final class UniversalM3Dialog {
         g.setSingleLine(true);
         g.setSingleSelection(true);
         g.setChipSpacingHorizontal(dp(8));
-        g.setPadding(0, 0, 0, dp(16));
+        g.setPadding(0, 0, 0, dp(4));
         return g;
     }
 

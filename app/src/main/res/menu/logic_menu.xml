@@ -1,0 +1,39 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menu_show_source"
+        android:icon="@drawable/code_xml_24px"
+        android:orderInCategory="100"
+        android:title="Show Source Code"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_logic_undo"
+        android:icon="@drawable/icon_undo_round"
+        android:orderInCategory="100"
+        android:title="Undo"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_logic_redo"
+        android:icon="@drawable/icon_redo_round"
+        android:orderInCategory="100"
+        android:title="Redo"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_block_copy"
+        android:icon="@drawable/folder_check"
+        android:orderInCategory="100"
+        android:title="Copy Block"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_block_paste"
+        android:icon="@drawable/ic_content_paste_white_24dp"
+        android:orderInCategory="100"
+        android:title="Paste Block"
+        app:showAsAction="always" />
+
+</menu>

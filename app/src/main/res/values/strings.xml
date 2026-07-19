@@ -57,4 +57,59 @@
 	<string name="dialog_delete_message" translatable="false">Are you sure you want to delete this color?</string>
 	<string name="dialog_button_yes" translatable="false">Yes</string>
 	<string name="dialog_button_no" translatable="false">No</string>
+
+    <!-- String resources for blocks_logic package -->
+    <string name="root_spec_initialize">On activity create</string>
+    <string name="root_spec_define">Define</string>
+    <string name="root_spec_when">When</string>
+    <string name="root_spec_onclicked">clicked</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_accept">Accept</string>
+    <string name="err_currently_used_variable">This variable is currently used.</string>
+    <string name="logic_btn_add_variable">Add Variable</string>
+    <string name="logic_btn_remove_variable">Remove Variable</string>
+    <string name="logic_btn_add_list">Add List</string>
+    <string name="logic_btn_remove_list">Remove List</string>
+    <string name="logic_btn_make_block">Make Block</string>
+    <string name="complete_copy">Copied to clipboard.</string>
+    <string name="desc_copy_block">Drag block here to copy.</string>
+    <string name="block_else">else</string>
+    <string name="title_popup_input_int_value">Input Integer</string>
+    <string name="title_popup_input_str_value">Input String</string>
+    <string name="title_popup_select_int_var">Select Integer Variable</string>
+    <string name="title_popup_select_bool_var">Select Boolean Variable</string>
+    <string name="title_popup_select_str_var">Select String Variable</string>
+    <string name="title_popup_select_int_list">Select Integer List</string>
+    <string name="title_popup_select_str_list">Select String List</string>
+    <string name="title_popup_select_list">Select List</string>
+
+    <string name="logic_variable_type_boolean">Boolean</string>
+    <string name="logic_variable_type_number">Number</string>
+    <string name="logic_variable_type_string">String</string>
+    <string name="logic_variable_type_map">Map</string>
+    <string name="logic_editor_hint_enter_variable_name">Enter variable name</string>
+    <string name="search_header">Search</string>
+    <string name="logic_popup_title_make_block">Make Block</string>
+    <string name="logic_popup_title_add_list">Add List</string>
+    <string name="logic_popup_title_add_variable">Add Variable</string>
+    <string name="title_bl_cate_var">Variable</string>
+    <string name="title_bl_cate_list">List</string>
+    <string name="title_bl_cate_control">Control</string>
+    <string name="title_bl_cate_operator">Operator</string>
+    <string name="title_bl_cate_function">Function</string>
+    <string name="title_bl_cate_moreblock">More Block</string>
+
+    <string name="err_currently_used_list">This list is currently used.</string>
+    <string name="logic_popup_title_remove_variable">Remove Variable</string>
+    <string name="err_valid_min_len">Minimum length is %1$d.</string>
+    <string name="err_valid_max_len">Maximum length is %1$d.</string>
+    <string name="err_valid_already_used">This name is already used.</string>
+    <string name="err_use_rev_name">This name is reserved.</string>
+    <string name="err_start_number">Cannot start with a number.</string>
+    <string name="err_valid_only_eng_3">Only English letters, numbers, and underscores are allowed.</string>
+    <string name="root_spec_oncheckchanged">onCheckChanged</string>
+    <string name="root_spec_onitemselected">onItemSelected</string>
+    <string name="root_spec_onitemclicked">onItemClicked</string>
+    <string name="root_spec_ontextchanged">onTextChanged</string>
+    <string name="logic_popup_title_remove_list">Remove List</string>
 </resources>

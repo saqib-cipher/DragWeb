@@ -244,9 +244,13 @@ public class ManageBlocksWidgets {
         CustomBlockDef def = gson.fromJson(obj, CustomBlockDef.class);
         if (def == null) return null;
         
-        // Map label -> display if display is missing
-        if ((def.display == null || def.display.isEmpty()) && obj.has("label")) {
-            def.display = obj.get("label").getAsString();
+        // Map spec -> display (or legacy label -> display) if display is missing
+        if (def.display == null || def.display.isEmpty()) {
+            if (obj.has("spec")) {
+                def.display = obj.get("spec").getAsString();
+            } else if (obj.has("label")) {
+                def.display = obj.get("label").getAsString();
+            }
         }
         // Map code -> template if template is missing
         if ((def.template == null || def.template.isEmpty()) && obj.has("code")) {

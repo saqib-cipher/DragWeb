@@ -1,3396 +1,1498 @@
-﻿[
-    {
-        "id":  "groupBlock",
-        "category":  "meta",
-        "shape":  "cblock",
-        "color":  "#37474F",
-        "label":  "â–¾ group %s",
-        "code":  "/* \u003c%s\u003e */ %m.space /* \u003c/%s\u003e */",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "navbar"
-                       }
-                   ]
-    },
-    {
-        "id":  "commentBlock",
-        "category":  "meta",
-        "shape":  "stack",
-        "color":  "#546E7A",
-        "label":  "// %s",
-        "code":  "/* %s */",
-        "inputs":  [
-                       {
-                           "id":  "text",
-                           "type":  "text",
-                           "default":  "comment"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssSelector",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1976D2",
-        "label":  "%selector {",
-        "code":  "%selector { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "selector":  "any",
-                           "default":  ".container"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssHover",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1976D2",
-        "label":  "%selector :hover {",
-        "code":  "%selector:hover { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "selector":  "any",
-                           "default":  "a"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssFocus",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1976D2",
-        "label":  "%selector :focus {",
-        "code":  "%selector:focus { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "selector":  "any",
-                           "default":  "input"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssActive",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1976D2",
-        "label":  "%selector :active {",
-        "code":  "%selector:active { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "selector":  "any",
-                           "default":  "button"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssVisited",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1976D2",
-        "label":  "%selector :visited {",
-        "code":  "%selector:visited { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "selector":  "any",
-                           "default":  "a"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssBefore",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1976D2",
-        "label":  "%selector ::before {",
-        "code":  "%selector::before { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "selector":  "any",
-                           "default":  "a"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssAfter",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1976D2",
-        "label":  "%selector ::after {",
-        "code":  "%selector::after { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "selector":  "any",
-                           "default":  "a"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssFirstChild",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1976D2",
-        "label":  "%selector :first-child {",
-        "code":  "%selector:first-child { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "selector":  "any",
-                           "default":  "li"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssLastChild",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1976D2",
-        "label":  "%selector :last-child {",
-        "code":  "%selector:last-child { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "selector":  "any",
-                           "default":  "li"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssNthChild",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1976D2",
-        "label":  "%selector :nth-child(%n) {",
-        "code":  "%selector:nth-child(%n) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "selector":  "any",
-                           "default":  "li"
-                       },
-                       {
-                           "id":  "n",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssMediaQuery",
-        "category":  "css",
-        "shape":  "cblock",
-        "color":  "#1565C0",
-        "label":  "@media (max-width: %n px) {",
-        "code":  "@media (max-width: %npx) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "max",
-                           "type":  "number",
-                           "default":  "768"
-                       }
-                   ]
-    },
-    {
-        "id":  "setDisplay",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "display",
-        "code":  "display: %m.display;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "display",
-                           "default":  "block"
-                       }
-                   ]
-    },
-    {
-        "id":  "setPosition",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "position",
-        "code":  "position: %m.position;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "position",
-                           "default":  "static"
-                       }
-                   ]
-    },
-    {
-        "id":  "setOverflow",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "overflow",
-        "code":  "overflow: %m.overflow;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "overflow",
-                           "default":  "visible"
-                       }
-                   ]
-    },
-    {
-        "id":  "setColor",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "color",
-        "code":  "color: %m.color;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "color",
-                           "default":  "#000000"
-                       }
-                   ]
-    },
-    {
-        "id":  "setBackground",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "background",
-        "code":  "background-color: %m.color;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "color",
-                           "default":  "#FFFFFF"
-                       }
-                   ]
-    },
-    {
-        "id":  "setBackgroundImage",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "background-image url",
-        "code":  "background-image: url(%s);",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "setWidth",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "width",
-        "code":  "width: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "100"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem",
-                                           "em",
-                                           "vw",
-                                           "vh",
-                                           "auto"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setHeight",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "height",
-        "code":  "height: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "100"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem",
-                                           "em",
-                                           "vw",
-                                           "vh",
-                                           "auto"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setMaxWidth",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "max-width",
-        "code":  "max-width: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "100"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "%",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem",
-                                           "em",
-                                           "vw",
-                                           "vh",
-                                           "none"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setMaxHeight",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "max-height",
-        "code":  "max-height: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "100"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "%",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem",
-                                           "em",
-                                           "vw",
-                                           "vh",
-                                           "none"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setMinWidth",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "min-width",
-        "code":  "min-width: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "0"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem",
-                                           "em",
-                                           "vw",
-                                           "vh"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setMinHeight",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "min-height",
-        "code":  "min-height: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "0"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem",
-                                           "em",
-                                           "vw",
-                                           "vh"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setMargin",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "margin",
-        "code":  "margin: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "0"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem",
-                                           "em",
-                                           "auto"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setPadding",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "padding",
-        "code":  "padding: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "0"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem",
-                                           "em"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setBorder",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "border",
-        "code":  "border: %n%m.unit solid %m.color;",
-        "inputs":  [
-                       {
-                           "id":  "size",
-                           "type":  "number",
-                           "default":  "1"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "rem",
-                                           "em"
-                                       ]
-                       },
-                       {
-                           "id":  "color",
-                           "type":  "color",
-                           "default":  "#000000"
-                       }
-                   ]
-    },
-    {
-        "id":  "setRadius",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "border-radius",
-        "code":  "border-radius: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "8"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setBoxShadow",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "box-shadow",
-        "code":  "box-shadow: %npx %npx %npx %m.color;",
-        "inputs":  [
-                       {
-                           "id":  "x",
-                           "type":  "number",
-                           "default":  "0"
-                       },
-                       {
-                           "id":  "y",
-                           "type":  "number",
-                           "default":  "2"
-                       },
-                       {
-                           "id":  "blur",
-                           "type":  "number",
-                           "default":  "8"
-                       },
-                       {
-                           "id":  "color",
-                           "type":  "color",
-                           "default":  "#00000033"
-                       }
-                   ]
-    },
-    {
-        "id":  "setFontSize",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "font-size",
-        "code":  "font-size: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "16"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "rem",
-                                           "em",
-                                           "%"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setFontFamily",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "font-family",
-        "code":  "font-family: %s;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "sans-serif"
-                       }
-                   ]
-    },
-    {
-        "id":  "setFontWeight",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "font-weight",
-        "code":  "font-weight: %m.fontWeight;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "fontWeight",
-                           "default":  "400"
-                       }
-                   ]
-    },
-    {
-        "id":  "setFontStyle",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "font-style",
-        "code":  "font-style: %m.fontStyle;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "fontStyle",
-                           "default":  "normal"
-                       }
-                   ]
-    },
-    {
-        "id":  "setTextAlign",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "text-align",
-        "code":  "text-align: %m.textAlign;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "textAlign",
-                           "default":  "left"
-                       }
-                   ]
-    },
-    {
-        "id":  "setTextDecoration",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "text-decoration",
-        "code":  "text-decoration: %m.textDecoration;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "textDecoration",
-                           "default":  "none"
-                       }
-                   ]
-    },
-    {
-        "id":  "setLineHeight",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "line-height",
-        "code":  "line-height: %n;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "1.4"
-                       }
-                   ]
-    },
-    {
-        "id":  "setLetterSpacing",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "letter-spacing",
-        "code":  "letter-spacing: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "0"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "em",
-                                           "rem"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setOpacity",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "opacity",
-        "code":  "opacity: %n;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "setZIndex",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "z-index",
-        "code":  "z-index: %n;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "0"
-                       }
-                   ]
-    },
-    {
-        "id":  "setCursor",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "cursor",
-        "code":  "cursor: %m.cursor;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "cursor",
-                           "default":  "default"
-                       }
-                   ]
-    },
-    {
-        "id":  "setFlexDirection",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "flex-direction",
-        "code":  "flex-direction: %m.flexDirection;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "flexDirection",
-                           "default":  "row"
-                       }
-                   ]
-    },
-    {
-        "id":  "setJustifyContent",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "justify-content",
-        "code":  "justify-content: %m.justifyContent;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "justifyContent",
-                           "default":  "flex-start"
-                       }
-                   ]
-    },
-    {
-        "id":  "setAlignItems",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "align-items",
-        "code":  "align-items: %m.alignItems;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "alignItems",
-                           "default":  "stretch"
-                       }
-                   ]
-    },
-    {
-        "id":  "setGap",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "gap",
-        "code":  "gap: %n%m.unit;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "8"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem",
-                                           "em"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "setGridTemplateColumns",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "grid columns",
-        "code":  "grid-template-columns: %s;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "1fr 1fr"
-                       }
-                   ]
-    },
-    {
-        "id":  "setTransform",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "transform",
-        "code":  "transform: %s;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "none"
-                       }
-                   ]
-    },
-    {
-        "id":  "setFilter",
-        "category":  "css",
-        "shape":  "stack",
-        "color":  "#2196F3",
-        "label":  "filter",
-        "code":  "filter: %s;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "none"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateFadeIn",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "animate fade-in",
-        "code":  "animation: fadeIn %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateFadeOut",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "animate fade-out",
-        "code":  "animation: fadeOut %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateSlideIn",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "animate slide-in",
-        "code":  "animation: slideIn %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateSlideOut",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "animate slide-out",
-        "code":  "animation: slideOut %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateBounce",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "animate bounce",
-        "code":  "animation: bounce %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "animatePulse",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "animate pulse",
-        "code":  "animation: pulse %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateRotate",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "animate rotate",
-        "code":  "animation: rotate %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateShake",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "animate shake",
-        "code":  "animation: shake %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "transitionAll",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "transition all",
-        "code":  "transition: all %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.3"
-                       }
-                   ]
-    },
-    {
-        "id":  "transitionColor",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "transition color",
-        "code":  "transition: color %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.3"
-                       }
-                   ]
-    },
-    {
-        "id":  "transitionTransform",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "transition transform",
-        "code":  "transition: transform %ns;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.3"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateSlideUp",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "slide-up %ns",
-        "code":  "animation: slideUp %ns ease both;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.6"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateSlideDown",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "slide-down %ns",
-        "code":  "animation: slideDown %ns ease both;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.6"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateSlideLeft",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "slide-left %ns",
-        "code":  "animation: slideLeft %ns ease both;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.6"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateSlideRight",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "slide-right %ns",
-        "code":  "animation: slideRight %ns ease both;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.6"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateZoomIn",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "zoom-in %ns",
-        "code":  "animation: zoomIn %ns ease both;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.4"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateZoomOut",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "zoom-out %ns",
-        "code":  "animation: zoomOut %ns ease both;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.4"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateFlip",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "flip %ns",
-        "code":  "animation: flip %ns ease both;",
-        "inputs":  [
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.8"
-                       }
-                   ]
-    },
-    {
-        "id":  "animateCustom",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "%s %ns %s %s %m.iter %m.fill",
-        "code":  "animation: %s %ns %s %s %s %s;",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "dropdown",
-                           "default":  "fadeIn",
-                           "options":  [
-                                           "fadeIn",
-                                           "fadeOut",
-                                           "slideIn",
-                                           "slideOut",
-                                           "slideUp",
-                                           "slideDown",
-                                           "slideLeft",
-                                           "slideRight",
-                                           "zoomIn",
-                                           "zoomOut",
-                                           "bounce",
-                                           "pulse",
-                                           "rotate",
-                                           "shake",
-                                           "flip"
-                                       ]
-                       },
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.6"
-                       },
-                       {
-                           "id":  "easing",
-                           "type":  "dropdown",
-                           "default":  "ease",
-                           "options":  [
-                                           "linear",
-                                           "ease",
-                                           "ease-in",
-                                           "ease-out",
-                                           "ease-in-out",
-                                           "spring",
-                                           "bounce-out"
-                                       ]
-                       },
-                       {
-                           "id":  "delay",
-                           "type":  "text",
-                           "default":  "0s"
-                       },
-                       {
-                           "id":  "iter",
-                           "type":  "dropdown",
-                           "default":  "1",
-                           "options":  [
-                                           "1",
-                                           "2",
-                                           "3",
-                                           "infinite"
-                                       ]
-                       },
-                       {
-                           "id":  "fill",
-                           "type":  "dropdown",
-                           "default":  "both",
-                           "options":  [
-                                           "none",
-                                           "forwards",
-                                           "backwards",
-                                           "both"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "transitionCustom",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "transition %s %ns %s %s",
-        "code":  "transition: %s %ns %s %s;",
-        "inputs":  [
-                       {
-                           "id":  "property",
-                           "type":  "text",
-                           "default":  "all"
-                       },
-                       {
-                           "id":  "duration",
-                           "type":  "number",
-                           "default":  "0.3"
-                       },
-                       {
-                           "id":  "easing",
-                           "type":  "dropdown",
-                           "default":  "ease",
-                           "options":  [
-                                           "linear",
-                                           "ease",
-                                           "ease-in",
-                                           "ease-out",
-                                           "ease-in-out",
-                                           "spring",
-                                           "bounce-out"
-                                       ]
-                       },
-                       {
-                           "id":  "delay",
-                           "type":  "text",
-                           "default":  "0s"
-                       }
-                   ]
-    },
-    {
-        "id":  "hoverScale",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "hover scale %n",
-        "code":  "transition: transform 0.2s ease; transform: scale(1);",
-        "inputs":  [
-                       {
-                           "id":  "scale",
-                           "type":  "number",
-                           "default":  "1.05"
-                       }
-                   ]
-    },
-    {
-        "id":  "scrollReveal",
-        "category":  "animation",
-        "shape":  "stack",
-        "color":  "#9C27B0",
-        "label":  "scroll reveal %s",
-        "code":  "animation: %s 0.6s ease both; animation-timeline: view();",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "dropdown",
-                           "default":  "fadeIn",
-                           "options":  [
-                                           "fadeIn",
-                                           "slideUp",
-                                           "slideDown",
-                                           "slideLeft",
-                                           "slideRight",
-                                           "zoomIn"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "valueString",
-        "category":  "value",
-        "shape":  "value",
-        "color":  "#7E57C2",
-        "label":  "%s",
-        "code":  "%s",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "valueNumber",
-        "category":  "value",
-        "shape":  "reporter",
-        "color":  "#7E57C2",
-        "label":  "%n %m.unit",
-        "code":  "%n%m.unit",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "0"
-                       },
-                       {
-                           "id":  "unit",
-                           "type":  "dropdown",
-                           "default":  "px",
-                           "options":  [
-                                           "px",
-                                           "%",
-                                           "rem",
-                                           "em",
-                                           "vw",
-                                           "vh",
-                                           "s",
-                                           "ms",
-                                           ""
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "valueBoolean",
-        "category":  "value",
-        "shape":  "boolean",
-        "color":  "#7E57C2",
-        "label":  "%b",
-        "code":  "%b",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "boolean",
-                           "default":  "false"
-                       }
-                   ]
-    },
-    {
-        "id":  "valueColor",
-        "category":  "value",
-        "shape":  "value",
-        "color":  "#7E57C2",
-        "label":  "%m.color",
-        "code":  "%m.color",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "color",
-                           "default":  "#000000"
-                       }
-                   ]
-    },
-    {
-        "id":  "stringConcat",
-        "category":  "value",
-        "shape":  "value",
-        "color":  "#7E57C2",
-        "label":  "%s + %s",
-        "code":  "%s %s",
-        "inputs":  [
-                       {
-                           "id":  "a",
-                           "type":  "text",
-                           "default":  ""
-                       },
-                       {
-                           "id":  "b",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "ifBlock",
-        "category":  "logic",
-        "shape":  "condition",
-        "color":  "#E91E63",
-        "label":  "if %s {",
-        "code":  "if (%s) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "condition",
-                           "type":  "text",
-                           "default":  "true"
-                       }
-                   ]
-    },
-    {
-        "id":  "loop",
-        "category":  "logic",
-        "shape":  "loop",
-        "color":  "#E91E63",
-        "label":  "repeat %n {",
-        "code":  "for (var i = 0; i \u003c %n; i++) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "count",
-                           "type":  "number",
-                           "default":  "10"
-                       }
-                   ]
-    },
-    {
-        "id":  "asdHtml",
-        "category":  "asd",
-        "shape":  "stack",
-        "color":  "#455A64",
-        "label":  "HTML source",
-        "code":  "%s",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "asdCss",
-        "category":  "asd",
-        "shape":  "stack",
-        "color":  "#455A64",
-        "label":  "CSS source",
-        "code":  "%s",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "asdJs",
-        "category":  "asd",
-        "shape":  "stack",
-        "color":  "#455A64",
-        "label":  "JS source",
-        "code":  "%s",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "asdHead",
-        "category":  "asd",
-        "shape":  "stack",
-        "color":  "#455A64",
-        "label":  "Head source",
-        "code":  "%s",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "asdMeta",
-        "category":  "asd",
-        "shape":  "stack",
-        "color":  "#455A64",
-        "label":  "Meta tag",
-        "code":  "%s",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "constDefine",
-        "category":  "logic",
-        "shape":  "stack",
-        "color":  "#E91E63",
-        "label":  "const %s = %s",
-        "code":  "const %s = %s;",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "MY_CONST"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "\"value\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsAlert",
-        "category":  "logic",
-        "shape":  "stack",
-        "color":  "#E91E63",
-        "label":  "alert %s",
-        "code":  "alert(%s);",
-        "inputs":  [
-                       {
-                           "id":  "message",
-                           "type":  "text",
-                           "default":  "Hello!"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsConsoleLog",
-        "category":  "logic",
-        "shape":  "stack",
-        "color":  "#E91E63",
-        "label":  "console.log %s",
-        "code":  "console.log(%s);",
-        "inputs":  [
-                       {
-                           "id":  "message",
-                           "type":  "text",
-                           "default":  "log message"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsGetElementById",
-        "category":  "logic",
-        "shape":  "value",
-        "color":  "#E91E63",
-        "label":  "get element %s",
-        "code":  "document.querySelector(\u0027%s\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "id",
-                           "type":  "selector",
-                           "default":  "#my-id"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetInnerHTML",
-        "category":  "logic",
-        "shape":  "stack",
-        "color":  "#E91E63",
-        "label":  "set innerHTML of element %s to %s",
-        "code":  "document.querySelector(\u0027%s\u0027).innerHTML = %s;",
-        "inputs":  [
-                       {
-                           "id":  "id",
-                           "type":  "selector",
-                           "default":  "#my-id"
-                       },
-                       {
-                           "id":  "html",
-                           "type":  "text",
-                           "default":  "\"Hello World\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetStyle",
-        "category":  "logic",
-        "shape":  "stack",
-        "color":  "#E91E63",
-        "label":  "on element %s set style %s to %s",
-        "code":  "document.querySelector(\u0027%s\u0027).style[\u0027%s\u0027] = %s;",
-        "inputs":  [
-                       {
-                           "id":  "id",
-                           "type":  "selector",
-                           "default":  "#my-id"
-                       },
-                       {
-                           "id":  "property",
-                           "type":  "text",
-                           "default":  "color"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "\"red\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetTimeout",
-        "category":  "logic",
-        "shape":  "cblock",
-        "color":  "#E91E63",
-        "label":  "run after %n ms",
-        "code":  "setTimeout(function() { %m.space }, %n);",
-        "inputs":  [
-                       {
-                           "id":  "n",
-                           "type":  "number",
-                           "default":  "1000"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsAddEvent",
-        "category":  "logic",
-        "shape":  "cblock",
-        "color":  "#E91E63",
-        "label":  "on element %s add event listener %s",
-        "code":  "document.querySelector(\u0027%s\u0027).addEventListener(\u0027%s\u0027, function() { %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "id",
-                           "type":  "selector",
-                           "default":  "#my-id"
-                       },
-                       {
-                           "id":  "event",
-                           "type":  "text",
-                           "default":  "click"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsWindowLocation",
-        "category":  "logic",
-        "shape":  "stack",
-        "color":  "#E91E63",
-        "label":  "redirect to url %s",
-        "code":  "window.location.href = %s;",
-        "inputs":  [
-                       {
-                           "id":  "url",
-                           "type":  "text",
-                           "default":  "https://google.com"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsQuerySelector",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#F57C00",
-        "label":  "query %selector",
-        "code":  "document.querySelector(\u0027%selector\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".my-element"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsQuerySelectorAll",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#F57C00",
-        "label":  "queryAll %selector",
-        "code":  "document.querySelectorAll(\u0027%selector\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".items"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsGetById",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#F57C00",
-        "label":  "getElementById %s",
-        "code":  "document.getElementById(\u0027%s\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "id",
-                           "type":  "text",
-                           "default":  "my-id"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsQueryOnVar",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#F57C00",
-        "label":  "%s .querySelector %selector",
-        "code":  "%s.querySelector(\u0027%selector\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "parent",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".child"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsQueryAllOnVar",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#F57C00",
-        "label":  "%s .querySelectorAll %selector",
-        "code":  "%s.querySelectorAll(\u0027%selector\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "parent",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".items"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsParentElement",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#F57C00",
-        "label":  "%s .parentElement",
-        "code":  "%s.parentElement",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsClosest",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#F57C00",
-        "label":  "%s .closest %selector",
-        "code":  "%s.closest(\u0027%selector\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".wrapper"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsAddClass",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#EF6C00",
-        "label":  "%s .addClass %s",
-        "code":  "%s.classList.add(\u0027%s\u0027);",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "cls",
-                           "type":  "text",
-                           "default":  "active"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsRemoveClass",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#EF6C00",
-        "label":  "%s .removeClass %s",
-        "code":  "%s.classList.remove(\u0027%s\u0027);",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "cls",
-                           "type":  "text",
-                           "default":  "active"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsToggleClass",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#EF6C00",
-        "label":  "%s .toggleClass %s",
-        "code":  "%s.classList.toggle(\u0027%s\u0027);",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "cls",
-                           "type":  "text",
-                           "default":  "active"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsHasClass",
-        "category":  "js_dom",
-        "shape":  "boolean",
-        "color":  "#EF6C00",
-        "label":  "%s .hasClass %s",
-        "code":  "%s.classList.contains(\u0027%s\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "cls",
-                           "type":  "text",
-                           "default":  "active"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsReplaceClass",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#EF6C00",
-        "label":  "%s .replaceClass %s â†’ %s",
-        "code":  "%s.classList.replace(\u0027%s\u0027, \u0027%s\u0027);",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "old",
-                           "type":  "text",
-                           "default":  "inactive"
-                       },
-                       {
-                           "id":  "new",
-                           "type":  "text",
-                           "default":  "active"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsRemoveClassAll",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#EF6C00",
-        "label":  "remove class %s from all %s",
-        "code":  "document.querySelectorAll(\u0027%s\u0027).forEach(el =\u003e el.classList.remove(\u0027%s\u0027));",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".btn"
-                       },
-                       {
-                           "id":  "cls",
-                           "type":  "text",
-                           "default":  "active"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsToggleFunctionBlock",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#EF6C00",
-        "label":  "define toggleActive for %s in %s",
-        "code":  "function toggleActive(selectedEl) { const group = selectedEl.parentElement; group.querySelectorAll(\u0027%s\u0027).forEach(el =\u003e el.classList.remove(\u0027%s\u0027)); selectedEl.classList.add(\u0027%s\u0027); }",
-        "inputs":  [
-                       {
-                           "id":  "items",
-                           "type":  "selector",
-                           "default":  ".expressive-btn"
-                       },
-                       {
-                           "id":  "removeClass",
-                           "type":  "text",
-                           "default":  "active"
-                       },
-                       {
-                           "id":  "addClass",
-                           "type":  "text",
-                           "default":  "active"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsCallToggleActive",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#EF6C00",
-        "label":  "call toggleActive on %s",
-        "code":  "toggleActive(%s);",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "this"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetStyleProp",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#E65100",
-        "label":  "%s .style %s = %s",
-        "code":  "%s.style[\u0027%s\u0027] = \u0027%s\u0027;",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "property",
-                           "type":  "text",
-                           "default":  "color"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "red"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetStyleColor",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#E65100",
-        "label":  "%s .style color = %m.color",
-        "code":  "%s.style[\u0027color\u0027] = \u0027%m.color\u0027;",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "color",
-                           "default":  "#000000"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetStyleBg",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#E65100",
-        "label":  "%s .style background = %m.color",
-        "code":  "%s.style[\u0027background\u0027] = \u0027%m.color\u0027;",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "color",
-                           "default":  "#FFFFFF"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetStyleDisplay",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#E65100",
-        "label":  "%s .style display = %m.display",
-        "code":  "%s.style[\u0027display\u0027] = \u0027%m.display\u0027;",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "dropdown",
-                           "paramType":  "display",
-                           "default":  "block"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetStyleOpacity",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#E65100",
-        "label":  "%s .style opacity = %n",
-        "code":  "%s.style[\u0027opacity\u0027] = %n;",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "number",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetCSSVar",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#E65100",
-        "label":  "CSS var --%s = %s on %s",
-        "code":  "%s.style.setProperty(\u0027--%s\u0027, \u0027%s\u0027);",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "document.documentElement"
-                       },
-                       {
-                           "id":  "varName",
-                           "type":  "text",
-                           "default":  "primary-color"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "#6200ee"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsGetCSSVar",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#E65100",
-        "label":  "get CSS var --%s from %s",
-        "code":  "getComputedStyle(%s).getPropertyValue(\u0027--%s\u0027).trim()",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "document.documentElement"
-                       },
-                       {
-                           "id":  "varName",
-                           "type":  "text",
-                           "default":  "primary-color"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetAttribute",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#BF360C",
-        "label":  "%s .setAttribute %s = %s",
-        "code":  "%s.setAttribute(\u0027%s\u0027, \u0027%s\u0027);",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "attr",
-                           "type":  "text",
-                           "default":  "data-id"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "1"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsGetAttribute",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#BF360C",
-        "label":  "%s .getAttribute %s",
-        "code":  "%s.getAttribute(\u0027%s\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "attr",
-                           "type":  "text",
-                           "default":  "data-id"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsRemoveAttribute",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#BF360C",
-        "label":  "%s .removeAttribute %s",
-        "code":  "%s.removeAttribute(\u0027%s\u0027);",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "attr",
-                           "type":  "text",
-                           "default":  "disabled"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetInnerText",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#BF360C",
-        "label":  "%s .innerText = %s",
-        "code":  "%s.innerText = %s;",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "text",
-                           "type":  "text",
-                           "default":  "\"Hello\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetInnerHTML2",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#BF360C",
-        "label":  "%s .innerHTML = %s",
-        "code":  "%s.innerHTML = %s;",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "html",
-                           "type":  "text",
-                           "default":  "\"\u003cb\u003eHello\u003c/b\u003e\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetValue",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#BF360C",
-        "label":  "%s .value = %s",
-        "code":  "%s.value = %s;",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "val",
-                           "type":  "text",
-                           "default":  "\"\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsGetValue",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#BF360C",
-        "label":  "%s .value",
-        "code":  "%s.value",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsCreateElement",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#F57C00",
-        "label":  "createElement %s",
-        "code":  "document.createElement(\u0027%s\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "tag",
-                           "type":  "text",
-                           "default":  "div"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsAppendChild",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#F57C00",
-        "label":  "%s .appendChild %s",
-        "code":  "%s.appendChild(%s);",
-        "inputs":  [
-                       {
-                           "id":  "parent",
-                           "type":  "text",
-                           "default":  "container"
-                       },
-                       {
-                           "id":  "child",
-                           "type":  "text",
-                           "default":  "newEl"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsRemoveElement",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#F57C00",
-        "label":  "%s .remove()",
-        "code":  "%s.remove();",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsCloneElement",
-        "category":  "js_dom",
-        "shape":  "value",
-        "color":  "#F57C00",
-        "label":  "%s .cloneNode",
-        "code":  "%s.cloneNode(true)",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "template"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsInsertHTML",
-        "category":  "js_dom",
-        "shape":  "stack",
-        "color":  "#F57C00",
-        "label":  "%s insertAdjacentHTML %s %s",
-        "code":  "%s.insertAdjacentHTML(\u0027%s\u0027, %s);",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "container"
-                       },
-                       {
-                           "id":  "position",
-                           "type":  "dropdown",
-                           "default":  "beforeend",
-                           "options":  [
-                                           "beforebegin",
-                                           "afterbegin",
-                                           "beforeend",
-                                           "afterend"
-                                       ]
-                       },
-                       {
-                           "id":  "html",
-                           "type":  "text",
-                           "default":  "\"\u003cdiv\u003enew\u003c/div\u003e\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsVarLet",
-        "category":  "js_logic",
-        "shape":  "stack",
-        "color":  "#2E7D32",
-        "label":  "let %s = %s",
-        "code":  "let %s = %s;",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "myVar"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "null"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsVarConst",
-        "category":  "js_logic",
-        "shape":  "stack",
-        "color":  "#2E7D32",
-        "label":  "const %s = %s",
-        "code":  "const %s = %s;",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "myConst"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "\"value\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsVarAssign",
-        "category":  "js_logic",
-        "shape":  "stack",
-        "color":  "#2E7D32",
-        "label":  "set %s = %s",
-        "code":  "%s = %s;",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "myVar"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "\"new value\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsVarRef",
-        "category":  "js_logic",
-        "shape":  "value",
-        "color":  "#2E7D32",
-        "label":  "var %s",
-        "code":  "%s",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "myVar"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsFunctionDefine",
-        "category":  "js_logic",
-        "shape":  "cblock",
-        "color":  "#1B5E20",
-        "label":  "function %s ( %s ) {",
-        "code":  "function %s(%s) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "myFunction"
-                       },
-                       {
-                           "id":  "params",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsFunctionArrow",
-        "category":  "js_logic",
-        "shape":  "cblock",
-        "color":  "#1B5E20",
-        "label":  "const %s = ( %s ) =\u003e {",
-        "code":  "const %s = (%s) =\u003e { %m.space };",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "myFn"
-                       },
-                       {
-                           "id":  "params",
-                           "type":  "text",
-                           "default":  "e"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsFunctionCall",
-        "category":  "js_logic",
-        "shape":  "stack",
-        "color":  "#1B5E20",
-        "label":  "call %s ( %s )",
-        "code":  "%s(%s);",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "myFunction"
-                       },
-                       {
-                           "id":  "args",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsReturn",
-        "category":  "js_logic",
-        "shape":  "stack",
-        "color":  "#1B5E20",
-        "label":  "return %s",
-        "code":  "return %s;",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "result"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsAsyncFunction",
-        "category":  "js_logic",
-        "shape":  "cblock",
-        "color":  "#1B5E20",
-        "label":  "async function %s ( %s ) {",
-        "code":  "async function %s(%s) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "loadData"
-                       },
-                       {
-                           "id":  "params",
-                           "type":  "text",
-                           "default":  ""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsAwait",
-        "category":  "js_logic",
-        "shape":  "value",
-        "color":  "#1B5E20",
-        "label":  "await %s",
-        "code":  "await %s",
-        "inputs":  [
-                       {
-                           "id":  "promise",
-                           "type":  "text",
-                           "default":  "fetchData()"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsTryCatch",
-        "category":  "js_logic",
-        "shape":  "cblock",
-        "color":  "#1B5E20",
-        "label":  "try { } catch %s {",
-        "code":  "try { %m.space } catch (%s) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "err",
-                           "type":  "text",
-                           "default":  "err"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsIf",
-        "category":  "js_logic",
-        "shape":  "cblock",
-        "color":  "#880E4F",
-        "label":  "if ( %s ) {",
-        "code":  "if (%s) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "condition",
-                           "type":  "text",
-                           "default":  "condition"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsIfElse",
-        "category":  "js_logic",
-        "shape":  "cblock",
-        "color":  "#880E4F",
-        "label":  "if ( %s ) { } else {",
-        "code":  "if (%s) { %m.space } else { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "condition",
-                           "type":  "text",
-                           "default":  "condition"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsTernary",
-        "category":  "js_logic",
-        "shape":  "value",
-        "color":  "#880E4F",
-        "label":  "%s ? %s : %s",
-        "code":  "(%s ? %s : %s)",
-        "inputs":  [
-                       {
-                           "id":  "condition",
-                           "type":  "text",
-                           "default":  "x \u003e 0"
-                       },
-                       {
-                           "id":  "ifTrue",
-                           "type":  "text",
-                           "default":  "\"yes\""
-                       },
-                       {
-                           "id":  "ifFalse",
-                           "type":  "text",
-                           "default":  "\"no\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsForEach",
-        "category":  "js_logic",
-        "shape":  "cblock",
-        "color":  "#880E4F",
-        "label":  "%s .forEach %s =\u003e",
-        "code":  "%s.forEach(%s =\u003e { %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "array",
-                           "type":  "text",
-                           "default":  "items"
-                       },
-                       {
-                           "id":  "item",
-                           "type":  "text",
-                           "default":  "item"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsForOf",
-        "category":  "js_logic",
-        "shape":  "cblock",
-        "color":  "#880E4F",
-        "label":  "for %s of %s {",
-        "code":  "for (const %s of %s) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "item",
-                           "type":  "text",
-                           "default":  "item"
-                       },
-                       {
-                           "id":  "array",
-                           "type":  "text",
-                           "default":  "items"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsForLoop",
-        "category":  "js_logic",
-        "shape":  "cblock",
-        "color":  "#880E4F",
-        "label":  "for i = 0 to %n {",
-        "code":  "for (let i = 0; i \u003c %n; i++) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "count",
-                           "type":  "number",
-                           "default":  "10"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsWhile",
-        "category":  "js_logic",
-        "shape":  "cblock",
-        "color":  "#880E4F",
-        "label":  "while ( %s ) {",
-        "code":  "while (%s) { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "condition",
-                           "type":  "text",
-                           "default":  "i \u003c 10"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsMathRandom",
-        "category":  "js_logic",
-        "shape":  "value",
-        "color":  "#2E7D32",
-        "label":  "random 0â€“%n",
-        "code":  "Math.floor(Math.random() * %n)",
-        "inputs":  [
-                       {
-                           "id":  "max",
-                           "type":  "number",
-                           "default":  "100"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsMathRound",
-        "category":  "js_logic",
-        "shape":  "value",
-        "color":  "#2E7D32",
-        "label":  "round %s",
-        "code":  "Math.round(%s)",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "x"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsMathClamp",
-        "category":  "js_logic",
-        "shape":  "value",
-        "color":  "#2E7D32",
-        "label":  "clamp %s min %n max %n",
-        "code":  "Math.min(Math.max(%s, %n), %n)",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "x"
-                       },
-                       {
-                           "id":  "min",
-                           "type":  "number",
-                           "default":  "0"
-                       },
-                       {
-                           "id":  "max",
-                           "type":  "number",
-                           "default":  "100"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsStringTemplate",
-        "category":  "js_logic",
-        "shape":  "value",
-        "color":  "#2E7D32",
-        "label":  "template ` %s `",
-        "code":  "`%s`",
-        "inputs":  [
-                       {
-                           "id":  "template",
-                           "type":  "text",
-                           "default":  "Hello ${name}"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsParseInt",
-        "category":  "js_logic",
-        "shape":  "value",
-        "color":  "#2E7D32",
-        "label":  "parseInt %s",
-        "code":  "parseInt(%s, 10)",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "\"42\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsParseFloat",
-        "category":  "js_logic",
-        "shape":  "value",
-        "color":  "#2E7D32",
-        "label":  "parseFloat %s",
-        "code":  "parseFloat(%s)",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "\"3.14\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsTypeOf",
-        "category":  "js_logic",
-        "shape":  "value",
-        "color":  "#2E7D32",
-        "label":  "typeof %s",
-        "code":  "typeof %s",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "myVar"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsConsoleLog2",
-        "category":  "js_logic",
-        "shape":  "stack",
-        "color":  "#2E7D32",
-        "label":  "console.log %s",
-        "code":  "console.log(%s);",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "\"debug\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsConsoleWarn",
-        "category":  "js_logic",
-        "shape":  "stack",
-        "color":  "#2E7D32",
-        "label":  "console.warn %s",
-        "code":  "console.warn(%s);",
-        "inputs":  [
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "\"warning\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsOnClick",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "%selector on click {",
-        "code":  "document.querySelector(\u0027%selector\u0027).addEventListener(\u0027click\u0027, function(e) { %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".btn"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsOnInput",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "%selector on input {",
-        "code":  "document.querySelector(\u0027%selector\u0027).addEventListener(\u0027input\u0027, function(e) { %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  "input"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsOnChange",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "%selector on change {",
-        "code":  "document.querySelector(\u0027%selector\u0027).addEventListener(\u0027change\u0027, function(e) { %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  "select"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsOnSubmit",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "%selector on submit {",
-        "code":  "document.querySelector(\u0027%selector\u0027).addEventListener(\u0027submit\u0027, function(e) { e.preventDefault(); %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  "form"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsOnKeyDown",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "%selector on keydown {",
-        "code":  "document.querySelector(\u0027%selector\u0027).addEventListener(\u0027keydown\u0027, function(e) { %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  "input"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsOnMouseEnter",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "%selector on mouseenter {",
-        "code":  "document.querySelector(\u0027%selector\u0027).addEventListener(\u0027mouseenter\u0027, function(e) { %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".card"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsOnMouseLeave",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "%selector on mouseleave {",
-        "code":  "document.querySelector(\u0027%selector\u0027).addEventListener(\u0027mouseleave\u0027, function(e) { %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".card"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsOnScroll",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "window on scroll {",
-        "code":  "window.addEventListener(\u0027scroll\u0027, function() { %m.space });",
-        "inputs":  [
-
-                   ]
-    },
-    {
-        "id":  "jsOnLoad",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "on DOMContentLoaded {",
-        "code":  "document.addEventListener(\u0027DOMContentLoaded\u0027, function() { %m.space });",
-        "inputs":  [
-
-                   ]
-    },
-    {
-        "id":  "jsAddEventOnVar",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "%s addEventListener %s {",
-        "code":  "%s.addEventListener(\u0027%s\u0027, function(e) { %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "event",
-                           "type":  "dropdown",
-                           "default":  "click",
-                           "options":  [
-                                           "click",
-                                           "input",
-                                           "change",
-                                           "submit",
-                                           "keydown",
-                                           "keyup",
-                                           "mouseenter",
-                                           "mouseleave",
-                                           "focus",
-                                           "blur",
-                                           "scroll",
-                                           "resize"
-                                       ]
-                       }
-                   ]
-    },
-    {
-        "id":  "jsRemoveEventOnVar",
-        "category":  "js_events",
-        "shape":  "stack",
-        "color":  "#0277BD",
-        "label":  "%s removeEventListener %s %s",
-        "code":  "%s.removeEventListener(\u0027%s\u0027, %s);",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "event",
-                           "type":  "text",
-                           "default":  "click"
-                       },
-                       {
-                           "id":  "handler",
-                           "type":  "text",
-                           "default":  "handleClick"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsDispatchCustomEvent",
-        "category":  "js_events",
-        "shape":  "stack",
-        "color":  "#0277BD",
-        "label":  "%s dispatch event %s",
-        "code":  "%s.dispatchEvent(new CustomEvent(\u0027%s\u0027, { bubbles: true }));",
-        "inputs":  [
-                       {
-                           "id":  "el",
-                           "type":  "text",
-                           "default":  "el"
-                       },
-                       {
-                           "id":  "eventName",
-                           "type":  "text",
-                           "default":  "my-event"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsStopPropagation",
-        "category":  "js_events",
-        "shape":  "stack",
-        "color":  "#0277BD",
-        "label":  "e.stopPropagation()",
-        "code":  "e.stopPropagation();",
-        "inputs":  [
-
-                   ]
-    },
-    {
-        "id":  "jsPreventDefault",
-        "category":  "js_events",
-        "shape":  "stack",
-        "color":  "#0277BD",
-        "label":  "e.preventDefault()",
-        "code":  "e.preventDefault();",
-        "inputs":  [
-
-                   ]
-    },
-    {
-        "id":  "jsIntersectionObserver",
-        "category":  "js_events",
-        "shape":  "cblock",
-        "color":  "#0277BD",
-        "label":  "observe %s on enter {",
-        "code":  "new IntersectionObserver((entries) =\u003e { entries.forEach(entry =\u003e { if (entry.isIntersecting) { %m.space } }); }).observe(document.querySelector(\u0027%s\u0027));",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".section"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsObserveAddClass",
-        "category":  "js_events",
-        "shape":  "stack",
-        "color":  "#0277BD",
-        "label":  "observe %s â†’ add class %s",
-        "code":  "new IntersectionObserver((entries) =\u003e { entries.forEach(entry =\u003e { if (entry.isIntersecting) entry.target.classList.add(\u0027%s\u0027); }); }, { threshold: 0.1 }).observe(document.querySelector(\u0027%s\u0027));",
-        "inputs":  [
-                       {
-                           "id":  "cls",
-                           "type":  "text",
-                           "default":  "visible"
-                       },
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  ".reveal"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetTimeout2",
-        "category":  "js_timing",
-        "shape":  "cblock",
-        "color":  "#00695C",
-        "label":  "after %n ms {",
-        "code":  "setTimeout(function() { %m.space }, %n);",
-        "inputs":  [
-                       {
-                           "id":  "ms",
-                           "type":  "number",
-                           "default":  "1000"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetInterval",
-        "category":  "js_timing",
-        "shape":  "cblock",
-        "color":  "#00695C",
-        "label":  "every %n ms {",
-        "code":  "setInterval(function() { %m.space }, %n);",
-        "inputs":  [
-                       {
-                           "id":  "ms",
-                           "type":  "number",
-                           "default":  "1000"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsSetTimeoutSave",
-        "category":  "js_timing",
-        "shape":  "stack",
-        "color":  "#00695C",
-        "label":  "save timer %s = after %n ms call %s",
-        "code":  "const %s = setTimeout(%s, %n);",
-        "inputs":  [
-                       {
-                           "id":  "varName",
-                           "type":  "text",
-                           "default":  "timer"
-                       },
-                       {
-                           "id":  "ms",
-                           "type":  "number",
-                           "default":  "1000"
-                       },
-                       {
-                           "id":  "fn",
-                           "type":  "text",
-                           "default":  "myFunction"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsClearTimeout",
-        "category":  "js_timing",
-        "shape":  "stack",
-        "color":  "#00695C",
-        "label":  "clearTimeout %s",
-        "code":  "clearTimeout(%s);",
-        "inputs":  [
-                       {
-                           "id":  "timer",
-                           "type":  "text",
-                           "default":  "timer"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsClearInterval",
-        "category":  "js_timing",
-        "shape":  "stack",
-        "color":  "#00695C",
-        "label":  "clearInterval %s",
-        "code":  "clearInterval(%s);",
-        "inputs":  [
-                       {
-                           "id":  "timer",
-                           "type":  "text",
-                           "default":  "timer"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsRequestAnimFrame",
-        "category":  "js_timing",
-        "shape":  "cblock",
-        "color":  "#00695C",
-        "label":  "requestAnimationFrame {",
-        "code":  "requestAnimationFrame(function() { %m.space });",
-        "inputs":  [
-
-                   ]
-    },
-    {
-        "id":  "jsScrollToEl",
-        "category":  "js_window",
-        "shape":  "stack",
-        "color":  "#4527A0",
-        "label":  "scrollIntoView %s",
-        "code":  "document.querySelector(\u0027%s\u0027).scrollIntoView({ behavior: \u0027smooth\u0027 });",
-        "inputs":  [
-                       {
-                           "id":  "selector",
-                           "type":  "selector",
-                           "default":  "#section"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsScrollToTop",
-        "category":  "js_window",
-        "shape":  "stack",
-        "color":  "#4527A0",
-        "label":  "scroll to top",
-        "code":  "window.scrollTo({ top: 0, behavior: \u0027smooth\u0027 });",
-        "inputs":  [
-
-                   ]
-    },
-    {
-        "id":  "jsScrollY",
-        "category":  "js_window",
-        "shape":  "value",
-        "color":  "#4527A0",
-        "label":  "window.scrollY",
-        "code":  "window.scrollY",
-        "inputs":  [
-
-                   ]
-    },
-    {
-        "id":  "jsWindowWidth",
-        "category":  "js_window",
-        "shape":  "value",
-        "color":  "#4527A0",
-        "label":  "window.innerWidth",
-        "code":  "window.innerWidth",
-        "inputs":  [
-
-                   ]
-    },
-    {
-        "id":  "jsWindowHeight",
-        "category":  "js_window",
-        "shape":  "value",
-        "color":  "#4527A0",
-        "label":  "window.innerHeight",
-        "code":  "window.innerHeight",
-        "inputs":  [
-
-                   ]
-    },
-    {
-        "id":  "jsWindowRedirect",
-        "category":  "js_window",
-        "shape":  "stack",
-        "color":  "#4527A0",
-        "label":  "redirect to %s",
-        "code":  "window.location.href = \u0027%s\u0027;",
-        "inputs":  [
-                       {
-                           "id":  "url",
-                           "type":  "text",
-                           "default":  "https://example.com"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsOpenTab",
-        "category":  "js_window",
-        "shape":  "stack",
-        "color":  "#4527A0",
-        "label":  "open new tab %s",
-        "code":  "window.open(\u0027%s\u0027, \u0027_blank\u0027);",
-        "inputs":  [
-                       {
-                           "id":  "url",
-                           "type":  "text",
-                           "default":  "https://example.com"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsLocalStorageSet",
-        "category":  "js_window",
-        "shape":  "stack",
-        "color":  "#4527A0",
-        "label":  "localStorage set %s = %s",
-        "code":  "localStorage.setItem(\u0027%s\u0027, %s);",
-        "inputs":  [
-                       {
-                           "id":  "key",
-                           "type":  "text",
-                           "default":  "theme"
-                       },
-                       {
-                           "id":  "value",
-                           "type":  "text",
-                           "default":  "\"dark\""
-                       }
-                   ]
-    },
-    {
-        "id":  "jsLocalStorageGet",
-        "category":  "js_window",
-        "shape":  "value",
-        "color":  "#4527A0",
-        "label":  "localStorage get %s",
-        "code":  "localStorage.getItem(\u0027%s\u0027)",
-        "inputs":  [
-                       {
-                           "id":  "key",
-                           "type":  "text",
-                           "default":  "theme"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsLocalStorageRemove",
-        "category":  "js_window",
-        "shape":  "stack",
-        "color":  "#4527A0",
-        "label":  "localStorage remove %s",
-        "code":  "localStorage.removeItem(\u0027%s\u0027);",
-        "inputs":  [
-                       {
-                           "id":  "key",
-                           "type":  "text",
-                           "default":  "theme"
-                       }
-                   ]
-    },
-    {
-        "id":  "jsFetch",
-        "category":  "js_window",
-        "shape":  "cblock",
-        "color":  "#4527A0",
-        "label":  "fetch %s then {",
-        "code":  "fetch(\u0027%s\u0027).then(r =\u003e r.json()).then(data =\u003e { %m.space });",
-        "inputs":  [
-                       {
-                           "id":  "url",
-                           "type":  "text",
-                           "default":  "https://api.example.com/data"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssKeyframes",
-        "category":  "animation",
-        "shape":  "cblock",
-        "color":  "#9C27B0",
-        "label":  "▾ keyframes %s",
-        "code":  "@keyframes %s { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "name",
-                           "type":  "text",
-                           "default":  "fadeUp"
-                       }
-                   ]
-    },
-    {
-        "id":  "cssKeyframeStep",
-        "category":  "animation",
-        "shape":  "cblock",
-        "color":  "#9C27B0",
-        "label":  "▾ step %s",
-        "code":  "%s { %m.space }",
-        "inputs":  [
-                       {
-                           "id":  "step",
-                           "type":  "text",
-                           "default":  "to"
-                       }
-                   ]
+[
+    {
+        "id": "groupBlock",
+        "category": "meta",
+        "blockType": "c",
+        "color": "#37474F",
+        "spec": "\u00e2\u2013\u00be group %s %s",
+        "code": "/* <%1$s> */ %3$s /* </%2$s> */"
+    },
+    {
+        "id": "commentBlock Css",
+        "category": "meta",
+        "blockType": "c",
+        "color": "#546E7A",
+        "spec": "// %s",
+        "code": "/* %1$s */"
+    },
+    {
+        "id": "cssSelector",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1976D2",
+        "spec": "%selector {",
+        "code": "%1$s { %2$s }"
+    },
+    {
+        "id": "cssHover",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1976D2",
+        "spec": "%selector :hover {",
+        "code": "%1$s:hover { %2$s }"
+    },
+    {
+        "id": "cssFocus",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1976D2",
+        "spec": "%selector :focus {",
+        "code": "%1$s:focus { %2$s }"
+    },
+    {
+        "id": "cssActive",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1976D2",
+        "spec": "%selector :active {",
+        "code": "%1$s:active { %2$s }"
+    },
+    {
+        "id": "cssVisited",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1976D2",
+        "spec": "%selector :visited {",
+        "code": "%1$s:visited { %2$s }"
+    },
+    {
+        "id": "cssBefore",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1976D2",
+        "spec": "%selector ::before {",
+        "code": "%1$s::before { %2$s }"
+    },
+    {
+        "id": "cssAfter",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1976D2",
+        "spec": "%selector ::after {",
+        "code": "%1$s::after { %2$s }"
+    },
+    {
+        "id": "cssFirstChild",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1976D2",
+        "spec": "%selector :first-child {",
+        "code": "%1$s:first-child { %2$s }"
+    },
+    {
+        "id": "cssLastChild",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1976D2",
+        "spec": "%selector :last-child {",
+        "code": "%1$s:last-child { %2$s }"
+    },
+    {
+        "id": "cssNthChild",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1976D2",
+        "spec": "%selector :nth-child(%n) {",
+        "code": "%1$s:nth-child(%2$s) { %3$s }"
+    },
+    {
+        "id": "cssMediaQuery",
+        "category": "css",
+        "blockType": "c",
+        "color": "#1565C0",
+        "spec": "@media (max-width: %n px) {",
+        "code": "@media (max-width: %1$spx) { %2$s }"
+    },
+    {
+        "id": "setDisplay",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "display %m.display",
+        "code": "display: %1$s;"
+    },
+    {
+        "id": "setPosition",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "position %m.position",
+        "code": "position: %1$s;"
+    },
+    {
+        "id": "setOverflow",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "overflow %m.overflow",
+        "code": "overflow: %1$s;"
+    },
+    {
+        "id": "setColor",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "color %m.color",
+        "code": "color: %1$s;"
+    },
+    {
+        "id": "setBackground",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "background %m.color",
+        "code": "background-color: %1$s;"
+    },
+    {
+        "id": "setBackgroundImage",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "background-image url %s",
+        "code": "background-image: url(%1$s);"
+    },
+    {
+        "id": "setWidth",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "width %n %m.unit",
+        "code": "width: %1$s%2$s;"
+    },
+    {
+        "id": "setHeight",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "height %n %m.unit",
+        "code": "height: %1$s%2$s;"
+    },
+    {
+        "id": "setMaxWidth",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "max-width %n %m.unit",
+        "code": "max-width: %1$s%2$s;"
+    },
+    {
+        "id": "setMaxHeight",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "max-height %n %m.unit",
+        "code": "max-height: %1$s%2$s;"
+    },
+    {
+        "id": "setMinWidth",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "min-width %n %m.unit",
+        "code": "min-width: %1$s%2$s;"
+    },
+    {
+        "id": "setMinHeight",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "min-height %n %m.unit",
+        "code": "min-height: %1$s%2$s;"
+    },
+    {
+        "id": "setMargin",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "margin %n %m.unit",
+        "code": "margin: %1$s%2$s;"
+    },
+    {
+        "id": "setPadding",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "padding %n %m.unit",
+        "code": "padding: %1$s%2$s;"
+    },
+    {
+        "id": "setBorder",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "border %n %m.unit %m.color",
+        "code": "border: %1$s%2$s solid %3$s;"
+    },
+    {
+        "id": "setRadius",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "border-radius %n %m.unit",
+        "code": "border-radius: %1$s%2$s;"
+    },
+    {
+        "id": "setBoxShadow",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "box-shadow %n %n %n %m.color",
+        "code": "box-shadow: %1$spx %2$spx %3$spx %4$s;"
+    },
+    {
+        "id": "setFontSize",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "font-size %n %m.unit",
+        "code": "font-size: %1$s%2$s;"
+    },
+    {
+        "id": "setFontFamily",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "font-family %s",
+        "code": "font-family: %1$s;"
+    },
+    {
+        "id": "setFontWeight",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "font-weight %m.fontWeight",
+        "code": "font-weight: %1$s;"
+    },
+    {
+        "id": "setFontStyle",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "font-style %m.fontStyle",
+        "code": "font-style: %1$s;"
+    },
+    {
+        "id": "setTextAlign",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "text-align %m.textAlign",
+        "code": "text-align: %1$s;"
+    },
+    {
+        "id": "setTextDecoration",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "text-decoration %m.textDecoration",
+        "code": "text-decoration: %1$s;"
+    },
+    {
+        "id": "setLineHeight",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "line-height %n",
+        "code": "line-height: %1$s;"
+    },
+    {
+        "id": "setLetterSpacing",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "letter-spacing %n %m.unit",
+        "code": "letter-spacing: %1$s%2$s;"
+    },
+    {
+        "id": "setOpacity",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "opacity %n",
+        "code": "opacity: %1$s;"
+    },
+    {
+        "id": "setZIndex",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "z-index %n",
+        "code": "z-index: %1$s;"
+    },
+    {
+        "id": "setCursor",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "cursor %m.cursor",
+        "code": "cursor: %1$s;"
+    },
+    {
+        "id": "setFlexDirection",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "flex-direction %m.flexDirection",
+        "code": "flex-direction: %1$s;"
+    },
+    {
+        "id": "setJustifyContent",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "justify-content %m.justifyContent",
+        "code": "justify-content: %1$s;"
+    },
+    {
+        "id": "setAlignItems",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "align-items %m.alignItems",
+        "code": "align-items: %1$s;"
+    },
+    {
+        "id": "setGap",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "gap %n %m.unit",
+        "code": "gap: %1$s%2$s;"
+    },
+    {
+        "id": "setGridTemplateColumns",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "grid columns %s",
+        "code": "grid-template-columns: %1$s;"
+    },
+    {
+        "id": "setTransform",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "transform %s",
+        "code": "transform: %1$s;"
+    },
+    {
+        "id": "setFilter",
+        "category": "css",
+        "blockType": "normal",
+        "color": "#2196F3",
+        "spec": "filter %s",
+        "code": "filter: %1$s;"
+    },
+    {
+        "id": "animateFadeIn",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "animate fade-in %n",
+        "code": "animation: fadeIn %1$ss;"
+    },
+    {
+        "id": "animateFadeOut",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "animate fade-out %n",
+        "code": "animation: fadeOut %1$ss;"
+    },
+    {
+        "id": "animateSlideIn",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "animate slide-in %n",
+        "code": "animation: slideIn %1$ss;"
+    },
+    {
+        "id": "animateSlideOut",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "animate slide-out %n",
+        "code": "animation: slideOut %1$ss;"
+    },
+    {
+        "id": "animateBounce",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "animate bounce %n",
+        "code": "animation: bounce %1$ss;"
+    },
+    {
+        "id": "animatePulse",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "animate pulse %n",
+        "code": "animation: pulse %1$ss;"
+    },
+    {
+        "id": "animateRotate",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "animate rotate %n",
+        "code": "animation: rotate %1$ss;"
+    },
+    {
+        "id": "animateShake",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "animate shake %n",
+        "code": "animation: shake %1$ss;"
+    },
+    {
+        "id": "transitionAll",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "transition all %n",
+        "code": "transition: all %1$ss;"
+    },
+    {
+        "id": "transitionColor",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "transition color %n",
+        "code": "transition: color %1$ss;"
+    },
+    {
+        "id": "transitionTransform",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "transition transform %n",
+        "code": "transition: transform %1$ss;"
+    },
+    {
+        "id": "animateSlideUp",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "slide-up %ns",
+        "code": "animation: slideUp %1$ss ease both;"
+    },
+    {
+        "id": "animateSlideDown",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "slide-down %ns",
+        "code": "animation: slideDown %1$ss ease both;"
+    },
+    {
+        "id": "animateSlideLeft",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "slide-left %ns",
+        "code": "animation: slideLeft %1$ss ease both;"
+    },
+    {
+        "id": "animateSlideRight",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "slide-right %ns",
+        "code": "animation: slideRight %1$ss ease both;"
+    },
+    {
+        "id": "animateZoomIn",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "zoom-in %ns",
+        "code": "animation: zoomIn %1$ss ease both;"
+    },
+    {
+        "id": "animateZoomOut",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "zoom-out %ns",
+        "code": "animation: zoomOut %1$ss ease both;"
+    },
+    {
+        "id": "animateFlip",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "flip %ns",
+        "code": "animation: flip %1$ss ease both;"
+    },
+    {
+        "id": "animateCustom",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "%s %ns %s %s %m.iter %m.fill",
+        "code": "animation: %1$s %2$ss %3$s %4$s %5$s %6$s;"
+    },
+    {
+        "id": "transitionCustom",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "transition %s %ns %s %s",
+        "code": "transition: %1$s %2$ss %3$s %4$s;"
+    },
+    {
+        "id": "hoverScale",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "hover scale %n",
+        "code": "transition: transform 0.2s ease; transform: scale(1);"
+    },
+    {
+        "id": "scrollReveal",
+        "category": "animation",
+        "blockType": "normal",
+        "color": "#9C27B0",
+        "spec": "scroll reveal %s",
+        "code": "animation: %1$s 0.6s ease both; animation-timeline: view();"
+    },
+    {
+        "id": "valueString",
+        "category": "value",
+        "blockType": "s",
+        "color": "#7E57C2",
+        "spec": "%s",
+        "code": "%1$s"
+    },
+    {
+        "id": "valueNumber",
+        "category": "value",
+        "blockType": "d",
+        "color": "#7E57C2",
+        "spec": "%n %m.unit",
+        "code": "%1$s%2$s"
+    },
+    {
+        "id": "valueBoolean",
+        "category": "value",
+        "blockType": "b",
+        "color": "#7E57C2",
+        "spec": "%b",
+        "code": "%1$s"
+    },
+    {
+        "id": "valueColor",
+        "category": "value",
+        "blockType": "s",
+        "color": "#7E57C2",
+        "spec": "%m.color",
+        "code": "%1$s"
+    },
+    {
+        "id": "stringConcat",
+        "category": "value",
+        "blockType": "s",
+        "color": "#7E57C2",
+        "spec": "%s + %s",
+        "code": "%1$s %2$s"
+    },
+    {
+        "id": "ifBlock",
+        "category": "logic",
+        "blockType": "c",
+        "color": "#E91E63",
+        "spec": "if %s {",
+        "code": "if (%1$s) { %2$s }"
+    },
+    {
+        "id": "loop",
+        "category": "logic",
+        "blockType": "c",
+        "color": "#E91E63",
+        "spec": "repeat %n {",
+        "code": "for (var i = 0; i < %1$s; i++) { %2$s }"
+    },
+    {
+        "id": "asdHtml",
+        "category": "asd",
+        "blockType": "normal",
+        "color": "#455A64",
+        "spec": "HTML source %s",
+        "code": "%1$s"
+    },
+    {
+        "id": "asdCss",
+        "category": "asd",
+        "blockType": "normal",
+        "color": "#455A64",
+        "spec": "CSS source %s",
+        "code": "%1$s"
+    },
+    {
+        "id": "asdJs",
+        "category": "asd",
+        "blockType": "normal",
+        "color": "#455A64",
+        "spec": "JS source %s",
+        "code": "%1$s"
+    },
+    {
+        "id": "asdHead",
+        "category": "asd",
+        "blockType": "normal",
+        "color": "#455A64",
+        "spec": "Head source %s",
+        "code": "%1$s"
+    },
+    {
+        "id": "asdMeta",
+        "category": "asd",
+        "blockType": "normal",
+        "color": "#455A64",
+        "spec": "Meta tag %s",
+        "code": "%1$s"
+    },
+    {
+        "id": "constDefine",
+        "category": "logic",
+        "blockType": "normal",
+        "color": "#E91E63",
+        "spec": "const %s = %s",
+        "code": "const %1$s = %2$s;"
+    },
+    {
+        "id": "jsAlert",
+        "category": "logic",
+        "blockType": "normal",
+        "color": "#E91E63",
+        "spec": "alert %s",
+        "code": "alert(%1$s);"
+    },
+    {
+        "id": "jsConsoleLog",
+        "category": "logic",
+        "blockType": "normal",
+        "color": "#E91E63",
+        "spec": "console.log %s",
+        "code": "console.log(%1$s);"
+    },
+    {
+        "id": "jsGetElementById",
+        "category": "logic",
+        "blockType": "s",
+        "color": "#E91E63",
+        "spec": "get element %s",
+        "code": "document.querySelector('%1$s')"
+    },
+    {
+        "id": "jsSetInnerHTML",
+        "category": "logic",
+        "blockType": "normal",
+        "color": "#E91E63",
+        "spec": "set innerHTML of element %s to %s",
+        "code": "document.querySelector('%1$s').innerHTML = %2$s;"
+    },
+    {
+        "id": "jsSetStyle",
+        "category": "logic",
+        "blockType": "normal",
+        "color": "#E91E63",
+        "spec": "on element %s set style %s to %s",
+        "code": "document.querySelector('%1$s').style['%2$s'] = %3$s;"
+    },
+    {
+        "id": "jsSetTimeout",
+        "category": "logic",
+        "blockType": "c",
+        "color": "#E91E63",
+        "spec": "run after %n ms",
+        "code": "setTimeout(function() { %2$s }, %1$s);"
+    },
+    {
+        "id": "jsAddEvent",
+        "category": "logic",
+        "blockType": "c",
+        "color": "#E91E63",
+        "spec": "on element %s add event listener %s",
+        "code": "document.querySelector('%1$s').addEventListener('%2$s', function() { %3$s });"
+    },
+    {
+        "id": "jsWindowLocation",
+        "category": "logic",
+        "blockType": "normal",
+        "color": "#E91E63",
+        "spec": "redirect to url %s",
+        "code": "window.location.href = %1$s;"
+    },
+    {
+        "id": "jsQuerySelector",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#F57C00",
+        "spec": "query %selector",
+        "code": "document.querySelector('%1$s')"
+    },
+    {
+        "id": "jsQuerySelectorAll",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#F57C00",
+        "spec": "queryAll %selector",
+        "code": "document.querySelectorAll('%1$s')"
+    },
+    {
+        "id": "jsGetById",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#F57C00",
+        "spec": "getElementById %s",
+        "code": "document.getElementById('%1$s')"
+    },
+    {
+        "id": "jsQueryOnVar",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#F57C00",
+        "spec": "%s .querySelector %selector",
+        "code": "%1$s.querySelector('%2$s')"
+    },
+    {
+        "id": "jsQueryAllOnVar",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#F57C00",
+        "spec": "%s .querySelectorAll %selector",
+        "code": "%1$s.querySelectorAll('%2$s')"
+    },
+    {
+        "id": "jsParentElement",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#F57C00",
+        "spec": "%s .parentElement",
+        "code": "%1$s.parentElement"
+    },
+    {
+        "id": "jsClosest",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#F57C00",
+        "spec": "%s .closest %selector",
+        "code": "%1$s.closest('%2$s')"
+    },
+    {
+        "id": "jsAddClass",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#EF6C00",
+        "spec": "%s .addClass %s",
+        "code": "%1$s.classList.add('%2$s');"
+    },
+    {
+        "id": "jsRemoveClass",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#EF6C00",
+        "spec": "%s .removeClass %s",
+        "code": "%1$s.classList.remove('%2$s');"
+    },
+    {
+        "id": "jsToggleClass",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#EF6C00",
+        "spec": "%s .toggleClass %s",
+        "code": "%1$s.classList.toggle('%2$s');"
+    },
+    {
+        "id": "jsHasClass",
+        "category": "js_dom",
+        "blockType": "b",
+        "color": "#EF6C00",
+        "spec": "%s .hasClass %s",
+        "code": "%1$s.classList.contains('%2$s')"
+    },
+    {
+        "id": "jsReplaceClass",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#EF6C00",
+        "spec": "%s .replaceClass %s \u00e2\u2020\u2019 %s",
+        "code": "%1$s.classList.replace('%2$s', '%3$s');"
+    },
+    {
+        "id": "jsRemoveClassAll",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#EF6C00",
+        "spec": "remove class %s from all %s",
+        "code": "document.querySelectorAll('%1$s').forEach(el => el.classList.remove('%2$s'));"
+    },
+    {
+        "id": "jsToggleFunctionBlock",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#EF6C00",
+        "spec": "define toggleActive for %s in %s %s",
+        "code": "function toggleActive(selectedEl) { const group = selectedEl.parentElement; group.querySelectorAll('%1$s').forEach(el => el.classList.remove('%2$s')); selectedEl.classList.add('%3$s'); }"
+    },
+    {
+        "id": "jsCallToggleActive",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#EF6C00",
+        "spec": "call toggleActive on %s",
+        "code": "toggleActive(%1$s);"
+    },
+    {
+        "id": "jsSetStyleProp",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#E65100",
+        "spec": "%s .style %s = %s",
+        "code": "%1$s.style['%2$s'] = '%3$s';"
+    },
+    {
+        "id": "jsSetStyleColor",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#E65100",
+        "spec": "%s .style color = %m.color",
+        "code": "%1$s.style['color'] = '%2$s';"
+    },
+    {
+        "id": "jsSetStyleBg",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#E65100",
+        "spec": "%s .style background = %m.color",
+        "code": "%1$s.style['background'] = '%2$s';"
+    },
+    {
+        "id": "jsSetStyleDisplay",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#E65100",
+        "spec": "%s .style display = %m.display",
+        "code": "%1$s.style['display'] = '%2$s';"
+    },
+    {
+        "id": "jsSetStyleOpacity",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#E65100",
+        "spec": "%s .style opacity = %n",
+        "code": "%1$s.style['opacity'] = %2$s;"
+    },
+    {
+        "id": "jsSetCSSVar",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#E65100",
+        "spec": "CSS var --%s = %s on %s",
+        "code": "%1$s.style.setProperty('--%2$s', '%3$s');"
+    },
+    {
+        "id": "jsGetCSSVar",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#E65100",
+        "spec": "get CSS var --%s from %s",
+        "code": "getComputedStyle(%1$s).getPropertyValue('--%2$s').trim()"
+    },
+    {
+        "id": "jsSetAttribute",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#BF360C",
+        "spec": "%s .setAttribute %s = %s",
+        "code": "%1$s.setAttribute('%2$s', '%3$s');"
+    },
+    {
+        "id": "jsGetAttribute",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#BF360C",
+        "spec": "%s .getAttribute %s",
+        "code": "%1$s.getAttribute('%2$s')"
+    },
+    {
+        "id": "jsRemoveAttribute",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#BF360C",
+        "spec": "%s .removeAttribute %s",
+        "code": "%1$s.removeAttribute('%2$s');"
+    },
+    {
+        "id": "jsSetInnerText",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#BF360C",
+        "spec": "%s .innerText = %s",
+        "code": "%1$s.innerText = %2$s;"
+    },
+    {
+        "id": "jsSetInnerHTML2",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#BF360C",
+        "spec": "%s .innerHTML = %s",
+        "code": "%1$s.innerHTML = %2$s;"
+    },
+    {
+        "id": "jsSetValue",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#BF360C",
+        "spec": "%s .value = %s",
+        "code": "%1$s.value = %2$s;"
+    },
+    {
+        "id": "jsGetValue",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#BF360C",
+        "spec": "%s .value",
+        "code": "%1$s.value"
+    },
+    {
+        "id": "jsCreateElement",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#F57C00",
+        "spec": "createElement %s",
+        "code": "document.createElement('%1$s')"
+    },
+    {
+        "id": "jsAppendChild",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#F57C00",
+        "spec": "%s .appendChild %s",
+        "code": "%1$s.appendChild(%2$s);"
+    },
+    {
+        "id": "jsRemoveElement",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#F57C00",
+        "spec": "%s .remove()",
+        "code": "%1$s.remove();"
+    },
+    {
+        "id": "jsCloneElement",
+        "category": "js_dom",
+        "blockType": "s",
+        "color": "#F57C00",
+        "spec": "%s .cloneNode",
+        "code": "%1$s.cloneNode(true)"
+    },
+    {
+        "id": "jsInsertHTML",
+        "category": "js_dom",
+        "blockType": "normal",
+        "color": "#F57C00",
+        "spec": "%s insertAdjacentHTML %s %s",
+        "code": "%1$s.insertAdjacentHTML('%2$s', %3$s);"
+    },
+    {
+        "id": "jsVarLet",
+        "category": "js_logic",
+        "blockType": "normal",
+        "color": "#2E7D32",
+        "spec": "let %s = %s",
+        "code": "let %1$s = %2$s;"
+    },
+    {
+        "id": "jsVarConst",
+        "category": "js_logic",
+        "blockType": "normal",
+        "color": "#2E7D32",
+        "spec": "const %s = %s",
+        "code": "const %1$s = %2$s;"
+    },
+    {
+        "id": "jsVarAssign",
+        "category": "js_logic",
+        "blockType": "normal",
+        "color": "#2E7D32",
+        "spec": "set %s = %s",
+        "code": "%1$s = %2$s;"
+    },
+    {
+        "id": "jsVarRef",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#2E7D32",
+        "spec": "var %s",
+        "code": "%1$s"
+    },
+    {
+        "id": "jsFunctionDefine",
+        "category": "js_logic",
+        "blockType": "c",
+        "color": "#1B5E20",
+        "spec": "function function name %s function %b",
+        "code": "function %1$s(%2$s) { %3$s }"
+    },
+    {
+        "id": "jsFunctionArrow",
+        "category": "js_logic",
+        "blockType": "c",
+        "color": "#1B5E20",
+        "spec": "const %s = ( %s ) => {",
+        "code": "const %1$s = (%2$s) => { %3$s };"
+    },
+    {
+        "id": "jsFunctionCall",
+        "category": "js_logic",
+        "blockType": "normal",
+        "color": "#1B5E20",
+        "spec": "call %s ( %s )",
+        "code": "%1$s(%2$s);"
+    },
+    {
+        "id": "jsReturn",
+        "category": "js_logic",
+        "blockType": "normal",
+        "color": "#1B5E20",
+        "spec": "return %s",
+        "code": "return %1$s;"
+    },
+    {
+        "id": "jsAsyncFunction",
+        "category": "js_logic",
+        "blockType": "c",
+        "color": "#1B5E20",
+        "spec": "async function %s ( %s ) {",
+        "code": "async function %1$s(%2$s) { %3$s }"
+    },
+    {
+        "id": "jsAwait",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#1B5E20",
+        "spec": "await %s",
+        "code": "await %1$s"
+    },
+    {
+        "id": "jsTryCatch",
+        "category": "js_logic",
+        "blockType": "c",
+        "color": "#1B5E20",
+        "spec": "try { } catch %s {",
+        "code": "try { %2$s } catch (%1$s) { %2$s }"
+    },
+    {
+        "id": "jsIf",
+        "category": "js_logic",
+        "blockType": "c",
+        "color": "#880E4F",
+        "spec": "if ( %s ) {",
+        "code": "if (%1$s) { %2$s }"
+    },
+    {
+        "id": "jsIfElse",
+        "category": "js_logic",
+        "blockType": "c",
+        "color": "#880E4F",
+        "spec": "if ( %s ) { } else {",
+        "code": "if (%1$s) { %2$s } else { %2$s }"
+    },
+    {
+        "id": "jsTernary",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#880E4F",
+        "spec": "%s ? %s : %s",
+        "code": "(%1$s ? %2$s : %3$s)"
+    },
+    {
+        "id": "jsForEach",
+        "category": "js_logic",
+        "blockType": "c",
+        "color": "#880E4F",
+        "spec": "%s .forEach %s =>",
+        "code": "%1$s.forEach(%2$s => { %3$s });"
+    },
+    {
+        "id": "jsForOf",
+        "category": "js_logic",
+        "blockType": "c",
+        "color": "#880E4F",
+        "spec": "for %s of %s {",
+        "code": "for (const %1$s of %2$s) { %3$s }"
+    },
+    {
+        "id": "jsForLoop",
+        "category": "js_logic",
+        "blockType": "c",
+        "color": "#880E4F",
+        "spec": "for i = 0 to %n {",
+        "code": "for (let i = 0; i < %1$s; i++) { %2$s }"
+    },
+    {
+        "id": "jsWhile",
+        "category": "js_logic",
+        "blockType": "c",
+        "color": "#880E4F",
+        "spec": "while ( %s ) {",
+        "code": "while (%1$s) { %2$s }"
+    },
+    {
+        "id": "jsMathRandom",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#2E7D32",
+        "spec": "random 0\u00e2\u20ac\u201c%n",
+        "code": "Math.floor(Math.random() * %1$s)"
+    },
+    {
+        "id": "jsMathRound",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#2E7D32",
+        "spec": "round %s",
+        "code": "Math.round(%1$s)"
+    },
+    {
+        "id": "jsMathClamp",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#2E7D32",
+        "spec": "clamp %s min %n max %n",
+        "code": "Math.min(Math.max(%1$s, %2$s), %3$s)"
+    },
+    {
+        "id": "jsStringTemplate",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#2E7D32",
+        "spec": "template ` %s `",
+        "code": "`%1$s`"
+    },
+    {
+        "id": "jsParseInt",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#2E7D32",
+        "spec": "parseInt %s",
+        "code": "parseInt(%1$s, 10)"
+    },
+    {
+        "id": "jsParseFloat",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#2E7D32",
+        "spec": "parseFloat %s",
+        "code": "parseFloat(%1$s)"
+    },
+    {
+        "id": "jsTypeOf",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#2E7D32",
+        "spec": "typeof %s",
+        "code": "typeof %1$s"
+    },
+    {
+        "id": "jsConsoleLog2",
+        "category": "js_logic",
+        "blockType": "normal",
+        "color": "#2E7D32",
+        "spec": "console.log %s",
+        "code": "console.log(%1$s);"
+    },
+    {
+        "id": "jsConsoleWarn",
+        "category": "js_logic",
+        "blockType": "normal",
+        "color": "#2E7D32",
+        "spec": "console.warn %s",
+        "code": "console.warn(%1$s);"
+    },
+    {
+        "id": "jsOnClick",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "%selector on click {",
+        "code": "document.querySelector('%1$s').addEventListener('click', function(e) { %2$s });"
+    },
+    {
+        "id": "jsOnInput",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "%selector on input {",
+        "code": "document.querySelector('%1$s').addEventListener('input', function(e) { %2$s });"
+    },
+    {
+        "id": "jsOnChange",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "%selector on change {",
+        "code": "document.querySelector('%1$s').addEventListener('change', function(e) { %2$s });"
+    },
+    {
+        "id": "jsOnSubmit",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "%selector on submit {",
+        "code": "document.querySelector('%1$s').addEventListener('submit', function(e) { e.preventDefault(); %2$s });"
+    },
+    {
+        "id": "jsOnKeyDown",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "%selector on keydown {",
+        "code": "document.querySelector('%1$s').addEventListener('keydown', function(e) { %2$s });"
+    },
+    {
+        "id": "jsOnMouseEnter",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "%selector on mouseenter {",
+        "code": "document.querySelector('%1$s').addEventListener('mouseenter', function(e) { %2$s });"
+    },
+    {
+        "id": "jsOnMouseLeave",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "%selector on mouseleave {",
+        "code": "document.querySelector('%1$s').addEventListener('mouseleave', function(e) { %2$s });"
+    },
+    {
+        "id": "jsOnScroll",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "window on scroll {",
+        "code": "window.addEventListener('scroll', function() { %1$s });"
+    },
+    {
+        "id": "jsOnLoad",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "on DOMContentLoaded {",
+        "code": "document.addEventListener('DOMContentLoaded', function() { %1$s });"
+    },
+    {
+        "id": "jsAddEventOnVar",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "%s addEventListener %s {",
+        "code": "%1$s.addEventListener('%2$s', function(e) { %3$s });"
+    },
+    {
+        "id": "jsRemoveEventOnVar",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "%s removeEventListener %s %s",
+        "code": "%1$s.removeEventListener('%2$s', %3$s);"
+    },
+    {
+        "id": "jsDispatchCustomEvent",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "%s dispatch event %s",
+        "code": "%1$s.dispatchEvent(new CustomEvent('%2$s', { bubbles: true }));"
+    },
+    {
+        "id": "jsStopPropagation",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "e.stopPropagation()",
+        "code": "e.stopPropagation();"
+    },
+    {
+        "id": "jsPreventDefault",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "e.preventDefault()",
+        "code": "e.preventDefault();"
+    },
+    {
+        "id": "jsIntersectionObserver",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "observe %s on enter {",
+        "code": "new IntersectionObserver((entries) => { entries.forEach(entry => { if (entry.isIntersecting) { %2$s } }); }).observe(document.querySelector('%1$s'));"
+    },
+    {
+        "id": "jsObserveAddClass",
+        "category": "js_events",
+        "blockType": "e",
+        "color": "#0277BD",
+        "spec": "observe %s \u00e2\u2020\u2019 add class %s",
+        "code": "new IntersectionObserver((entries) => { entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('%1$s'); }); }, { threshold: 0.1 }).observe(document.querySelector('%2$s'));"
+    },
+    {
+        "id": "jsSetTimeout2",
+        "category": "js_timing",
+        "blockType": "c",
+        "color": "#00695C",
+        "spec": "after %n ms {",
+        "code": "setTimeout(function() { %2$s }, %1$s);"
+    },
+    {
+        "id": "jsSetInterval",
+        "category": "js_timing",
+        "blockType": "c",
+        "color": "#00695C",
+        "spec": "every %n ms {",
+        "code": "setInterval(function() { %2$s }, %1$s);"
+    },
+    {
+        "id": "jsSetTimeoutSave",
+        "category": "js_timing",
+        "blockType": "normal",
+        "color": "#00695C",
+        "spec": "save timer %s = after %n ms call %s",
+        "code": "const %1$s = setTimeout(%2$s, %3$s);"
+    },
+    {
+        "id": "jsClearTimeout",
+        "category": "js_timing",
+        "blockType": "normal",
+        "color": "#00695C",
+        "spec": "clearTimeout %s",
+        "code": "clearTimeout(%1$s);"
+    },
+    {
+        "id": "jsClearInterval",
+        "category": "js_timing",
+        "blockType": "normal",
+        "color": "#00695C",
+        "spec": "clearInterval %s",
+        "code": "clearInterval(%1$s);"
+    },
+    {
+        "id": "jsRequestAnimFrame",
+        "category": "js_timing",
+        "blockType": "c",
+        "color": "#00695C",
+        "spec": "requestAnimationFrame {",
+        "code": "requestAnimationFrame(function() { %1$s });"
+    },
+    {
+        "id": "jsScrollToEl",
+        "category": "js_window",
+        "blockType": "normal",
+        "color": "#4527A0",
+        "spec": "scrollIntoView %s",
+        "code": "document.querySelector('%1$s').scrollIntoView({ behavior: 'smooth' });"
+    },
+    {
+        "id": "jsScrollToTop",
+        "category": "js_window",
+        "blockType": "normal",
+        "color": "#4527A0",
+        "spec": "scroll to top",
+        "code": "window.scrollTo({ top: 0, behavior: 'smooth' });"
+    },
+    {
+        "id": "jsScrollY",
+        "category": "js_window",
+        "blockType": "s",
+        "color": "#4527A0",
+        "spec": "window.scrollY",
+        "code": "window.scrollY"
+    },
+    {
+        "id": "jsWindowWidth",
+        "category": "js_window",
+        "blockType": "s",
+        "color": "#4527A0",
+        "spec": "window.innerWidth",
+        "code": "window.innerWidth"
+    },
+    {
+        "id": "jsWindowHeight",
+        "category": "js_window",
+        "blockType": "s",
+        "color": "#4527A0",
+        "spec": "window.innerHeight",
+        "code": "window.innerHeight"
+    },
+    {
+        "id": "jsWindowRedirect",
+        "category": "js_window",
+        "blockType": "normal",
+        "color": "#4527A0",
+        "spec": "redirect to %s",
+        "code": "window.location.href = '%1$s';"
+    },
+    {
+        "id": "jsOpenTab",
+        "category": "js_window",
+        "blockType": "normal",
+        "color": "#4527A0",
+        "spec": "open new tab %s",
+        "code": "window.open('%1$s', '_blank');"
+    },
+    {
+        "id": "jsLocalStorageSet",
+        "category": "js_window",
+        "blockType": "normal",
+        "color": "#4527A0",
+        "spec": "localStorage set %s = %s",
+        "code": "localStorage.setItem('%1$s', %2$s);"
+    },
+    {
+        "id": "jsLocalStorageGet",
+        "category": "js_window",
+        "blockType": "s",
+        "color": "#4527A0",
+        "spec": "localStorage get %s",
+        "code": "localStorage.getItem('%1$s')"
+    },
+    {
+        "id": "jsLocalStorageRemove",
+        "category": "js_window",
+        "blockType": "normal",
+        "color": "#4527A0",
+        "spec": "localStorage remove %s",
+        "code": "localStorage.removeItem('%1$s');"
+    },
+    {
+        "id": "jsFetch",
+        "category": "js_window",
+        "blockType": "c",
+        "color": "#4527A0",
+        "spec": "fetch %s then {",
+        "code": "fetch('%1$s').then(r => r.json()).then(data => { %2$s });"
+    },
+    {
+        "id": "cssKeyframes",
+        "category": "animation",
+        "blockType": "c",
+        "color": "#9C27B0",
+        "spec": "\u25be keyframes %s",
+        "code": "@keyframes %1$s { %2$s }"
+    },
+    {
+        "id": "cssKeyframeStep",
+        "category": "animation",
+        "blockType": "c",
+        "color": "#9C27B0",
+        "spec": "\u25be step %s",
+        "code": "%1$s { %2$s }"
     }
 ]

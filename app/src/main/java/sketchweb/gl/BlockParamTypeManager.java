@@ -40,6 +40,8 @@ public class BlockParamTypeManager {
             paramTypes.put("flexDirection", List.of("row", "row-reverse", "column", "column-reverse"));
             paramTypes.put("justifyContent", List.of("flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly"));
             paramTypes.put("alignItems", List.of("stretch", "flex-start", "flex-end", "center", "baseline"));
+            paramTypes.put("selector", List.of("body", "h1", "p", ".active", "#main", "div"));
+            paramTypes.put("unit", List.of("px", "%", "em", "rem", "vh", "vw"));
             save();
             return;
         }
@@ -64,6 +66,14 @@ public class BlockParamTypeManager {
     }
 
     public List<String> getOptions(String typeName) {
+        if (!paramTypes.containsKey(typeName)) {
+            if (typeName.equals("selector")) {
+                return List.of("body", "h1", "p", ".active", "#main", "div");
+            }
+            if (typeName.equals("unit")) {
+                return List.of("px", "%", "em", "rem", "vh", "vw");
+            }
+        }
         return paramTypes.getOrDefault(typeName, new ArrayList<>());
     }
 

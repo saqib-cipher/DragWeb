@@ -55,7 +55,7 @@
 	<TextView
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:text="A professional no-code web builder for Android, inspired by Sketchware Pro. Build modern websites with drag-and-drop, real-time preview, and export clean HTML/CSS/JS."
+		android:text="DragWeb is a professional no-code web builder for Android. Build modern websites with drag-and-drop layout design, real-time preview, and export clean, production-ready HTML/CSS/JS."
 		android:textSize="13sp"
 		android:textColor="?attr/colorOnSurfaceVariant"
 		android:gravity="center" />

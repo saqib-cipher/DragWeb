@@ -1364,10 +1364,15 @@ public class MainEditorFragment extends Fragment {
 					}
 
 					holder.itemView.setOnClickListener(v -> {
+						saveProject();
 						dialog.dismiss();
 						Intent intent = new Intent(requireContext(), LogicBlockActivity.class);
 						intent.putExtra("project_id", projectId);
 						intent.putExtra("page_name", name);
+						intent.putExtra("id", "onCreate");
+						intent.putExtra("event", "initializeLogic");
+						intent.putExtra("filename", name + ".html");
+						intent.putExtra("event_text", "Page Initialization");
 						logicBlockLauncher.launch(intent);
 					});
 				} else {
@@ -3998,7 +4003,7 @@ public class MainEditorFragment extends Fragment {
 				});
 				break;
 			case "SetClass":
-				dialog.setHint("class1 class2").showTextInput(value -> {
+				dialog.setHint("class1 class2").showClassChipsInput(ProjectAssetManager.getInstance().getClasses(), value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("class", value.replaceFirst("^\\.", ""));
 					widgetUpdater.updateWidget(selected, "", style);
