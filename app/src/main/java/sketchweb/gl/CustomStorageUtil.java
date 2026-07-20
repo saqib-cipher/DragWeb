@@ -4,8 +4,13 @@ import android.content.Context;
 import android.os.Environment;
 import java.io.File;
 import java.io.InputStream;
+import java.util.concurrent.Executors;
 
 public class CustomStorageUtil {
+
+    public interface OnSyncProgressListener {
+        void onProgress(String status, int percent);
+    }
 
     public static File getCustomDir(Context context) {
         File dir = null;
@@ -26,10 +31,62 @@ public class CustomStorageUtil {
     public static File getCustomFile(Context context, String filename) {
         File dir = getCustomDir(context);
         File file = new File(dir, filename);
-        if (!file.exists()) {
+        if (isStorageOutdatedOrMissing(context, filename, file)) {
             copyAssetToStorage(context, filename, file);
         }
         return file;
+    }
+
+    public static boolean isStorageOutdatedOrMissing(Context context, String filename, File storageFile) {
+        if (context == null) return false;
+        if (storageFile == null) storageFile = new File(getCustomDir(context), filename);
+        if (!storageFile.exists() || storageFile.length() == 0) return true;
+
+        String assetName = filename;
+        if ("params.json".equals(filename)) assetName = "param.json";
+
+        try (InputStream is = context.getAssets().open(assetName)) {
+            long assetSize = is.available();
+            if (storageFile.length() < assetSize) {
+                return true;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public static boolean needsSync(Context context) {
+        String[] files = new String[]{"blocks.json", "categories.json", "params.json", "widgets.json"};
+        for (String file : files) {
+            if (isStorageOutdatedOrMissing(context, file, null)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void syncAssetsToStorage(Context context, OnSyncProgressListener listener) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            String[] files = new String[]{"blocks.json", "categories.json", "params.json", "widgets.json"};
+            int total = files.length;
+            for (int i = 0; i < total; i++) {
+                String filename = files[i];
+                if (listener != null) {
+                    listener.onProgress("Processing " + filename + "...", (int) (((i + 0.2f) / total) * 100));
+                }
+                File destFile = new File(getCustomDir(context), filename);
+                if (isStorageOutdatedOrMissing(context, filename, destFile)) {
+                    copyAssetToStorage(context, filename, destFile);
+                }
+                if (listener != null) {
+                    listener.onProgress("Synced " + filename, (int) (((i + 1.0f) / total) * 100));
+                }
+            }
+            if (listener != null) {
+                listener.onProgress("Assets Initialization Complete", 100);
+            }
+        });
     }
 
     public static void copyAssetToStorage(Context context, String filename, File destFile) {

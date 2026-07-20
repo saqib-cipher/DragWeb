@@ -341,14 +341,11 @@ public class ManageBlocksWidgets {
     }
 
     private String readBundledLibrary() {
-        try (InputStream is = context.getAssets().open("blocks.json")) {
-            byte[] buf = new byte[is.available()];
-            int read = is.read(buf);
-            if (read <= 0) return null;
-            return new String(buf, 0, read, "UTF-8");
-        } catch (Exception e) {
-            return null;
+        File file = libraryFile();
+        if (file != null && file.exists()) {
+            return FileUtil.readFile(file.getAbsolutePath());
         }
+        return null;
     }
 
     public void saveLibrary() {
@@ -358,6 +355,7 @@ public class ManageBlocksWidgets {
         File parent = file.getParentFile();
         if (parent != null && !parent.exists()) parent.mkdirs();
         FileUtil.writeFile(file.getAbsolutePath(), json);
+        BlockDef.clearCache();
     }
 
     private String readLibraryFile() {
@@ -371,21 +369,7 @@ public class ManageBlocksWidgets {
     }
 
     private File libraryFile() {
-        try {
-            String base = Environment.getExternalStorageDirectory().getAbsolutePath();
-            File file = new File(base + LIBRARY_REL_PATH);
-            File parent = file.getParentFile();
-            if (parent != null && !parent.exists()) {
-                parent.mkdirs();
-            }
-            return file;
-        } catch (Exception e) {
-            File internalDir = new File(context.getFilesDir(), "custom");
-            if (!internalDir.exists()) {
-                internalDir.mkdirs();
-            }
-            return new File(internalDir, "blocks.json");
-        }
+        return CustomStorageUtil.getCustomFile(context, "blocks.json");
     }
 
     // -------------------------------------------------------------------------

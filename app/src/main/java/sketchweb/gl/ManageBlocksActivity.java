@@ -8,11 +8,12 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.HorizontalScrollView;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -89,7 +90,6 @@ public class ManageBlocksActivity extends AppCompatActivity {
         tvEmpty = findViewById(R.id.tvEmptyBlocks);
         fabAdd = findViewById(R.id.fabAddCustom);
 
-        // Add Category Chips Container
         setupCategoryChips();
 
         if (rvBlocks != null) {
@@ -113,11 +113,93 @@ public class ManageBlocksActivity extends AppCompatActivity {
         exportLauncher = registerForActivityResult(
             new ActivityResultContracts.CreateDocument("application/json"),
             uri -> {
-                if (uri != null && pendingExportBlock != null) exportBlockToUri(uri, pendingExportBlock);
+                if (uri != null) exportBlockToUri(uri, pendingExportBlock);
             }
         );
 
         loadBlocksFromStorage();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_manage_import_export, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.menu_import) {
+            showImportOptionsDialog();
+            return true;
+        } else if (item.getItemId() == R.id.menu_export) {
+            showExportOptionsDialog();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void showImportOptionsDialog() {
+        String[] options = new String[]{"Import from JSON File", "Import from Clipboard"};
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Import Blocks")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) {
+                    importLauncher.launch(new String[]{"application/json", "text/*", "*/*"});
+                } else if (which == 1) {
+                    importFromClipboard();
+                }
+            })
+            .show();
+    }
+
+    private void importFromClipboard() {
+        try {
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
+                CharSequence text = clipboard.getPrimaryClip().getItemAt(0).getText();
+                if (text != null && !text.toString().trim().isEmpty()) {
+                    String json = text.toString().trim();
+                    List<BlockDef> imported = new Gson().fromJson(json, new TypeToken<List<BlockDef>>(){}.getType());
+                    if (imported != null && !imported.isEmpty()) {
+                        for (BlockDef def : imported) {
+                            if (def.id != null && !def.id.isEmpty()) {
+                                allBlockDefs.removeIf(b -> def.id.equalsIgnoreCase(b.id));
+                                allBlockDefs.add(def);
+                            }
+                        }
+                        saveBlocksToStorage();
+                        loadBlocksFromStorage();
+                        Toast.makeText(this, "Imported " + imported.size() + " blocks from clipboard", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Invalid block JSON in clipboard", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Clipboard import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showExportOptionsDialog() {
+        String[] options = new String[]{"Export to JSON File", "Copy All to Clipboard"};
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Export All Blocks")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) {
+                    pendingExportBlock = null;
+                    exportLauncher.launch("blocks.json");
+                } else if (which == 1) {
+                    String json = new GsonBuilder().setPrettyPrinting().create().toJson(allBlockDefs);
+                    android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Blocks JSON", json));
+                    Toast.makeText(this, "Copied all blocks JSON to clipboard", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .show();
     }
 
     private void setupCategoryChips() {
@@ -343,11 +425,16 @@ public class ManageBlocksActivity extends AppCompatActivity {
 
     private void exportBlockToUri(Uri uri, BlockDef def) {
         try (OutputStream os = getContentResolver().openOutputStream(uri)) {
-            List<BlockDef> list = new ArrayList<>();
-            list.add(def);
+            List<BlockDef> list;
+            if (def != null) {
+                list = new ArrayList<>();
+                list.add(def);
+            } else {
+                list = allBlockDefs;
+            }
             String json = new GsonBuilder().setPrettyPrinting().create().toJson(list);
             os.write(json.getBytes("UTF-8"));
-            Toast.makeText(this, "Block exported", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Export successful", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
@@ -401,8 +488,23 @@ public class ManageBlocksActivity extends AppCompatActivity {
                     .show();
             });
             holder.btnExport.setOnClickListener(v -> {
-                pendingExportBlock = def;
-                exportLauncher.launch("block_" + def.id + ".json");
+                String[] options = new String[]{"Export to JSON File", "Copy to Clipboard"};
+                new MaterialAlertDialogBuilder(ManageBlocksActivity.this)
+                    .setTitle("Export Block (" + def.id + ")")
+                    .setItems(options, (dialog, which) -> {
+                        if (which == 0) {
+                            pendingExportBlock = def;
+                            exportLauncher.launch("block_" + def.id + ".json");
+                        } else if (which == 1) {
+                            List<BlockDef> list = new ArrayList<>();
+                            list.add(def);
+                            String json = new GsonBuilder().setPrettyPrinting().create().toJson(list);
+                            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Block JSON", json));
+                            Toast.makeText(ManageBlocksActivity.this, "Copied block JSON to clipboard", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .show();
             });
         }
 

@@ -147,6 +147,38 @@ public class SplashActivity extends AppCompatActivity {
 	private void go() {
 		if (hasStarted) return;
 		hasStarted = true;
+
+		if (CustomStorageUtil.needsSync(this)) {
+			showSyncBottomSheetAndGo();
+		} else {
+			scheduleHomeNavigation();
+		}
+	}
+
+	private void showSyncBottomSheetAndGo() {
+		com.google.android.material.bottomsheet.BottomSheetDialog sheet = new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+		sheet.setCancelable(false);
+		View view = getLayoutInflater().inflate(R.layout.bottom_sheet_json_sync, null);
+		sheet.setContentView(view);
+
+		TextView tvStatus = view.findViewById(R.id.tv_sync_status);
+		com.google.android.material.progressindicator.LinearProgressIndicator progress = view.findViewById(R.id.progress_sync);
+
+		sheet.show();
+
+		CustomStorageUtil.syncAssetsToStorage(this, (status, percent) -> {
+			runOnUiThread(() -> {
+				if (tvStatus != null) tvStatus.setText(status);
+				if (progress != null) progress.setProgress(percent);
+				if (percent >= 100) {
+					sheet.dismiss();
+					scheduleHomeNavigation();
+				}
+			});
+		});
+	}
+
+	private void scheduleHomeNavigation() {
 		t = new TimerTask() {
 			@Override
 			public void run() {
@@ -157,6 +189,6 @@ public class SplashActivity extends AppCompatActivity {
 				});
 			}
 		};
-		_timer.schedule(t, 2000);
+		_timer.schedule(t, 1200);
 	}
 }

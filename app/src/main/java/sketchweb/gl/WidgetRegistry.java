@@ -231,6 +231,10 @@ public class WidgetRegistry {
         }
     }
 
+    public void saveWidget(HashMap<String, Object> widget) {
+        updateOrAddWidget(widget);
+    }
+
     public void updateOrAddWidget(HashMap<String, Object> widget) {
         if (widget == null) return;
         String name = widget.containsKey("name") ? widget.get("name").toString() : "";

@@ -210,7 +210,7 @@ public class Block extends BlockBase {
                 this.isHat = true;
         }
 
-        if(!this.isHat && !this.mOpCode.equals("definedFunc") && !this.mOpCode.equals("getVar") && !this.mOpCode.equals("getArg")) {
+        if((this.mSpec == null || this.mSpec.trim().isEmpty()) && !this.isHat && !this.mOpCode.equals("definedFunc") && !this.mOpCode.equals("getVar") && !this.mOpCode.equals("getArg")) {
             String var4 = "block_" + DefineBlock.getSpecStringId(this.mOpCode, this.mType);
             int var5 = this.getResources().getIdentifier(var4, "string", this.getContext().getPackageName());
             if(var5 > 0) {

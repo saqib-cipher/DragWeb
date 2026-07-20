@@ -1,9 +1,13 @@
 package sketchweb.gl;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -13,6 +17,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,6 +34,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +46,9 @@ public class ManageCategoriesActivity extends AppCompatActivity {
     private ExtendedFloatingActionButton fabAdd;
     private CategoriesAdapter adapter;
     private final List<CategoryDef> categories = new ArrayList<>();
+
+    private ActivityResultLauncher<String[]> importLauncher;
+    private ActivityResultLauncher<String> exportLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,7 +88,102 @@ public class ManageCategoriesActivity extends AppCompatActivity {
             fabAdd.setOnClickListener(v -> showEditCategoryDialog(null));
         }
 
+        importLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(),
+            uri -> {
+                if (uri != null) importCategoriesFromUri(uri);
+            }
+        );
+
+        exportLauncher = registerForActivityResult(
+            new ActivityResultContracts.CreateDocument("application/json"),
+            uri -> {
+                if (uri != null) exportCategoriesToUri(uri);
+            }
+        );
+
         loadCategoriesFromStorage();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_manage_import_export, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.menu_import) {
+            showImportOptionsDialog();
+            return true;
+        } else if (item.getItemId() == R.id.menu_export) {
+            showExportOptionsDialog();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void showImportOptionsDialog() {
+        String[] options = new String[]{"Import from JSON File", "Import from Clipboard"};
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Import Categories")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) {
+                    importLauncher.launch(new String[]{"application/json", "text/*", "*/*"});
+                } else if (which == 1) {
+                    importFromClipboard();
+                }
+            })
+            .show();
+    }
+
+    private void importFromClipboard() {
+        try {
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
+                CharSequence text = clipboard.getPrimaryClip().getItemAt(0).getText();
+                if (text != null && !text.toString().trim().isEmpty()) {
+                    String json = text.toString().trim();
+                    List<CategoryDef> imported = new Gson().fromJson(json, new TypeToken<List<CategoryDef>>(){}.getType());
+                    if (imported != null && !imported.isEmpty()) {
+                        for (CategoryDef cat : imported) {
+                            if (cat.id != null && !cat.id.isEmpty()) {
+                                categories.removeIf(c -> cat.id.equalsIgnoreCase(c.id));
+                                categories.add(cat);
+                            }
+                        }
+                        saveCategoriesToStorage();
+                        loadCategoriesFromStorage();
+                        Toast.makeText(this, "Imported " + imported.size() + " categories from clipboard", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Invalid category JSON in clipboard", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showExportOptionsDialog() {
+        String[] options = new String[]{"Export to JSON File", "Copy All to Clipboard"};
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Export All Categories")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) {
+                    exportLauncher.launch("categories.json");
+                } else if (which == 1) {
+                    String json = new GsonBuilder().setPrettyPrinting().create().toJson(categories);
+                    android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Categories JSON", json));
+                    Toast.makeText(this, "Copied all categories JSON to clipboard", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .show();
     }
 
     private File getCustomCategoriesFile() {
@@ -148,6 +253,7 @@ public class ManageCategoriesActivity extends AppCompatActivity {
                 String id = etId.getText().toString().trim();
                 String name = etName.getText().toString().trim();
                 String color = etColor.getText().toString().trim();
+                if (!color.startsWith("#") && !color.isEmpty()) color = "#" + color;
                 String type = (String) spType.getSelectedItem();
 
                 if (id.isEmpty() || name.isEmpty()) {
@@ -173,6 +279,36 @@ public class ManageCategoriesActivity extends AppCompatActivity {
             .show();
     }
 
+    private void importCategoriesFromUri(Uri uri) {
+        try (InputStream is = getContentResolver().openInputStream(uri);
+             InputStreamReader reader = new InputStreamReader(is, "UTF-8")) {
+            List<CategoryDef> imported = new Gson().fromJson(reader, new TypeToken<List<CategoryDef>>(){}.getType());
+            if (imported != null && !imported.isEmpty()) {
+                for (CategoryDef cat : imported) {
+                    if (cat.id != null && !cat.id.isEmpty()) {
+                        categories.removeIf(c -> cat.id.equalsIgnoreCase(c.id));
+                        categories.add(cat);
+                    }
+                }
+                saveCategoriesToStorage();
+                loadCategoriesFromStorage();
+                Toast.makeText(this, "Imported " + imported.size() + " categories", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void exportCategoriesToUri(Uri uri) {
+        try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+            String json = new GsonBuilder().setPrettyPrinting().create().toJson(categories);
+            os.write(json.getBytes("UTF-8"));
+            Toast.makeText(this, "Export successful", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private class CategoriesAdapter extends RecyclerView.Adapter<CategoriesAdapter.ViewHolder> {
 
         @Override
@@ -183,26 +319,26 @@ public class ManageCategoriesActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(ViewHolder holder, int position) {
-            final CategoryDef def = categories.get(position);
-            holder.tvName.setText(def.name);
-            holder.tvId.setText("ID: " + def.id + " | Type: " + def.type);
+            final CategoryDef cat = categories.get(position);
+            holder.tvId.setText(cat.id);
+            holder.tvName.setText(cat.name + " (" + (cat.type != null ? cat.type : "common") + ")");
 
             GradientDrawable dot = new GradientDrawable();
             dot.setShape(GradientDrawable.OVAL);
             try {
-                dot.setColor(Color.parseColor(def.catColor != null ? def.catColor : "#1976D2"));
-            } catch (Exception ex) {
+                dot.setColor(Color.parseColor(cat.catColor != null ? cat.catColor : "#1976D2"));
+            } catch (Exception e) {
                 dot.setColor(Color.parseColor("#1976D2"));
             }
-            holder.viewColor.setBackground(dot);
+            if (holder.viewColorDot != null) holder.viewColorDot.setBackground(dot);
 
-            holder.btnEdit.setOnClickListener(v -> showEditCategoryDialog(def));
+            holder.btnEdit.setOnClickListener(v -> showEditCategoryDialog(cat));
             holder.btnDelete.setOnClickListener(v -> {
                 new MaterialAlertDialogBuilder(ManageCategoriesActivity.this)
                     .setTitle("Delete Category")
-                    .setMessage("Delete '" + def.name + "'?")
+                    .setMessage("Delete '" + cat.id + "'?")
                     .setPositiveButton("Delete", (dialog, which) -> {
-                        categories.remove(position);
+                        categories.remove(cat);
                         saveCategoriesToStorage();
                         loadCategoriesFromStorage();
                     })
@@ -217,15 +353,15 @@ public class ManageCategoriesActivity extends AppCompatActivity {
         }
 
         class ViewHolder extends RecyclerView.ViewHolder {
-            TextView tvName, tvId;
-            View viewColor;
-            ImageView btnEdit, btnDelete;
+            TextView tvId, tvName;
+            View viewColorDot;
+            View btnEdit, btnDelete;
 
             ViewHolder(View itemView) {
                 super(itemView);
-                tvName = itemView.findViewById(R.id.tv_cat_name);
                 tvId = itemView.findViewById(R.id.tv_cat_id);
-                viewColor = itemView.findViewById(R.id.view_cat_color);
+                tvName = itemView.findViewById(R.id.tv_cat_name);
+                viewColorDot = itemView.findViewById(R.id.view_cat_color);
                 btnEdit = itemView.findViewById(R.id.btn_edit_cat);
                 btnDelete = itemView.findViewById(R.id.btn_delete_cat);
             }

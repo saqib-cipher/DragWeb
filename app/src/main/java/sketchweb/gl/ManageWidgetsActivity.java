@@ -1,13 +1,19 @@
 package sketchweb.gl;
 
+import android.content.Context;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -15,7 +21,13 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +41,9 @@ public class ManageWidgetsActivity extends AppCompatActivity {
     private WidgetsAdapter adapter;
     private WidgetRegistry widgetRegistry;
     private final List<HashMap<String, Object>> widgets = new ArrayList<>();
+
+    private ActivityResultLauncher<String[]> importLauncher;
+    private ActivityResultLauncher<String> exportLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,7 +91,130 @@ public class ManageWidgetsActivity extends AppCompatActivity {
             });
         }
 
+        importLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(),
+            uri -> {
+                if (uri != null) importWidgetsFromUri(uri);
+            }
+        );
+
+        exportLauncher = registerForActivityResult(
+            new ActivityResultContracts.CreateDocument("application/json"),
+            uri -> {
+                if (uri != null) exportWidgetsToUri(uri);
+            }
+        );
+
         loadWidgets();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_manage_import_export, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.menu_import) {
+            showImportOptionsDialog();
+            return true;
+        } else if (item.getItemId() == R.id.menu_export) {
+            showExportOptionsDialog();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void showImportOptionsDialog() {
+        String[] options = new String[]{"Import from JSON File", "Import from Clipboard"};
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Import Widgets")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) {
+                    importLauncher.launch(new String[]{"application/json", "text/*", "*/*"});
+                } else if (which == 1) {
+                    importFromClipboard();
+                }
+            })
+            .show();
+    }
+
+    private void importFromClipboard() {
+        try {
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
+                CharSequence text = clipboard.getPrimaryClip().getItemAt(0).getText();
+                if (text != null && !text.toString().trim().isEmpty()) {
+                    String json = text.toString().trim();
+                    List<HashMap<String, Object>> imported = new Gson().fromJson(json, new TypeToken<List<HashMap<String, Object>>>(){}.getType());
+                    if (imported != null && !imported.isEmpty()) {
+                        for (HashMap<String, Object> w : imported) {
+                            String name = String.valueOf(w.get("name"));
+                            if (name != null && !name.isEmpty() && !"null".equalsIgnoreCase(name)) {
+                                widgetRegistry.saveWidget(w);
+                            }
+                        }
+                        loadWidgets();
+                        Toast.makeText(this, "Imported " + imported.size() + " widgets from clipboard", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Invalid widget JSON in clipboard", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showExportOptionsDialog() {
+        String[] options = new String[]{"Export to JSON File", "Copy All to Clipboard"};
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Export All Widgets")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) {
+                    exportLauncher.launch("widgets.json");
+                } else if (which == 1) {
+                    String json = new GsonBuilder().setPrettyPrinting().create().toJson(widgets);
+                    android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Widgets JSON", json));
+                    Toast.makeText(this, "Copied all widgets JSON to clipboard", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .show();
+    }
+
+    private void importWidgetsFromUri(Uri uri) {
+        try (InputStream is = getContentResolver().openInputStream(uri);
+             InputStreamReader reader = new InputStreamReader(is, "UTF-8")) {
+            List<HashMap<String, Object>> imported = new Gson().fromJson(reader, new TypeToken<List<HashMap<String, Object>>>(){}.getType());
+            if (imported != null && !imported.isEmpty()) {
+                for (HashMap<String, Object> w : imported) {
+                    String name = String.valueOf(w.get("name"));
+                    if (name != null && !name.isEmpty() && !"null".equalsIgnoreCase(name)) {
+                        widgetRegistry.saveWidget(w);
+                    }
+                }
+                loadWidgets();
+                Toast.makeText(this, "Imported " + imported.size() + " widgets", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void exportWidgetsToUri(Uri uri) {
+        try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+            String json = new GsonBuilder().setPrettyPrinting().create().toJson(widgets);
+            os.write(json.getBytes("UTF-8"));
+            Toast.makeText(this, "Export successful", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override

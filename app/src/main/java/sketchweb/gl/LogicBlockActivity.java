@@ -1575,7 +1575,31 @@ startActivityForResult(intent, 209);
 		}
 		
 		public Block makeBlockFromBean(BlockBean blockBean) {
-				return new Block(this, Integer.valueOf(blockBean.id).intValue(), blockBean.spec, blockBean.type, blockBean.opCode, new Object[]{Integer.valueOf(blockBean.color)});
+				String spec = blockBean.spec;
+				String type = blockBean.type;
+				int color = blockBean.color;
+
+				java.util.List<BlockDef> defs = BlockDef.getDefinitions(this.context != null ? this.context : this);
+				if (defs != null && blockBean.opCode != null) {
+						for (BlockDef def : defs) {
+								if (blockBean.opCode.equalsIgnoreCase(def.id) || blockBean.opCode.equalsIgnoreCase(def.getOpCode())) {
+										if (def.getSpec() != null && !def.getSpec().isEmpty()) {
+												spec = def.getSpec();
+										}
+										if (def.getType() != null && !def.getType().isEmpty()) {
+												type = def.getType();
+										}
+										if (def.color != null && !def.color.isEmpty()) {
+												try {
+														color = android.graphics.Color.parseColor(def.color);
+												} catch (Exception ignored) {}
+										}
+										break;
+								}
+						}
+				}
+
+				return new Block(this, Integer.valueOf(blockBean.id).intValue(), spec, type, blockBean.opCode, new Object[]{Integer.valueOf(color)});
 		}
 		
 		private void saveAndFinish() {

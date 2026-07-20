@@ -3,6 +3,7 @@ package sketchweb.gl;
 import android.content.Context;
 import android.os.Environment;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import java.io.File;
 import java.io.FileReader;
@@ -38,28 +39,17 @@ public class BlockParamTypeManager {
     }
 
     public void load(Context context) {
-        File file = new File(PARAMS_FILE_PATH);
-        File altFile = new File(PARAM_ALT_PATH);
-
-        if (!file.exists() && altFile.exists()) {
-            file = altFile;
-        }
-
-        if (!file.exists()) {
-            if (context != null) {
-                copyAssetParamJson(context, file);
-            }
-        }
-
-        if (file.exists()) {
-            try (FileReader reader = new FileReader(file)) {
-                Map<String, List<String>> loaded = gson.fromJson(reader, new TypeToken<Map<String, List<String>>>() {}.getType());
+        File file = CustomStorageUtil.getCustomFile(context, "param.json");
+        try {
+            String json = FileUtil.readFile(file.getAbsolutePath());
+            if (json != null && !json.trim().isEmpty()) {
+                Map<String, List<String>> loaded = gson.fromJson(json, new TypeToken<Map<String, List<String>>>() {}.getType());
                 if (loaded != null) {
                     paramTypes = loaded;
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
         if (paramTypes == null) {
@@ -67,33 +57,12 @@ public class BlockParamTypeManager {
         }
     }
 
-    private void copyAssetParamJson(Context context, File targetFile) {
-        try {
-            File parent = targetFile.getParentFile();
-            if (parent != null && !parent.exists()) parent.mkdirs();
-            InputStream is = context.getAssets().open("param.json");
-            FileOutputStream fos = new FileOutputStream(targetFile);
-            byte[] buffer = new byte[1024];
-            int len;
-            while ((len = is.read(buffer)) > 0) {
-                fos.write(buffer, 0, len);
-            }
-            fos.flush();
-            fos.close();
-            is.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     public void save() {
-        File file = new File(PARAMS_FILE_PATH);
-        File parent = file.getParentFile();
-        if (parent != null && !parent.exists()) parent.mkdirs();
-
-        try (FileWriter writer = new FileWriter(file)) {
-            gson.toJson(paramTypes, writer);
-        } catch (IOException e) {
+        File file = CustomStorageUtil.getCustomFile(null, "param.json");
+        try {
+            String json = new GsonBuilder().setPrettyPrinting().create().toJson(paramTypes);
+            FileUtil.writeFile(file.getAbsolutePath(), json);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
