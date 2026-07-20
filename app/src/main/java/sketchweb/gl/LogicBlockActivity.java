@@ -1652,7 +1652,13 @@ startActivityForResult(intent, 209);
 				} else if (selectedCat.type == 2) {
 						for (BlockDef def : BlockDef.getDefinitions(this.context)) {
 								if (def.category != null && def.category.equalsIgnoreCase(selectedCat.originalCategory)) {
-										addBlockToPalette(def.getSpec(), def.getType(), def.getOpCode(), i2, new Object[0]);
+										int blockColor;
+										try {
+												blockColor = (def.color != null && !def.color.isEmpty()) ? android.graphics.Color.parseColor(def.color) : i2;
+										} catch (Exception ex) {
+												blockColor = i2;
+										}
+										addBlockToPalette(def.getSpec(), def.getType(), def.getOpCode(), blockColor, new Object[0]);
 								}
 						}
 				} else if (selectedCat.type == 3) {
@@ -1710,19 +1716,7 @@ return;
 		protected void onCreate(Bundle bundle) {
 				androidx.activity.EdgeToEdge.enable(this);
 				super.onCreate(bundle);
-				setContentView(R.layout.logic_editor);
-				
-				View rootLayout = findViewById(R.id.layout);
-				if (rootLayout != null) {
-						androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
-								androidx.core.graphics.Insets systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars());
-								v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-								return insets;
-						});
-				}
-				
-				this.context = this.getApplicationContext();
-				
+
 				this.projectId = getIntent().getStringExtra("project_id");
 				this.pageName = getIntent().getStringExtra("page_name");
 
@@ -1738,6 +1732,19 @@ return;
 						filename = getIntent().getStringExtra("filename");
 						if (filename == null) filename = "index";
 				}
+
+				setContentView(R.layout.logic_editor);
+				
+				View rootLayout = findViewById(R.id.layout);
+				if (rootLayout != null) {
+						androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
+								androidx.core.graphics.Insets systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+								v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+								return insets;
+						});
+				}
+				
+				this.context = this.getApplicationContext();
 
 				if (!DesignDataManager.isInitialized) {
 						String initProjId = (this.projectId != null && !this.projectId.isEmpty()) ? this.projectId : "default_project";
@@ -1769,9 +1776,6 @@ return;
 
 				if (DesignDataManager.isInitialized) {
 						this.prefInstall = new SharedPreferenceUtil(this.context, "P1");
-						/* if (this.prefInstall.getBoolean("P1I5" + DesignActivity.getScId(), true) && !ScDefine.isCustomEditMode(DesignActivity.getScId())) {
-startLogicTutorialActivity();
-}*/
 						this.toolbar = (Toolbar) findViewById(R.id.toolbar);
 						setSupportActionBar(this.toolbar);
 						findViewById(R.id.layout_main_logo).setVisibility(8);
@@ -1785,7 +1789,6 @@ startLogicTutorialActivity();
 						
 						BLOCK_DRAG_Y = (int)LayoutUtil.getDip(this, BLOCK_DRAG_Y);
 						
-						//    this.toolbar.setPopupTheme(R.style.ThemeOverlay.ToolbarMenu);
 						this.useVibrate = new SharedPreferenceUtil(this.context, "P12").getBoolean("P12I0", true);
 						this.minDist = ViewConfiguration.get(this.context).getScaledTouchSlop();
 						this.vibrator = (Vibrator) getSystemService("vibrator");
@@ -1797,6 +1800,8 @@ startLogicTutorialActivity();
 						}
 						this.paletteSelector = (PaletteSelector) findViewById(R.id.palette_selector);
 						this.paletteSelector.setOnBlockCategorySelectListener(this);
+						this.paletteSelector.refreshCategories();
+
 						this.paletteBlock = (PaletteBlock) findViewById(R.id.palette_block);
 						this.dummy = (ViewDummy) findViewById(R.id.dummy);
 						this.iconDelete = (ImageView) findViewById(R.id.icon_delete);
@@ -1805,7 +1810,13 @@ startLogicTutorialActivity();
 						this.iconDuplicate = (ImageView) findViewById(R.id.icon_duplicate);
 						this.editor = (ViewLogicEditor) findViewById(R.id.editor);
 						this.pane = this.editor.getBlockPane();
-						onBlockCategorySelect(0, -1147626);
+						
+						if (!PaletteSelector.categoriesList.isEmpty()) {
+								PaletteSelector.CategoryItem firstCat = PaletteSelector.categoriesList.get(0);
+								onBlockCategorySelect(0, firstCat.color);
+						} else {
+								onBlockCategorySelect(0, -1147626);
+						}
 						this.blockCopyInterface = (BlockCopyInterface) findViewById(R.id.block_copy_interface);
 						this.blockCopyInterface.activity = this;
 						this.layoutPalette = (LinearLayout) findViewById(R.id.layout_palette);
@@ -1902,15 +1913,33 @@ startManageImageActivity();
 						.show();
 		}
 
+		private String highlightCodeLocal(String code, String language) {
+				if (code == null) return "";
+				String escaped = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+				if ("css".equalsIgnoreCase(language)) {
+						escaped = escaped.replaceAll("(/\\*[\\s\\S]*?\\*/)", "<span style=\"color:#6A9955;\">$1</span>");
+						escaped = escaped.replaceAll("([a-zA-Z0-9_-]+)\\s*:", "<span style=\"color:#9CDCFE;\">$1</span>:");
+						escaped = escaped.replaceAll("(:\\s*)([^;\\}]+)(;)?", "$1<span style=\"color:#CE9178;\">$2</span>$3");
+						escaped = escaped.replaceAll("([\\{\\}])", "<span style=\"color:#FFD700;font-weight:bold;\">$1</span>");
+				} else {
+						escaped = escaped.replaceAll("(//.*|/\\*[\\s\\S]*?\\*/)", "<span style=\"color:#6A9955;\">$1</span>");
+						escaped = escaped.replaceAll("\\b(function|var|let|const|return|if|else|for|while|try|catch|async|await|new|this|import|export|from)\\b", "<span style=\"color:#569CD6;font-weight:bold;\">$1</span>");
+						escaped = escaped.replaceAll("(['\"`][^'\"`]*['\"`])", "<span style=\"color:#CE9178;\">$1</span>");
+						escaped = escaped.replaceAll("\\b(true|false|null|undefined|document|window|console|Math|JSON)\\b", "<span style=\"color:#4FC1FF;\">$1</span>");
+				}
+				return escaped;
+		}
+
 		private void loadHighlightedCode(android.webkit.WebView webView, String code, String language) {
-				String escapedCode = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+				String bodyHtml = highlightCodeLocal(code, language);
 				String html = "<!DOCTYPE html><html><head>" +
-						"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" +
-						"<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\">" +
-						"<script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>" +
-						(language.equals("css") ? "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js\"></script>" : "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js\"></script>") +
-						"<style>body{margin:0;background:#1d1d1d;color:#fff;font-family:monospace;} pre{margin:0;padding:12px;box-sizing:border-box;font-size:12px;line-height:1.4;}</style>" +
-						"</head><body><pre><code class=\"language-" + language + "\">" + escapedCode + "</code></pre></body></html>";
+						"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">" +
+						"<style>" +
+						"html, body { margin:0; padding:0; background:#1e1e1e; color:#d4d4d4; font-family:Consolas, 'Courier New', monospace; font-size:13px; width:100%; height:100%; }" +
+						"pre { margin:0; padding:16px; box-sizing:border-box; white-space:pre-wrap; word-break:break-all; line-height:1.5; }" +
+						"code { font-family:Consolas, 'Courier New', monospace; }" +
+						"</style>" +
+						"</head><body><pre><code>" + bodyHtml + "</code></pre></body></html>";
 				webView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
 		}
 		
@@ -1984,8 +2013,11 @@ startManageImageActivity();
 		
 		protected void onResume() {
 				super.onResume();
-				//     this.mTracker.setScreenName(getClass().getSimpleName().toString());
-				//      this.mTracker.send(new ScreenViewBuilder().build());
+				BlockDef.clearCache();
+				CategoryDef.clearCache();
+				if (this.paletteSelector != null) {
+						this.paletteSelector.refreshCategories();
+				}
 		}
 		
 		protected void onSaveInstanceState(Bundle bundle) {

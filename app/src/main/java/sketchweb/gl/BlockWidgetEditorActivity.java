@@ -22,7 +22,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.List;
 
 public class BlockWidgetEditorActivity extends AppCompatActivity {
@@ -60,7 +62,11 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
         widgetRegistry = new WidgetRegistry(this);
 
         type = getIntent().getStringExtra("extra_type");
+        if (type == null) type = getIntent().getStringExtra("type");
+
         editId = getIntent().getStringExtra("extra_id");
+        if (editId == null) editId = getIntent().getStringExtra("id");
+        if (editId == null) editId = getIntent().getStringExtra("name");
         isEditMode = (editId != null);
 
         if (type == null) {
@@ -236,9 +242,13 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
     private void showCategoryPickerDialog() {
         final String[] categories;
         if ("block".equals(type)) {
-            List<String> list = customBlockManager.getBlockCategories();
+            List<CategoryDef> defs = CategoryDef.getCategories(this);
+            List<String> list = new ArrayList<>();
+            for (CategoryDef c : defs) {
+                list.add(c.id);
+            }
             if (list.isEmpty()) {
-                categories = new String[]{"html", "css", "logic", "animation", "asd", "value", "meta"};
+                categories = new String[]{"css", "css_layout", "css_flex", "css_grid", "js_dom", "js_logic", "js_events", "meta"};
             } else {
                 categories = list.toArray(new String[0]);
             }

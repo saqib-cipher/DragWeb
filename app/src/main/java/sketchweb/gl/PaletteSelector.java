@@ -11,6 +11,7 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.List;
 import android.graphics.Color;
 import android.widget.LinearLayout.LayoutParams;
 
@@ -53,6 +54,10 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
 
     public static java.util.List<CategoryItem> categoriesList = new java.util.ArrayList<>();
 
+    public void refreshCategories() {
+        addCategory();
+    }
+
     private void addCategory() {
         categoriesList.clear();
         removeAllViews();
@@ -72,30 +77,25 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
             addCategoryItem(index++, listCat.name, listCat.color);
         }
 
-        // 3. Dynamic categories from blocks.json
-        java.util.LinkedHashSet<String> dynamicCats = new java.util.LinkedHashSet<>();
-        try {
-            for (BlockDef def : BlockDef.getDefinitions(this.mContext)) {
-                if (def.category != null && !def.category.isEmpty()) {
-                    dynamicCats.add(def.category);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        for (String cat : dynamicCats) {
+        // 3. Dynamic categories from categories.json
+        List<CategoryDef> categoryDefs = CategoryDef.getCategories(this.mContext);
+        for (CategoryDef catDef : categoryDefs) {
+            String catType = catDef.type != null ? catDef.type.toLowerCase() : "common";
             if (isCss) {
-                if (!cat.toLowerCase().startsWith("css")) continue;
+                if (!catType.equals("css") && !catType.equals("common")) continue;
             } else {
-                if (cat.toLowerCase().startsWith("css")) continue;
+                if (!catType.equals("js") && !catType.equals("common")) continue;
             }
-            int color = BlockCategoryPalette.colorIntForCategory(cat);
-            String displayName = formatCategoryName(cat);
-            CategoryItem catItem = new CategoryItem(index, displayName, color, 2);
-            catItem.originalCategory = cat;
+            int color;
+            try {
+                color = (catDef.catColor != null && !catDef.catColor.isEmpty()) ? android.graphics.Color.parseColor(catDef.catColor) : BlockCategoryPalette.colorIntForCategory(catDef.id);
+            } catch (Exception ex) {
+                color = BlockCategoryPalette.colorIntForCategory(catDef.id);
+            }
+            CategoryItem catItem = new CategoryItem(index, catDef.name, color, 2);
+            catItem.originalCategory = catDef.id;
             categoriesList.add(catItem);
-            addCategoryItem(index++, displayName, color);
+            addCategoryItem(index++, catDef.name, color);
         }
 
         // 4. Saved collections from SD card (/.dragweb/resources/block/)

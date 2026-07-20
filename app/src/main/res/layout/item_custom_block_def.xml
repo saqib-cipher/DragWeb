@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_block_id"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Block ID"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/btn_edit_block"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="6dp"
+                android:src="@android:drawable/ic_menu_edit"
+                android:contentDescription="Edit"
+                android:background="?selectableItemBackgroundBorderless" />
+
+            <ImageView
+                android:id="@+id/btn_export_block"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="6dp"
+                android:src="@android:drawable/ic_menu_share"
+                android:contentDescription="Export"
+                android:background="?selectableItemBackgroundBorderless" />
+
+            <ImageView
+                android:id="@+id/btn_delete_block"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="6dp"
+                android:src="@android:drawable/ic_menu_delete"
+                android:contentDescription="Delete"
+                android:background="?selectableItemBackgroundBorderless" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_block_category"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cat: css | Type: normal"
+            android:textSize="12sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:paddingTop="2dp" />
+
+        <RelativeLayout
+            android:id="@+id/container_block_shape"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:id="@+id/tv_block_code"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Code: width: %1$s%2$s;"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:textColor="?android:attr/textColorTertiary" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -45,9 +45,14 @@ public class ColorPickerDialogFragment extends DialogFragment {
 	}
 	
 	private OnColorSelectedListener colorSelectedListener;
+	private boolean isHexOnlyMode = false;
 	
 	public void setOnColorSelectedListener(OnColorSelectedListener listener) {
 		this.colorSelectedListener = listener;
+	}
+
+	public void setHexOnlyMode(boolean hexOnly) {
+		this.isHexOnlyMode = hexOnly;
 	}
 	
 	private ColorViewModel viewModel;    
@@ -122,7 +127,22 @@ public class ColorPickerDialogFragment extends DialogFragment {
 			});
 		}
 		
+		if (isHexOnlyMode) {
+			if (colorMenu != null) colorMenu.setVisibility(View.GONE);
+			if (categoryColorAdapter != null) categoryColorAdapter.setHexOnlyMode(true);
+			if ("theme".equalsIgnoreCase(viewModel.getSelectedCategory().getValue())) {
+				viewModel.selectCategory("red");
+			}
+		}
+
 		viewModel.getSelectedCategory().observe(this, category -> {
+			if (isHexOnlyMode) {
+				if (colorMenu != null) colorMenu.setVisibility(View.GONE);
+				view.findViewById(R.id.card_view_colors).setVisibility(View.VISIBLE);
+				view.findViewById(R.id.card_view_theme).setVisibility(View.GONE);
+				colorAdapter.setColors(viewModel.getColorsForCategory(category));
+				return;
+			}
 			if (colorMenu != null) {
 				colorMenu.setVisibility("theme".equalsIgnoreCase(category) ? View.GONE : View.VISIBLE);
 			}

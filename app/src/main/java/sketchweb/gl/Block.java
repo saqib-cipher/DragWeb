@@ -218,8 +218,21 @@ public class Block extends BlockBase {
             }
         }
 
+        if (this.mDefaultArgs != null && this.mDefaultArgs.length > 0) {
+            if (this.mDefaultArgs[0] instanceof Integer) {
+                this.mColor = ((Integer) this.mDefaultArgs[0]).intValue();
+            } else if (this.mDefaultArgs[0] instanceof Object[]) {
+                Object[] arr = (Object[]) this.mDefaultArgs[0];
+                if (arr.length > 0 && arr[0] instanceof Integer) {
+                    this.mColor = ((Integer) arr[0]).intValue();
+                }
+            }
+        }
+        if (this.mColor == 0) {
+            this.mColor = DefineBlock.getBlockColor(this.mOpCode, this.mType);
+        }
+
         this.setSpec(this.mSpec, this.mDefaultArgs);
-        this.mColor = DefineBlock.getBlockColor(this.mOpCode, this.mType);
     }
 
     private TextView makeLabel(String str) {

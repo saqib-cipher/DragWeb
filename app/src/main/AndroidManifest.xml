@@ -85,6 +85,24 @@
 			android:windowSoftInputMode="stateHidden"
 			android:exported="false" />
 		<activity
+			android:name=".ManageBlocksActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="stateHidden|adjustResize"
+			android:exported="false" />
+		<activity
+			android:name=".ManageCategoriesActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="stateHidden|adjustResize"
+			android:exported="false" />
+		<activity
+			android:name=".ManageWidgetsActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="stateHidden|adjustResize"
+			android:exported="false" />
+		<activity
 			android:name=".BlockWidgetEditorActivity"
 			android:configChanges="orientation|screenSize"
 			android:hardwareAccelerated="true"

@@ -51,6 +51,13 @@ public class CategoryColorAdapter extends RecyclerView.Adapter<CategoryColorAdap
 			notifyDataSetChanged();
 		});
 	}
+
+	public void setHexOnlyMode(boolean hexOnly) {
+		if (hexOnly) {
+			categories.remove("theme");
+		}
+		notifyDataSetChanged();
+	}
 	
 	@NonNull
 	@Override

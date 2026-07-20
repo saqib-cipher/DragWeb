@@ -1,0 +1,92 @@
+[
+  {
+    "id": "meta",
+    "name": "Meta & Comments",
+    "catColor": "#37474F",
+    "type": "common"
+  },
+  {
+    "id": "css",
+    "name": "CSS Basic",
+    "catColor": "#1976D2",
+    "type": "css"
+  },
+  {
+    "id": "css_layout",
+    "name": "Layout & Box",
+    "catColor": "#0288D1",
+    "type": "css"
+  },
+  {
+    "id": "css_flex",
+    "name": "Flexbox",
+    "catColor": "#0097A7",
+    "type": "css"
+  },
+  {
+    "id": "css_grid",
+    "name": "Grid",
+    "catColor": "#00796B",
+    "type": "css"
+  },
+  {
+    "id": "css_text",
+    "name": "Typography",
+    "catColor": "#388E3C",
+    "type": "css"
+  },
+  {
+    "id": "css_background",
+    "name": "Background",
+    "catColor": "#689F38",
+    "type": "css"
+  },
+  {
+    "id": "css_effects",
+    "name": "Effects & Filters",
+    "catColor": "#AFB42B",
+    "type": "css"
+  },
+  {
+    "id": "css_transform",
+    "name": "Transform",
+    "catColor": "#FBC02D",
+    "type": "css"
+  },
+  {
+    "id": "css_animation",
+    "name": "Animation",
+    "catColor": "#FFA000",
+    "type": "css"
+  },
+  {
+    "id": "js_dom",
+    "name": "DOM Elements",
+    "catColor": "#EF6C00",
+    "type": "js"
+  },
+  {
+    "id": "js_logic",
+    "name": "JS Control & Logic",
+    "catColor": "#1B5E20",
+    "type": "js"
+  },
+  {
+    "id": "js_events",
+    "name": "JS Events",
+    "catColor": "#C2185B",
+    "type": "js"
+  },
+  {
+    "id": "js_timing",
+    "name": "JS Timing",
+    "catColor": "#7B1FA2",
+    "type": "js"
+  },
+  {
+    "id": "js_window",
+    "name": "Window & Storage",
+    "catColor": "#512DA8",
+    "type": "js"
+  }
+]

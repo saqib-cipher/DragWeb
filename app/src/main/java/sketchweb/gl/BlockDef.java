@@ -37,6 +37,7 @@ public class BlockDef {
     public String category;
     public String shape;      // stack | cblock | event | boolean | value | reporter | loop | condition
     public String color;      // Optional hex
+    public String catColor;   // Optional category color hex
     public String description;
     public List<ChipInput> inputs;
 
@@ -200,23 +201,25 @@ public class BlockDef {
 
     private static List<BlockDef> cacheDefs;
 
+    public static void clearCache() {
+        cacheDefs = null;
+    }
+
     public static List<BlockDef> getDefinitions(android.content.Context context) {
-        if (cacheDefs != null) return cacheDefs;
+        if (cacheDefs != null && !cacheDefs.isEmpty()) return cacheDefs;
+        cacheDefs = new ArrayList<>();
+        if (context == null) return cacheDefs;
+
         try {
-            java.io.InputStream is = context.getAssets().open("blocks.json");
-            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
-            byte[] buf = new byte[1024];
-            int len;
-            while ((len = is.read(buf)) != -1) {
-                bos.write(buf, 0, len);
+            java.io.File file = CustomStorageUtil.getCustomFile(context, "blocks.json");
+            String json = FileUtil.readFile(file.getAbsolutePath());
+            if (json != null && !json.trim().isEmpty()) {
+                List<BlockDef> loaded = new com.google.gson.Gson().fromJson(json,
+                    new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
+                if (loaded != null) cacheDefs = loaded;
             }
-            is.close();
-            String json = bos.toString("UTF-8");
-            cacheDefs = new com.google.gson.Gson().fromJson(json,
-                new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
         } catch (Exception e) {
             e.printStackTrace();
-            cacheDefs = new ArrayList<>();
         }
         return cacheDefs;
     }

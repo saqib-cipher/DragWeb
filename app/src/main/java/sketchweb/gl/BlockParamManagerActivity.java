@@ -38,7 +38,7 @@ public class BlockParamManagerActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_block_param_manager);
-        manager = new BlockParamTypeManager();
+        manager = new BlockParamTypeManager(this);
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         

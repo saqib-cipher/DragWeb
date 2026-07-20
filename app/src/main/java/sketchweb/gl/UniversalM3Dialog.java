@@ -69,14 +69,109 @@ public final class UniversalM3Dialog {
     }
 
     public void showUnitInput(String prop, OnUnit cb) {
-        List<String> chipValues = new ArrayList<>();
-        if (options != null) chipValues.addAll(Arrays.asList(options));
-        if (units != null) {
-            for (String u : units) if (!chipValues.contains(u)) chipValues.add(u);
-        }
-        showCoreDialog(chipValues, initial, hint != null ? hint : "Custom value", val -> {
+        showUnitInputCore(val -> {
             if (cb != null) cb.onUnit(val);
         });
+    }
+
+    public void showUnitInput(OnText cb) {
+        showUnitInputCore(cb);
+    }
+
+    private void showUnitInputCore(OnText cb) {
+        int pad = dp(24);
+        ScrollView scroll = new ScrollView(context);
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, dp(12), pad, dp(20));
+        scroll.addView(root);
+
+        List<String> unitList = new ArrayList<>();
+        if (units != null && units.length > 0) {
+            unitList.addAll(Arrays.asList(units));
+        } else if (options != null && options.length > 0) {
+            unitList.addAll(Arrays.asList(options));
+        } else {
+            BlockParamTypeManager pMgr = new BlockParamTypeManager(context);
+            List<String> loadedUnits = pMgr.getOptions("unit");
+            if (loadedUnits != null && !loadedUnits.isEmpty()) {
+                unitList.addAll(loadedUnits);
+            } else {
+                unitList.addAll(Arrays.asList("px", "%", "em", "rem", "vh", "vw"));
+            }
+        }
+
+        String initialVal = initial != null ? initial.trim() : "";
+        String defaultUnit = "px";
+        String numericPart = initialVal;
+
+        for (String u : unitList) {
+            if (initialVal.equalsIgnoreCase(u)) {
+                defaultUnit = u;
+                numericPart = "";
+                break;
+            } else if (initialVal.toLowerCase().endsWith(u.toLowerCase())) {
+                defaultUnit = u;
+                numericPart = initialVal.substring(0, initialVal.length() - u.length()).trim();
+                break;
+            }
+        }
+
+        android.widget.TextView labelUnits = new android.widget.TextView(context);
+        labelUnits.setText("Select Unit");
+        labelUnits.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        labelUnits.setPadding(0, 0, 0, dp(6));
+        root.addView(labelUnits);
+
+        android.widget.HorizontalScrollView unitScroll = createChipScroll();
+        final ChipGroup unitGroup = createChipGroup();
+        unitGroup.setSingleSelection(true);
+        unitGroup.setSelectionRequired(true);
+
+        TextInputLayout til = createTextInputLayout(hint != null ? hint : "Value");
+        til.setSuffixText(defaultUnit);
+        final MaterialAutoCompleteTextView edit = createEditor(til, numericPart, null);
+        til.addView(edit);
+
+        final String[] selectedUnit = {defaultUnit};
+        for (final String u : unitList) {
+            Chip c = createPresetChip(u);
+            c.setCheckable(true);
+            if (u.equalsIgnoreCase(defaultUnit)) {
+                c.setChecked(true);
+            }
+            c.setOnClickListener(v -> {
+                selectedUnit[0] = u;
+                til.setSuffixText(u);
+            });
+            unitGroup.addView(c);
+        }
+
+        unitScroll.addView(unitGroup);
+        root.addView(unitScroll);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(12);
+        root.addView(til, lp);
+
+        new MaterialAlertDialogBuilder(context)
+            .setTitle(title.isEmpty() ? "Input Unit Value" : title)
+            .setView(scroll)
+            .setPositiveButton("Done", (d, w) -> {
+                String val = edit.getText().toString().trim();
+                String unitStr = selectedUnit[0];
+                if (cb != null) {
+                    if (val.isEmpty()) {
+                        cb.onText(unitStr);
+                    } else if (val.endsWith(unitStr)) {
+                        cb.onText(val);
+                    } else {
+                        cb.onText(val + unitStr);
+                    }
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
     }
 
     public void showAutocompleteChoice(List<String> suggestions, String initialValue, OnText cb) {
