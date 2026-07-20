@@ -1,25 +1,23 @@
 package sketchweb.gl;
 
 import android.content.Context;
-import android.os.Environment;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.InputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 public class BlockParamTypeManager {
 
     private Context context;
-    private Map<String, List<String>> paramTypes = new HashMap<>();
+    private Map<String, List<String>> paramTypes = new LinkedHashMap<>();
     private Gson gson = new Gson();
 
     public BlockParamTypeManager() {
@@ -37,15 +35,17 @@ public class BlockParamTypeManager {
 
     public void load(Context context) {
         this.context = context;
-        // Step 1: Try reading from storage (same pattern as BlockDef / blocks.json)
+
+        // Step 1: Try reading from .dragweb/custom/param.json
         try {
             File file = new File(CustomStorageUtil.getCustomDir(context), "param.json");
             if (file.exists() && file.length() > 0) {
                 String json = FileUtil.readFile(file.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
-                    Map<String, List<String>> loaded = gson.fromJson(json, new TypeToken<Map<String, List<String>>>() {}.getType());
+                    Map<String, List<String>> loaded = gson.fromJson(json,
+                        new TypeToken<Map<String, List<String>>>() {}.getType());
                     if (loaded != null && !loaded.isEmpty()) {
-                        paramTypes = loaded;
+                        paramTypes = new LinkedHashMap<>(loaded);
                         return;
                     }
                 }
@@ -54,20 +54,19 @@ public class BlockParamTypeManager {
             e.printStackTrace();
         }
 
-        // Step 2: Fall back to assets (same pattern as how blocks.json reads from assets)
+        // Step 2: Try reading from assets/param.json
         if (context != null) {
             try (InputStream is = context.getAssets().open("param.json");
                  java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
                 byte[] buffer = new byte[8192];
                 int n;
-                while ((n = is.read(buffer)) != -1) {
-                    baos.write(buffer, 0, n);
-                }
+                while ((n = is.read(buffer)) != -1) baos.write(buffer, 0, n);
                 String assetJson = baos.toString("UTF-8");
-                Map<String, List<String>> loaded = gson.fromJson(assetJson, new TypeToken<Map<String, List<String>>>() {}.getType());
+                Map<String, List<String>> loaded = gson.fromJson(assetJson,
+                    new TypeToken<Map<String, List<String>>>() {}.getType());
                 if (loaded != null && !loaded.isEmpty()) {
-                    paramTypes = loaded;
-                    save(); // Persist to storage so next load reads from disk
+                    paramTypes = new LinkedHashMap<>(loaded);
+                    save();
                     return;
                 }
             } catch (Exception e) {
@@ -75,21 +74,39 @@ public class BlockParamTypeManager {
             }
         }
 
-        if (paramTypes == null) {
-            paramTypes = new HashMap<>();
-        }
+        // Step 3: Guaranteed hardcoded defaults (matches assets/param.json exactly)
+        paramTypes = getDefaults();
+        save();
+    }
+
+    /** Returns the default param types matching assets/param.json. Always non-empty. */
+    private static Map<String, List<String>> getDefaults() {
+        Map<String, List<String>> d = new LinkedHashMap<>();
+        d.put("position", Arrays.asList("static", "relative", "absolute", "fixed", "sticky"));
+        d.put("display", Arrays.asList("block", "none", "flex", "grid", "inline-block", "inline-flex"));
+        d.put("overflow", Arrays.asList("visible", "hidden", "scroll", "auto"));
+        d.put("textAlign", Arrays.asList("left", "center", "right", "justify"));
+        d.put("textDecoration", Arrays.asList("none", "underline", "overline", "line-through"));
+        d.put("fontWeight", Arrays.asList("normal", "bold", "100", "200", "300", "400", "500", "600", "700", "800", "900"));
+        d.put("fontStyle", Arrays.asList("normal", "italic", "oblique"));
+        d.put("cursor", Arrays.asList("default", "pointer", "move", "text", "wait", "help", "not-allowed", "grab", "grabbing"));
+        d.put("flexDirection", Arrays.asList("row", "row-reverse", "column", "column-reverse"));
+        d.put("justifyContent", Arrays.asList("flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly"));
+        d.put("alignItems", Arrays.asList("stretch", "flex-start", "flex-end", "center", "baseline"));
+        d.put("selector", Arrays.asList("body", "h1", "p", ".active", "#main", "div"));
+        d.put("unit", Arrays.asList("px", "%", "em", "rem", "vh", "vw"));
+        return d;
     }
 
     public void save() {
-        if (paramTypes == null || paramTypes.isEmpty()) {
-            return; // Never overwrite disk file with empty map
-        }
+        if (paramTypes == null || paramTypes.isEmpty()) return;
         try {
             File dir = CustomStorageUtil.getCustomDir(this.context);
+            if (dir == null) return;
+            if (!dir.exists()) dir.mkdirs();
             File file = new File(dir, "param.json");
-            if (dir != null && !dir.exists()) dir.mkdirs();
             String json = new GsonBuilder().setPrettyPrinting().create().toJson(paramTypes);
-            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(file)) {
+            try (FileOutputStream fos = new FileOutputStream(file)) {
                 fos.write(json.getBytes("UTF-8"));
                 fos.flush();
             }

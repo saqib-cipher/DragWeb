@@ -136,6 +136,8 @@ public class AssetsFragment extends Fragment {
         Intent intent = new Intent(getContext(), TextEditorActivity.class);
         intent.putExtra("file_path", file.getAbsolutePath());
         intent.putExtra("project_id", projectId);
+        boolean isLocked = fileExplorerAdapter != null && fileExplorerAdapter.isSystemFile(file);
+        intent.putExtra("read_only", isLocked);
         String relPath = "";
         try {
             String assetsPath = Environment.getExternalStorageDirectory().getAbsolutePath()

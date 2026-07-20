@@ -61,6 +61,10 @@
     function setMode(mode) {
       editor.setOption("mode", mode);
     }
+
+    function setReadOnly(isReadOnly) {
+      editor.setOption("readOnly", isReadOnly ? "nocursor" : false);
+    }
   </script>
 </body>
 </html>

@@ -42,6 +42,7 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
         public int color;
         public int type; // 0: variable, 1: list, 2: blocks.json, 3: saved collection, 4: moreblock
         public String blockJsonPath; // For saved collection blocks
+        public String collectionJson; // For list.json saved collection blocks
         public String originalCategory; // For matching in blocks.json
 
         public CategoryItem(int index, String name, int color, int type) {
@@ -98,53 +99,10 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
             addCategoryItem(index++, catDef.name, color);
         }
 
-        // 4. Saved collections from SD card (/.dragweb/resources/block/)
-        java.io.File rootDir = new java.io.File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/resources/block");
-        if (rootDir.exists() && rootDir.isDirectory()) {
-            java.io.File[] files = rootDir.listFiles();
-            if (files != null) {
-                for (java.io.File subDir : files) {
-                    if (subDir.isDirectory()) {
-                        java.io.File paletteFile = new java.io.File(subDir, "palette.json");
-                        java.io.File blockFile = new java.io.File(subDir, "block.json");
-                        if (paletteFile.exists() && blockFile.exists()) {
-                            try {
-                                java.io.InputStream is = new java.io.FileInputStream(paletteFile);
-                                java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
-                                byte[] buf = new byte[1024];
-                                int len;
-                                while ((len = is.read(buf)) != -1) {
-                                    bos.write(buf, 0, len);
-                                }
-                                is.close();
-                                String json = bos.toString("UTF-8");
-                                String name = subDir.getName();
-                                String colorHex = "#FF2196F3";
-                                if (json.trim().startsWith("[")) {
-                                    org.json.JSONArray arr = new org.json.JSONArray(json);
-                                    if (arr.length() > 0) {
-                                        org.json.JSONObject obj = arr.getJSONObject(0);
-                                        name = obj.optString("name", name);
-                                        colorHex = obj.optString("color", colorHex);
-                                    }
-                                } else {
-                                    org.json.JSONObject obj = new org.json.JSONObject(json);
-                                    name = obj.optString("name", name);
-                                    colorHex = obj.optString("color", colorHex);
-                                }
-                                int color = Color.parseColor(colorHex);
-                                CategoryItem savedCat = new CategoryItem(index, name, color, 3);
-                                savedCat.blockJsonPath = blockFile.getAbsolutePath();
-                                categoriesList.add(savedCat);
-                                addCategoryItem(index++, name, color);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // 4. Single "Collection" palette category tab
+        CategoryItem colCat = new CategoryItem(index, "Collection", Color.parseColor("#FF2196F3"), 3);
+        categoriesList.add(colCat);
+        addCategoryItem(index++, colCat.name, colCat.color);
 
         if (!isCss) {
             // 5. More Blocks (custom blocks)

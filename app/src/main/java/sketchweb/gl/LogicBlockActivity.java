@@ -114,6 +114,7 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		private Toolbar toolbar;
 		private boolean useVibrate;
 		private Vibrator vibrator;
+		private Map<String, ArrayList<BlockBean>> collectionBlocksMap = new HashMap<>();
 		
 		//new
 		public int BLOCK_DRAG_X = 0;
@@ -324,6 +325,10 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 								this.pane.setVisibleBlock((Block) this.currentTouchedView, 8);
 								this.pane.removeRelation((Block) this.currentTouchedView);
 						} else {
+								Block b = (Block) this.currentTouchedView;
+								if (b != null && b.mOpCode != null && collectionBlocksMap.containsKey(b.mOpCode)) {
+										showIconDelete(true);
+								}
 								this.dummy.makeDummyWithBlock((Block) this.currentTouchedView);
 						}
 						this.pane.prepareToDrag((Block) this.currentTouchedView);
@@ -1681,19 +1686,40 @@ startActivityForResult(intent, 209);
 								}
 						}
 				} else if (selectedCat.type == 3) {
-						try {
-								String json = FileUtil.readFile(selectedCat.blockJsonPath);
-								if (json != null && !json.isEmpty()) {
-										java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BlockDef>>(){}.getType();
-										ArrayList<BlockDef> list = new com.google.gson.Gson().fromJson(json, listType);
-										if (list != null) {
-												for (BlockDef def : list) {
-														addBlockToPalette(def.getSpec(), def.getType(), def.getOpCode(), i2, new Object[0]);
+						collectionBlocksMap.clear();
+						java.io.File listFile = new java.io.File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/collection/blocks/list.json");
+						if (listFile.exists()) {
+								try {
+										String json = FileUtil.readFile(listFile.getAbsolutePath());
+										if (json != null && !json.trim().isEmpty()) {
+												java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
+												ArrayList<Map<String, Object>> collections = new com.google.gson.Gson().fromJson(json, type);
+												if (collections != null) {
+														for (Map<String, Object> col : collections) {
+																String name = col.get("name") != null ? col.get("name").toString() : "Collection";
+																int count = col.get("count") instanceof Number ? ((Number) col.get("count")).intValue() : 0;
+																String shape = col.get("shape") != null ? col.get("shape").toString() : "s";
+																String opCode = "col_" + name;
+																int color = android.graphics.Color.parseColor("#FF2196F3");
+
+																Object blocksObj = col.get("blocks");
+																if (blocksObj != null) {
+																		String blocksJson = new com.google.gson.Gson().toJson(blocksObj);
+																		java.lang.reflect.Type blocksType = new com.google.gson.reflect.TypeToken<ArrayList<BlockBean>>(){}.getType();
+																		ArrayList<BlockBean> colBeans = new com.google.gson.Gson().fromJson(blocksJson, blocksType);
+																		if (colBeans != null && !colBeans.isEmpty()) {
+																				if (count <= 0) count = colBeans.size();
+																				String spec = name + " (" + count + ")";
+																				collectionBlocksMap.put(opCode, colBeans);
+																				addBlockToPalette(spec, shape, opCode, color, new Object[0]);
+																		}
+																}
+														}
 												}
 										}
+								} catch (Exception e) {
+										e.printStackTrace();
 								}
-						} catch (Exception e) {
-								e.printStackTrace();
 						}
 				}
 		}
@@ -1936,6 +1962,7 @@ return;
 				intent.putExtra("file_path", targetFile.getAbsolutePath());
 				intent.putExtra("project_id", this.projectId != null ? this.projectId : "");
 				intent.putExtra("relative_path", relPath);
+				intent.putExtra("read_only", true);
 				startActivity(intent);
 		}
 
@@ -2111,7 +2138,11 @@ return;
 								if (this.dummy.getAllow()) {
 										if (this.bActiveIconDelete) {
 												activeIconDelete(false);
-												this.pane.removeBlock((Block) view);
+												if (view instanceof Block && ((Block) view).mOpCode != null && collectionBlocksMap.containsKey(((Block) view).mOpCode)) {
+														confirmDeleteCollection(((Block) view).mOpCode);
+												} else {
+														this.pane.removeBlock((Block) view);
+												}
 										} else if (this.bActiveIconSave) {
 												activeIconSave(false);
 												this.pane.setVisibleBlock((Block) view, 0);
@@ -2123,7 +2154,18 @@ return;
 										} else if (view instanceof Block) {
 												this.dummy.getDummyPosition(this.posDummy);
 												if (((Block) view).getBlockType() == 1) {
-														this.pane.blockDropped((Block) view, this.posDummy[0], this.posDummy[1], false).setOnTouchListener(this);
+														Block dropped = this.pane.blockDropped((Block) view, this.posDummy[0], this.posDummy[1], false);
+														if (dropped != null) {
+																if (collectionBlocksMap.containsKey(dropped.mOpCode)) {
+																		ArrayList<BlockBean> colBeans = collectionBlocksMap.get(dropped.mOpCode);
+																		this.pane.removeBlock(dropped);
+																		if (colBeans != null && !colBeans.isEmpty()) {
+																				unpackCollectionBlocks(colBeans, this.posDummy[0], this.posDummy[1]);
+																		}
+																} else {
+																		dropped.setOnTouchListener(this);
+																}
+														}
 												} else {
 														this.pane.setVisibleBlock((Block) view, 0);
 														this.pane.blockDropped((Block) view, this.posDummy[0], this.posDummy[1], true);
@@ -2184,6 +2226,8 @@ return;
 
 		private void saveBlockToCollection(final Block block) {
 				if (block == null) return;
+				final java.io.File collectionFile = new java.io.File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/collection/blocks/list.json");
+
 				UniversalM3Dialog dialog = new UniversalM3Dialog(this);
 				dialog.setTitle("Save to Collection")
 				      .setHint("Collection Name")
@@ -2194,46 +2238,233 @@ return;
 				                  return "Collection name cannot be empty";
 				              }
 				              String safeName = name.trim();
-				              java.io.File dir = new java.io.File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/resources/block/" + safeName);
-				              if (dir.exists()) {
-				                  return "Collection with this name already exists";
+				              if (collectionFile.exists()) {
+				                  try {
+				                      String json = FileUtil.readFile(collectionFile.getAbsolutePath());
+				                      if (json != null && !json.trim().isEmpty()) {
+				                          java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
+				                          ArrayList<Map<String, Object>> list = new com.google.gson.Gson().fromJson(json, type);
+				                          if (list != null) {
+				                              for (Map<String, Object> item : list) {
+				                                  Object existingName = item.get("name");
+				                                  if (existingName != null && safeName.equalsIgnoreCase(existingName.toString().trim())) {
+				                                      return "Collection with this name already exists";
+				                                  }
+				                              }
+				                          }
+				                      }
+				                  } catch (Exception ignored) {}
 				              }
 				              return null;
 				          },
 				          name -> {
 				              String safeName = name.trim();
-				              java.io.File dir = new java.io.File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/resources/block/" + safeName);
-				              if (!dir.exists()) dir.mkdirs();
-
-				              java.io.File paletteFile = new java.io.File(dir, "palette.json");
-				              String paletteJson = "[{\"name\":\"" + safeName + "\",\"color\":\"#FF2196F3\"}]";
-				              FileUtil.writeFile(paletteFile.getAbsolutePath(), paletteJson);
-
-				              java.io.File blockFile = new java.io.File(dir, "block.json");
-				              ArrayList<BlockDef> defs = new ArrayList<>();
 				              try {
-				                  String existing = FileUtil.readFile(blockFile.getAbsolutePath());
-				                  if (existing != null && !existing.isEmpty()) {
-				                      java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<BlockDef>>(){}.getType();
-				                      ArrayList<BlockDef> list = new com.google.gson.Gson().fromJson(existing, type);
-				                      if (list != null) defs.addAll(list);
+				                  ArrayList<Map<String, Object>> collectionList = new ArrayList<>();
+				                  if (collectionFile.exists()) {
+				                      String json = FileUtil.readFile(collectionFile.getAbsolutePath());
+				                      if (json != null && !json.trim().isEmpty()) {
+				                          java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
+				                          ArrayList<Map<String, Object>> existingList = new com.google.gson.Gson().fromJson(json, type);
+				                          if (existingList != null) {
+				                              collectionList.addAll(existingList);
+				                          }
+				                      }
 				                  }
-				              } catch (Exception e) {}
 
-				              BlockDef def = new BlockDef();
-				              def.spec = block.mSpec;
-				              def.type = block.mType;
-				              def.id = block.mOpCode;
-				              def.color = String.format("#%06X", (0xFFFFFF & block.mColor));
-				              defs.add(def);
+				                  ArrayList<BlockBean> blockBeans = new ArrayList<>();
+				                  ArrayList<Block> children = block.getAllChildren();
+				                  if (children != null && !children.isEmpty()) {
+				                      for (Block child : children) {
+				                          if (child != null) {
+				                              blockBeans.add(child.getBean());
+				                          }
+				                      }
+				                  } else {
+				                      blockBeans.add(block.getBean());
+				                  }
 
-				              FileUtil.writeFile(blockFile.getAbsolutePath(), new com.google.gson.Gson().toJson(defs));
-				              Toast.makeText(this, "Saved block to " + safeName, Toast.LENGTH_SHORT).show();
-				              if (paletteSelector != null) {
-				                  paletteSelector.refresh();
+				                  Map<String, Object> newCollection = new java.util.LinkedHashMap<>();
+				                  newCollection.put("name", safeName);
+				                  newCollection.put("count", blockBeans.size());
+				                  newCollection.put("shape", block.mType != null ? block.mType : "s");
+				                  newCollection.put("blocks", blockBeans);
+
+				                  collectionList.add(newCollection);
+
+				                  java.io.File parent = collectionFile.getParentFile();
+				                  if (parent != null && !parent.exists()) {
+				                      parent.mkdirs();
+				                  }
+
+				                  String outputJson = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(collectionList);
+				                  FileUtil.writeFile(collectionFile.getAbsolutePath(), outputJson);
+
+				                  Toast.makeText(this, "Saved collection: " + safeName, Toast.LENGTH_SHORT).show();
+				                  if (paletteSelector != null) {
+				                      paletteSelector.refresh();
+				                  }
+				              } catch (Exception e) {
+				                  e.printStackTrace();
+				                  Toast.makeText(this, "Failed to save collection: " + e.getMessage(), Toast.LENGTH_LONG).show();
 				              }
 				          }
 				      );
+		}
+
+		private void confirmDeleteCollection(final String opCode) {
+				if (opCode == null || !opCode.startsWith("col_")) return;
+				final String colName = opCode.substring(4);
+
+				new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+						.setTitle("Delete Collection")
+						.setMessage("Are you sure you want to delete collection '" + colName + "'?")
+						.setPositiveButton("Delete", (dialog, which) -> {
+								try {
+										java.io.File listFile = new java.io.File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/collection/blocks/list.json");
+										if (listFile.exists()) {
+												String json = FileUtil.readFile(listFile.getAbsolutePath());
+												if (json != null && !json.trim().isEmpty()) {
+														java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
+														ArrayList<Map<String, Object>> collections = new com.google.gson.Gson().fromJson(json, type);
+														if (collections != null) {
+																Iterator<Map<String, Object>> it = collections.iterator();
+																while (it.hasNext()) {
+																		Map<String, Object> item = it.next();
+																		Object nameObj = item.get("name");
+																		if (nameObj != null && colName.equalsIgnoreCase(nameObj.toString().trim())) {
+																				it.remove();
+																		}
+																}
+																String newJson = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(collections);
+																FileUtil.writeFile(listFile.getAbsolutePath(), newJson);
+														}
+												}
+										}
+										collectionBlocksMap.remove(opCode);
+										Toast.makeText(this, "Collection deleted: " + colName, Toast.LENGTH_SHORT).show();
+										if (paletteSelector != null) {
+												paletteSelector.refresh();
+										}
+								} catch (Exception e) {
+										e.printStackTrace();
+										Toast.makeText(this, "Failed to delete collection: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+								}
+						})
+						.setNegativeButton("Cancel", null)
+						.show();
+		}
+
+		private void unpackCollectionBlocks(ArrayList<BlockBean> rawBlocks, int posX, int posY) {
+				if (rawBlocks == null || rawBlocks.isEmpty()) return;
+
+				Map<Integer, Integer> idMapping = new HashMap<>();
+				int baseId = this.pane.blockId + 10;
+
+				for (BlockBean bean : rawBlocks) {
+						int oldId = safeParseInt(bean.id);
+						int newId = baseId++;
+						idMapping.put(Integer.valueOf(oldId), Integer.valueOf(newId));
+				}
+				this.pane.blockId = baseId + 10;
+
+				ArrayList<BlockBean> rebasedList = new ArrayList<>();
+				for (BlockBean oldBean : rawBlocks) {
+						BlockBean newBean = new BlockBean();
+						newBean.copy(oldBean);
+						int oldId = safeParseInt(oldBean.id);
+						Integer mappedId = idMapping.get(Integer.valueOf(oldId));
+						newBean.id = String.valueOf(mappedId != null ? mappedId.intValue() : baseId++);
+
+						if (oldBean.subStack1 >= 0 && idMapping.containsKey(Integer.valueOf(oldBean.subStack1))) {
+								newBean.subStack1 = idMapping.get(Integer.valueOf(oldBean.subStack1)).intValue();
+						} else {
+								newBean.subStack1 = -1;
+						}
+
+						if (oldBean.subStack2 >= 0 && idMapping.containsKey(Integer.valueOf(oldBean.subStack2))) {
+								newBean.subStack2 = idMapping.get(Integer.valueOf(oldBean.subStack2)).intValue();
+						} else {
+								newBean.subStack2 = -1;
+						}
+
+						if (oldBean.nextBlock >= 0 && idMapping.containsKey(Integer.valueOf(oldBean.nextBlock))) {
+								newBean.nextBlock = idMapping.get(Integer.valueOf(oldBean.nextBlock)).intValue();
+						} else {
+								newBean.nextBlock = -1;
+						}
+
+						newBean.parameters = new ArrayList<>();
+						if (oldBean.parameters != null) {
+								for (String param : oldBean.parameters) {
+										if (param != null && param.startsWith("@")) {
+												int oldParamId = safeParseInt(param.substring(1));
+												if (idMapping.containsKey(Integer.valueOf(oldParamId))) {
+														newBean.parameters.add("@" + idMapping.get(Integer.valueOf(oldParamId)));
+												} else {
+														newBean.parameters.add("");
+												}
+										} else {
+												newBean.parameters.add(param != null ? param : "");
+										}
+								}
+						}
+
+						rebasedList.add(newBean);
+				}
+
+				// Phase 1: Instantiate all blocks and add to pane (no linking yet)
+				Map<Integer, Block> blockMap = new HashMap<>();
+
+				for (BlockBean bean : rebasedList) {
+						Block block = makeBlockFromBean(bean);
+						int bId = ((Integer) block.getTag()).intValue();
+						blockMap.put(Integer.valueOf(bId), block);
+						this.pane.addBlock(block, posX, posY);
+						block.setOnTouchListener(this);
+				}
+
+				// Phase 2: Link blocks and fix layout — deferred to next UI frame to avoid measure-during-layout crash
+				final Map<Integer, Block> finalBlockMap = blockMap;
+				final ArrayList<BlockBean> finalRebasedList = rebasedList;
+				this.pane.post(() -> {
+						Block firstRootBlock = null;
+						for (BlockBean bean : finalRebasedList) {
+								int bId = safeParseInt(bean.id);
+								Block block = finalBlockMap.get(Integer.valueOf(bId));
+								if (block == null) continue;
+
+								if (bean.subStack1 >= 0 && finalBlockMap.containsKey(Integer.valueOf(bean.subStack1))) {
+										block.insertBlockSub1(finalBlockMap.get(Integer.valueOf(bean.subStack1)));
+								}
+								if (bean.subStack2 >= 0 && finalBlockMap.containsKey(Integer.valueOf(bean.subStack2))) {
+										block.insertBlockSub2(finalBlockMap.get(Integer.valueOf(bean.subStack2)));
+								}
+								if (bean.nextBlock >= 0 && finalBlockMap.containsKey(Integer.valueOf(bean.nextBlock))) {
+										block.insertBlock(finalBlockMap.get(Integer.valueOf(bean.nextBlock)));
+								}
+								for (int p = 0; p < bean.parameters.size(); p++) {
+										String paramVal = bean.parameters.get(p);
+										if (paramVal != null && !paramVal.isEmpty()) {
+												if (paramVal.startsWith("@")) {
+														int refId = safeParseInt(paramVal.substring(1));
+														if (finalBlockMap.containsKey(Integer.valueOf(refId))) {
+																block.replaceArgWithBlock((BlockBase) block.args.get(p), finalBlockMap.get(Integer.valueOf(refId)));
+														}
+												} else if (p < block.args.size() && block.args.get(p) instanceof BlockArg) {
+														((BlockArg) block.args.get(p)).setArgValue(paramVal);
+														block.recalcWidthToParent();
+												}
+										}
+								}
+								if (firstRootBlock == null) {
+										this.pane.getRoot().insertBlock(block);
+										firstRootBlock = block;
+								}
+						}
+						this.pane.getRoot().fixLayout();
+						this.pane.calculateWidthHeight();
+				});
 		}
 
 		public void refreshPasteIcon() {

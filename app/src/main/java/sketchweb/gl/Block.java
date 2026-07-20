@@ -365,28 +365,37 @@ public class Block extends BlockBase {
     }
 
     public ArrayList<Block> getAllChildren() {
-        ArrayList<Block> arrayList = new ArrayList();
+        ArrayList<Block> arrayList = new ArrayList<>();
         Block block = this;
-        while (true) {
+        while (block != null) {
             arrayList.add(block);
-            Iterator it = block.labelsAndArgs.iterator();
-            while (it.hasNext()) {
-                View view = (View) it.next();
-                if (view instanceof Block) {
-                    arrayList.addAll(((Block) view).getAllChildren());
+            if (block.labelsAndArgs != null) {
+                Iterator it = block.labelsAndArgs.iterator();
+                while (it.hasNext()) {
+                    View view = (View) it.next();
+                    if (view instanceof Block) {
+                        arrayList.addAll(((Block) view).getAllChildren());
+                    }
                 }
             }
-            if (block.canHaveSubstack1() && block.subStack1 != -1) {
-                arrayList.addAll(((Block) this.pane.findViewWithTag(Integer.valueOf(block.subStack1))).getAllChildren());
+            if (block.canHaveSubstack1() && block.subStack1 != -1 && this.pane != null) {
+                Block sub1 = (Block) this.pane.findViewWithTag(Integer.valueOf(block.subStack1));
+                if (sub1 != null) {
+                    arrayList.addAll(sub1.getAllChildren());
+                }
             }
-            if (block.canHaveSubstack2() && block.subStack2 != -1) {
-                arrayList.addAll(((Block) this.pane.findViewWithTag(Integer.valueOf(block.subStack2))).getAllChildren());
+            if (block.canHaveSubstack2() && block.subStack2 != -1 && this.pane != null) {
+                Block sub2 = (Block) this.pane.findViewWithTag(Integer.valueOf(block.subStack2));
+                if (sub2 != null) {
+                    arrayList.addAll(sub2.getAllChildren());
+                }
             }
-            if (block.nextBlock == -1) {
+            if (block.nextBlock == -1 || this.pane == null) {
                 return arrayList;
             }
             block = (Block) this.pane.findViewWithTag(Integer.valueOf(block.nextBlock));
         }
+        return arrayList;
     }
 
     public BlockBean getBean() {

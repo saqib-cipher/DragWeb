@@ -1181,6 +1181,7 @@ public class HtmlCssImporter {
         importedLogicBlocks.clear();
         if (cssContent != null && !cssContent.trim().isEmpty()) {
             parseCss(cssContent);
+            linkBlockChains(importedLogicBlocks);
         }
         return convertRawMapsToBeans(importedLogicBlocks);
     }
@@ -1189,12 +1190,12 @@ public class HtmlCssImporter {
         ArrayList<BlockBean> beans = new ArrayList<>();
         if (rawMaps == null || rawMaps.isEmpty()) return beans;
 
-        Map<String, String> oldIdToNewIdMap = new HashMap<>();
+        Map<String, Integer> oldIdToNewIdMap = new HashMap<>();
         int counter = 1;
         for (Map<String, Object> map : rawMaps) {
             String oldId = (String) map.get("id");
-            if (oldId != null && !oldId.isEmpty()) {
-                oldIdToNewIdMap.put(oldId, String.valueOf(counter++));
+            if (oldId != null && !oldId.isEmpty() && !oldIdToNewIdMap.containsKey(oldId)) {
+                oldIdToNewIdMap.put(oldId, counter++);
             }
         }
 
@@ -1210,7 +1211,8 @@ public class HtmlCssImporter {
         for (Map<String, Object> map : rawMaps) {
             BlockBean bean = new BlockBean();
             String oldId = (String) map.get("id");
-            bean.id = oldIdToNewIdMap.containsKey(oldId) ? oldIdToNewIdMap.get(oldId) : String.valueOf(beans.size() + 1);
+            int intId = (oldId != null && oldIdToNewIdMap.containsKey(oldId)) ? oldIdToNewIdMap.get(oldId) : (beans.size() + 1);
+            bean.id = String.valueOf(intId);
 
             String action = (String) map.get("action");
             if (action == null) action = (String) map.get("opCode");
@@ -1251,15 +1253,29 @@ public class HtmlCssImporter {
                 }
             }
 
-            beans.add(bean);
-        }
-
-        for (int i = 0; i < beans.size() - 1; i++) {
-            BlockBean current = beans.get(i);
-            BlockBean next = beans.get(i + 1);
-            if (!"v".equals(current.type) && !"b".equals(current.type) && !"n".equals(current.type)) {
-                current.nextBlock = Integer.parseInt(next.id);
+            String subStackId = (String) map.get("subStackId");
+            if (subStackId == null) subStackId = (String) map.get("subStack1Id");
+            if (subStackId != null && oldIdToNewIdMap.containsKey(subStackId)) {
+                bean.subStack1 = oldIdToNewIdMap.get(subStackId);
+            } else {
+                bean.subStack1 = -1;
             }
+
+            String subStack2Id = (String) map.get("subStack2Id");
+            if (subStack2Id != null && oldIdToNewIdMap.containsKey(subStack2Id)) {
+                bean.subStack2 = oldIdToNewIdMap.get(subStack2Id);
+            } else {
+                bean.subStack2 = -1;
+            }
+
+            String nextBlockId = (String) map.get("nextBlockId");
+            if (nextBlockId != null && oldIdToNewIdMap.containsKey(nextBlockId)) {
+                bean.nextBlock = oldIdToNewIdMap.get(nextBlockId);
+            } else {
+                bean.nextBlock = -1;
+            }
+
+            beans.add(bean);
         }
 
         return beans;

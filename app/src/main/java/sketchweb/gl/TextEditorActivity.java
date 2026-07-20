@@ -34,6 +34,7 @@ public class TextEditorActivity extends AppCompatActivity {
     private String filePath;
     private String projectId;
     private String relativePath;
+    private boolean isReadOnly = false;
 
     private MaterialToolbar toolbar;
     private WebView webEditor;
@@ -53,6 +54,7 @@ public class TextEditorActivity extends AppCompatActivity {
         filePath = getIntent().getStringExtra("file_path");
         projectId = getIntent().getStringExtra("project_id");
         relativePath = getIntent().getStringExtra("relative_path");
+        isReadOnly = getIntent().getBooleanExtra("read_only", false) || getIntent().getBooleanExtra("is_read_only", false);
 
         if (filePath == null || filePath.isEmpty()) {
             Toast.makeText(this, "No file specified", Toast.LENGTH_SHORT).show();
@@ -95,18 +97,20 @@ public class TextEditorActivity extends AppCompatActivity {
         toolbar.setTitle(file.getName());
         toolbar.setNavigationOnClickListener(v -> handleBackPress());
 
-        // Add save icon to toolbar
-        toolbar.getMenu().add(0, 1, 0, "Save")
-               .setIcon(R.drawable.device_floppy)
-               .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        // Add save icon to toolbar if file is editable
+        if (!isReadOnly) {
+            toolbar.getMenu().add(0, 1, 0, "Save")
+                   .setIcon(R.drawable.device_floppy)
+                   .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
 
-        toolbar.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == 1) {
-                saveFile();
-                return true;
-            }
-            return false;
-        });
+            toolbar.setOnMenuItemClickListener(item -> {
+                if (item.getItemId() == 1) {
+                    saveFile();
+                    return true;
+                }
+                return false;
+            });
+        }
 
         // WebView configuration
         WebSettings settings = webEditor.getSettings();
@@ -144,6 +148,11 @@ public class TextEditorActivity extends AppCompatActivity {
                 // Load initial code
                 String escapedCode = new Gson().toJson(initialCode);
                 webEditor.evaluateJavascript("setEditorValue(" + escapedCode + ");", null);
+
+                // Disable editing if file is locked / read-only
+                if (isReadOnly) {
+                    webEditor.evaluateJavascript("setReadOnly(true);", null);
+                }
             }
         });
     }
@@ -170,6 +179,13 @@ public class TextEditorActivity extends AppCompatActivity {
 
     private void setupSuggestions() {
         if (suggestionContainer == null) return;
+
+        if (isReadOnly) {
+            if (suggestionScroll != null) {
+                suggestionScroll.setVisibility(View.GONE);
+            }
+            return;
+        }
 
         android.content.SharedPreferences prefs = getSharedPreferences("EditorSettings", MODE_PRIVATE);
         boolean showSuggestions = prefs.getBoolean("editor_show_suggestions", true);
@@ -218,54 +234,44 @@ public class TextEditorActivity extends AppCompatActivity {
         File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/.dragweb/suggestions.json");
         if (!file.exists()) {
             // Write defaults
-            String defaultJson = "[\n" +
-                    "  { \"display\": \"<\", \"insert\": \"<\" },\n" +
-                    "  { \"display\": \">\", \"insert\": \">\" },\n" +
-                    "  { \"display\": \"/\", \"insert\": \"/\" },\n" +
-                    "  { \"display\": \"\\\"\", \"insert\": \"\\\"\" },\n" +
-                    "  { \"display\": \"'\", \"insert\": \"'\" },\n" +
-                    "  { \"display\": \"=\", \"insert\": \"=\" },\n" +
-                    "  { \"display\": \"{\", \"insert\": \"{\" },\n" +
-                    "  { \"display\": \"}\", \"insert\": \"}\" },\n" +
-                    "  { \"display\": \"(\", \"insert\": \"(\" },\n" +
-                    "  { \"display\": \")\", \"insert\": \")\" },\n" +
-                    "  { \"display\": \"[\", \"insert\": \"[\" },\n" +
-                    "  { \"display\": \"]\", \"insert\": \"]\" },\n" +
-                    "  { \"display\": \";\", \"insert\": \";\" },\n" +
-                    "  { \"display\": \".\", \"insert\": \".\" },\n" +
-                    "  { \"display\": \":\", \"insert\": \":\" },\n" +
-                    "  { \"display\": \"!\", \"insert\": \"!\" },\n" +
-                    "  { \"display\": \"-\", \"insert\": \"-\" },\n" +
-                    "  { \"display\": \"_\", \"insert\": \"_\" },\n" +
-                    "  { \"display\": \"+\", \"insert\": \"+\" }\n" +
-                    "]";
             try {
-                File parent = file.getParentFile();
-                if (parent != null && !parent.exists()) parent.mkdirs();
+                file.getParentFile().mkdirs();
+                String defaultJson = "["
+                    + "{\"display\":\"div\",\"insert\":\"<div>\\\\n  $CURSOR\\\\n</div>\"},"
+                    + "{\"display\":\"p\",\"insert\":\"<p>$CURSOR</p>\"},"
+                    + "{\"display\":\"h1\",\"insert\":\"<h1>$CURSOR</h1>\"},"
+                    + "{\"display\":\"span\",\"insert\":\"<span>$CURSOR</span>\"},"
+                    + "{\"display\":\"a\",\"insert\":\"<a href=\\\"#\\\">$CURSOR</a>\"},"
+                    + "{\"display\":\"img\",\"insert\":\"<img src=\\\"\\\" alt=\\\"\\\">\"},"
+                    + "{\"display\":\"style\",\"insert\":\"<style>\\\\n  $CURSOR\\\\n</style>\"},"
+                    + "{\"display\":\"script\",\"insert\":\"<script>\\\\n  $CURSOR\\\\n</script>\"}"
+                    + "]";
                 FileUtil.writeFile(file.getAbsolutePath(), defaultJson);
             } catch (Exception e) {
                 Log.e("TextEditorActivity", "Failed to write default suggestions file", e);
             }
-            return new Gson().fromJson(defaultJson, new TypeToken<List<Map<String, String>>>(){}.getType());
         }
+
         try {
             String json = FileUtil.readFile(file.getAbsolutePath());
-            return new Gson().fromJson(json, new TypeToken<List<Map<String, String>>>(){}.getType());
+            if (json != null && !json.isEmpty()) {
+                return new Gson().fromJson(json, new TypeToken<List<Map<String, String>>>(){}.getType());
+            }
         } catch (Exception e) {
             Log.e("TextEditorActivity", "Failed to read suggestions", e);
-            return new ArrayList<>();
         }
+
+        return new ArrayList<>();
     }
 
     private void insertTextInEditor(String text) {
-        String js = "javascript:if(window.editor){ window.editor.replaceSelection('"
-                + text.replace("'", "\\'").replace("\n", "\\n") + "'); window.editor.focus(); }";
-        webEditor.loadUrl(js);
+        if (isReadOnly) return;
+        String escaped = new Gson().toJson(text);
+        webEditor.evaluateJavascript("insertText(" + escaped + ");", null);
     }
 
     private int dpToPx(int dp) {
-        float density = getResources().getDisplayMetrics().density;
-        return Math.round((float) dp * density);
+        return (int) (dp * getResources().getDisplayMetrics().density);
     }
 
     private String getCodeMirrorMode(String path) {
@@ -277,6 +283,7 @@ public class TextEditorActivity extends AppCompatActivity {
     }
 
     private void saveFile() {
+        if (isReadOnly) return;
         String content = currentContent;
         File file = new File(filePath);
 
@@ -284,50 +291,15 @@ public class TextEditorActivity extends AppCompatActivity {
             FileUtil.writeFile(file.getAbsolutePath(), content);
             initialCode = content; // Update initialCode so back press checks work correctly
             Toast.makeText(this, "Saved successfully", Toast.LENGTH_SHORT).show();
-
-            // If CSS or JS, convert back to logic blocks
-            if (relativePath != null && (relativePath.toLowerCase().endsWith(".css") || relativePath.toLowerCase().endsWith(".js") || relativePath.toLowerCase().endsWith(".htm") || relativePath.toLowerCase().endsWith(".html"))) {
-                try {
-                    if (relativePath.toLowerCase().endsWith(".css")) {
-                        HtmlCssImporter importer = new HtmlCssImporter(TextEditorActivity.this);
-                        List<BlockBean> blocks = importer.importCssToBeans(content);
-                        String blocksJson = new Gson().toJson(blocks);
-
-                        File dir = new File(getFilesDir(), "projects/logic");
-                        if (!dir.exists()) dir.mkdirs();
-
-                        String safePageName = relativePath.replace("/", "_").replace(".", "_");
-                        File logicFile = new File(dir, projectId + "_" + safePageName + ".logic");
-                        FileUtil.writeFile(logicFile.getAbsolutePath(), blocksJson);
-
-                        Toast.makeText(this, "CSS rules synced to block editor", Toast.LENGTH_SHORT).show();
-                    } else if (relativePath.toLowerCase().endsWith(".js")) {
-                        HtmlCssImporter importer = new HtmlCssImporter(TextEditorActivity.this);
-                        List<BlockBean> blocks = importer.importJsToBeans(content);
-                        String blocksJson = new Gson().toJson(blocks);
-
-                        File dir = new File(getFilesDir(), "projects/logic");
-                        if (!dir.exists()) dir.mkdirs();
-
-                        String safePageName = relativePath.replace("/", "_").replace(".", "_");
-                        File logicFile = new File(dir, projectId + "_" + safePageName + ".logic");
-                        FileUtil.writeFile(logicFile.getAbsolutePath(), blocksJson);
-
-                        Toast.makeText(this, "JavaScript synced to block editor", Toast.LENGTH_SHORT).show();
-                    }
-                } catch (Exception e) {
-                    Log.e("TextEditorActivity", "Conversion failed", e);
-                    Toast.makeText(this, "Sync to block editor failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                }
-            }
             setResult(RESULT_OK);
+            finish();
         } catch (Exception e) {
             Toast.makeText(this, "Failed to save file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
     private void handleBackPress() {
-        if (!initialCode.equals(currentContent)) {
+        if (!isReadOnly && !initialCode.equals(currentContent)) {
             new MaterialAlertDialogBuilder(this)
                 .setTitle("Discard Changes?")
                 .setMessage("You have unsaved changes. Do you want to discard them?")

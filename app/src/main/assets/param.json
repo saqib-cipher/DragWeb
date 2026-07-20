@@ -1,0 +1,15 @@
+{
+  "position": ["static", "relative", "absolute", "fixed", "sticky"],
+  "display": ["block", "none", "flex", "grid", "inline-block", "inline-flex"],
+  "overflow": ["visible", "hidden", "scroll", "auto"],
+  "textAlign": ["left", "center", "right", "justify"],
+  "textDecoration": ["none", "underline", "overline", "line-through"],
+  "fontWeight": ["normal", "bold", "100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  "fontStyle": ["normal", "italic", "oblique"],
+  "cursor": ["default", "pointer", "move", "text", "wait", "help", "not-allowed", "grab", "grabbing"],
+  "flexDirection": ["row", "row-reverse", "column", "column-reverse"],
+  "justifyContent": ["flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly"],
+  "alignItems": ["stretch", "flex-start", "flex-end", "center", "baseline"],
+  "selector": ["body", "h1", "p", ".active", "#main", "div"],
+  "unit": ["px", "%", "em", "rem", "vh", "vw"]
+}
