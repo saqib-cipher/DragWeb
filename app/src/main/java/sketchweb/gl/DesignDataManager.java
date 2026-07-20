@@ -73,9 +73,15 @@ public class DesignDataManager {
             BlockBean blockBean = new BlockBean();
             BlockBean bean = block.getBean();
             blockBean.copy(bean);
-            Object[] objArr = new Object[VAR_TYPE_INT];
-            objArr[VAR_TYPE_BOOLEAN] = Integer.valueOf(bean.id);
-            blockBean.id = String.format("99%06d", objArr);
+            
+            int parsedIdVal = 0;
+            try {
+                parsedIdVal = Integer.parseInt(bean.id.trim());
+            } catch (Exception e) {
+                parsedIdVal = Math.abs(bean.id.hashCode()) % 1000000;
+            }
+            blockBean.id = String.valueOf(99000000 + parsedIdVal);
+
             if (bean.subStack1 > 0) {
                 blockBean.subStack1 = bean.subStack1 + 99000000;
             }
@@ -92,9 +98,13 @@ public class DesignDataManager {
                 if (str2.length() <= VAR_TYPE_INT || str2.charAt(VAR_TYPE_BOOLEAN) != '@') {
                     blockBean.parameters.add(str2);
                 } else {
-                    Object[] objArr2 = new Object[VAR_TYPE_INT];
-                    objArr2[VAR_TYPE_BOOLEAN] = Integer.valueOf(str2.substring(VAR_TYPE_INT));
-                    blockBean.parameters.add('@' + String.format("99%06d", objArr2));
+                    int parsedParamId = 0;
+                    try {
+                        parsedParamId = Integer.parseInt(str2.substring(VAR_TYPE_INT).trim());
+                    } catch (Exception e) {
+                        parsedParamId = Math.abs(str2.substring(VAR_TYPE_INT).hashCode()) % 1000000;
+                    }
+                    blockBean.parameters.add('@' + String.valueOf(99000000 + parsedParamId));
                 }
             }
             arrayList2.add(blockBean);

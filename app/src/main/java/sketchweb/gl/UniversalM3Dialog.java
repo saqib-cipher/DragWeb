@@ -28,6 +28,7 @@ public final class UniversalM3Dialog {
 
     public interface OnText { void onText(String value); }
     public interface OnUnit { void onUnit(String value); }
+    public interface OnTextValidate { String validate(String value); }
 
     private final Context context;
     private String title = "";
@@ -51,7 +52,11 @@ public final class UniversalM3Dialog {
     public UniversalM3Dialog setMultiline(boolean multiline) { this.multiline = multiline; return this; }
 
     public void showTextInput(OnText cb) {
-        showCoreDialog(null, initial, hint != null ? hint : "Value", cb);
+        showCoreDialog(null, initial, hint != null ? hint : "Value", null, cb);
+    }
+
+    public void showTextInputWithValidation(OnTextValidate validator, OnText cb) {
+        showCoreDialog(null, initial, hint != null ? hint : "Value", validator, cb);
     }
 
     public void showChoiceInput(OnText cb) {
@@ -60,7 +65,10 @@ public final class UniversalM3Dialog {
         if (units != null) {
             for (String u : units) if (!combined.contains(u)) combined.add(u);
         }
-        showCoreDialog(combined, initial, hint != null ? hint : "Custom value", cb);
+        if (suggestions != null) {
+            for (String s : suggestions) if (!combined.contains(s)) combined.add(s);
+        }
+        showCoreDialog(combined, initial, hint != null ? hint : "Custom value", null, cb);
     }
 
     public void showColorInput(OnText cb) {
@@ -128,7 +136,7 @@ public final class UniversalM3Dialog {
         unitGroup.setSingleSelection(true);
         unitGroup.setSelectionRequired(true);
 
-        TextInputLayout til = createTextInputLayout(hint != null ? hint : "Value");
+        final TextInputLayout til = createTextInputLayout(hint != null ? hint : "Value");
         til.setSuffixText(defaultUnit);
         final MaterialAutoCompleteTextView edit = createEditor(til, numericPart, null);
         til.addView(edit);
@@ -175,7 +183,7 @@ public final class UniversalM3Dialog {
     }
 
     public void showAutocompleteChoice(List<String> suggestions, String initialValue, OnText cb) {
-        showCoreDialog(suggestions, initialValue, hint != null ? hint : "Custom value", cb);
+        showCoreDialog(suggestions, initialValue, hint != null ? hint : "Custom value", null, cb);
     }
 
     /**
@@ -356,7 +364,7 @@ public final class UniversalM3Dialog {
      * Internal unified builder. 
      * Renders a HorizontalScrollView with ChipGroup, then a TextInputLayout.
      */
-    private void showCoreDialog(List<String> presets, String currentValue, String inputHint, OnText cb) {
+    private void showCoreDialog(List<String> presets, String currentValue, String inputHint, OnTextValidate validator, OnText cb) {
         int pad = dp(24);
         ScrollView scroll = new ScrollView(context);
         LinearLayout root = new LinearLayout(context);

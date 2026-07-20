@@ -12,6 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/colorSurfaceContainerHigh"
+
         app:title="Manage Blocks &amp; Widgets"
         app:titleTextColor="?attr/colorOnSurface" />
 
@@ -43,11 +44,12 @@
                     android:gravity="center_vertical"
                     android:padding="20dp">
 
-                    <TextView
+                    <ImageView
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:text="🧩"
-                        android:textSize="28sp"
+                        android:padding="8dp"
+                        android:src="@drawable/puzzle"
+                        android:tint="?attr/colorOnPrimaryContainer"
                         android:gravity="center"
                         android:background="@drawable/shape_circle_accent" />
 
@@ -96,11 +98,12 @@
                     android:gravity="center_vertical"
                     android:padding="20dp">
 
-                    <TextView
+                    <ImageView
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:text="🏷️"
-                        android:textSize="28sp"
+                        android:src="@drawable/category_2"
+                        android:padding="8dp"
+                        android:tint="?attr/colorOnPrimaryContainer"
                         android:gravity="center"
                         android:background="@drawable/shape_circle_accent" />
 
@@ -148,11 +151,12 @@
                     android:gravity="center_vertical"
                     android:padding="20dp">
 
-                    <TextView
+                    <ImageView
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:text="🎨"
-                        android:textSize="28sp"
+                        android:src="@drawable/layout_grid_add"
+                        android:padding="8dp"
+                        android:tint="?attr/colorOnPrimaryContainer"
                         android:gravity="center"
                         android:background="@drawable/shape_circle_accent" />
 

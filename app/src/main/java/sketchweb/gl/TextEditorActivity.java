@@ -290,7 +290,7 @@ public class TextEditorActivity extends AppCompatActivity {
                 try {
                     if (relativePath.toLowerCase().endsWith(".css")) {
                         HtmlCssImporter importer = new HtmlCssImporter(TextEditorActivity.this);
-                        List<Map<String, Object>> blocks = importer.importCssOnly(content);
+                        List<BlockBean> blocks = importer.importCssToBeans(content);
                         String blocksJson = new Gson().toJson(blocks);
 
                         File dir = new File(getFilesDir(), "projects/logic");
@@ -303,7 +303,7 @@ public class TextEditorActivity extends AppCompatActivity {
                         Toast.makeText(this, "CSS rules synced to block editor", Toast.LENGTH_SHORT).show();
                     } else if (relativePath.toLowerCase().endsWith(".js")) {
                         HtmlCssImporter importer = new HtmlCssImporter(TextEditorActivity.this);
-                        List<Map<String, Object>> blocks = importer.importJsOnly(content);
+                        List<BlockBean> blocks = importer.importJsToBeans(content);
                         String blocksJson = new Gson().toJson(blocks);
 
                         File dir = new File(getFilesDir(), "projects/logic");

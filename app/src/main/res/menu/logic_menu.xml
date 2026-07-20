@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
@@ -20,13 +21,6 @@
         android:icon="@drawable/icon_redo_round"
         android:orderInCategory="100"
         android:title="Redo"
-        app:showAsAction="always" />
-
-    <item
-        android:id="@+id/menu_block_copy"
-        android:icon="@drawable/folder_check"
-        android:orderInCategory="100"
-        android:title="Copy Block"
         app:showAsAction="always" />
 
     <item

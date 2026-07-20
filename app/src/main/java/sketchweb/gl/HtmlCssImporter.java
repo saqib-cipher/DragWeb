@@ -56,15 +56,18 @@ public class HtmlCssImporter {
         if (context == null || jsMatchersInitialized) return;
         jsMatchersInitialized = true;
         try {
-            StringBuilder sb = new StringBuilder();
-            java.io.InputStream is = context.getAssets().open("blocks.json");
-            java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(is, "UTF-8"));
-            String line;
-            while ((line = br.readLine()) != null) sb.append(line);
-            br.close();
+            List<BlockDef> allDefs = BlockDef.getDefinitions(context);
+            if (allDefs == null || allDefs.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                java.io.InputStream is = context.getAssets().open("blocks.json");
+                java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(is, "UTF-8"));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
 
-            List<BlockDef> allDefs = new com.google.gson.Gson().fromJson(sb.toString(),
-                new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
+                allDefs = new com.google.gson.Gson().fromJson(sb.toString(),
+                    new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
+            }
             if (allDefs == null) return;
 
             // Sort by template length descending so more specific templates match first
@@ -1166,6 +1169,100 @@ public class HtmlCssImporter {
             linkBlockChains(importedLogicBlocks);
         }
         return new ArrayList<>(importedLogicBlocks);
+    }
+
+    public ArrayList<BlockBean> importJsToBeans(String jsContent) {
+        List<Map<String, Object>> rawMaps = importJsOnly(jsContent);
+        return convertRawMapsToBeans(rawMaps);
+    }
+
+    public ArrayList<BlockBean> importCssToBeans(String cssContent) {
+        initJsMatchers();
+        importedLogicBlocks.clear();
+        if (cssContent != null && !cssContent.trim().isEmpty()) {
+            parseCss(cssContent);
+        }
+        return convertRawMapsToBeans(importedLogicBlocks);
+    }
+
+    public ArrayList<BlockBean> convertRawMapsToBeans(List<Map<String, Object>> rawMaps) {
+        ArrayList<BlockBean> beans = new ArrayList<>();
+        if (rawMaps == null || rawMaps.isEmpty()) return beans;
+
+        Map<String, String> oldIdToNewIdMap = new HashMap<>();
+        int counter = 1;
+        for (Map<String, Object> map : rawMaps) {
+            String oldId = (String) map.get("id");
+            if (oldId != null && !oldId.isEmpty()) {
+                oldIdToNewIdMap.put(oldId, String.valueOf(counter++));
+            }
+        }
+
+        List<BlockDef> defs = BlockDef.getDefinitions(context);
+        Map<String, BlockDef> defMap = new HashMap<>();
+        if (defs != null) {
+            for (BlockDef d : defs) {
+                if (d.id != null) defMap.put(d.id.toLowerCase(), d);
+                if (d.getOpCode() != null) defMap.put(d.getOpCode().toLowerCase(), d);
+            }
+        }
+
+        for (Map<String, Object> map : rawMaps) {
+            BlockBean bean = new BlockBean();
+            String oldId = (String) map.get("id");
+            bean.id = oldIdToNewIdMap.containsKey(oldId) ? oldIdToNewIdMap.get(oldId) : String.valueOf(beans.size() + 1);
+
+            String action = (String) map.get("action");
+            if (action == null) action = (String) map.get("opCode");
+            if (action == null) action = "asdJs";
+            bean.opCode = action;
+
+            String spec = (String) map.get("spec");
+            bean.spec = spec != null ? spec : "";
+
+            String shape = (String) map.get("shape");
+            if ("cblock".equalsIgnoreCase(shape)) bean.type = "c";
+            else if ("value".equalsIgnoreCase(shape)) bean.type = "v";
+            else if ("boolean".equalsIgnoreCase(shape)) bean.type = "b";
+            else if ("ifelse".equalsIgnoreCase(shape)) bean.type = "e";
+            else if ("final".equalsIgnoreCase(shape)) bean.type = "f";
+            else if ("number".equalsIgnoreCase(shape)) bean.type = "n";
+            else bean.type = "s";
+
+            BlockDef matchDef = defMap.get(bean.opCode.toLowerCase());
+            if (matchDef != null) {
+                if (matchDef.getSpec() != null && !matchDef.getSpec().isEmpty()) bean.spec = matchDef.getSpec();
+                if (matchDef.getType() != null && !matchDef.getType().isEmpty()) bean.type = matchDef.getType();
+                if (matchDef.color != null && !matchDef.color.isEmpty()) {
+                    try {
+                        bean.color = android.graphics.Color.parseColor(matchDef.color);
+                    } catch (Exception ignored) {
+                        bean.color = -1147626;
+                    }
+                }
+            } else {
+                bean.color = -1147626;
+            }
+
+            Object paramVals = map.get("paramValues");
+            if (paramVals instanceof List) {
+                for (Object pv : (List<?>) paramVals) {
+                    bean.parameters.add(pv != null ? pv.toString() : "");
+                }
+            }
+
+            beans.add(bean);
+        }
+
+        for (int i = 0; i < beans.size() - 1; i++) {
+            BlockBean current = beans.get(i);
+            BlockBean next = beans.get(i + 1);
+            if (!"v".equals(current.type) && !"b".equals(current.type) && !"n".equals(current.type)) {
+                current.nextBlock = Integer.parseInt(next.id);
+            }
+        }
+
+        return beans;
     }
 
     private void parseJsRules(String js, String parentBlockId, long timestamp, int[] counterRef) {

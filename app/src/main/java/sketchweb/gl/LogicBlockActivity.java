@@ -241,26 +241,6 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 		
 		private void allocateBlockArea(int i) {
-				int i2 = -1;
-				if (this.isPaletteOpened) {
-						int i3 = getResources().getDisplayMetrics().widthPixels;
-						int i4 = getResources().getDisplayMetrics().heightPixels;
-						if (i3 <= i4) {
-								i3 = i4;
-						}
-						if (2 == i) {
-								i3 -= (int) LayoutUtil.getDip(this, 320.0f);
-						} else {
-								int height = ((i3 - getSupportActionBar().getHeight()) - SysUtil.getStatusBarHeight(this.context)) - ((int) LayoutUtil.getDip(this, 240.0f));
-								i3 = -1;
-								i2 = height;
-						}
-						this.blockCopyInterface.setLayoutParams(new LayoutParams(i3, i2));
-						this.blockCopyInterface.requestLayout();
-						return;
-				}
-				this.blockCopyInterface.setLayoutParams(new LayoutParams(-1, -1));
-				this.blockCopyInterface.requestLayout();
 		}
 		
 		private void allocatePalette(int var1) {
@@ -335,6 +315,8 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 								this.vibrator.vibrate(100);
 						}
 						this.isDragged = true;
+						this.dummy.setDummyVisibility(View.VISIBLE);
+						this.dummy.bringToFront();
 						if (((Block) this.currentTouchedView).getBlockType() == 0) {
 								getOriginalState((Block) this.currentTouchedView);
 								showIconDelete(true);
@@ -663,6 +645,16 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				}
 		}
 		
+		private int safeParseInt(String s) {
+				if (s == null) return 0;
+				try {
+						return Integer.parseInt(s.trim());
+				} catch (Exception e) {
+						int h = s.hashCode();
+						return h == Integer.MIN_VALUE ? Integer.MAX_VALUE : Math.abs(h) % 10000000;
+				}
+		}
+
 		private void pasteCopiedBlocks() {
 				if (DesignDataManager.isExistClipboard(filename)) {
 						int i;
@@ -675,7 +667,7 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						ArrayList clipboard = DesignDataManager.getClipboard(filename);
 						Iterator it = clipboard.iterator();
 						while (it.hasNext()) {
-								Integer valueOf = Integer.valueOf(((BlockBean) it.next()).id);
+								Integer valueOf = Integer.valueOf(safeParseInt(((BlockBean) it.next()).id));
 								BlockPane blockPane = this.pane;
 								i = blockPane.blockId;
 								blockPane.blockId = i + 1;
@@ -694,19 +686,20 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 												i2 = i3;
 										}
 										if (i2 == 0) {
-												hashMap2.put(Integer.valueOf(blockBean.id), Integer.valueOf(0));
+												hashMap2.put(Integer.valueOf(safeParseInt(blockBean.id)), Integer.valueOf(0));
 										}
 								}
 						}
 						Iterator it3 = clipboard.iterator();
 						while (it3.hasNext()) {
 								blockBean = (BlockBean) it3.next();
-								blockBean.id = String.valueOf(hashMap2.get(Integer.valueOf(blockBean.id)));
+								Integer mappedId = (Integer) hashMap2.get(Integer.valueOf(safeParseInt(blockBean.id)));
+								blockBean.id = String.valueOf(mappedId != null ? mappedId.intValue() : 0);
 								i2 = blockBean.parameters.size();
 								for (i3 = 0; i3 < i2; i3++) {
 										String str = (String) blockBean.parameters.get(i3);
 										if (str != null && str.length() > 0 && str.charAt(0) == '@') {
-												Integer num = (Integer) hashMap2.get(Integer.valueOf(Integer.valueOf(str.substring(1)).intValue()));
+												Integer num = (Integer) hashMap2.get(Integer.valueOf(safeParseInt(str.substring(1))));
 												if (num == null) {
 														blockBean.parameters.set(i3, "");
 												} else {
@@ -715,13 +708,16 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 										}
 								}
 								if (blockBean.subStack1 >= 0) {
-										blockBean.subStack1 = ((Integer) hashMap2.get(Integer.valueOf(blockBean.subStack1))).intValue();
+										Integer num = (Integer) hashMap2.get(Integer.valueOf(blockBean.subStack1));
+										blockBean.subStack1 = num != null ? num.intValue() : -1;
 								}
 								if (blockBean.subStack2 >= 0) {
-										blockBean.subStack2 = ((Integer) hashMap2.get(Integer.valueOf(blockBean.subStack2))).intValue();
+										Integer num = (Integer) hashMap2.get(Integer.valueOf(blockBean.subStack2));
+										blockBean.subStack2 = num != null ? num.intValue() : -1;
 								}
 								if (blockBean.nextBlock >= 0) {
-										blockBean.nextBlock = ((Integer) hashMap2.get(Integer.valueOf(blockBean.nextBlock))).intValue();
+										Integer num = (Integer) hashMap2.get(Integer.valueOf(blockBean.nextBlock));
+										blockBean.nextBlock = num != null ? num.intValue() : -1;
 								}
 						}
 						int[] iArr = new int[2];
@@ -1532,7 +1528,6 @@ var0.dismissProgress();
 		
 		
 		private void startBlockCopyInterface() {
-				this.blockCopyInterface.setCopyMode(!this.blockCopyInterface.getCopyMode());
 		}
 		
 		/*   private void startLogicTutorialActivity() {
@@ -1817,16 +1812,29 @@ return;
 						this.minDist = ViewConfiguration.get(this.context).getScaledTouchSlop();
 						this.vibrator = (Vibrator) getSystemService("vibrator");
 						String stringExtra = getIntent().getStringExtra("event_text");
-						if (this.id.equals("onCreate")) {
-								getSupportActionBar().setTitle(stringExtra);
-						} else {
-								getSupportActionBar().setTitle(this.id + " : " + stringExtra);
+						if (getSupportActionBar() != null) {
+								if (stringExtra != null && !stringExtra.isEmpty()) {
+										if (this.id != null && this.id.equals("onCreate")) {
+												getSupportActionBar().setTitle(stringExtra);
+										} else {
+												getSupportActionBar().setTitle(this.id + " : " + stringExtra);
+										}
+								} else {
+										getSupportActionBar().setTitle(this.id != null ? this.id : "Logic Editor");
+								}
 						}
-						this.paletteSelector = (PaletteSelector) findViewById(R.id.palette_selector);
-						this.paletteSelector.setOnBlockCategorySelectListener(this);
-						this.paletteSelector.refreshCategories();
 
 						this.paletteBlock = (PaletteBlock) findViewById(R.id.palette_block);
+						if (this.paletteBlock != null) {
+								this.paletteSelector = (PaletteSelector) this.paletteBlock.findViewById(R.id.palette_selector);
+						} else {
+								this.paletteSelector = (PaletteSelector) findViewById(R.id.palette_selector);
+						}
+
+						if (this.paletteSelector != null) {
+								this.paletteSelector.setOnBlockCategorySelectListener(this);
+								this.paletteSelector.refreshCategories();
+						}
 						this.dummy = (ViewDummy) findViewById(R.id.dummy);
 						this.iconDelete = (ImageView) findViewById(R.id.icon_delete);
 						this.layoutDragActions = (LinearLayout) findViewById(R.id.layout_drag_actions);
@@ -1841,8 +1849,6 @@ return;
 						} else {
 								onBlockCategorySelect(0, -1147626);
 						}
-						this.blockCopyInterface = (BlockCopyInterface) findViewById(R.id.block_copy_interface);
-						this.blockCopyInterface.activity = this;
 						this.layoutPalette = (LinearLayout) findViewById(R.id.layout_palette);
 						this.areaPalette = (LinearLayout) findViewById(R.id.area_palette);
 						this.fab = (FloatingActionButton) findViewById(R.id.fab_toggle_palette);
@@ -1863,9 +1869,24 @@ return;
 				getMenuInflater().inflate(R.menu.logic_menu, menu);
 				this.menu = menu;
 				refreshPasteIcon();
-				/* if (ScDefine.isCustomEditMode(DesignActivity.getScId())) {
-menu.removeItem(R.id.menu_logic_tutorial);
-}*/
+
+				int m3ColorOnSurface = com.google.android.material.color.MaterialColors.getColor(
+						this, com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK);
+
+				if (menu != null) {
+						for (int i = 0; i < menu.size(); i++) {
+								MenuItem item = menu.getItem(i);
+								if (item.getIcon() != null) {
+										item.getIcon().setTint(m3ColorOnSurface);
+								}
+						}
+				}
+
+				Toolbar toolbarView = findViewById(R.id.toolbar);
+				if (toolbarView != null && toolbarView.getNavigationIcon() != null) {
+						toolbarView.getNavigationIcon().setTint(m3ColorOnSurface);
+				}
+
 				return true;
 		}
 		
@@ -1874,67 +1895,48 @@ menu.removeItem(R.id.menu_logic_tutorial);
 		}
 		
 		public boolean onOptionsItemSelected(MenuItem menuItem) {
-				/*   if (menuItem.getItemId() == R.id.menu_block_helper) {
-Intent intent = new Intent(this, BlockHelperActivity.class);
-intent.setFlags(536870912);
-startActivity(intent);
-return true;
-}
-if (menuItem.getItemId() == R.id.menu_logic_tutorial) {
-startLogicTutorialActivity();
-}*/
-				if (menuItem.getItemId() == R.id.menu_block_copy) {
-						startBlockCopyInterface();
-				}
-				if (menuItem.getItemId() == R.id.menu_block_paste) {
-						pasteCopiedBlocks();
-				}
 				if (menuItem.getItemId() == R.id.menu_show_source) {
 						showSourceCode();
 				}
-				/* if (menuItem.getItemId() == R.id.menu_mng_image) {
-startManageImageActivity();
-}*/
 				return super.onOptionsItemSelected(menuItem);
 		}
-		
 		
 		private void showSourceCode() {
 				BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
 				final String result = jsm.getSource(0, pane.getBlocks());
 				
 				final boolean isCss = isCssEvent();
-				final String language = isCss ? "css" : "javascript";
+				final String ext = isCss ? ".css" : ".js";
 
-				android.widget.LinearLayout container = new android.widget.LinearLayout(this);
-				container.setOrientation(android.widget.LinearLayout.VERTICAL);
+				java.io.File targetFile;
+				String relPath = "";
 
-				androidx.appcompat.widget.Toolbar dialogToolbar = new androidx.appcompat.widget.Toolbar(this);
-				dialogToolbar.setTitle(isCss ? "Compiled CSS Source" : "Compiled JS Source");
-				dialogToolbar.setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFFE0E0E0));
-				dialogToolbar.setTitleTextColor(com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
-				container.addView(dialogToolbar);
+				if (this.projectId != null && !this.projectId.isEmpty() && this.pageName != null && !this.pageName.isEmpty()) {
+						String safePageName = this.pageName.endsWith(ext) ? this.pageName : (this.pageName + ext);
+						targetFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
+								+ "/.dragweb/projects/" + this.projectId + "/assets/" + safePageName);
+						relPath = safePageName;
+				} else {
+						java.io.File cacheDir = new java.io.File(getCacheDir(), "preview_source");
+						if (!cacheDir.exists()) cacheDir.mkdirs();
+						targetFile = new java.io.File(cacheDir, (filename != null ? filename : "source") + ext);
+						relPath = targetFile.getName();
+				}
 
-				android.webkit.WebView webView = new android.webkit.WebView(this);
-				webView.getSettings().setJavaScriptEnabled(true);
-				
-				int heightPx = (int) (400 * getResources().getDisplayMetrics().density);
-				android.widget.LinearLayout.LayoutParams webViewParams = new android.widget.LinearLayout.LayoutParams(
-						android.widget.LinearLayout.LayoutParams.MATCH_PARENT, heightPx);
-				webView.setLayoutParams(webViewParams);
-				container.addView(webView);
+				try {
+						if (targetFile.getParentFile() != null && !targetFile.getParentFile().exists()) {
+								targetFile.getParentFile().mkdirs();
+						}
+						FileUtil.writeFile(targetFile.getAbsolutePath(), result != null ? result : "");
+				} catch (Exception e) {
+						e.printStackTrace();
+				}
 
-				loadHighlightedCode(webView, result.isEmpty() ? (isCss ? "/* No CSS generated */" : "/* No JS generated */") : result, language);
-
-				new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-						.setView(container)
-						.setPositiveButton("Copy", (dialog, which) -> {
-								android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-								clipboard.setPrimaryClip(android.content.ClipData.newPlainText(language, result));
-								Toast.makeText(this, "Source copied", Toast.LENGTH_SHORT).show();
-						})
-						.setNegativeButton("Close", null)
-						.show();
+				Intent intent = new Intent(this, TextEditorActivity.class);
+				intent.putExtra("file_path", targetFile.getAbsolutePath());
+				intent.putExtra("project_id", this.projectId != null ? this.projectId : "");
+				intent.putExtra("relative_path", relPath);
+				startActivity(intent);
 		}
 
 		private String highlightCodeLocal(String code, String language) {
@@ -2186,40 +2188,52 @@ startManageImageActivity();
 				dialog.setTitle("Save to Collection")
 				      .setHint("Collection Name")
 				      .setInitialValue("My Collection")
-				      .showTextInput(name -> {
-				          if (name == null || name.trim().isEmpty()) return;
-				          String safeName = name.trim();
-				          java.io.File dir = new java.io.File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/resources/block/" + safeName);
-				          if (!dir.exists()) dir.mkdirs();
-
-				          java.io.File paletteFile = new java.io.File(dir, "palette.json");
-				          String paletteJson = "[{\"name\":\"" + safeName + "\",\"color\":\"#FF2196F3\"}]";
-				          FileUtil.writeFile(paletteFile.getAbsolutePath(), paletteJson);
-
-				          java.io.File blockFile = new java.io.File(dir, "block.json");
-				          ArrayList<BlockDef> defs = new ArrayList<>();
-				          try {
-				              String existing = FileUtil.readFile(blockFile.getAbsolutePath());
-				              if (existing != null && !existing.isEmpty()) {
-				                  java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<BlockDef>>(){}.getType();
-				                  ArrayList<BlockDef> list = new com.google.gson.Gson().fromJson(existing, type);
-				                  if (list != null) defs.addAll(list);
+				      .showTextInputWithValidation(
+				          name -> {
+				              if (name == null || name.trim().isEmpty()) {
+				                  return "Collection name cannot be empty";
 				              }
-				          } catch (Exception e) {}
+				              String safeName = name.trim();
+				              java.io.File dir = new java.io.File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/resources/block/" + safeName);
+				              if (dir.exists()) {
+				                  return "Collection with this name already exists";
+				              }
+				              return null;
+				          },
+				          name -> {
+				              String safeName = name.trim();
+				              java.io.File dir = new java.io.File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/resources/block/" + safeName);
+				              if (!dir.exists()) dir.mkdirs();
 
-				          BlockDef def = new BlockDef();
-				          def.spec = block.mSpec;
-				          def.type = block.mType;
-				          def.id = block.mOpCode;
-				          def.color = String.format("#%06X", (0xFFFFFF & block.mColor));
-				          defs.add(def);
+				              java.io.File paletteFile = new java.io.File(dir, "palette.json");
+				              String paletteJson = "[{\"name\":\"" + safeName + "\",\"color\":\"#FF2196F3\"}]";
+				              FileUtil.writeFile(paletteFile.getAbsolutePath(), paletteJson);
 
-				          FileUtil.writeFile(blockFile.getAbsolutePath(), new com.google.gson.Gson().toJson(defs));
-				          Toast.makeText(this, "Saved block to " + safeName, Toast.LENGTH_SHORT).show();
-				          if (paletteSelector != null) {
-				              paletteSelector.refresh();
+				              java.io.File blockFile = new java.io.File(dir, "block.json");
+				              ArrayList<BlockDef> defs = new ArrayList<>();
+				              try {
+				                  String existing = FileUtil.readFile(blockFile.getAbsolutePath());
+				                  if (existing != null && !existing.isEmpty()) {
+				                      java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<BlockDef>>(){}.getType();
+				                      ArrayList<BlockDef> list = new com.google.gson.Gson().fromJson(existing, type);
+				                      if (list != null) defs.addAll(list);
+				                  }
+				              } catch (Exception e) {}
+
+				              BlockDef def = new BlockDef();
+				              def.spec = block.mSpec;
+				              def.type = block.mType;
+				              def.id = block.mOpCode;
+				              def.color = String.format("#%06X", (0xFFFFFF & block.mColor));
+				              defs.add(def);
+
+				              FileUtil.writeFile(blockFile.getAbsolutePath(), new com.google.gson.Gson().toJson(defs));
+				              Toast.makeText(this, "Saved block to " + safeName, Toast.LENGTH_SHORT).show();
+				              if (paletteSelector != null) {
+				                  paletteSelector.refresh();
+				              }
 				          }
-				      });
+				      );
 		}
 
 		public void refreshPasteIcon() {

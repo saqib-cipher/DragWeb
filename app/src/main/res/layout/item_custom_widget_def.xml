@@ -45,7 +45,8 @@
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:padding="6dp"
-            android:src="@android:drawable/ic_menu_edit"
+            android:src="@drawable/pencil"
+            android:tint="?attr/colorPrimary"
             android:contentDescription="Edit"
             android:background="?selectableItemBackgroundBorderless" />
 
@@ -54,7 +55,8 @@
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:padding="6dp"
-            android:src="@android:drawable/ic_menu_delete"
+            android:src="@drawable/trash"
+            android:tint="?attr/colorError"
             android:contentDescription="Delete"
             android:background="?selectableItemBackgroundBorderless" />
 

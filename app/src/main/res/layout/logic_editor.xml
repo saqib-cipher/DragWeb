@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -22,9 +21,9 @@
                 android:visibility="gone" />
         </androidx.appcompat.widget.Toolbar>
 
-        <sketchweb.gl.BlockCopyInterface
-            android:id="@+id/block_copy_interface"
-            android:background="#ffffffff"
+        <RelativeLayout
+            android:id="@+id/block_area_container"
+            android:background="?attr/colorSurfaceContainer"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
@@ -38,11 +37,10 @@
 
             <sketchweb.gl.ViewLogicEditor
                 android:id="@+id/editor"
-                android:background="#ffffffff"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_margin="4dp" />
-        </sketchweb.gl.BlockCopyInterface>
+        </RelativeLayout>
     </LinearLayout>
 
     <LinearLayout
@@ -60,8 +58,8 @@
             android:id="@+id/icon_delete"
             android:paddingBottom="8dp"
             android:layout_width="50dp"
-            android:layout_height="58dp"
-            android:src="@drawable/icon_delete"
+            android:layout_height="50dp"
+            android:src="@drawable/trash"
             android:scaleType="fitXY"
             android:contentDescription="@null" />
 
@@ -69,22 +67,22 @@
             android:id="@+id/icon_save"
             android:paddingBottom="8dp"
             android:layout_width="50dp"
-            android:layout_height="58dp"
+            android:layout_height="50dp"
             android:layout_marginLeft="8dp"
             android:src="@drawable/device_floppy"
             android:scaleType="fitCenter"
-            android:tint="#888888"
+            android:tint="?attr/colorOnSurfaceVariant"
             android:contentDescription="@null" />
 
         <ImageView
             android:id="@+id/icon_duplicate"
             android:paddingBottom="8dp"
             android:layout_width="50dp"
-            android:layout_height="58dp"
+            android:layout_height="50dp"
             android:layout_marginLeft="8dp"
             android:src="@drawable/copy"
             android:scaleType="fitCenter"
-            android:tint="#888888"
+            android:tint="?attr/colorOnSurfaceVariant"
             android:contentDescription="@null" />
 
     </LinearLayout>
@@ -99,8 +97,8 @@
             android:id="@+id/fab_toggle_palette"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_margin="8dp"
-            android:src="@drawable/block_flled_white" />
+            android:contentDescription="@null"
+            android:src="@drawable/plus" />
 
         <LinearLayout
             android:orientation="horizontal"
@@ -117,6 +115,7 @@
 
     <sketchweb.gl.ViewDummy
         android:id="@+id/dummy"
+        android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 </RelativeLayout>

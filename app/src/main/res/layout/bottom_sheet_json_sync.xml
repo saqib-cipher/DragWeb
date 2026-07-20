@@ -13,11 +13,12 @@
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
-        <TextView
+        <ImageView
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:text="📦"
-            android:textSize="24sp"
+            android:src="@drawable/refresh"
+            android:padding="8dp"
+            android:tint="?attr/colorOnPrimaryContainer"
             android:gravity="center"
             android:background="@drawable/shape_circle_accent" />
 

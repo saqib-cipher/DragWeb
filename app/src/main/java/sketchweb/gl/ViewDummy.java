@@ -9,8 +9,6 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
-/*import com.besome.sketch.editor.logic.block.Block;
-import com.besome.sketch.lib.utils.LayoutUtil;*/
 
 public class ViewDummy extends RelativeLayout {
     private ImageView imgDummy;
@@ -44,8 +42,20 @@ public class ViewDummy extends RelativeLayout {
     }
 
     private Bitmap loadBitmapFromView(View view) {
-        Bitmap createBitmap = Bitmap.createBitmap(view.getMeasuredWidth(), view.getMeasuredHeight(), Config.ARGB_8888);
-        view.draw(new Canvas(createBitmap));
+        if (view == null) return null;
+        int w = view.getWidth();
+        int h = view.getHeight();
+        if (w <= 0 || h <= 0) {
+            view.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                         View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            w = view.getMeasuredWidth();
+            h = view.getMeasuredHeight();
+            if (w <= 0 || h <= 0) return null;
+            view.layout(0, 0, w, h);
+        }
+        Bitmap createBitmap = Bitmap.createBitmap(w, h, Config.ARGB_8888);
+        Canvas canvas = new Canvas(createBitmap);
+        view.draw(canvas);
         return createBitmap;
     }
 
@@ -58,51 +68,61 @@ public class ViewDummy extends RelativeLayout {
     }
 
     public void makeDummy(View view) {
-        this.imgDummy.setImageBitmap(loadBitmapFromView(view));
-        this.imgDummy.setAlpha(0.5f);
+        if (view == null) return;
+        setDummyVisibility(VISIBLE);
+        Bitmap bmp = loadBitmapFromView(view);
+        if (bmp != null) {
+            this.imgDummy.clearColorFilter();
+            this.imgDummy.setImageBitmap(bmp);
+            this.imgDummy.setAlpha(0.5f);
+        }
     }
 
     public void makeDummyWithBlock(Block var1) {
-        String var2 = var1.mType;
+        if (var1 == null) return;
+        setDummyVisibility(VISIBLE);
+
+        String var2 = var1.mType != null ? var1.mType : "";
         byte var3 = -1;
-        switch(var2.hashCode()) {
+        switch (var2.hashCode()) {
             case 98:
-                if(var2.equals("b")) {
+                if (var2.equals("b")) {
                     var3 = 0;
                 }
                 break;
             case 99:
-                if(var2.equals("c")) {
+                if (var2.equals("c")) {
                     var3 = 4;
                 }
                 break;
             case 100:
-                if(var2.equals("d")) {
+                if (var2.equals("d")) {
                     var3 = 1;
                 }
                 break;
             case 101:
-                if(var2.equals("e")) {
+                if (var2.equals("e")) {
                     var3 = 5;
                 }
                 break;
             case 102:
-                if(var2.equals("f")) {
+                if (var2.equals("f")) {
                     var3 = 6;
                 }
                 break;
             case 110:
-                if(var2.equals("n")) {
+                if (var2.equals("n")) {
                     var3 = 2;
                 }
                 break;
             case 115:
-                if(var2.equals("s")) {
+                if (var2.equals("s")) {
                     var3 = 3;
                 }
+                break;
         }
 
-        switch(var3) {
+        switch (var3) {
             case 0:
                 this.imgDummy.setImageResource(R.drawable.selected_block_boolean);
                 break;
@@ -124,38 +144,28 @@ public class ViewDummy extends RelativeLayout {
                 break;
             default:
                 this.imgDummy.setImageResource(R.drawable.selected_block_command);
+                break;
         }
 
+        this.imgDummy.clearColorFilter();
         this.imgDummy.setAlpha(0.5F);
     }
-    
+
     public void moveDummy(View view, float f, float f2, float f3, float f4) {
-        /*if (this.layoutDummy.getVisibility() != 0) {
-            setDummyVisibility(0);
-        }
-        view.getLocationOnScreen(this.pos);
-        getLocationOnScreen(this.posAreaDummy);
-        this.layoutDummy.setX(((((float) (this.pos[0] - this.posAreaDummy[0])) + f) - f3) - ((float) this.imgNotAllowed.getWidth()));
-        this.layoutDummy.setY((((float) (this.pos[1] - this.posAreaDummy[1])) + f2) - f4);*/
         moveDummy(view, f, f2, f3, f4, 0.0F, 0.0F);
     }
-    
-    //new
-    public void moveDummy(View view, float f, float f2, float f3, float f4,   float f5, float f6) {
+
+    public void moveDummy(View view, float f, float f2, float f3, float f4, float f5, float f6) {
         if (this.layoutDummy.getVisibility() != 0) {
-            setDummyVisibility(0);
+            setDummyVisibility(VISIBLE);
         }
-        view.getLocationOnScreen(this.pos);
+        if (view != null) {
+            view.getLocationOnScreen(this.pos);
+        }
         getLocationOnScreen(this.posAreaDummy);
         this.layoutDummy.setX(f5 + ((((float) (this.pos[0] - this.posAreaDummy[0])) + f) - f3) - ((float) this.imgNotAllowed.getWidth()));
         this.layoutDummy.setY(f6 + (((float) (this.pos[1] - this.posAreaDummy[1])) + f2) - f4);
     }
-    
-    
-    
-    
-    
-    
 
     public void setAllow(boolean z) {
         this.mAllow = z;
@@ -167,6 +177,12 @@ public class ViewDummy extends RelativeLayout {
     }
 
     public void setDummyVisibility(int i) {
+        if (i == 0 || i == VISIBLE) {
+            setVisibility(VISIBLE);
+            bringToFront();
+        } else {
+            setVisibility(GONE);
+        }
         this.layoutDummy.setVisibility(i);
     }
 }

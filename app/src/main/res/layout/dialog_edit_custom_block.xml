@@ -103,9 +103,9 @@
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_block_code"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:inputType="textMultiLine"
-                android:minLines="2" />
+                android:minLines="4" />
         </com.google.android.material.textfield.TextInputLayout>
 
     </LinearLayout>

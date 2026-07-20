@@ -38,26 +38,12 @@ public class CustomStorageUtil {
     }
 
     public static boolean isStorageOutdatedOrMissing(Context context, String filename, File storageFile) {
-        if (context == null) return false;
         if (storageFile == null) storageFile = new File(getCustomDir(context), filename);
-        if (!storageFile.exists() || storageFile.length() == 0) return true;
-
-        String assetName = filename;
-        if ("params.json".equals(filename)) assetName = "param.json";
-
-        try (InputStream is = context.getAssets().open(assetName)) {
-            long assetSize = is.available();
-            if (storageFile.length() < assetSize) {
-                return true;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return false;
+        return !storageFile.exists() || storageFile.length() == 0;
     }
 
     public static boolean needsSync(Context context) {
-        String[] files = new String[]{"blocks.json", "categories.json", "params.json", "widgets.json"};
+        String[] files = new String[]{"blocks.json", "categories.json", "param.json", "widgets.json"};
         for (String file : files) {
             if (isStorageOutdatedOrMissing(context, file, null)) {
                 return true;
@@ -68,7 +54,7 @@ public class CustomStorageUtil {
 
     public static void syncAssetsToStorage(Context context, OnSyncProgressListener listener) {
         Executors.newSingleThreadExecutor().execute(() -> {
-            String[] files = new String[]{"blocks.json", "categories.json", "params.json", "widgets.json"};
+            String[] files = new String[]{"blocks.json", "categories.json", "param.json", "widgets.json"};
             int total = files.length;
             for (int i = 0; i < total; i++) {
                 String filename = files[i];
@@ -76,9 +62,8 @@ public class CustomStorageUtil {
                     listener.onProgress("Processing " + filename + "...", (int) (((i + 0.2f) / total) * 100));
                 }
                 File destFile = new File(getCustomDir(context), filename);
-                if (isStorageOutdatedOrMissing(context, filename, destFile)) {
-                    copyAssetToStorage(context, filename, destFile);
-                }
+                // Always force-copy: ensures file is never 0 bytes from a previous failed write
+                copyAssetToStorage(context, filename, destFile);
                 if (listener != null) {
                     listener.onProgress("Synced " + filename, (int) (((i + 1.0f) / total) * 100));
                 }
@@ -92,18 +77,19 @@ public class CustomStorageUtil {
     public static void copyAssetToStorage(Context context, String filename, File destFile) {
         if (context == null || destFile == null) return;
         try {
-            String assetName = filename;
-            if ("params.json".equals(filename)) assetName = "param.json";
+            // Ensure parent directory exists
+            File parent = destFile.getParentFile();
+            if (parent != null && !parent.exists()) parent.mkdirs();
 
-            try (InputStream is = context.getAssets().open(assetName)) {
-                byte[] buf = new byte[is.available()];
-                int read = is.read(buf);
-                if (read > 0) {
-                    String content = new String(buf, 0, read, "UTF-8");
-                    File parent = destFile.getParentFile();
-                    if (parent != null && !parent.exists()) parent.mkdirs();
-                    FileUtil.writeFile(destFile.getAbsolutePath(), content);
+            // Read from assets and write bytes directly using FileOutputStream
+            try (InputStream is = context.getAssets().open(filename);
+                 java.io.FileOutputStream fos = new java.io.FileOutputStream(destFile)) {
+                byte[] buffer = new byte[8192];
+                int n;
+                while ((n = is.read(buffer)) != -1) {
+                    fos.write(buffer, 0, n);
                 }
+                fos.flush();
             }
         } catch (Exception e) {
             e.printStackTrace();

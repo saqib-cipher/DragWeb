@@ -4,11 +4,11 @@
     <item
         android:id="@+id/menu_import"
         android:title="Import"
-        android:icon="@android:drawable/ic_menu_add"
+        android:icon="@drawable/file_import"
         app:showAsAction="ifRoom" />
     <item
         android:id="@+id/menu_export"
         android:title="Export All"
-        android:icon="@android:drawable/ic_menu_share"
+        android:icon="@drawable/file_export"
         app:showAsAction="ifRoom" />
 </menu>

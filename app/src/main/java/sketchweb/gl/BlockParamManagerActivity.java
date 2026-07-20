@@ -38,18 +38,31 @@ public class BlockParamManagerActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_block_param_manager);
-        manager = new BlockParamTypeManager(this);
+
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        
         adapter = new ParamTypeAdapter();
         recyclerView.setAdapter(adapter);
 
         findViewById(R.id.backBtn).setOnClickListener(v -> finish());
-        
         ExtendedFloatingActionButton fab = findViewById(R.id.addFab);
         fab.setOnClickListener(v -> showAddTypeDialog());
 
+        // Ensure param.json exists in storage before loading manager
+        java.io.File paramFile = new java.io.File(CustomStorageUtil.getCustomDir(this), "param.json");
+        if (!paramFile.exists() || paramFile.length() == 0) {
+            try (java.io.InputStream is = getAssets().open("param.json");
+                 java.io.FileOutputStream fos = new java.io.FileOutputStream(paramFile)) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
+                fos.flush();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        manager = new BlockParamTypeManager(this);
         refreshList();
     }
 
@@ -63,9 +76,8 @@ public class BlockParamManagerActivity extends AppCompatActivity {
             .setTitle("Add Parameter Type")
             .setHint("Type name (e.g. position)")
             .showTextInput(name -> {
-                if (!name.isEmpty()) {
-                    manager.addOption(name, ""); // Initialize type
-                    manager.removeOption(name, ""); // Clean up placeholder
+                if (!name.trim().isEmpty()) {
+                    manager.setOptions(name.trim(), new ArrayList<>());
                     refreshList();
                 }
             });
@@ -76,7 +88,7 @@ public class BlockParamManagerActivity extends AppCompatActivity {
         
         RecyclerView rv = new RecyclerView(this);
         rv.setLayoutManager(new LinearLayoutManager(this));
-        OptionsAdapter optionsAdapter = new OptionsAdapter(options);
+        OptionsAdapter optionsAdapter = new OptionsAdapter(typeName, options);
         rv.setAdapter(optionsAdapter);
 
         new MaterialAlertDialogBuilder(this)
@@ -95,9 +107,10 @@ public class BlockParamManagerActivity extends AppCompatActivity {
             .setTitle("Add Option to " + typeName)
             .setHint("Option value (e.g. relative)")
             .showTextInput(val -> {
-                if (!val.isEmpty()) {
-                    manager.addOption(typeName, val);
-                    showEditOptionsDialog(typeName); // Re-open edit dialog
+                if (!val.trim().isEmpty()) {
+                    manager.addOption(typeName, val.trim());
+                    refreshList();
+                    showEditOptionsDialog(typeName);
                 }
             });
     }
@@ -154,9 +167,11 @@ public class BlockParamManagerActivity extends AppCompatActivity {
     }
 
     private class OptionsAdapter extends RecyclerView.Adapter<OptionsAdapter.VH> {
+        private String typeName;
         private List<String> options;
 
-        OptionsAdapter(List<String> options) {
+        OptionsAdapter(String typeName, List<String> options) {
+            this.typeName = typeName;
             this.options = options;
         }
 
@@ -178,11 +193,20 @@ public class BlockParamManagerActivity extends AppCompatActivity {
                     .setTitle("Edit Option")
                     .setInitialValue(opt)
                     .showTextInput(newVal -> {
-                        if (!newVal.isEmpty()) {
-                            options.set(position, newVal);
+                        if (!newVal.trim().isEmpty()) {
+                            options.set(position, newVal.trim());
+                            manager.setOptions(typeName, options);
                             notifyDataSetChanged();
+                            refreshList();
                         }
                     });
+            });
+            holder.itemView.setOnLongClickListener(v -> {
+                options.remove(position);
+                manager.setOptions(typeName, options);
+                notifyDataSetChanged();
+                refreshList();
+                return true;
             });
         }
 

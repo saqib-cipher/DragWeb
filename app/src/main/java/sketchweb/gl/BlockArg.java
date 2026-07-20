@@ -231,6 +231,112 @@ public class BlockArg extends BlockBase {
 
     public void showPopup() {
         if (this.isEditable) {
+            String menuName = this.mMenuName != null ? this.mMenuName.trim() : "";
+            if (menuName.startsWith("%m.")) menuName = menuName.substring(3);
+            else if (menuName.startsWith("%s.")) menuName = menuName.substring(3);
+            else if (menuName.startsWith("m.")) menuName = menuName.substring(2);
+            else if (menuName.startsWith("s.")) menuName = menuName.substring(2);
+
+            if ("selector".equalsIgnoreCase(menuName)) {
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Pick selector")
+                      .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
+                java.util.List<String> ids = ProjectAssetManager.getInstance().getIds();
+                java.util.List<String> classes = ProjectAssetManager.getInstance().getClasses();
+                java.util.List<String> tags = ProjectAssetManager.getInstance().getTags();
+                if (ids.isEmpty() && classes.isEmpty()) {
+                    DesignDataManager.WidgetSelectorData data = DesignDataManager.getWidgetSelectorData(this.getContext(), LogicBlockActivity.projectId, LogicBlockActivity.pageName);
+                    ids = data.ids;
+                    classes = data.classes;
+                    tags = data.tags;
+                }
+                dialog.showSelectorInput(ids, classes, tags, new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        setArgValue(value);
+                        if (parentBlock != null) {
+                            parentBlock.recalcWidthToParent();
+                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        }
+                    }
+                });
+                return;
+            }
+
+            if ("color".equalsIgnoreCase(menuName)) {
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Select Color")
+                      .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
+                dialog.showColorInput(new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        setArgValue(value);
+                        if (parentBlock != null) {
+                            parentBlock.recalcWidthToParent();
+                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        }
+                    }
+                });
+                return;
+            }
+
+            if ("unit".equalsIgnoreCase(menuName)) {
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Select Unit")
+                      .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
+                dialog.showUnitInput(new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        setArgValue(value);
+                        if (parentBlock != null) {
+                            parentBlock.recalcWidthToParent();
+                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        }
+                    }
+                });
+                return;
+            }
+
+            BlockParamTypeManager pManager = new BlockParamTypeManager(this.getContext());
+            final ArrayList<String> options = new ArrayList<>();
+            if (pManager.hasType(menuName)) {
+                options.addAll(pManager.getOptions(menuName));
+            } else if (menuName.equals("varInt")) {
+                options.addAll(DesignDataManager.getVariablesByType(LogicBlockActivity.filename, 1));
+            } else if (menuName.equals("varBool")) {
+                options.addAll(DesignDataManager.getVariablesByType(LogicBlockActivity.filename, 0));
+            } else if (menuName.equals("varStr")) {
+                options.addAll(DesignDataManager.getVariablesByType(LogicBlockActivity.filename, 2));
+            } else if (menuName.equals("listInt")) {
+                options.addAll(DesignDataManager.getListsByType(LogicBlockActivity.filename, 1));
+            } else if (menuName.equals("listStr")) {
+                options.addAll(DesignDataManager.getListsByType(LogicBlockActivity.filename, 2));
+            } else if (menuName.equals("list")) {
+                options.addAll(DesignDataManager.getAllLists(LogicBlockActivity.filename));
+            }
+
+            if (!options.isEmpty() || this.mType.equals("m")) {
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Select " + (menuName.isEmpty() ? "Value" : menuName))
+                      .setOptions(options.toArray(new String[0]))
+                      .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
+                dialog.showChoiceInput(new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        setArgValue(value);
+                        if (parentBlock != null) {
+                            parentBlock.recalcWidthToParent();
+                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        }
+                    }
+                });
+                return;
+            }
+
             if (this.mType.equals("b") || this.mType.equals("d") || this.mType.equals("s")) {
                 boolean isNumber = this.mType.equals("d");
                 UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
@@ -248,105 +354,6 @@ public class BlockArg extends BlockBase {
                     }
                 });
                 return;
-            }
-
-            if (this.mType.equals("m")) {
-                if (this.mMenuName.equals("selector")) {
-                    UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
-                    dialog.setTitle("Pick selector")
-                          .setInitialValue(this.argValue.toString());
-                    java.util.List<String> ids = ProjectAssetManager.getInstance().getIds();
-                    java.util.List<String> classes = ProjectAssetManager.getInstance().getClasses();
-                    java.util.List<String> tags = ProjectAssetManager.getInstance().getTags();
-                    if (ids.isEmpty() && classes.isEmpty()) {
-                        DesignDataManager.WidgetSelectorData data = DesignDataManager.getWidgetSelectorData(this.getContext(), LogicBlockActivity.projectId, LogicBlockActivity.pageName);
-                        ids = data.ids;
-                        classes = data.classes;
-                        tags = data.tags;
-                    }
-                    dialog.showSelectorInput(ids, classes, tags, new UniversalM3Dialog.OnText() {
-                        @Override
-                        public void onText(String value) {
-                            setArgValue(value);
-                            if (parentBlock != null) {
-                                parentBlock.recalcWidthToParent();
-                                if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                                if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                            }
-                        }
-                    });
-                    return;
-                }
-
-                if (this.mMenuName.equals("color")) {
-                    UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
-                    dialog.setTitle("Select Color")
-                          .setInitialValue(this.argValue.toString());
-                    dialog.showColorInput(new UniversalM3Dialog.OnText() {
-                        @Override
-                        public void onText(String value) {
-                            setArgValue(value);
-                            if (parentBlock != null) {
-                                parentBlock.recalcWidthToParent();
-                                if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                                if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                            }
-                        }
-                    });
-                    return;
-                }
-
-                if (this.mMenuName.equals("unit")) {
-                    UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
-                    dialog.setTitle("Select Unit")
-                          .setInitialValue(this.argValue.toString());
-                    dialog.showUnitInput(new UniversalM3Dialog.OnText() {
-                        @Override
-                        public void onText(String value) {
-                            setArgValue(value);
-                            if (parentBlock != null) {
-                                parentBlock.recalcWidthToParent();
-                                if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                                if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                            }
-                        }
-                    });
-                    return;
-                }
-
-                final ArrayList<String> options = new ArrayList<>();
-                BlockParamTypeManager pManager = new BlockParamTypeManager(this.getContext());
-                if (pManager.getAllParamTypes().containsKey(this.mMenuName) || this.mMenuName.equals("selector") || this.mMenuName.equals("unit")) {
-                    options.addAll(pManager.getOptions(this.mMenuName));
-                } else if (this.mMenuName.equals("varInt")) {
-                    options.addAll(DesignDataManager.getVariablesByType(LogicBlockActivity.filename, 1));
-                } else if (this.mMenuName.equals("varBool")) {
-                    options.addAll(DesignDataManager.getVariablesByType(LogicBlockActivity.filename, 0));
-                } else if (this.mMenuName.equals("varStr")) {
-                    options.addAll(DesignDataManager.getVariablesByType(LogicBlockActivity.filename, 2));
-                } else if (this.mMenuName.equals("listInt")) {
-                    options.addAll(DesignDataManager.getListsByType(LogicBlockActivity.filename, 1));
-                } else if (this.mMenuName.equals("listStr")) {
-                    options.addAll(DesignDataManager.getListsByType(LogicBlockActivity.filename, 2));
-                } else if (this.mMenuName.equals("list")) {
-                    options.addAll(DesignDataManager.getAllLists(LogicBlockActivity.filename));
-                }
-
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
-                dialog.setTitle("Select " + this.mMenuName)
-                      .setOptions(options.toArray(new String[0]))
-                      .setInitialValue(this.argValue.toString());
-                dialog.showChoiceInput(new UniversalM3Dialog.OnText() {
-                    @Override
-                    public void onText(String value) {
-                        setArgValue(value);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
-                    }
-                });
             }
         }
     }
