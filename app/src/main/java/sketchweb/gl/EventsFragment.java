@@ -179,15 +179,23 @@ public class EventsFragment extends Fragment {
     }
 
     private int getBlockCountForCss(String cssPath) {
-        File dir = new File(new File(getContext().getFilesDir(), "projects"), "logic");
-        String safeName = cssPath.replace("/", "_").replace(".", "_");
-        File logicFile = new File(dir, projectId + "_" + safeName + ".logic");
+        if (getContext() == null) return 0;
+        String cleanName = DesignDataManager.getCleanPageName(cssPath);
+        File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+            ".dragweb/projects/" + projectId + "/" + cleanName + "_logic.json");
         if (logicFile.exists()) {
             try {
                 String json = FileUtil.readFile(logicFile.getAbsolutePath());
-                List<Map<String, Object>> parsed = new Gson().fromJson(json,
-                    new TypeToken<List<Map<String, Object>>>(){}.getType());
-                return parsed != null ? parsed.size() : 0;
+                if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
+                    DesignDataManager.PageLogicData data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
+                    if (data != null && data.blocks != null) {
+                        int count = 0;
+                        for (java.util.ArrayList<?> list : data.blocks.values()) {
+                            count += list.size();
+                        }
+                        return count;
+                    }
+                }
             } catch (Exception e) {
                 return 0;
             }
@@ -328,7 +336,7 @@ public class EventsFragment extends Fragment {
                 Intent intent = new Intent(getContext(), LogicBlockActivity.class);
                 intent.putExtra("project_id", projectId);
                 intent.putExtra("page_name", cssPath);
-                intent.putExtra("id", displayName);
+                intent.putExtra("id", "onCreate");
                 intent.putExtra("event", "initializeLogic");
                 intent.putExtra("filename", cssPath);
                 intent.putExtra("event_text", "CSS Initialization");

@@ -113,8 +113,9 @@ public class ExportManager {
         // Load default global CSS stylesheet blocks and append
         File projectsDir = new File(context.getFilesDir(), "projects");
         File logicSubDir = new File(projectsDir, "logic");
-        String globalCssSafeName = "css/style.css".replace("/", "_").replace(".", "_");
-        File globalCssLogicFile = new File(logicSubDir, projectId + "_" + globalCssSafeName + ".logic");
+        String globalCssClean = DesignDataManager.getCleanPageName("css/style.css");
+        File globalCssLogicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+            ".dragweb/projects/" + projectId + "/" + globalCssClean + "_logic.json");
         if (globalCssLogicFile.exists()) {
             LogicBlockManager globalCssLogic = new LogicBlockManager(context);
             try {
@@ -155,8 +156,9 @@ public class ExportManager {
         accumulatedJsBuffer.append("var DW = window.DW = window.DW || { state: {}, components: {} };\n\n");
 
         // Load default global JS stylesheet/script blocks and append
-        String globalJsSafeName = "js/script.js".replace("/", "_").replace(".", "_");
-        File globalJsLogicFile = new File(logicSubDir, projectId + "_" + globalJsSafeName + ".logic");
+        String globalJsClean = DesignDataManager.getCleanPageName("js/script.js");
+        File globalJsLogicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+            ".dragweb/projects/" + projectId + "/" + globalJsClean + "_logic.json");
         if (globalJsLogicFile.exists()) {
             LogicBlockManager globalJsLogic = new LogicBlockManager(context);
             try {
@@ -189,8 +191,9 @@ public class ExportManager {
                 // Loaded page from json
                 String pageJson = pageManager.loadPageLayout(pageName);
                 pageLogic = new LogicBlockManager(context);
-                File dir = new File(new File(context.getFilesDir(), "projects"), "logic");
-                File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
+                String cleanName = DesignDataManager.getCleanPageName(pageName);
+                File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+                    ".dragweb/projects/" + projectId + "/" + cleanName + "_logic.json");
                 if (logicFile.exists()) {
                     String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
                     pageLogic.fromJson(logicJson);

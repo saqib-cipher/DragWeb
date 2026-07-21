@@ -161,19 +161,10 @@ public class MainEditorFragment extends Fragment {
 			new ActivityResultContracts.StartActivityForResult(),
 			result -> {
 				if (result.getResultCode() == Activity.RESULT_OK) {
-					// Reload logic blocks from file after returning
-					if (logicBlockManager != null) {
-						File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
-						String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-						File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
-						if (logicFile.exists()) {
-							String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-							logicBlockManager.fromJson(logicJson);
-						} else {
-							logicBlockManager.fromJson("[]");
-						}
-						refreshLogicBlocksUI();
-					}
+					// Reload logic from .dragweb after returning from LogicBlockActivity
+					String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+					DesignDataManager.initialize(requireContext(), projectId, pageName);
+					refreshLogicBlocksUI();
 				}
 			}
 		);
@@ -326,14 +317,7 @@ public class MainEditorFragment extends Fragment {
 								pageManager.setCurrentPage("index");
 								loadCurrentPageLayout();
 								
-								File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
-								File logicFile = new File(dir, projectId + "_index.logic");
-								if (logicFile.exists()) {
-									String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-									logicBlockManager.fromJson(logicJson);
-								} else {
-									logicBlockManager.fromJson("[]");
-								}
+								DesignDataManager.initialize(requireContext(), projectId, "index");
 								refreshLogicBlocksUI();
 							}
 						}
@@ -349,14 +333,7 @@ public class MainEditorFragment extends Fragment {
 								pageManager.setCurrentPage(newName);
 								loadCurrentPageLayout();
 								
-								File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
-								File logicFile = new File(dir, projectId + "_" + newName + ".logic");
-								if (logicFile.exists()) {
-									String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-									logicBlockManager.fromJson(logicJson);
-								} else {
-									logicBlockManager.fromJson("[]");
-								}
+								DesignDataManager.initialize(requireContext(), projectId, newName);
 								refreshLogicBlocksUI();
 							}
 						}
@@ -653,26 +630,9 @@ public class MainEditorFragment extends Fragment {
 		customBlockManager = new ManageBlocksWidgets(requireContext());
 		pageManager = new PageManager(requireContext(), projectId);
 
-		// Load logic blocks for the initial page
-		File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
+		// Initialize DesignDataManager for initial page
 		String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-		File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
-		if (logicFile.exists()) {
-			String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-			logicBlockManager.fromJson(logicJson);
-		} else {
-			File oldLogicFile = new File(dir.getParentFile(), projectId + "_" + pageName + ".logic");
-			if (oldLogicFile.exists()) {
-				String logicJson = FileUtil.readFile(oldLogicFile.getAbsolutePath());
-				logicBlockManager.fromJson(logicJson);
-			} else {
-				File veryOldLogicFile = new File(dir.getParentFile(), projectId + ".logic");
-				if (veryOldLogicFile.exists()) {
-					String logicJson = FileUtil.readFile(veryOldLogicFile.getAbsolutePath());
-					logicBlockManager.fromJson(logicJson);
-				}
-			}
-		}
+		DesignDataManager.initialize(requireContext(), projectId, pageName);
 
 		// Undo/Redo
 		undoRedoManager = new UndoRedoManager();
@@ -1094,22 +1054,13 @@ public class MainEditorFragment extends Fragment {
 
 		// Switch to new page
 		pageManager.setCurrentPage(selectedPage);
+		DesignDataManager.initialize(requireContext(), projectId, selectedPage);
 
 		// Load the new page layout
 		loadCurrentPageLayout();
 
-		// Load logic blocks for new page
-		if (logicBlockManager != null) {
-			File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
-			File logicFile = new File(dir, projectId + "_" + selectedPage + ".logic");
-			if (logicFile.exists()) {
-				String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-				logicBlockManager.fromJson(logicJson);
-			} else {
-				logicBlockManager.fromJson("[]"); // clear for new page
-			}
-			refreshLogicBlocksUI();
-		}
+		// Logic blocks are loaded by DesignDataManager.initialize above
+		refreshLogicBlocksUI();
 
 		saveUndoState();
 		refreshHierarchy();
@@ -1144,14 +1095,7 @@ public class MainEditorFragment extends Fragment {
 				if (pageName.equals(pageManager.getCurrentPage())) {
 					pageManager.setCurrentPage("index");
 					loadCurrentPageLayout();
-					File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
-					File logicFile = new File(dir, projectId + "_index.logic");
-					if (logicFile.exists()) {
-						String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-						logicBlockManager.fromJson(logicJson);
-					} else {
-						logicBlockManager.fromJson("[]");
-					}
+					DesignDataManager.initialize(requireContext(), projectId, "index");
 					refreshLogicBlocksUI();
 				}
 				selectorDialog.dismiss();
@@ -1579,15 +1523,22 @@ public class MainEditorFragment extends Fragment {
 
 	private int getBlockCountForCss(String cssPath) {
 		if (getContext() == null) return 0;
-		File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
-		String safeName = cssPath.replace("/", "_").replace(".", "_");
-		File logicFile = new File(dir, projectId + "_" + safeName + ".logic");
+		String cleanName = DesignDataManager.getCleanPageName(cssPath);
+		File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+			".dragweb/projects/" + projectId + "/" + cleanName + "_logic.json");
 		if (logicFile.exists()) {
 			try {
 				String json = FileUtil.readFile(logicFile.getAbsolutePath());
-				List<Map<String, Object>> parsed = new Gson().fromJson(json,
-					new TypeToken<List<Map<String, Object>>>(){}.getType());
-				return parsed != null ? parsed.size() : 0;
+				if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
+					DesignDataManager.PageLogicData data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
+					if (data != null && data.blocks != null) {
+						int count = 0;
+						for (java.util.ArrayList<?> list : data.blocks.values()) {
+							count += list.size();
+						}
+						return count;
+					}
+				}
 			} catch (Exception e) {
 				return 0;
 			}
@@ -1880,12 +1831,12 @@ public class MainEditorFragment extends Fragment {
 					pageManager.addPage(pageName);
 					pageManager.savePageLayout(pageName, widgetTreeJson);
 
-					// Save logic blocks for the new page
+					// Save logic blocks for the imported page to .dragweb
 					if (result.logicBlocks != null && !result.logicBlocks.isEmpty()) {
-						File logicDir = new File(dir, "logic");
-						if (!logicDir.exists()) logicDir.mkdirs();
-						File logicFile = new File(logicDir, projectId + "_" + pageName + ".logic");
-						FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(result.logicBlocks));
+						String logicJson = new Gson().toJson(result.logicBlocks);
+						File extDir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+						if (!extDir.exists()) extDir.mkdirs();
+						FileUtil.writeFile(new File(extDir, pageName + "_logic.json").getAbsolutePath(), logicJson);
 					}
 				} else {
 					// Standard empty page
@@ -1894,22 +1845,11 @@ public class MainEditorFragment extends Fragment {
 
 				// Switch to new page
 				pageManager.setCurrentPage(pageName);
+				DesignDataManager.initialize(requireContext(), projectId, pageName);
 
-				// Load current page layout (this will rebuild layout from json)
+				// Load current page layout
 				loadCurrentPageLayout();
-
-				// Load logic blocks for new page
-				if (logicBlockManager != null) {
-					File dir = new File(new File(requireContext().getFilesDir(), "projects"), "logic");
-					File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
-					if (logicFile.exists()) {
-						String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-						logicBlockManager.fromJson(logicJson);
-					} else {
-						logicBlockManager.fromJson("[]");
-					}
-					refreshLogicBlocksUI();
-				}
+				refreshLogicBlocksUI();
 
 				saveUndoState();
 				refreshHierarchy();
@@ -2785,27 +2725,25 @@ public class MainEditorFragment extends Fragment {
 		if (progressSave != null) progressSave.setVisibility(View.VISIBLE);
 		if (button4 != null) button4.setVisibility(View.GONE);
 
-		new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-			performSaveWork();
+		performSaveWork();
 
-			if (progressSave != null) progressSave.setVisibility(View.GONE);
-			if (button4 != null) {
-				button4.setVisibility(View.VISIBLE);
+		if (progressSave != null) progressSave.setVisibility(View.GONE);
+		if (button4 != null) {
+			button4.setVisibility(View.VISIBLE);
+			if (button4 instanceof com.google.android.material.button.MaterialButton) {
+				((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.rounded_check_24);
+			}
+
+			new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
 				if (button4 instanceof com.google.android.material.button.MaterialButton) {
-					((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.rounded_check_24);
+					((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.device_floppy_act);
 				}
+			}, 1500);
+		}
 
-				new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-					if (button4 instanceof com.google.android.material.button.MaterialButton) {
-						((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.device_floppy_act);
-					}
-				}, 1500);
-			}
-
-			if (onComplete != null) {
-				onComplete.run();
-			}
-		}, 150);
+		if (onComplete != null) {
+			onComplete.run();
+		}
 	}
 
 	private void performSaveWork() {
@@ -2823,20 +2761,9 @@ public class MainEditorFragment extends Fragment {
 		File themeFile = new File(dir, projectId + ".theme");
 		FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
 
-		File logicDir = new File(dir, "logic");
-		if (!logicDir.exists()) logicDir.mkdirs();
+		// Save current page logic blocks to .dragweb
 		String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-		File logicFile = new File(logicDir, projectId + "_" + currentPageName + ".logic");
-		FileUtil.writeFile(logicFile.getAbsolutePath(), logicBlockManager.toJson());
-
-		// Save logic blocks for all pages to ensure nothing is lost
-		if (pageManager != null) {
-			for (String page : pageManager.getPages()) {
-				if (!page.equals(currentPageName)) {
-					// Other pages' logic is already on disk, no need to re-save
-				}
-			}
-		}
+		DesignDataManager.saveSavedLogic(requireContext(), projectId, currentPageName);
 
 		saveProjectToExternal();
 
@@ -2859,29 +2786,10 @@ public class MainEditorFragment extends Fragment {
 			File extDir = new File(basePath);
 			if (!extDir.exists()) extDir.mkdirs();
 
-			File internalDir = new File(requireContext().getFilesDir(), "projects");
-			File layoutFile = new File(internalDir, projectId + ".json");
-			if (layoutFile.exists()) {
-				String json = FileUtil.readFile(layoutFile.getAbsolutePath());
-				FileUtil.writeFile(new File(extDir, "layout.json").getAbsolutePath(), json);
-			}
-
 			// Save theme
 			FileUtil.writeFile(new File(extDir, "theme.json").getAbsolutePath(), themeManager.toJson());
 
-			// Save logic blocks for all pages
-			if (pageManager != null) {
-				for (String page : pageManager.getPages()) {
-					File logicFile = new File(new File(internalDir, "logic"), projectId + "_" + page + ".logic");
-					if (logicFile.exists()) {
-						String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-						FileUtil.writeFile(new File(extDir, page + "_logic.json").getAbsolutePath(), logicJson);
-					}
-				}
-			} else {
-				String currentPageName = "index";
-				FileUtil.writeFile(new File(extDir, currentPageName + "_logic.json").getAbsolutePath(), logicBlockManager.toJson());
-			}
+			// Logic blocks are already saved to .dragweb by DesignDataManager.saveSavedLogic
 		} catch (Exception e) {
 			Log.w("MainActivity", "Could not save to external: " + e.getMessage());
 		}
@@ -2896,23 +2804,25 @@ public class MainEditorFragment extends Fragment {
 		String pageJson = pageManager.loadPageLayout(pageManager.getCurrentPage());
 		boolean loadedFromPage = false;
 
-		if (pageJson != null && !"[]".equals(pageJson.trim())) {
+		if (pageJson != null) {
 			screen.removeAllViews();
-			try {
-				List<Map<String, Object>> widgetTree = new Gson().fromJson(pageJson,
-					new TypeToken<List<Map<String, Object>>>(){}.getType());
-				if (widgetTree != null && !widgetTree.isEmpty()) {
-					for (Map<String, Object> nodeMap : widgetTree) {
-						rebuildView(nodeMap, screen);
+			if (!"[]".equals(pageJson.trim())) {
+				try {
+					List<Map<String, Object>> widgetTree = new Gson().fromJson(pageJson,
+						new TypeToken<List<Map<String, Object>>>(){}.getType());
+					if (widgetTree != null && !widgetTree.isEmpty()) {
+						for (Map<String, Object> nodeMap : widgetTree) {
+							rebuildView(nodeMap, screen);
+						}
 					}
-					loadedFromPage = true;
+				} catch (Exception e) {
+					Log.w("MainActivity", "Could not load page layout: " + e.getMessage());
 				}
-			} catch (Exception e) {
-				Log.w("MainActivity", "Could not load page layout: " + e.getMessage());
 			}
+			loadedFromPage = true;
 		}
 
-		// Fall back to legacy project data if page data is empty
+		// Fall back to legacy project data if page layout file does not exist
 		if (!loadedFromPage) {
 			projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager, null);
 		}
@@ -2929,26 +2839,9 @@ public class MainEditorFragment extends Fragment {
 			themeManager.fromJson(themeJson);
 		}
 
-		File logicDir = new File(dir, "logic");
+		// Logic blocks are loaded by DesignDataManager.initialize (called earlier)
 		String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-		File logicFile = new File(logicDir, projectId + "_" + currentPageName + ".logic");
-		if (logicFile.exists()) {
-			String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-			logicBlockManager.fromJson(logicJson);
-		} else {
-			// Fallback for older projects
-			File oldLogicFile = new File(dir, projectId + "_" + currentPageName + ".logic");
-			if (oldLogicFile.exists()) {
-				String logicJson = FileUtil.readFile(oldLogicFile.getAbsolutePath());
-				logicBlockManager.fromJson(logicJson);
-			} else {
-				File veryOldLogicFile = new File(dir, projectId + ".logic");
-				if (veryOldLogicFile.exists()) {
-					String logicJson = FileUtil.readFile(veryOldLogicFile.getAbsolutePath());
-					logicBlockManager.fromJson(logicJson);
-				}
-			}
-		}
+		DesignDataManager.initialize(requireContext(), projectId, currentPageName);
 
 		// Save initial page layout so it's cached
 		if (pageManager != null && screen.getChildCount() > 0) {

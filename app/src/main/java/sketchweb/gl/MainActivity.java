@@ -43,6 +43,8 @@ public class MainActivity extends AppCompatActivity {
 			projectId = projectName;
 		}
 
+		DesignDataManager.initialize(this, projectId, "index");
+
 		// Initialize Toolbar
 		MaterialToolbar toolbar = findViewById(R.id.toolbar);
 		if (toolbar != null) {

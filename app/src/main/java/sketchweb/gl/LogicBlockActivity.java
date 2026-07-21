@@ -468,7 +468,14 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		
 		private void loadLogic() {
 				Map hashMap = new HashMap();
-				ArrayList blocks = DesignDataManager.getBlocks(filename, this.id + LOGIC_NAME_SEPARATOR + this.eventName);
+				DesignDataManager.initialize(this.context, this.projectId, this.pageName);
+				String eventKey = this.id + LOGIC_NAME_SEPARATOR + this.eventName;
+				ArrayList blocks = DesignDataManager.getBlocks(filename, eventKey);
+				if (blocks == null || blocks.isEmpty()) {
+						if ("initializeLogic".equals(this.eventName)) {
+								blocks = DesignDataManager.getBlocks(filename, "onCreate_initializeLogic");
+						}
+				}
 				if (blocks != null) {
 						Iterator it = blocks.iterator();
 						int i = 1;
@@ -1616,42 +1623,35 @@ startActivityForResult(intent, 209);
 		}
 		
 		private void saveAndFinish() {
-				try {
-						saveLogic();
-						DesignDataManager.saveSavedLogic(filename);
+			try {
+					saveLogic();
+					DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
+					DesignDataManager.saveSavedLogic(this.context, this.projectId, this.pageName);
 
-						if (this.projectId != null && !this.projectId.isEmpty() && this.pageName != null && !this.pageName.isEmpty()) {
-								java.io.File dir = new java.io.File(getFilesDir(), "projects/logic");
-								if (!dir.exists()) dir.mkdirs();
-								String safePageName = this.pageName.replace("/", "_").replace(".", "_");
-								java.io.File logicFile = new java.io.File(dir, this.projectId + "_" + safePageName + ".logic");
-								
-								String json = new com.google.gson.Gson().toJson(this.pane.getBlocks());
-								FileUtil.writeFile(logicFile.getAbsolutePath(), json);
+					if (this.projectId != null && !this.projectId.isEmpty() && this.pageName != null && !this.pageName.isEmpty()) {
+							if (this.pageName.endsWith(".css")) {
+									BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
+									String compiledCode = jsm.getSource(0, this.pane.getBlocks());
 
-								if (this.pageName.endsWith(".css")) {
-										BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
-										String compiledCode = jsm.getSource(0, this.pane.getBlocks());
+									java.io.File targetStyleFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
+											+ "/.dragweb/projects/" + this.projectId + "/assets/" + this.pageName);
+									targetStyleFile.getParentFile().mkdirs();
+									FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCode);
+							} else if (this.pageName.endsWith(".js")) {
+									BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
+									String compiledCode = jsm.getSource(0, this.pane.getBlocks());
 
-										java.io.File targetStyleFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
-												+ "/.dragweb/projects/" + this.projectId + "/assets/" + this.pageName);
-										targetStyleFile.getParentFile().mkdirs();
-										FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCode);
-								} else if (this.pageName.endsWith(".js")) {
-										BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
-										String compiledCode = jsm.getSource(0, this.pane.getBlocks());
-
-										java.io.File targetJsFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
-												+ "/.dragweb/projects/" + this.projectId + "/assets/" + this.pageName);
-										targetJsFile.getParentFile().mkdirs();
-										FileUtil.writeFile(targetJsFile.getAbsolutePath(), compiledCode);
-								}
-						}
-				} catch (Exception e) {
-						e.printStackTrace();
-				}
-				setResult(RESULT_OK);
-		}
+									java.io.File targetJsFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
+											+ "/.dragweb/projects/" + this.projectId + "/assets/" + this.pageName);
+									targetJsFile.getParentFile().mkdirs();
+									FileUtil.writeFile(targetJsFile.getAbsolutePath(), compiledCode);
+							}
+					}
+			} catch (Exception e) {
+					e.printStackTrace();
+			}
+			setResult(RESULT_OK);
+	}
 
 		public void onBackPressed() {
 				if (this.isPaletteOpened) {
@@ -1919,17 +1919,19 @@ return;
 				this.projectId = getIntent().getStringExtra("project_id");
 				this.pageName = getIntent().getStringExtra("page_name");
 
-				if (this.projectId != null && !this.projectId.isEmpty() && this.pageName != null && !this.pageName.isEmpty()) {
-						this.id = this.pageName;
+				this.id = getIntent().getStringExtra("id");
+				if (this.id == null || this.id.trim().isEmpty()) {
+						this.id = "onCreate";
+				}
+
+				this.eventName = getIntent().getStringExtra("event");
+				if (this.eventName == null || this.eventName.trim().isEmpty()) {
 						this.eventName = "initializeLogic";
-						filename = this.pageName;
-				} else {
-						this.id = getIntent().getStringExtra("id");
-						if (this.id == null) this.id = "onCreate";
-						this.eventName = getIntent().getStringExtra("event");
-						if (this.eventName == null) this.eventName = "initializeLogic";
-						filename = getIntent().getStringExtra("filename");
-						if (filename == null) filename = "index";
+				}
+
+				filename = getIntent().getStringExtra("filename");
+				if (filename == null || filename.trim().isEmpty()) {
+						filename = (this.pageName != null && !this.pageName.isEmpty()) ? this.pageName : "index";
 				}
 
 				setContentView(R.layout.logic_editor);
@@ -1948,33 +1950,9 @@ return;
 				
 				this.context = this.getApplicationContext();
 
-				if (!DesignDataManager.isInitialized) {
-						String initProjId = (this.projectId != null && !this.projectId.isEmpty()) ? this.projectId : "default_project";
-						DesignDataManager.initialize(this.context, initProjId);
-						DesignDataManager.loadSavedLogic();
-				}
-
-				if (this.projectId != null && !this.projectId.isEmpty() && this.pageName != null && !this.pageName.isEmpty()) {
-						try {
-								java.io.File dir = new java.io.File(getFilesDir(), "projects/logic");
-								String safePageName = this.pageName.replace("/", "_").replace(".", "_");
-								java.io.File logicFile = new java.io.File(dir, this.projectId + "_" + safePageName + ".logic");
-								if (logicFile.exists()) {
-										String json = FileUtil.readFile(logicFile.getAbsolutePath());
-										if (json != null && !json.isEmpty()) {
-												if (DesignDataManager.getBlocks(filename, this.id + LOGIC_NAME_SEPARATOR + this.eventName) == null) {
-														java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<BlockBean>>(){}.getType();
-														ArrayList<BlockBean> list = new com.google.gson.Gson().fromJson(json, type);
-														if (list != null) {
-																DesignDataManager.setBlocks(filename, this.id + LOGIC_NAME_SEPARATOR + this.eventName, list);
-														}
-												}
-										}
-								}
-						} catch (Exception e) {
-								e.printStackTrace();
-						}
-				}
+				String initProjId = (this.projectId != null && !this.projectId.isEmpty()) ? this.projectId : "default_project";
+				String initPageName = (this.pageName != null && !this.pageName.isEmpty()) ? this.pageName : "index";
+				DesignDataManager.initialize(this.context, initProjId, initPageName);
 
 				if (DesignDataManager.isInitialized) {
 						this.prefInstall = new SharedPreferenceUtil(this.context, "P1");

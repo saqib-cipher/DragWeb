@@ -295,30 +295,25 @@ public class ImportSiteActivity extends AppCompatActivity {
                 File projectFile = new File(dir, projectId + ".json");
                 FileUtil.writeFile(projectFile.getAbsolutePath(), new Gson().toJson(widgetTree));
                 if (htmlLogic != null && !htmlLogic.isEmpty()) {
-                    File logicFile = new File(logicDir, projectId + "_index.logic");
-                    FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(htmlLogic));
+                    File extLogicFile = new File(extPath, "index_logic.json");
+                    FileUtil.writeFile(extLogicFile.getAbsolutePath(), new Gson().toJson(htmlLogic));
                 }
             } else {
                 File projectFile = new File(dir, projectId + "_" + pName + ".json");
                 FileUtil.writeFile(projectFile.getAbsolutePath(), new Gson().toJson(widgetTree));
                 if (htmlLogic != null && !htmlLogic.isEmpty()) {
-                    File logicFile = new File(logicDir, projectId + "_" + pName + ".logic");
-                    FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(htmlLogic));
+                    String cleanPName = DesignDataManager.getCleanPageName(pName);
+                    File extLogicFile = new File(extPath, cleanPName + "_logic.json");
+                    FileUtil.writeFile(extLogicFile.getAbsolutePath(), new Gson().toJson(htmlLogic));
                 }
             }
 
-            // Save layout file to external pages dir as well
+            // Save layout file to external pages dir
             try {
                 File extPagesDir = new File(extPath, "pages");
                 extPagesDir.mkdirs();
                 File extPageLayoutFile = new File(extPagesDir, pName + ".json");
                 FileUtil.writeFile(extPageLayoutFile.getAbsolutePath(), new Gson().toJson(widgetTree));
-
-                // Also if index, copy layout to root layout.json
-                if (pName.equals("index")) {
-                    File layoutRootFile = new File(extPath, "layout.json");
-                    FileUtil.writeFile(layoutRootFile.getAbsolutePath(), new Gson().toJson(widgetTree));
-                }
             } catch (Exception e) {
                 Log.w("ImportSite", "Failed to write external layouts: " + e.getMessage());
             }
@@ -356,7 +351,8 @@ public class ImportSiteActivity extends AppCompatActivity {
             }
 
             if (!cssLogicBlocks.isEmpty()) {
-                File cssLogicFile = new File(logicDir, projectId + "_css_style_css.logic");
+                String cleanCssName = DesignDataManager.getCleanPageName("css/style.css");
+                File cssLogicFile = new File(extPath, cleanCssName + "_logic.json");
                 FileUtil.writeFile(cssLogicFile.getAbsolutePath(), new Gson().toJson(cssLogicBlocks));
 
                 // Compile and write compiled css output to external assets/css/style.css
@@ -410,7 +406,8 @@ public class ImportSiteActivity extends AppCompatActivity {
             }
 
             if (!jsLogicBlocks.isEmpty()) {
-                File jsLogicFile = new File(logicDir, projectId + "_js_script_js.logic");
+                String cleanJsName = DesignDataManager.getCleanPageName("js/script.js");
+                File jsLogicFile = new File(extPath, cleanJsName + "_logic.json");
                 FileUtil.writeFile(jsLogicFile.getAbsolutePath(), new Gson().toJson(jsLogicBlocks));
 
                 // Write script.js to external assets/js/script.js

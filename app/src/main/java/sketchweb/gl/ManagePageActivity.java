@@ -218,11 +218,10 @@ public class ManagePageActivity extends AppCompatActivity {
             
             pm.renamePage(pageName, cleanName);
 
-            // Rename logic file
-            File dir = new File(getFilesDir(), "projects/logic");
-            if (!dir.exists()) dir.mkdirs();
-            File oldLogic = new File(dir, projectId + "_" + pageName + ".logic");
-            File newLogic = new File(dir, projectId + "_" + cleanName + ".logic");
+            // Rename logic file in .dragweb
+            File extDir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+            File oldLogic = new File(extDir, pageName + "_logic.json");
+            File newLogic = new File(extDir, cleanName + "_logic.json");
             if (oldLogic.exists()) {
                 oldLogic.renameTo(newLogic);
             }
@@ -278,11 +277,10 @@ public class ManagePageActivity extends AppCompatActivity {
                     pm.setCurrentPage("index");
                 }
 
-                // Delete logic file
-                File dir = new File(getFilesDir(), "projects/logic");
-                File logicFile = new File(dir, projectId + "_" + pageName + ".logic");
-                if (logicFile.exists()) {
-                    logicFile.delete();
+                // Delete logic file from .dragweb
+                File extLogicFile = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId + "/" + pageName + "_logic.json");
+                if (extLogicFile.exists()) {
+                    extLogicFile.delete();
                 }
 
                 // Delete metadata file

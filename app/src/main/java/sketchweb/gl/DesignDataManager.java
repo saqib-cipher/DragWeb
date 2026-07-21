@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.Pair;
 
 import com.google.gson.Gson;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -27,28 +28,40 @@ public class DesignDataManager {
    // public static SharedPreferenceUtil prefView;
 
 
+    public static String getCleanPageName(String name) {
+        if (name == null || name.isEmpty()) return "index";
+        return name.replace(".html", "")
+                   .replace(".css", "")
+                   .replace(".js", "")
+                   .replace("/", "_")
+                   .replace("\\", "_");
+    }
+
     public static void addFunction(String str, String str2, String str3) {
+        String clean = getCleanPageName(str);
         Pair pair = new Pair(str2, str3);
-        if (!mapFunctions.containsKey(str)) {
-            mapFunctions.put(str, new ArrayList());
+        if (!mapFunctions.containsKey(clean)) {
+            mapFunctions.put(clean, new ArrayList());
         }
-        ((ArrayList) mapFunctions.get(str)).add(pair);
+        ((ArrayList) mapFunctions.get(clean)).add(pair);
     }
 
     public static void addList(String str, int i, String str2) {
+        String clean = getCleanPageName(str);
         Pair pair = new Pair(Integer.valueOf(i), str2);
-        if (!mapLists.containsKey(str)) {
-            mapLists.put(str, new ArrayList());
+        if (!mapLists.containsKey(clean)) {
+            mapLists.put(clean, new ArrayList());
         }
-        ((ArrayList) mapLists.get(str)).add(pair);
+        ((ArrayList) mapLists.get(clean)).add(pair);
     }
 
     public static void addVariable(String str, int i, String str2) {
+        String clean = getCleanPageName(str);
         Pair pair = new Pair(Integer.valueOf(i), str2);
-        if (!mapVariables.containsKey(str)) {
-            mapVariables.put(str, new ArrayList());
+        if (!mapVariables.containsKey(clean)) {
+            mapVariables.put(clean, new ArrayList());
         }
-        ((ArrayList) mapVariables.get(str)).add(pair);
+        ((ArrayList) mapVariables.get(clean)).add(pair);
     }
 /*
     public static void addView(String str, ViewBean viewBean) {
@@ -113,13 +126,15 @@ public class DesignDataManager {
     }
 
     public static Map<String, ArrayList<BlockBean>> getAllBlocks(String str) {
-        return !mapBlocks.containsKey(str) ? new HashMap() : (Map) mapBlocks.get(str);
+        String clean = getCleanPageName(str);
+        return !mapBlocks.containsKey(clean) ? new HashMap() : (Map) mapBlocks.get(clean);
     }
 
     public static ArrayList<String> getAllLists(String str) {
+        String clean = getCleanPageName(str);
         ArrayList<String> arrayList = new ArrayList();
-        if (mapLists.containsKey(str)) {
-            ArrayList arrayList2 = (ArrayList) mapLists.get(str);
+        if (mapLists.containsKey(clean)) {
+            ArrayList arrayList2 = (ArrayList) mapLists.get(clean);
             if (arrayList2 != null) {
                 Iterator it = arrayList2.iterator();
                 while (it.hasNext()) {
@@ -144,36 +159,29 @@ public class DesignDataManager {
         while (it.hasNext()) {
             arrayList.add(((Pair<String, String>) it.next()).first);
         }
-     /*   it = getAllViews(ProjectFileManager.getXmlNameFromJava(str)).iterator();
-        while (it.hasNext()) {
-            arrayList.add(SourceUtil.getVariableNameFromId(((ViewBean) it.next()).id));
-        }
-        it = getComponents(str).iterator();
-        while (it.hasNext()) {
-            arrayList.add(((ComponentBean) it.next()).componentId);
-        }*/
         return arrayList;
     }
 
-
-
     public static ArrayList<BlockBean> getBlocks(String str, String str2) {
-        if (!mapBlocks.containsKey(str)) {
+        String clean = getCleanPageName(str);
+        if (!mapBlocks.containsKey(clean)) {
             return new ArrayList();
         }
-        Map map = (Map) mapBlocks.get(str);
+        Map map = (Map) mapBlocks.get(clean);
         return map == null ? new ArrayList() : !map.containsKey(str2) ? new ArrayList() : (ArrayList) map.get(str2);
     }
 
     public static ArrayList<BlockBean> getClipboard(String str) {
-        return !mapCopiedBlocks.containsKey(str) ? new ArrayList() : (ArrayList) mapCopiedBlocks.get(str);
+        String clean = getCleanPageName(str);
+        return !mapCopiedBlocks.containsKey(clean) ? new ArrayList() : (ArrayList) mapCopiedBlocks.get(clean);
     }
 
     public static String getFunctionSpec(String str, String str2) {
-        if (!mapFunctions.containsKey(str)) {
+        String clean = getCleanPageName(str);
+        if (!mapFunctions.containsKey(clean)) {
             return "";
         }
-        ArrayList arrayList = (ArrayList) mapFunctions.get(str);
+        ArrayList arrayList = (ArrayList) mapFunctions.get(clean);
         if (arrayList == null) {
             return "";
         }
@@ -188,17 +196,20 @@ public class DesignDataManager {
     }
 
     public static ArrayList<Pair<String, String>> getFunctions(String str) {
-        return mapFunctions.containsKey(str) ? (ArrayList) mapFunctions.get(str) : new ArrayList();
+        String clean = getCleanPageName(str);
+        return mapFunctions.containsKey(clean) ? (ArrayList) mapFunctions.get(clean) : new ArrayList();
     }
 
     public static ArrayList<Pair<Integer, String>> getLists(String str) {
-        return mapLists.containsKey(str) ? (ArrayList) mapLists.get(str) : new ArrayList();
+        String clean = getCleanPageName(str);
+        return mapLists.containsKey(clean) ? (ArrayList) mapLists.get(clean) : new ArrayList();
     }
 
     public static ArrayList<String> getListsByType(String str, int i) {
+        String clean = getCleanPageName(str);
         ArrayList<String> arrayList = new ArrayList();
-        if (mapLists.containsKey(str)) {
-            ArrayList arrayList2 = (ArrayList) mapLists.get(str);
+        if (mapLists.containsKey(clean)) {
+            ArrayList arrayList2 = (ArrayList) mapLists.get(clean);
             if (arrayList2 != null) {
                 Iterator it = arrayList2.iterator();
                 while (it.hasNext()) {
@@ -212,18 +223,21 @@ public class DesignDataManager {
         return arrayList;
     }
 
-
     public static ArrayList<Pair<Integer, String>> getVariables(String str) {
-        return mapVariables.containsKey(str) ? (ArrayList) mapVariables.get(str) : new ArrayList();
+        String clean = getCleanPageName(str);
+        return mapVariables.containsKey(clean) ? (ArrayList) mapVariables.get(clean) : new ArrayList();
     }
 
     public static ArrayList<String> getVariablesByType(String str, int i) {
+        String clean = getCleanPageName(str);
         ArrayList<String> arrayList = new ArrayList();
-        Iterator it = ((ArrayList) mapVariables.get(str)).iterator();
-        while (it.hasNext()) {
-            Pair<Integer, String> pair = (Pair<Integer, String>) it.next();
-            if (((Integer) pair.first).intValue() == i) {
-                arrayList.add(pair.second);
+        if (mapVariables.containsKey(clean) && mapVariables.get(clean) != null) {
+            Iterator it = ((ArrayList) mapVariables.get(clean)).iterator();
+            while (it.hasNext()) {
+                Pair<Integer, String> pair = (Pair<Integer, String>) it.next();
+                if (((Integer) pair.first).intValue() == i) {
+                    arrayList.add(pair.second);
+                }
             }
         }
         return arrayList;
@@ -260,11 +274,20 @@ public class DesignDataManager {
         mapCopiedBlocks = new HashMap();
     }
 
-    public static void initialize(Context context, String str) {
+    public static String currentProjectId = "";
+    public static String currentPageName = "index";
+
+    public static void initialize(Context context, String projectId, String pageName) {
         initMaps();
-    //    prefView = new SharedPreferenceUtil(context, "P19");
-        prefLogic = new SharedPreferenceUtil(context, "P20");
+        currentProjectId = (projectId != null && !projectId.isEmpty()) ? projectId : "default_project";
+        currentPageName = (pageName != null && !pageName.isEmpty()) ? pageName : "index";
+        prefLogic = new SharedPreferenceUtil(context, "P20_" + currentProjectId);
         isInitialized = true;
+        loadSavedLogic(context, currentProjectId, currentPageName);
+    }
+
+    public static void initialize(Context context, String projectId) {
+        initialize(context, projectId, "index");
     }
 
     public static boolean isExistClipboard(String str) {
@@ -500,133 +523,116 @@ public class DesignDataManager {
         return false;
     }
 
-    public static void loadSavedLogic() {
-        HashMap<String, Object> readState = prefLogic.readState();
-        if (readState != null && readState.size() > 0) {
-            for (Entry entry : readState.entrySet()) {
-                String str = (String) entry.getKey();
-                int indexOf = str.indexOf("_");
-                if (indexOf >= 0) {
-                    String substring = str.substring(VAR_TYPE_BOOLEAN, indexOf);
-                    String substring2 = str.substring(indexOf + VAR_TYPE_INT);
-                    String str2 = (String) entry.getValue();
-                    if (str2 != null && str2.length() > 0) {
-                        int i = -1;
-                        switch (substring2.hashCode()) {
-                            case -1291329255:
-                                if (substring2.equals("events")) {
-                                    i = 4;
-                                    break;
-                                }
-                                break;
-                            case -447446250:
-                                if (substring2.equals("components")) {
-                                    i = 3;
-                                    break;
-                                }
-                                break;
-                            case 116519:
-                                if (substring2.equals("var")) {
-                                    i = VAR_TYPE_BOOLEAN;
-                                    break;
-                                }
-                                break;
-                            case 3154628:
-                                if (substring2.equals("func")) {
-                                    i = VAR_TYPE_STRING;
-                                    break;
-                                }
-                                break;
-                            case 3322014:
-                                if (substring2.equals("list")) {
-                                    i = VAR_TYPE_INT;
-                                    break;
-                                }
-                                break;
-                        }
-                        switch (i) {
-                            case VAR_TYPE_BOOLEAN /*0*/:
-                                mapVariables.put(substring, parseVariableString(str2));
-                                break;
-                            case VAR_TYPE_INT /*1*/:
-                                mapLists.put(substring, parseListString(str2));
-                                break;
-                            case VAR_TYPE_STRING /*2*/:
-                                mapFunctions.put(substring, parseFunctionString(str2));
-                                break;
-                            case 3:
-                           //     mapComponents.put(substring, parseJsonToComponentArray(str2));
-                                break;
-                            case 4:
-                      //          mapEvents.put(substring, parseJsonToEventArray(str2));
-                                break;
-                            default:
-                                if (!mapBlocks.containsKey(substring)) {
-                                    mapBlocks.put(substring, new HashMap());
-                                }
-                                ((HashMap) mapBlocks.get(substring)).put(substring2, parseJsonToBlockArray(str2));
-                                break;
-                        }
-                    }
-                }
+    public static class PageLogicData {
+        public Map<String, ArrayList<BlockBean>> blocks = new HashMap<>();
+        public ArrayList<Pair<Integer, String>> variables = new ArrayList<>();
+        public ArrayList<Pair<Integer, String>> lists = new ArrayList<>();
+        public ArrayList<Pair<String, String>> functions = new ArrayList<>();
+    }
+
+    public static void loadSavedLogic(Context context, String projectId, String pageName) {
+        if (projectId == null || projectId.isEmpty()) projectId = currentProjectId;
+        if (projectId == null || projectId.isEmpty()) projectId = "default_project";
+        if (pageName == null || pageName.isEmpty()) pageName = currentPageName;
+        if (pageName == null || pageName.isEmpty()) pageName = "index";
+        String cleanPage = getCleanPageName(pageName);
+
+        // Single source of truth: .dragweb/projects/<projectId>/<page>_logic.json
+        File extLogicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+            ".dragweb/projects/" + projectId + "/" + cleanPage + "_logic.json");
+
+        String json = null;
+        if (extLogicFile.exists()) {
+            json = FileUtil.readFile(extLogicFile.getAbsolutePath());
+        }
+
+        if (!mapBlocks.containsKey(cleanPage)) {
+            mapBlocks.put(cleanPage, new HashMap<>());
+        }
+        if (!mapVariables.containsKey(cleanPage)) {
+            mapVariables.put(cleanPage, new ArrayList<>());
+        }
+        if (!mapLists.containsKey(cleanPage)) {
+            mapLists.put(cleanPage, new ArrayList<>());
+        }
+        if (!mapFunctions.containsKey(cleanPage)) {
+            mapFunctions.put(cleanPage, new ArrayList<>());
+        }
+
+        if (json == null || json.trim().isEmpty() || json.trim().equals("{}") || json.trim().equals("[]")) {
+            return; // No saved logic for this page
+        }
+
+        try {
+            Gson gson = new Gson();
+
+            // Try structured PageLogicData format first
+            PageLogicData data = gson.fromJson(json, PageLogicData.class);
+            if (data != null && data.blocks != null) {
+                mapBlocks.put(cleanPage, new HashMap<>(data.blocks));
+                if (data.variables != null) mapVariables.put(cleanPage, new ArrayList<>(data.variables));
+                if (data.lists != null) mapLists.put(cleanPage, new ArrayList<>(data.lists));
+                if (data.functions != null) mapFunctions.put(cleanPage, new ArrayList<>(data.functions));
+                return;
             }
+
+            // Fallback: direct List<BlockBean> array format
+            java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BlockBean>>(){}.getType();
+            ArrayList<BlockBean> blockList = gson.fromJson(json, listType);
+            if (blockList != null && !blockList.isEmpty() && blockList.get(0) != null && blockList.get(0).opCode != null) {
+                HashMap<String, ArrayList<BlockBean>> pageBlocks = new HashMap<>();
+                pageBlocks.put("onCreate_initializeLogic", blockList);
+                mapBlocks.put(cleanPage, pageBlocks);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    public static void saveSavedLogic(String filename) {
-        if (prefLogic == null) return;
-        HashMap<String, Object> state = new HashMap<>();
+    public static void loadSavedLogic() {
+        loadSavedLogic(null, currentProjectId, currentPageName);
+    }
 
-        ArrayList<Pair<Integer, String>> vars = mapVariables.get(filename);
-        if (vars != null) {
-            StringBuilder sb = new StringBuilder();
-            for (Pair<Integer, String> p : vars) {
-                sb.append(p.first).append(":").append(p.second).append("\n");
-            }
-            state.put(filename + "_var", sb.toString());
-        } else {
-            state.put(filename + "_var", "");
-        }
+    public static void saveSavedLogic(Context context, String projectId, String pageName) {
+        if (projectId == null || projectId.isEmpty()) projectId = currentProjectId;
+        if (projectId == null || projectId.isEmpty()) projectId = "default_project";
+        if (pageName == null || pageName.isEmpty()) pageName = currentPageName;
+        if (pageName == null || pageName.isEmpty()) pageName = "index";
+        String cleanPage = getCleanPageName(pageName);
 
-        ArrayList<Pair<Integer, String>> lists = mapLists.get(filename);
-        if (lists != null) {
-            StringBuilder sb = new StringBuilder();
-            for (Pair<Integer, String> p : lists) {
-                sb.append(p.first).append(":").append(p.second).append("\n");
-            }
-            state.put(filename + "_list", sb.toString());
-        } else {
-            state.put(filename + "_list", "");
-        }
+        PageLogicData data = new PageLogicData();
 
-        ArrayList<Pair<String, String>> funcs = mapFunctions.get(filename);
-        if (funcs != null) {
-            StringBuilder sb = new StringBuilder();
-            for (Pair<String, String> p : funcs) {
-                sb.append(p.first).append(":").append(p.second).append("\n");
-            }
-            state.put(filename + "_func", sb.toString());
-        } else {
-            state.put(filename + "_func", "");
-        }
-
-        HashMap<String, ArrayList<BlockBean>> blocksMap = mapBlocks.get(filename);
+        HashMap<String, ArrayList<BlockBean>> blocksMap = mapBlocks.get(cleanPage);
         if (blocksMap != null) {
-            Gson gson = new Gson();
-            for (Entry<String, ArrayList<BlockBean>> entry : blocksMap.entrySet()) {
-                String eventKey = entry.getKey();
-                ArrayList<BlockBean> list = entry.getValue();
-                StringBuilder sb = new StringBuilder();
-                if (list != null) {
-                    for (BlockBean b : list) {
-                        sb.append(gson.toJson(b)).append("\n");
-                    }
-                }
-                state.put(filename + "_" + eventKey, sb.toString());
-            }
+            data.blocks.putAll(blocksMap);
         }
 
-        prefLogic.writeState(state);
+        ArrayList<Pair<Integer, String>> vars = mapVariables.get(cleanPage);
+        if (vars != null) {
+            data.variables.addAll(vars);
+        }
+
+        ArrayList<Pair<Integer, String>> lists = mapLists.get(cleanPage);
+        if (lists != null) {
+            data.lists.addAll(lists);
+        }
+
+        ArrayList<Pair<String, String>> funcs = mapFunctions.get(cleanPage);
+        if (funcs != null) {
+            data.functions.addAll(funcs);
+        }
+
+        String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(data);
+
+        // Single source of truth: .dragweb/projects/<projectId>/<page>_logic.json
+        File extDir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+        if (!extDir.exists()) extDir.mkdirs();
+        File extFile = new File(extDir, cleanPage + "_logic.json");
+        FileUtil.writeFile(extFile.getAbsolutePath(), json);
+    }
+
+    public static void saveSavedLogic(String filename) {
+        saveSavedLogic(null, currentProjectId, filename);
     }
 
 
@@ -781,10 +787,11 @@ public class DesignDataManager {
 
 
     public static void setBlocks(String str, String str2, ArrayList<BlockBean> arrayList) {
-        if (!mapBlocks.containsKey(str)) {
-            mapBlocks.put(str, new HashMap());
+        String clean = getCleanPageName(str);
+        if (!mapBlocks.containsKey(clean)) {
+            mapBlocks.put(clean, new HashMap());
         }
-        ((Map) mapBlocks.get(str)).put(str2, arrayList);
+        ((Map) mapBlocks.get(clean)).put(str2, arrayList);
     }
 
     public static class WidgetSelectorData {

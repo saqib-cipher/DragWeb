@@ -587,15 +587,18 @@ public class HomeActivity extends AppCompatActivity {
 
 		// Save logic blocks if any
 		if (logicBlocks != null && !logicBlocks.isEmpty()) {
-			File logicFile = new File(logicDir, projectId + "_index.logic");
+			File extDir = new File(Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+			if (!extDir.exists()) extDir.mkdirs();
+			File logicFile = new File(extDir, "index_logic.json");
 			FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(logicBlocks));
 		}
 
 		// Save global CSS logic blocks if any
 		if (cssLogicBlocks != null && !cssLogicBlocks.isEmpty()) {
-			String globalCssPath = "css/style.css";
-			String safeCssName = globalCssPath.replace("/", "_").replace(".", "_");
-			File cssLogicFile = new File(logicDir, projectId + "_" + safeCssName + ".logic");
+			String cleanCssName = DesignDataManager.getCleanPageName("css/style.css");
+			File extDir = new File(Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+			if (!extDir.exists()) extDir.mkdirs();
+			File cssLogicFile = new File(extDir, cleanCssName + "_logic.json");
 			FileUtil.writeFile(cssLogicFile.getAbsolutePath(), new Gson().toJson(cssLogicBlocks));
 		}
 
@@ -677,7 +680,10 @@ public class HomeActivity extends AppCompatActivity {
 					HtmlCssImporter importer = new HtmlCssImporter(HomeActivity.this);
 					List<Map<String, Object>> jsBlocksList = importer.importJsOnly(jsContent);
 
-					File jsLogicFile = new File(logicDir, projectId + "_js_script_js.logic");
+					String cleanJsName = DesignDataManager.getCleanPageName("js/script.js");
+					File extDir = new File(Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+					if (!extDir.exists()) extDir.mkdirs();
+					File jsLogicFile = new File(extDir, cleanJsName + "_logic.json");
 					FileUtil.writeFile(jsLogicFile.getAbsolutePath(), new Gson().toJson(jsBlocksList));
 				} catch (Exception e) {
 					Log.w("HomeActivity", "Failed to write script.js/logic to assets: " + e.getMessage());
