@@ -477,6 +477,12 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						}
 				}
 				if (blocks != null) {
+						java.util.Collections.sort(blocks, (b1, b2) -> {
+								BlockBean bean1 = (BlockBean) b1;
+								BlockBean bean2 = (BlockBean) b2;
+								return Integer.compare(bean1.stackIndex, bean2.stackIndex);
+						});
+
 						Iterator it = blocks.iterator();
 						int i = 1;
 						while (it.hasNext()) {
@@ -1596,20 +1602,20 @@ startActivityForResult(intent, 209);
 		
 		public Block makeBlockFromBean(BlockBean blockBean) {
 				String spec = blockBean.spec;
-				String type = blockBean.type;
+				String type = (blockBean.type != null && !blockBean.type.isEmpty()) ? blockBean.type : blockBean.blockType;
 				int color = blockBean.color;
 
 				java.util.List<BlockDef> defs = BlockDef.getDefinitions(this.context != null ? this.context : this);
 				if (defs != null && blockBean.opCode != null) {
 						for (BlockDef def : defs) {
 								if (blockBean.opCode.equalsIgnoreCase(def.id) || blockBean.opCode.equalsIgnoreCase(def.getOpCode())) {
-										if (def.getSpec() != null && !def.getSpec().isEmpty()) {
+										if (spec == null || spec.isEmpty()) {
 												spec = def.getSpec();
 										}
-										if (def.getType() != null && !def.getType().isEmpty()) {
+										if (type == null || type.isEmpty()) {
 												type = def.getType();
 										}
-										if (def.color != null && !def.color.isEmpty()) {
+										if (color == 0 && def.color != null && !def.color.isEmpty()) {
 												try {
 														color = android.graphics.Color.parseColor(def.color);
 												} catch (Exception ignored) {}
@@ -1619,7 +1625,17 @@ startActivityForResult(intent, 209);
 						}
 				}
 
-				return new Block(this, Integer.valueOf(blockBean.id).intValue(), spec, type, blockBean.opCode, new Object[]{Integer.valueOf(color)});
+				if (spec == null || spec.isEmpty()) {
+						spec = blockBean.opCode != null ? blockBean.opCode : "block";
+				}
+				if (type == null || type.isEmpty()) {
+						type = "c";
+				}
+
+				Block block = new Block(this, Integer.valueOf(blockBean.id).intValue(), spec, type, blockBean.opCode, new Object[]{Integer.valueOf(color)});
+				if (blockBean.category != null) block.mCategory = blockBean.category;
+				if (blockBean.code != null) block.mCode = blockBean.code;
+				return block;
 		}
 		
 		private void saveAndFinish() {

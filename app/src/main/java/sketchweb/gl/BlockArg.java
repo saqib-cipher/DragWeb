@@ -341,6 +341,7 @@ public class BlockArg extends BlockBase {
                 boolean isNumber = this.mType.equals("d");
                 UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
                 dialog.setTitle(isNumber ? "Input Number Value" : "Input String Value")
+                      .setIsNumeric(isNumber)
                       .setInitialValue(this.mTextView != null ? this.mTextView.getText().toString() : "");
                 dialog.showTextInput(new UniversalM3Dialog.OnText() {
                     @Override

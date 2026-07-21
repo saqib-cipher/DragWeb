@@ -38,7 +38,7 @@
             android:layout_height="wrap_content"
             android:text="Reset"
             style="@style/Widget.Material3.Button.TextButton"
-            app:icon="@drawable/trash_act" />
+            app:icon="@drawable/trash" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView

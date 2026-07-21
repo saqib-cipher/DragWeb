@@ -291,8 +291,11 @@ public class BlockPane extends RelativeLayout {
         Block block = (Block) findViewWithTag(Integer.valueOf(this.root.nextBlock));
         if (block != null) {
             Iterator it = block.getAllChildren().iterator();
+            int index = 0;
             while (it.hasNext()) {
-                arrayList.add(((Block) it.next()).getBean());
+                BlockBean bean = ((Block) it.next()).getBean();
+                bean.stackIndex = index++;
+                arrayList.add(bean);
             }
         }
         return arrayList;

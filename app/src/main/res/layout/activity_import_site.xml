@@ -175,7 +175,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="false"
-                    app:thumbIcon="@drawable/x"/>
+                    app:thumbIcon="@drawable/ic_thumb_selector"/>
             </LinearLayout>
 
             <!-- JS Section -->
@@ -253,7 +253,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="false"
-                    app:thumbIcon="@drawable/x"/>
+                    app:thumbIcon="@drawable/ic_thumb_selector"/>
             </LinearLayout>
 
             <!-- Warning Notice Card -->

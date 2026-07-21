@@ -60,7 +60,7 @@
 			android:layout_height="36dp"
 			android:layout_marginStart="8dp"
 			android:background="?attr/selectableItemBackgroundBorderless"
-			android:src="@drawable/trash_act"
+			android:src="@drawable/trash"
 			app:tint="?attr/colorError"
 			android:contentDescription="Delete Attribute" />
 

@@ -33,7 +33,7 @@
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/trash_act"
+        android:src="@drawable/trash"
         app:tint="?attr/colorError"
         android:contentDescription="Delete" />
 </LinearLayout>

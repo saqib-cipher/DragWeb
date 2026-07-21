@@ -1503,6 +1503,12 @@ public class MainEditorFragment extends Fragment {
 			+ "/.dragweb/projects/" + projectId + "/assets";
 		File dir = new File(path);
 		if (!dir.exists()) dir.mkdirs();
+		File cssDir = new File(dir, "css");
+		if (!cssDir.exists()) cssDir.mkdirs();
+		File jsDir = new File(dir, "js");
+		if (!jsDir.exists()) jsDir.mkdirs();
+		dirs.add("assets/css");
+		dirs.add("assets/js");
 		collectSubdirectories(dir, dir, dirs);
 		return dirs;
 	}
@@ -1514,7 +1520,9 @@ public class MainEditorFragment extends Fragment {
 				if (f.isDirectory()) {
 					String relative = f.getAbsolutePath().substring(root.getParentFile().getAbsolutePath().length() + 1);
 					relative = relative.replace("\\", "/");
-					dirs.add(relative);
+					if (!dirs.contains(relative)) {
+						dirs.add(relative);
+					}
 					collectSubdirectories(root, f, dirs);
 				}
 			}
@@ -1583,16 +1591,24 @@ public class MainEditorFragment extends Fragment {
 
 		com.google.android.material.textfield.MaterialAutoCompleteTextView actvLocation = new com.google.android.material.textfield.MaterialAutoCompleteTextView(tilLocation.getContext());
 		actvLocation.setInputType(android.text.InputType.TYPE_NULL);
+		actvLocation.setFocusable(false);
+		actvLocation.setClickable(true);
 		actvLocation.setSingleLine(true);
 		actvLocation.setMinimumHeight((int) (56 * getResources().getDisplayMetrics().density));
 		actvLocation.setPadding(hp, vp, hp, vp);
 		actvLocation.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15);
 		actvLocation.setOnClickListener(v -> actvLocation.showDropDown());
+		actvLocation.setOnTouchListener((v, event) -> {
+			if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+				actvLocation.showDropDown();
+			}
+			return false;
+		});
 
 		android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(requireContext(),
 			android.R.layout.simple_list_item_1, dirs);
 		actvLocation.setAdapter(adapter);
-		actvLocation.setText("assets", false);
+		actvLocation.setText(dirs.contains("assets/css") ? "assets/css" : "assets", false);
 		tilLocation.addView(actvLocation);
 		layout.addView(tilLocation);
 
@@ -1702,16 +1718,24 @@ public class MainEditorFragment extends Fragment {
 
 		com.google.android.material.textfield.MaterialAutoCompleteTextView actvLocation = new com.google.android.material.textfield.MaterialAutoCompleteTextView(tilLocation.getContext());
 		actvLocation.setInputType(android.text.InputType.TYPE_NULL);
+		actvLocation.setFocusable(false);
+		actvLocation.setClickable(true);
 		actvLocation.setSingleLine(true);
 		actvLocation.setMinimumHeight((int) (56 * getResources().getDisplayMetrics().density));
 		actvLocation.setPadding(hp, vp, hp, vp);
 		actvLocation.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15);
 		actvLocation.setOnClickListener(v -> actvLocation.showDropDown());
+		actvLocation.setOnTouchListener((v, event) -> {
+			if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+				actvLocation.showDropDown();
+			}
+			return false;
+		});
 
 		android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(requireContext(),
 			android.R.layout.simple_list_item_1, dirs);
 		actvLocation.setAdapter(adapter);
-		actvLocation.setText("assets", false);
+		actvLocation.setText(dirs.contains("assets/js") ? "assets/js" : "assets", false);
 		tilLocation.addView(actvLocation);
 		layout.addView(tilLocation);
 
@@ -2761,9 +2785,8 @@ public class MainEditorFragment extends Fragment {
 		File themeFile = new File(dir, projectId + ".theme");
 		FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
 
-		// Save current page logic blocks to .dragweb
-		String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-		DesignDataManager.saveSavedLogic(requireContext(), projectId, currentPageName);
+		// Save all logic blocks to .dragweb
+		DesignDataManager.saveAllSavedLogic(requireContext(), projectId);
 
 		saveProjectToExternal();
 

@@ -94,7 +94,7 @@
                             android:layout_height="wrap_content"
                             android:layout_gravity="end|center_vertical"
                             android:layout_marginEnd="16dp"
-                            app:thumbIcon="@drawable/x"
+                            app:thumbIcon="@drawable/ic_thumb_selector"
                             android:checked="true"/>
                     </com.google.android.material.card.MaterialCardView>
 
@@ -134,7 +134,7 @@
                     android:layout_marginTop="16dp"
                     android:layout_marginBottom="8dp"
                     app:strokeColor="?attr/colorError"
-                    app:icon="@drawable/trash_act"
+                    app:icon="@drawable/trash"
                     app:iconTint="?attr/colorError"
                     android:text="Delete this Page" />
 

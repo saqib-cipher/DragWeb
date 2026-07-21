@@ -91,6 +91,9 @@ public class BlockParamTypeManager {
         d.put("fontStyle", Arrays.asList("normal", "italic", "oblique"));
         d.put("cursor", Arrays.asList("default", "pointer", "move", "text", "wait", "help", "not-allowed", "grab", "grabbing"));
         d.put("flexDirection", Arrays.asList("row", "row-reverse", "column", "column-reverse"));
+        d.put("flexWrap", Arrays.asList("nowrap", "wrap", "wrap-reverse"));
+        d.put("borderStyle", Arrays.asList("none", "solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset"));
+        d.put("textTransform", Arrays.asList("none", "capitalize", "uppercase", "lowercase"));
         d.put("justifyContent", Arrays.asList("flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly"));
         d.put("alignItems", Arrays.asList("stretch", "flex-start", "flex-end", "center", "baseline"));
         d.put("selector", Arrays.asList("body", "h1", "p", ".active", "#main", "div"));

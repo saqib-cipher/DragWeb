@@ -28,12 +28,21 @@ public class BlockBean extends BaseBean implements Parcelable {
     public int subStack2;
     public String type;
 
+    public String category;
+    public String code;
+    public String blockType;
+    public int stackIndex;
+
     public BlockBean() {
         this.parameters = new ArrayList();
         this.paramTypes = new ArrayList();
         this.subStack1 = -1;
         this.subStack2 = -1;
         this.nextBlock = -1;
+        this.category = "";
+        this.code = "";
+        this.blockType = "";
+        this.stackIndex = 0;
     }
 
     public BlockBean(Parcel parcel) {
@@ -47,6 +56,10 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.subStack1 = parcel.readInt();
         this.subStack2 = parcel.readInt();
         this.nextBlock = parcel.readInt();
+        this.category = parcel.readString();
+        this.code = parcel.readString();
+        this.blockType = parcel.readString();
+        this.stackIndex = parcel.readInt();
     }
 
     public BlockBean(String str, String str2, String str3, String str4) {
@@ -59,6 +72,10 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.subStack1 = -1;
         this.subStack2 = -1;
         this.nextBlock = -1;
+        this.category = "";
+        this.code = "";
+        this.blockType = str3;
+        this.stackIndex = 0;
     }
 
     public static Creator<BlockBean> getCreator() {
@@ -76,6 +93,10 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.subStack1 = blockBean.subStack1;
         this.subStack2 = blockBean.subStack2;
         this.nextBlock = blockBean.nextBlock;
+        this.category = blockBean.category;
+        this.code = blockBean.code;
+        this.blockType = blockBean.blockType;
+        this.stackIndex = blockBean.stackIndex;
     }
 
     public int describeContents() {
@@ -96,5 +117,9 @@ public class BlockBean extends BaseBean implements Parcelable {
         parcel.writeInt(this.subStack1);
         parcel.writeInt(this.subStack2);
         parcel.writeInt(this.nextBlock);
+        parcel.writeString(this.category);
+        parcel.writeString(this.code);
+        parcel.writeString(this.blockType);
+        parcel.writeInt(this.stackIndex);
     }
 }

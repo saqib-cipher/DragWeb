@@ -38,6 +38,7 @@ public final class UniversalM3Dialog {
     private String[] units;
     private List<String> suggestions;
     private boolean multiline = false;
+    private boolean isNumeric = false;
 
     public UniversalM3Dialog(Context context) {
         this.context = context;
@@ -50,6 +51,7 @@ public final class UniversalM3Dialog {
     public UniversalM3Dialog setUnits(String[] units) { this.units = units; return this; }
     public UniversalM3Dialog setSuggestions(List<String> suggestions) { this.suggestions = suggestions; return this; }
     public UniversalM3Dialog setMultiline(boolean multiline) { this.multiline = multiline; return this; }
+    public UniversalM3Dialog setIsNumeric(boolean isNumeric) { this.isNumeric = isNumeric; return this; }
 
     public void showTextInput(OnText cb) {
         showCoreDialog(null, initial, hint != null ? hint : "Value", null, cb);
@@ -138,7 +140,10 @@ public final class UniversalM3Dialog {
 
         final TextInputLayout til = createTextInputLayout(hint != null ? hint : "Value");
         til.setSuffixText(defaultUnit);
+        boolean originalNumeric = this.isNumeric;
+        this.isNumeric = true;
         final MaterialAutoCompleteTextView edit = createEditor(til, numericPart, null);
+        this.isNumeric = originalNumeric;
         til.addView(edit);
 
         final String[] selectedUnit = {defaultUnit};
@@ -771,6 +776,9 @@ public final class UniversalM3Dialog {
             edit.setGravity(Gravity.TOP | Gravity.START);
         } else {
             edit.setSingleLine(true);
+            if (isNumeric) {
+                edit.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
+            }
         }
         edit.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         edit.setText(value);

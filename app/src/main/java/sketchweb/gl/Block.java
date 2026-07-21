@@ -398,6 +398,9 @@ public class Block extends BlockBase {
         return arrayList;
     }
 
+    public String mCategory = "";
+    public String mCode = "";
+
     public BlockBean getBean() {
         BlockBean blockBean = new BlockBean();
         blockBean.id = getTag().toString();
@@ -405,6 +408,9 @@ public class Block extends BlockBase {
         blockBean.type = this.mType;
         blockBean.opCode = this.mOpCode;
         blockBean.color = this.mColor;
+        blockBean.category = this.mCategory != null ? this.mCategory : "";
+        blockBean.code = this.mCode != null ? this.mCode : "";
+        blockBean.blockType = this.mType != null ? this.mType : "normal";
         Iterator it = this.args.iterator();
         while (it.hasNext()) {
             View view = (View) it.next();

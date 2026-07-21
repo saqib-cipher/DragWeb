@@ -12,6 +12,18 @@
     "type": "css"
   },
   {
+    "id": "responsive",
+    "name": "Responsive",
+    "catColor": "#1976D2",
+    "type": "css"
+  },
+  {
+    "id": "comment",
+    "name": "Comment",
+    "catColor": "#1976D2",
+    "type": "css"
+  },
+  {
     "id": "css_layout",
     "name": "Layout & Box",
     "catColor": "#0288D1",

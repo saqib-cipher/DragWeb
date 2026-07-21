@@ -278,9 +278,14 @@ public class DesignDataManager {
     public static String currentPageName = "index";
 
     public static void initialize(Context context, String projectId, String pageName) {
-        initMaps();
-        currentProjectId = (projectId != null && !projectId.isEmpty()) ? projectId : "default_project";
-        currentPageName = (pageName != null && !pageName.isEmpty()) ? pageName : "index";
+        String newProjectId = (projectId != null && !projectId.isEmpty()) ? projectId : "default_project";
+        String newPageName = (pageName != null && !pageName.isEmpty()) ? pageName : "index";
+
+        if (!newProjectId.equals(currentProjectId)) {
+            initMaps();
+            currentProjectId = newProjectId;
+        }
+        currentPageName = newPageName;
         prefLogic = new SharedPreferenceUtil(context, "P20_" + currentProjectId);
         isInitialized = true;
         loadSavedLogic(context, currentProjectId, currentPageName);
@@ -600,9 +605,13 @@ public class DesignDataManager {
         if (pageName == null || pageName.isEmpty()) pageName = "index";
         String cleanPage = getCleanPageName(pageName);
 
+        HashMap<String, ArrayList<BlockBean>> blocksMap = mapBlocks.get(cleanPage);
+        if (blocksMap == null && !mapBlocks.containsKey(cleanPage)) {
+            return; // Don't overwrite disk with empty data if cleanPage was never loaded
+        }
+
         PageLogicData data = new PageLogicData();
 
-        HashMap<String, ArrayList<BlockBean>> blocksMap = mapBlocks.get(cleanPage);
         if (blocksMap != null) {
             data.blocks.putAll(blocksMap);
         }
@@ -629,6 +638,14 @@ public class DesignDataManager {
         if (!extDir.exists()) extDir.mkdirs();
         File extFile = new File(extDir, cleanPage + "_logic.json");
         FileUtil.writeFile(extFile.getAbsolutePath(), json);
+    }
+
+    public static void saveAllSavedLogic(Context context, String projectId) {
+        if (projectId == null || projectId.isEmpty()) projectId = currentProjectId;
+        if (projectId == null || projectId.isEmpty()) return;
+        for (String page : new ArrayList<>(mapBlocks.keySet())) {
+            saveSavedLogic(context, projectId, page);
+        }
     }
 
     public static void saveSavedLogic(String filename) {
