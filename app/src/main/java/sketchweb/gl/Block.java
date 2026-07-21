@@ -87,6 +87,13 @@ public class Block extends BlockBase {
             if (str.equals("%selector")) {
                 return new BlockArg(this.mContext, "m", i, "selector");
             }
+            if (str.startsWith("%var")) {
+                String sub = "";
+                if (str.startsWith("%var.")) {
+                    sub = str.substring(5); // e.g. "s", "b", "d"
+                }
+                return new BlockArg(this.mContext, "v", i, sub);
+            }
             char charAt = str.charAt(BLOCK_TYPE_INPALETTE);
             if (charAt == 'b') {
                 return new BlockArg(this.mContext, "b", i, "");

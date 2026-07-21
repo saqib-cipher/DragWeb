@@ -120,7 +120,7 @@ public class BlockDef {
         String src = resolvedTemplate();
         if (src.isEmpty()) return derivedInputs;
 
-        Pattern p = Pattern.compile("%(?:(selector)|(?:(?:(\\d+)\\$)?(?:m\\.([a-zA-Z_\\.]+)|([nsbd]))))");
+        Pattern p = Pattern.compile("%(?:(selector)|(?:(?:(\\d+)\\$)?(?:(m\\.[a-zA-Z_\\.]+|var\\.[sbd]|var)|([nsbd]))))");
         Matcher m = p.matcher(src);
         int idx = 0;
         while (m.find()) {
@@ -137,8 +137,12 @@ public class BlockDef {
                 chip.type = "selector";
                 chip.selector = "any";
             } else if (mType != null) {
-                chip.type = mapSelectorToType(mType);
-                chip.selector = mType;
+                String cleanSelector = mType;
+                if (mType.startsWith("m.")) {
+                    cleanSelector = mType.substring(2);
+                }
+                chip.type = mapSelectorToType(cleanSelector);
+                chip.selector = cleanSelector;
             } else if (letterType != null) {
                 if ("n".equals(letterType) || "d".equals(letterType)) {
                     chip.type = "number";

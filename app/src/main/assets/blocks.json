@@ -788,7 +788,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#EF6C00",
-        "spec": "%s .addClass %s",
+        "spec": "%var .addClass %s",
         "code": "%1$s.classList.add('%2$s');\n"
     },
     {
@@ -796,7 +796,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#EF6C00",
-        "spec": "%s .removeClass %s",
+        "spec": "%var .removeClass %s",
         "code": "%1$s.classList.remove('%2$s');\n"
     },
     {
@@ -804,7 +804,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#EF6C00",
-        "spec": "%s .toggleClass %s",
+        "spec": "%var .toggleClass %s",
         "code": "%1$s.classList.toggle('%2$s');\n"
     },
     {
@@ -812,7 +812,7 @@
         "category": "js_dom",
         "blockType": "b",
         "color": "#EF6C00",
-        "spec": "%s .hasClass %s",
+        "spec": "%var .hasClass %s",
         "code": "%1$s.classList.contains('%2$s')"
     },
     {
@@ -820,7 +820,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#EF6C00",
-        "spec": "%s .replaceClass %s â†’ %s",
+        "spec": "%var .replaceClass %s â†’ %s",
         "code": "%1$s.classList.replace('%2$s', '%3$s');\n"
     },
     {
@@ -852,7 +852,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#E65100",
-        "spec": "%s .style %s = %s",
+        "spec": "%var .style %s = %s",
         "code": "%1$s.style['%2$s'] = '%3$s';\n"
     },
     {
@@ -860,7 +860,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#E65100",
-        "spec": "%s .style color = %m.color",
+        "spec": "%var .style color = %m.color",
         "code": "%1$s.style['color'] = '%2$s';\n"
     },
     {
@@ -868,7 +868,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#E65100",
-        "spec": "%s .style background = %m.color",
+        "spec": "%var .style background = %m.color",
         "code": "%1$s.style['background'] = '%2$s';\n"
     },
     {
@@ -876,7 +876,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#E65100",
-        "spec": "%s .style display = %m.display",
+        "spec": "%var .style display = %m.display",
         "code": "%1$s.style['display'] = '%2$s';\n"
     },
     {
@@ -884,7 +884,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#E65100",
-        "spec": "%s .style opacity = %d",
+        "spec": "%var .style opacity = %d",
         "code": "%1$s.style['opacity'] = %2$s;\n"
     },
     {
@@ -908,7 +908,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#BF360C",
-        "spec": "%s .setAttribute %s = %s",
+        "spec": "%var .setAttribute %s = %s",
         "code": "%1$s.setAttribute('%2$s', '%3$s');\n"
     },
     {
@@ -916,7 +916,7 @@
         "category": "js_dom",
         "blockType": "s",
         "color": "#BF360C",
-        "spec": "%s .getAttribute %s",
+        "spec": "%var .getAttribute %s",
         "code": "%1$s.getAttribute('%2$s')\n"
     },
     {
@@ -924,7 +924,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#BF360C",
-        "spec": "%s .removeAttribute %s",
+        "spec": "%var .removeAttribute %s",
         "code": "%1$s.removeAttribute('%2$s');\n"
     },
     {
@@ -932,7 +932,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#BF360C",
-        "spec": "%s .innerText = %s",
+        "spec": "%var .innerText = %s",
         "code": "%1$s.innerText = %2$s;\n"
     },
     {
@@ -940,7 +940,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#BF360C",
-        "spec": "%s .innerHTML = %s",
+        "spec": "%var .innerHTML = %s",
         "code": "%1$s.innerHTML = %2$s;\n"
     },
     {
@@ -948,7 +948,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#BF360C",
-        "spec": "%s .value = %s",
+        "spec": "%var .value = %s",
         "code": "%1$s.value = %2$s;\n"
     },
     {
@@ -956,7 +956,7 @@
         "category": "js_dom",
         "blockType": "s",
         "color": "#BF360C",
-        "spec": "%s .value",
+        "spec": "%var .value",
         "code": "%1$s.value\n"
     },
     {
@@ -972,7 +972,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#F57C00",
-        "spec": "%s .appendChild %s",
+        "spec": "%var .appendChild %s",
         "code": "%1$s.appendChild(%2$s);\n"
     },
     {
@@ -980,7 +980,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#F57C00",
-        "spec": "%s .remove",
+        "spec": "%var .remove",
         "code": "%1$s.remove();\n"
     },
     {
@@ -988,7 +988,7 @@
         "category": "js_dom",
         "blockType": "s",
         "color": "#F57C00",
-        "spec": "%s .cloneNode",
+        "spec": "%var .cloneNode",
         "code": "%1$s.cloneNode(true)\n"
     },
     {
@@ -996,7 +996,7 @@
         "category": "js_dom",
         "blockType": "normal",
         "color": "#F57C00",
-        "spec": "%s insertAdjacentHTML %s %s",
+        "spec": "%var insertAdjacentHTML %s %s",
         "code": "%1$s.insertAdjacentHTML('%2$s', %3$s);\n"
     },
     {
@@ -1020,7 +1020,7 @@
         "category": "js_logic",
         "blockType": "normal",
         "color": "#2E7D32",
-        "spec": "set %s = %s",
+        "spec": "set %var = %s",
         "code": "%1$s = %2$s;\n"
     },
     {
@@ -1028,7 +1028,7 @@
         "category": "js_logic",
         "blockType": "s",
         "color": "#2E7D32",
-        "spec": "var %s",
+        "spec": "%var",
         "code": "%1$s\n"
     },
     {
@@ -1081,26 +1081,26 @@
     },
     {
         "id": "jsTryCatch",
-        "category": "js_logic",
+        "category": "control",
         "blockType": "c",
-        "color": "#1B5E20",
-        "spec": "try catch %s",
+        "color": "#FF9100",
+        "spec": "try {\n",
         "code": "try {\n%2$s\n} catch (%1$s) {\n%2$s\n}\n"
     },
     {
         "id": "jsIf",
-        "category": "js_logic",
+        "category": "control",
         "blockType": "c",
-        "color": "#880E4F",
-        "spec": "if %s",
+        "color": "#FF9100",
+        "spec": "if (%b) {\n",
         "code": "if (%1$s) {\n%2$s\n}\n"
     },
     {
         "id": "jsIfElse",
-        "category": "js_logic",
+        "category": "control",
         "blockType": "c",
-        "color": "#880E4F",
-        "spec": "if %s else",
+        "color": "#FF9100",
+        "spec": "if (%b) {\n",
         "code": "if (%1$s) {\n%2$s\n} else {\n%2$s\n}\n"
     },
     {
@@ -1113,34 +1113,34 @@
     },
     {
         "id": "jsForEach",
-        "category": "js_logic",
+        "category": "control",
         "blockType": "c",
-        "color": "#880E4F",
+        "color": "#FF9100",
         "spec": "%s .forEach %s =>",
         "code": "%1$s.forEach(%2$s => {\n%3$s\n});\n"
     },
     {
         "id": "jsForOf",
-        "category": "js_logic",
+        "category": "control",
         "blockType": "c",
-        "color": "#880E4F",
+        "color": "#FF9100",
         "spec": "for %s of %s",
         "code": "for (const %1$s of %2$s) {\n%3$s\n}\n"
     },
     {
         "id": "jsForLoop",
-        "category": "js_logic",
+        "category": "control",
         "blockType": "c",
-        "color": "#880E4F",
-        "spec": "for i = 0 to %d",
+        "color": "#FF9100",
+        "spec": "for (let i = 0; i < %d; i++) {\n",
         "code": "for (let i = 0; i < %1$s; i++) {\n%2$s\n}\n"
     },
     {
         "id": "jsWhile",
-        "category": "js_logic",
+        "category": "control",
         "blockType": "c",
-        "color": "#880E4F",
-        "spec": "while %s",
+        "color": "#FF9100",
+        "spec": "while (%b) {\n",
         "code": "while (%1$s) {\n%2$s\n}\n"
     },
     {
@@ -1630,5 +1630,101 @@
         "color": "#2196F3",
         "spec": "text-transform %m.textTransform",
         "code": "text-transform: %1$s;\n"
+    },
+    {
+        "id": "opTrue",
+        "category": "operator",
+        "blockType": "b",
+        "color": "#00E676",
+        "spec": "true",
+        "code": "true"
+    },
+    {
+        "id": "opFalse",
+        "category": "operator",
+        "blockType": "b",
+        "color": "#00E676",
+        "spec": "false",
+        "code": "false"
+    },
+    {
+        "id": "opLess",
+        "category": "operator",
+        "blockType": "b",
+        "color": "#00E676",
+        "spec": "%d < %d",
+        "code": "%1$s < %2$s"
+    },
+    {
+        "id": "opEqual",
+        "category": "operator",
+        "blockType": "b",
+        "color": "#00E676",
+        "spec": "%d = %d",
+        "code": "%1$s === %2$s"
+    },
+    {
+        "id": "opGreater",
+        "category": "operator",
+        "blockType": "b",
+        "color": "#00E676",
+        "spec": "%d > %d",
+        "code": "%1$s > %2$s"
+    },
+    {
+        "id": "opAnd",
+        "category": "operator",
+        "blockType": "b",
+        "color": "#00E676",
+        "spec": "%b and %b",
+        "code": "%1$s && %2$s"
+    },
+    {
+        "id": "opOr",
+        "category": "operator",
+        "blockType": "b",
+        "color": "#00E676",
+        "spec": "%b or %b",
+        "code": "%1$s || %2$s"
+    },
+    {
+        "id": "opNot",
+        "category": "operator",
+        "blockType": "b",
+        "color": "#00E676",
+        "spec": "not %b",
+        "code": "!%1$s"
+    },
+    {
+        "id": "opAdd",
+        "category": "operator",
+        "blockType": "d",
+        "color": "#00E676",
+        "spec": "%d + %d",
+        "code": "%1$s + %2$s"
+    },
+    {
+        "id": "opSub",
+        "category": "operator",
+        "blockType": "d",
+        "color": "#00E676",
+        "spec": "%d - %d",
+        "code": "%1$s - %2$s"
+    },
+    {
+        "id": "opMul",
+        "category": "operator",
+        "blockType": "d",
+        "color": "#00E676",
+        "spec": "%d * %d",
+        "code": "%1$s * %2$s"
+    },
+    {
+        "id": "opDiv",
+        "category": "operator",
+        "blockType": "d",
+        "color": "#00E676",
+        "spec": "%d / %d",
+        "code": "%1$s / %2$s"
     }
 ]

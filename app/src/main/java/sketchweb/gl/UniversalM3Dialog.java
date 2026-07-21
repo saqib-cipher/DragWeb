@@ -1,6 +1,8 @@
 package sketchweb.gl;
 
 import android.content.Context;
+import android.graphics.Color;
+import android.util.Pair;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.Gravity;
@@ -8,6 +10,7 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ArrayAdapter;
 import android.widget.ScrollView;
+import android.widget.TextView;
 
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
@@ -831,4 +834,147 @@ public final class UniversalM3Dialog {
     }
 
     private int dp(int v) { return (int) (v * context.getResources().getDisplayMetrics().density); }
+
+    public void showVariableSelector(String filename, String menuName, final OnText cb) {
+        int pad = dp(24);
+        LinearLayout dialogContainer = new LinearLayout(context);
+        dialogContainer.setOrientation(LinearLayout.VERTICAL);
+        dialogContainer.setPadding(pad, dp(12), pad, dp(20));
+
+        // Chip group for filtering types: boolean, number, string
+        final com.google.android.material.chip.ChipGroup cgFilter = new com.google.android.material.chip.ChipGroup(context);
+        cgFilter.setSingleSelection(true);
+        cgFilter.setSelectionRequired(false);
+        cgFilter.setChipSpacingHorizontal(dp(8));
+        cgFilter.setPadding(0, 0, 0, dp(12));
+
+        final com.google.android.material.chip.Chip chipBool = new com.google.android.material.chip.Chip(context);
+        chipBool.setText("boolean");
+        chipBool.setCheckable(true);
+        chipBool.setId(View.generateViewId());
+        cgFilter.addView(chipBool);
+
+        final com.google.android.material.chip.Chip chipNum = new com.google.android.material.chip.Chip(context);
+        chipNum.setText("number");
+        chipNum.setCheckable(true);
+        chipNum.setId(View.generateViewId());
+        cgFilter.addView(chipNum);
+
+        final com.google.android.material.chip.Chip chipStr = new com.google.android.material.chip.Chip(context);
+        chipStr.setText("string");
+        chipStr.setCheckable(true);
+        chipStr.setId(View.generateViewId());
+        cgFilter.addView(chipStr);
+
+        dialogContainer.addView(cgFilter);
+
+        ScrollView scroll = new ScrollView(context);
+        dialogContainer.addView(scroll);
+
+        // Radio group for variables
+        final android.widget.RadioGroup rg = new android.widget.RadioGroup(context);
+        rg.setOrientation(android.widget.RadioGroup.VERTICAL);
+        scroll.addView(rg);
+
+        // Fetch variables
+        final ArrayList<Pair<Integer, String>> allVars = DesignDataManager.getVariables(filename);
+
+        // Filter helper runnable
+        final Runnable filterRunnable = new Runnable() {
+            @Override
+            public void run() {
+                rg.removeAllViews();
+                int checkedChipId = cgFilter.getCheckedChipId();
+                
+                for (Pair<Integer, String> p : allVars) {
+                    int t = p.first;
+                    boolean isConst = (t >= 4);
+                    int baseType = isConst ? (t - 4) : t;
+
+                    // Apply chip filtering
+                    if (checkedChipId == chipBool.getId() && baseType != 0) continue;
+                    if (checkedChipId == chipNum.getId() && baseType != 1) continue;
+                    if (checkedChipId == chipStr.getId() && baseType != 2) continue;
+
+                    String typeStr = "number";
+                    if (baseType == 0) typeStr = "boolean";
+                    else if (baseType == 2) typeStr = "string";
+
+                    String label = p.second + " (" + (isConst ? "const " : "let ") + typeStr + ")";
+
+                    com.google.android.material.radiobutton.MaterialRadioButton rb = new com.google.android.material.radiobutton.MaterialRadioButton(context);
+                    rb.setText(label);
+                    rb.setTag(p.second);
+                    rb.setTextSize(16);
+                    rb.setPadding(dp(8), dp(10), dp(8), dp(10));
+                    rg.addView(rb);
+                }
+
+                if (rg.getChildCount() == 0) {
+                    TextView tvEmpty = new TextView(context);
+                    tvEmpty.setText("No matching variables found.");
+                    tvEmpty.setPadding(dp(8), dp(16), dp(8), dp(16));
+                    tvEmpty.setGravity(Gravity.CENTER);
+                    rg.addView(tvEmpty);
+                }
+            }
+        };
+
+        // Pre-select filter chip based on menuName
+        if ("varBool".equals(menuName)) {
+            chipBool.setChecked(true);
+        } else if ("varInt".equals(menuName)) {
+            chipNum.setChecked(true);
+        } else if ("varStr".equals(menuName)) {
+            chipStr.setChecked(true);
+        }
+
+        // Disable unselected chips if variable selector is pre-filtered by block arg type
+        if ("varBool".equals(menuName) || "varInt".equals(menuName) || "varStr".equals(menuName)) {
+            chipBool.setEnabled("varBool".equals(menuName));
+            chipNum.setEnabled("varInt".equals(menuName));
+            chipStr.setEnabled("varStr".equals(menuName));
+        }
+
+        cgFilter.setOnCheckedStateChangeListener(new com.google.android.material.chip.ChipGroup.OnCheckedStateChangeListener() {
+            @Override
+            public void onCheckedChanged(com.google.android.material.chip.ChipGroup group, List<Integer> checkedIds) {
+                filterRunnable.run();
+            }
+        });
+
+        // Run initial filter
+        filterRunnable.run();
+
+        // Pre-select current value if matches
+        String currentVal = initial != null ? initial.trim() : "";
+        for (int i = 0; i < rg.getChildCount(); i++) {
+            View child = rg.getChildAt(i);
+            if (child instanceof com.google.android.material.radiobutton.MaterialRadioButton) {
+                com.google.android.material.radiobutton.MaterialRadioButton rb = (com.google.android.material.radiobutton.MaterialRadioButton) child;
+                if (rb.getTag() != null && rb.getTag().toString().equals(currentVal)) {
+                    rb.setChecked(true);
+                    break;
+                }
+            }
+        }
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+            .setTitle("Select Variable")
+            .setView(dialogContainer)
+            .setPositiveButton("Select", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialogInterface, int which) {
+                    int checkedId = rg.getCheckedRadioButtonId();
+                    View selectedRb = rg.findViewById(checkedId);
+                    if (selectedRb instanceof com.google.android.material.radiobutton.MaterialRadioButton) {
+                        String selectedVar = ((com.google.android.material.radiobutton.MaterialRadioButton) selectedRb).getTag().toString();
+                        if (cb != null) cb.onText(selectedVar);
+                    }
+                }
+            })
+            .setNegativeButton("Cancel", null);
+
+        builder.create().show();
+    }
 }

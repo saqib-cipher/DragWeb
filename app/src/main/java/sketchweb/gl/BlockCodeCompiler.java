@@ -204,8 +204,12 @@ public class BlockCodeCompiler {
             codeTemplate = codeTemplate.replace("%m.space2", subCode2);
         }
 
-        // Normalize template placeholders (replace %selector, %b, %n, %d with %s)
+        // Normalize template placeholders (replace %selector, %b, %n, %d, %var, %var.s, %var.b, %var.d with %s)
         String normalizedTemplate = codeTemplate.replace("%selector", "%s")
+                                                 .replace("%var.s", "%s")
+                                                 .replace("%var.b", "%s")
+                                                 .replace("%var.d", "%s")
+                                                 .replace("%var", "%s")
                                                  .replace("%b", "%s")
                                                  .replace("%n", "%s")
                                                  .replace("%d", "%s");

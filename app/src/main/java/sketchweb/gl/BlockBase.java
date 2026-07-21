@@ -139,6 +139,11 @@ public class BlockBase extends RelativeLayout {
                     var5 = 9;
                 }
                 break;
+            case 118:
+                if(var4.equals("v")) {
+                    var5 = 9;
+                }
+                break;
             case 110:
                 if(var4.equals("n")) {
                     var5 = 3;

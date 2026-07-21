@@ -382,7 +382,7 @@ public class LogicBlockManager {
         String tmpl = b.spec;
         if (tmpl == null || tmpl.isEmpty()) return "";
         java.util.regex.Pattern p = java.util.regex.Pattern.compile(
-            "%(?:(selector)|m\\.([a-zA-Z_\\.]+)|([nsbd]))");
+            "%(?:(selector)|(m\\.[a-zA-Z_\\.]+|var\\.[sbd]|var)|([nsbd]))");
         java.util.regex.Matcher m = p.matcher(tmpl);
         StringBuilder sb = new StringBuilder();
         int last = 0;
@@ -392,7 +392,7 @@ public class LogicBlockManager {
             sb.append(tmpl, last, m.start());
             String selectorLit = m.group(1);
             String mType = m.group(2);
-            if ("space".equals(mType)) {
+            if (mType != null && mType.endsWith("space")) {
                 if (slotIdx == 0) {
                     sb.append("@@CHILDREN@@");
                 } else {
@@ -985,13 +985,117 @@ public class LogicBlockManager {
     public void fromJson(String json) {
         if (json == null || json.trim().isEmpty()) return;
 
+        String head = json.trim();
+        if (head.startsWith("{")) {
+            try {
+                Gson gson = new Gson();
+                Map<String, Object> rootMap = gson.fromJson(json, new TypeToken<Map<String, Object>>(){}.getType());
+                if (rootMap != null && rootMap.containsKey("blocks")) {
+                    String blocksJson = gson.toJson(rootMap.get("blocks"));
+                    Map<String, ArrayList<BlockBean>> rawBlocks = gson.fromJson(blocksJson, 
+                        new TypeToken<Map<String, ArrayList<BlockBean>>>(){}.getType());
+                    
+                    blocks.clear();
+                    if (rawBlocks != null) {
+                        for (Map.Entry<String, ArrayList<BlockBean>> entry : rawBlocks.entrySet()) {
+                            String eventKey = entry.getKey();
+                            ArrayList<BlockBean> beans = entry.getValue();
+                            if (beans == null) continue;
+                            
+                            Map<String, LogicBlock> idToBlock = new HashMap<>();
+                            for (BlockBean bean : beans) {
+                                if (bean == null || bean.opCode == null) continue;
+                                LogicBlock b = new LogicBlock();
+                                b.id = bean.id;
+                                b.category = bean.category;
+                                b.action = bean.opCode;
+                                b.spec = bean.spec;
+                                b.shape = "c".equals(bean.type) ? "cblock" : "stack";
+                                b.paramValues = bean.parameters != null ? new ArrayList<>(bean.parameters) : new ArrayList<>();
+                                
+                                StringBuilder sb = new StringBuilder();
+                                if (bean.parameters != null) {
+                                    for (int i = 0; i < bean.parameters.size(); i++) {
+                                        if (i > 0) sb.append("|");
+                                        sb.append(bean.parameters.get(i));
+                                    }
+                                }
+                                b.params = sb.toString();
+                                b.event = eventKey;
+                                
+                                idToBlock.put(bean.id, b);
+                            }
+                            
+                            for (BlockBean bean : beans) {
+                                if (bean == null) continue;
+                                LogicBlock current = idToBlock.get(bean.id);
+                                if (current == null) continue;
+                                
+                                if (bean.subStack1 >= 0) {
+                                    String subId = String.valueOf(bean.subStack1);
+                                    if (idToBlock.containsKey(subId)) {
+                                        current.subStackId = subId;
+                                        
+                                        String cursorId = subId;
+                                        while (cursorId != null) {
+                                            LogicBlock cursorBlock = idToBlock.get(cursorId);
+                                            if (cursorBlock != null) {
+                                                cursorBlock.parentBlockId = bean.id;
+                                                cursorBlock.parentSlotIndex = 0;
+                                                cursorBlock.event = "immediate";
+                                                
+                                                BlockBean cursorBean = null;
+                                                for (BlockBean x : beans) {
+                                                    if (x != null && cursorId.equals(x.id)) {
+                                                        cursorBean = x;
+                                                        break;
+                                                    }
+                                                }
+                                                if (cursorBean != null && cursorBean.nextBlock >= 0) {
+                                                    String nextId = String.valueOf(cursorBean.nextBlock);
+                                                    cursorBlock.nextBlockId = nextId;
+                                                    cursorId = nextId;
+                                                } else {
+                                                    cursorId = null;
+                                                }
+                                            } else {
+                                                cursorId = null;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                if (bean.nextBlock >= 0) {
+                                    String nextId = String.valueOf(bean.nextBlock);
+                                    if (idToBlock.containsKey(nextId)) {
+                                        LogicBlock nextBlockObj = idToBlock.get(nextId);
+                                        if (nextBlockObj != null && (nextBlockObj.parentBlockId == null || nextBlockObj.parentBlockId.isEmpty())) {
+                                            current.nextBlockId = nextId;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            for (LogicBlock b : idToBlock.values()) {
+                                if (b.event == null || b.event.isEmpty()) b.event = "immediate";
+                                if (b.targetMode == null) b.targetMode = "id";
+                                if (b.targetWidget == null) b.targetWidget = "";
+                                blocks.add(b);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
         // Reject obviously-incompatible payloads early. The custom-block
         // library uses keys like "template" / "display" / "category" – if we
         // see those it means somebody routed the wrong JSON into here, and
         // parsing it as LogicBlock[] would silently produce all-null entries
         // that then crash the activity when rendered.
-        String head = json.trim();
-        if (head.startsWith("{")) return;
         if (head.contains("\"template\"") && head.contains("\"display\"")) return;
 
         try {

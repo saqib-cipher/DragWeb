@@ -235,7 +235,8 @@ public class DesignDataManager {
             Iterator it = ((ArrayList) mapVariables.get(clean)).iterator();
             while (it.hasNext()) {
                 Pair<Integer, String> pair = (Pair<Integer, String>) it.next();
-                if (((Integer) pair.first).intValue() == i) {
+                int typeVal = ((Integer) pair.first).intValue();
+                if (typeVal == i || typeVal == (i + 4)) {
                     arrayList.add(pair.second);
                 }
             }
@@ -752,33 +753,35 @@ public class DesignDataManager {
     }
 
     public static void removeFunction(String str, String str2) {
-        if (mapFunctions.containsKey(str)) {
-            ArrayList arrayList = (ArrayList) mapFunctions.get(str);
+        String clean = getCleanPageName(str);
+        if (mapFunctions.containsKey(clean)) {
+            ArrayList arrayList = (ArrayList) mapFunctions.get(clean);
             if (arrayList != null) {
                 Iterator it = arrayList.iterator();
                 while (it.hasNext()) {
                     Pair pair = (Pair) it.next();
                     if (((String) pair.first).equals(str2)) {
-                        arrayList.remove(pair);
+                        it.remove();
                         break;
                     }
                 }
-                if (((HashMap) mapBlocks.get(str)).containsKey(str2 + "_" + "moreBlock")) {
-                    ((HashMap) mapBlocks.get(str)).remove(str2 + "_" + "moreBlock");
+                if (mapBlocks.containsKey(clean) && ((HashMap) mapBlocks.get(clean)).containsKey(str2 + "_" + "moreBlock")) {
+                    ((HashMap) mapBlocks.get(clean)).remove(str2 + "_" + "moreBlock");
                 }
             }
         }
     }
 
     public static void removeList(String str, String str2) {
-        if (mapLists.containsKey(str)) {
-            ArrayList arrayList = (ArrayList) mapLists.get(str);
+        String clean = getCleanPageName(str);
+        if (mapLists.containsKey(clean)) {
+            ArrayList arrayList = (ArrayList) mapLists.get(clean);
             if (arrayList != null) {
                 Iterator it = arrayList.iterator();
                 while (it.hasNext()) {
                     Pair pair = (Pair) it.next();
                     if (((String) pair.second).equals(str2)) {
-                        arrayList.remove(pair);
+                        it.remove();
                         return;
                     }
                 }
@@ -787,14 +790,15 @@ public class DesignDataManager {
     }
 
     public static void removeVariable(String str, String str2) {
-        if (mapVariables.containsKey(str)) {
-            ArrayList arrayList = (ArrayList) mapVariables.get(str);
+        String clean = getCleanPageName(str);
+        if (mapVariables.containsKey(clean)) {
+            ArrayList arrayList = (ArrayList) mapVariables.get(clean);
             if (arrayList != null) {
                 Iterator it = arrayList.iterator();
                 while (it.hasNext()) {
                     Pair pair = (Pair) it.next();
                     if (((String) pair.second).equals(str2)) {
-                        arrayList.remove(pair);
+                        it.remove();
                         return;
                     }
                 }

@@ -168,7 +168,7 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 		
 		private void addButtonToPalette(String str, String str2) {
-				View addButton = this.paletteBlock.addButton(str);
+				View addButton = this.paletteBlock.addButton(str, str2);
 				addButton.setTag(str2);
 				addButton.setSoundEffectsEnabled(true);
 				addButton.setOnClickListener(this);
@@ -215,32 +215,57 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 		
 		private void addVariables() {
-				Iterator it = DesignDataManager.getVariables(filename).iterator();
-				int i = 0;
-				int i2 = 0;
-				int i3 = 0;
-				while (it.hasNext()) {
-						Pair pair = (Pair) it.next();
-						if (((Integer) pair.first).intValue() == 0) {
-								addBlockToPalette((String) pair.second, "b", "getVar", -1147626, new Object[0]);
-								i3++;
-						} else if (((Integer) pair.first).intValue() == 1) {
-								addBlockToPalette((String) pair.second, "d", "getVar", -1147626, new Object[0]);
-								i2++;
-						} else {
-								addBlockToPalette((String) pair.second, "s", "getVar", -1147626, new Object[0]);
-								i++;
+				ArrayList<Pair<Integer, String>> vars = DesignDataManager.getVariables(filename);
+				
+				ArrayList<String> bools = new ArrayList<>();
+				ArrayList<String> nums = new ArrayList<>();
+				ArrayList<String> strs = new ArrayList<>();
+				
+				for (Pair<Integer, String> pair : vars) {
+						int t = pair.first;
+						if (t == 0 || t == 4) {
+								bools.add(pair.second);
+						} else if (t == 1 || t == 5) {
+								nums.add(pair.second);
+						} else if (t == 2 || t == 6) {
+								strs.add(pair.second);
 						}
 				}
-				if (i3 > 0) {
+				
+				if (!bools.isEmpty()) {
+						addButtonToPalette("Boolean", "label_bool");
+						for (String b : bools) {
+								addBlockToPalette(b, "b", "getVar", -1147626, new Object[0]);
+						}
+				}
+				
+				if (!nums.isEmpty()) {
+						addButtonToPalette("Number", "label_num");
+						for (String n : nums) {
+								addBlockToPalette(n, "d", "getVar", -1147626, new Object[0]);
+						}
+				}
+				
+				if (!strs.isEmpty()) {
+						addButtonToPalette("String", "label_str");
+						for (String s : strs) {
+								addBlockToPalette(s, "s", "getVar", -1147626, new Object[0]);
+						}
+				}
+				
+				if (!bools.isEmpty() || !nums.isEmpty() || !strs.isEmpty()) {
+						addButtonToPalette("Blocks", "label_blocks");
+				}
+				
+				if (!bools.isEmpty()) {
 						addBlockToPalette("", " ", "setVarBoolean", -1147626, new Object[0]);
 				}
-				if (i2 > 0) {
+				if (!nums.isEmpty()) {
 						addBlockToPalette("", " ", "setVarInt", -1147626, new Object[0]);
 						addBlockToPalette("", " ", "increaseInt", -1147626, new Object[0]);
 						addBlockToPalette("", " ", "decreaseInt", -1147626, new Object[0]);
 				}
-				if (i > 0) {
+				if (!strs.isEmpty()) {
 						addBlockToPalette("", " ", "setVarString", -1147626, new Object[0]);
 				}
 		}
@@ -1314,19 +1339,138 @@ var0.dismissProgress();
 		
 		
 		private void showAddVarPopup() {
-				View inflate = LayoutUtil.inflate(this, R.layout.logic_popup_add_variable);
-				Builder builder = new Builder(this);
-				builder.setView(inflate);
-				builder.setTitle(getString(R.string.logic_popup_title_add_variable));
-				RadioGroup radioGroup = (RadioGroup) inflate.findViewById(R.id.rg_type);
-				EditText editText = (EditText) inflate.findViewById(R.id.ed_input);
-				editText.setPrivateImeOptions("defaultInputmode=english;");
-				VariableNameValidator variableNameValidator = new VariableNameValidator(this.context, (TextInputLayout) inflate.findViewById(R.id.ti_input), DefineSource.RESERVED_WORD, DefineSource.getUsedWord(DesignActivity.getScId()), DesignDataManager.getAllNamesForValid(filename));
-				builder.setNegativeButton(R.string.btn_cancel, null);
-				builder.setPositiveButton(R.string.btn_accept, null);
-				this.mDlg = builder.create();
-				this.mDlg.setOnShowListener(new LogicBlockActivity$7(this, radioGroup, editText, variableNameValidator));
-				this.mDlg.show();
+				LinearLayout root = new LinearLayout(this);
+				root.setOrientation(LinearLayout.VERTICAL);
+				int pad = (int)(24 * getResources().getDisplayMetrics().density);
+				root.setPadding(pad, (int)(12 * getResources().getDisplayMetrics().density), pad, (int)(20 * getResources().getDisplayMetrics().density));
+
+				// Title/Header for declaration type
+				TextView tvDecl = new TextView(this);
+				tvDecl.setText("Declaration Type");
+				tvDecl.setTextSize(14);
+				tvDecl.setPadding(0, 0, 0, (int)(6 * getResources().getDisplayMetrics().density));
+				root.addView(tvDecl);
+
+				// Chip group for const / let
+				com.google.android.material.chip.ChipGroup cgDecl = new com.google.android.material.chip.ChipGroup(this);
+				cgDecl.setSingleSelection(true);
+				cgDecl.setSelectionRequired(true);
+				cgDecl.setChipSpacingHorizontal((int)(8 * getResources().getDisplayMetrics().density));
+
+				com.google.android.material.chip.Chip chipConst = new com.google.android.material.chip.Chip(this);
+				chipConst.setText("const");
+				chipConst.setCheckable(true);
+				chipConst.setChecked(true);
+				chipConst.setId(androidx.core.view.ViewCompat.generateViewId());
+				cgDecl.addView(chipConst);
+
+				com.google.android.material.chip.Chip chipLet = new com.google.android.material.chip.Chip(this);
+				chipLet.setText("let");
+				chipLet.setCheckable(true);
+				chipLet.setId(androidx.core.view.ViewCompat.generateViewId());
+				cgDecl.addView(chipLet);
+				root.addView(cgDecl);
+
+				// Title/Header for data type
+				TextView tvType = new TextView(this);
+				tvType.setText("Data Type");
+				tvType.setTextSize(14);
+				tvType.setPadding(0, (int)(12 * getResources().getDisplayMetrics().density), 0, (int)(6 * getResources().getDisplayMetrics().density));
+				root.addView(tvType);
+
+				// Chip group for boolean, number, string (no map)
+				com.google.android.material.chip.ChipGroup cgType = new com.google.android.material.chip.ChipGroup(this);
+				cgType.setSingleSelection(true);
+				cgType.setSelectionRequired(true);
+				cgType.setChipSpacingHorizontal((int)(8 * getResources().getDisplayMetrics().density));
+
+				com.google.android.material.chip.Chip chipBool = new com.google.android.material.chip.Chip(this);
+				chipBool.setText("boolean");
+				chipBool.setCheckable(true);
+				chipBool.setId(androidx.core.view.ViewCompat.generateViewId());
+				cgType.addView(chipBool);
+
+				com.google.android.material.chip.Chip chipNum = new com.google.android.material.chip.Chip(this);
+				chipNum.setText("number");
+				chipNum.setCheckable(true);
+				chipNum.setChecked(true);
+				chipNum.setId(androidx.core.view.ViewCompat.generateViewId());
+				cgType.addView(chipNum);
+
+				com.google.android.material.chip.Chip chipStr = new com.google.android.material.chip.Chip(this);
+				chipStr.setText("string");
+				chipStr.setCheckable(true);
+				chipStr.setId(androidx.core.view.ViewCompat.generateViewId());
+				cgType.addView(chipStr);
+				root.addView(cgType);
+
+				// Enter variable name outlined text input
+				com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+				til.setHint("Enter variable name");
+				til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+				int cornerRadius = (int)(14 * getResources().getDisplayMetrics().density);
+				til.setBoxCornerRadii(cornerRadius, cornerRadius, cornerRadius, cornerRadius);
+				LinearLayout.LayoutParams tilLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+				tilLp.topMargin = (int)(16 * getResources().getDisplayMetrics().density);
+				til.setLayoutParams(tilLp);
+
+				com.google.android.material.textfield.TextInputEditText etName = new com.google.android.material.textfield.TextInputEditText(til.getContext());
+				etName.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+				etName.setSingleLine(true);
+				etName.setMinimumHeight((int)(56 * getResources().getDisplayMetrics().density));
+				int hPadding = (int)(16 * getResources().getDisplayMetrics().density);
+				int vPadding = (int)(12 * getResources().getDisplayMetrics().density);
+				etName.setPadding(hPadding, vPadding, hPadding, vPadding);
+				etName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15);
+				etName.setPrivateImeOptions("defaultInputmode=english;");
+				til.addView(etName);
+				root.addView(til);
+
+				VariableNameValidator validator = new VariableNameValidator(this.context != null ? this.context : this, til, DefineSource.RESERVED_WORD, DefineSource.getUsedWord(DesignActivity.getScId()), DesignDataManager.getAllNamesForValid(filename));
+
+				com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+						.setTitle(getString(R.string.logic_popup_title_add_variable))
+						.setView(root)
+						.setNegativeButton(R.string.btn_cancel, null)
+						.setPositiveButton(R.string.btn_accept, null);
+
+				final androidx.appcompat.app.AlertDialog dialog = builder.create();
+				if (dialog.getWindow() != null) {
+						dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+				}
+				dialog.show();
+
+				etName.requestFocus();
+				etName.postDelayed(() -> {
+						try {
+								android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+								if (imm != null) {
+										imm.showSoftInput(etName, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+								}
+						} catch (Exception ignored) {}
+				}, 150);
+
+				dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+						if (validator.isValid()) {
+								int baseType = 1; // number
+								if (cgType.getCheckedChipId() == chipBool.getId()) {
+										baseType = 0;
+								} else if (cgType.getCheckedChipId() == chipNum.getId()) {
+										baseType = 1;
+								} else if (cgType.getCheckedChipId() == chipStr.getId()) {
+										baseType = 2;
+								}
+
+								boolean isConst = (cgDecl.getCheckedChipId() == chipConst.getId());
+								int finalType = isConst ? (baseType + 4) : baseType;
+
+								String varName = etName.getText().toString().trim();
+								DesignDataManager.addVariable(filename, finalType, varName);
+
+								onBlockCategorySelect(0, -1147626);
+								dialog.dismiss();
+						}
+				});
 		}
 		
 		
@@ -1481,75 +1625,75 @@ var0.dismissProgress();
 		
 		
 		private void showRemoveVarPopup() {
-				View inflate = LayoutUtil.inflate(this, R.layout.property_popup_selector_single);
-				Builder builder = new Builder(this);
-				builder.setView(inflate);
-				builder.setTitle(getString(R.string.logic_popup_title_remove_variable));
-				ViewGroup viewGroup = (ViewGroup) inflate.findViewById(R.id.rg_content);
-				ArrayList arrayList = new ArrayList();
-				Iterator it = DesignDataManager.getVariables(filename).iterator();
-				while (it.hasNext()) {
-						viewGroup.addView(createSingleItem((String) ((Pair) it.next()).second));
-				}
-				builder.setNegativeButton(R.string.btn_cancel, null);
-				builder.setPositiveButton(R.string.btn_accept, null);
-				this.mDlg = builder.create();
-				this.mDlg.setOnShowListener(new LogicBlockActivity$8(this, viewGroup));
-				this.mDlg.show();
-		}
-		
-		
-		
-		class LogicBlockActivity$8 implements DialogInterface.OnShowListener {
-				// $FF: synthetic field
-				final LogicBlockActivity this$0;
-				// $FF: synthetic field
-				final ViewGroup val$content;
-				
-				LogicBlockActivity$8(LogicBlockActivity var1, ViewGroup var2) {
-						this.this$0 = var1;
-						this.val$content = var2;
-				}
-				
-				public void onShow(DialogInterface var1) {
-						LogicBlockActivity.access$800(this.this$0).getButton(-1).setOnClickListener(new LogicBlockActivity$8$1(this));
-				}
-		}
-		
-		
-		class LogicBlockActivity$8$1 implements OnClickListener {
-				// $FF: synthetic field
-				final LogicBlockActivity$8 this$1;
-				
-				LogicBlockActivity$8$1(LogicBlockActivity$8 var1) {
-						this.this$1 = var1;
-				}
-				
-				public void onClick(View var1) {
-						int var2 = this.this$1.val$content.getChildCount();
-						int var3 = 0;
-						
-						while(true) {
-								if(var3 < var2) {
-										RadioButton var4 = (RadioButton)this.this$1.val$content.getChildAt(var3);
-										if(!var4.isChecked()) {
-												++var3;
-												continue;
-										}
-										
-										if(LogicBlockActivity.access$900(this.this$1.this$0).isExistVariableBlock(var4.getText().toString()) || DesignDataManager.isExistVariableBlock(LogicBlockActivity.filename, var4.getText().toString(), LogicBlockActivity.access$1000(this.this$1.this$0) + "_" + LogicBlockActivity.access$1100(this.this$1.this$0))) {
-												Toast.makeText(this.this$1.this$0.getApplicationContext(), this.this$1.this$0.getString(R.string.err_currently_used_variable), 0).show();
-												return;
-										}
-										
-										DesignDataManager.removeVariable(LogicBlockActivity.filename, var4.getText().toString());
-										this.this$1.this$0.onBlockCategorySelect(0, -1147626);
-								}
-								
-								LogicBlockActivity.access$800(this.this$1.this$0).dismiss();
-								return;
+				int pad = (int) LayoutUtil.getDip(this, 24.0f);
+				android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+				LinearLayout root = new LinearLayout(this);
+				root.setOrientation(LinearLayout.VERTICAL);
+				root.setPadding(pad, (int) LayoutUtil.getDip(this, 12.0f), pad, (int) LayoutUtil.getDip(this, 20.0f));
+				scroll.addView(root);
+
+				final android.widget.RadioGroup rg = new android.widget.RadioGroup(this);
+				rg.setOrientation(android.widget.RadioGroup.VERTICAL);
+				root.addView(rg);
+
+				ArrayList<Pair<Integer, String>> vars = DesignDataManager.getVariables(filename);
+				if (vars.isEmpty()) {
+						TextView tvEmpty = new TextView(this);
+						tvEmpty.setText("No variables created yet.");
+						tvEmpty.setGravity(android.view.Gravity.CENTER);
+						tvEmpty.setPadding(0, pad, 0, pad);
+						root.addView(tvEmpty);
+				} else {
+						for (Pair<Integer, String> p : vars) {
+								int t = p.first;
+								boolean isConst = (t >= 4);
+								int baseType = isConst ? (t - 4) : t;
+								String typeStr = "number";
+								if (baseType == 0) typeStr = "boolean";
+								else if (baseType == 2) typeStr = "string";
+
+								String label = p.second + " (" + (isConst ? "const " : "let ") + typeStr + ")";
+								com.google.android.material.radiobutton.MaterialRadioButton rb = new com.google.android.material.radiobutton.MaterialRadioButton(this);
+								rb.setText(label);
+								rb.setTag(p.second);
+								rb.setTextSize(16);
+								rb.setPadding(pad / 3, pad / 2, pad / 3, pad / 2);
+								rg.addView(rb);
 						}
 				}
+
+				com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+						.setTitle(getString(R.string.logic_popup_title_remove_variable))
+						.setView(scroll)
+						.setNegativeButton(R.string.btn_cancel, null)
+						.setPositiveButton(R.string.btn_accept, null);
+
+				final androidx.appcompat.app.AlertDialog dialog = builder.create();
+				dialog.setOnShowListener(new DialogInterface.OnShowListener() {
+						@Override
+						public void onShow(DialogInterface d) {
+								dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
+										@Override
+										public void onClick(View v) {
+												int checkedId = rg.getCheckedRadioButtonId();
+												View selectedRb = rg.findViewById(checkedId);
+												if (selectedRb instanceof com.google.android.material.radiobutton.MaterialRadioButton) {
+														String varName = ((com.google.android.material.radiobutton.MaterialRadioButton) selectedRb).getTag().toString();
+														
+														if (pane.isExistVariableBlock(varName) || DesignDataManager.isExistVariableBlock(filename, varName, id + "_" + eventName)) {
+																Toast.makeText(getApplicationContext(), getString(R.string.err_currently_used_variable), Toast.LENGTH_SHORT).show();
+																return;
+														}
+														
+														DesignDataManager.removeVariable(filename, varName);
+														onBlockCategorySelect(0, -1147626);
+												}
+												dialog.dismiss();
+										}
+								});
+						}
+				});
+				dialog.show();
 		}
 		
 		

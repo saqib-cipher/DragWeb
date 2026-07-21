@@ -102,7 +102,7 @@ public class BlockArg extends BlockBase {
 
     public int getW() {
         int baseW = getBaseW();
-        return this.mType.equals("m") ? baseW + this.dropdownArea : baseW;
+        return (this.mType.equals("m") || this.mType.equals("v")) ? baseW + this.dropdownArea : baseW;
     }
 
     private int getLabelWidth() {
@@ -143,6 +143,13 @@ public class BlockArg extends BlockBase {
                         var3 = 3;
                         break label48;
                     }
+                    break;
+                case 118:
+                    if (var2.equals("v")) {
+                        var3 = 4;
+                        break label48;
+                    }
+                    break;
             }
 
             var3 = -1;
@@ -168,9 +175,19 @@ public class BlockArg extends BlockBase {
 
         this.defaultArgWidth = (int) ((float) this.defaultArgWidth * this.dip);
         this.paddingText = (int) ((float) this.paddingText * this.dip);
-        if (this.mType.equals("m") || this.mType.equals("d") || this.mType.equals("n") || this.mType.equals("s")) {
+        if (this.mType.equals("m") || this.mType.equals("v") || this.mType.equals("d") || this.mType.equals("n") || this.mType.equals("s")) {
             String initialText = "";
-            if (this.mType.equals("m") && this.mMenuName != null && !this.mMenuName.isEmpty()) {
+            if (this.mType.equals("v")) {
+                if ("b".equals(this.mMenuName)) {
+                    initialText = "Boolean :";
+                } else if ("d".equals(this.mMenuName)) {
+                    initialText = "Number :";
+                } else if ("s".equals(this.mMenuName)) {
+                    initialText = "String :";
+                } else {
+                    initialText = "Select variable";
+                }
+            } else if (this.mType.equals("m") && this.mMenuName != null && !this.mMenuName.isEmpty()) {
                 initialText = this.mMenuName;
             }
             this.mTextView = this.makeEditText(initialText);
@@ -197,7 +214,7 @@ public class BlockArg extends BlockBase {
         var2.setBackgroundColor(0);
         var2.setSingleLine();
         var2.setGravity(android.view.Gravity.CENTER_VERTICAL | android.view.Gravity.LEFT);
-        if (!this.mType.equals("m")) {
+        if (!this.mType.equals("m") && !this.mType.equals("v")) {
             var2.setTextColor(-268435456);
         } else {
             var2.setTextColor(android.graphics.Color.WHITE);
@@ -206,15 +223,27 @@ public class BlockArg extends BlockBase {
     }
 
     public Object getArgValue() {
-        return !this.mType.equals("d") && !this.mType.equals("m") && !this.mType.equals("s") ? this.argValue : (this.mTextView != null ? this.mTextView.getText() : "");
+        return !this.mType.equals("d") && !this.mType.equals("m") && !this.mType.equals("v") && !this.mType.equals("s") ? this.argValue : (this.mTextView != null ? this.mTextView.getText() : "");
     }
 
     public void setArgValue(Object var1) {
         this.argValue = var1;
-        if (this.mType.equals("d") || this.mType.equals("m") || this.mType.equals("s")) {
+        if (this.mType.equals("d") || this.mType.equals("m") || this.mType.equals("v") || this.mType.equals("s")) {
             String textToDisplay = (var1 != null && !var1.toString().isEmpty()) ? var1.toString() : "";
-            if (textToDisplay.isEmpty() && this.mType.equals("m") && !this.mMenuName.isEmpty()) {
-                textToDisplay = this.mMenuName;
+            if (textToDisplay.isEmpty() && (this.mType.equals("m") || this.mType.equals("v"))) {
+                if (this.mType.equals("v")) {
+                    if ("b".equals(this.mMenuName)) {
+                        textToDisplay = "Boolean :";
+                    } else if ("d".equals(this.mMenuName)) {
+                        textToDisplay = "Number :";
+                    } else if ("s".equals(this.mMenuName)) {
+                        textToDisplay = "String :";
+                    } else {
+                        textToDisplay = "Select variable";
+                    }
+                } else if (!this.mMenuName.isEmpty()) {
+                    textToDisplay = this.mMenuName;
+                }
             }
             if (this.mTextView != null) {
                 this.mTextView.setText(textToDisplay);
@@ -289,6 +318,54 @@ public class BlockArg extends BlockBase {
                 dialog.showUnitInput(new UniversalM3Dialog.OnText() {
                     @Override
                     public void onText(String value) {
+                        setArgValue(value);
+                        if (parentBlock != null) {
+                            parentBlock.recalcWidthToParent();
+                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        }
+                    }
+                });
+                return;
+            }
+
+            if (this.mType.equals("v") || menuName.equals("var") || menuName.equals("varInt") || menuName.equals("varBool") || menuName.equals("varStr")) {
+                String filterKey = "var";
+                if (this.mType.equals("v")) {
+                    if ("s".equals(menuName)) filterKey = "varStr";
+                    else if ("b".equals(menuName)) filterKey = "varBool";
+                    else if ("d".equals(menuName)) filterKey = "varInt";
+                } else {
+                    filterKey = menuName;
+                }
+                
+                final String finalFilterKey = filterKey;
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Select Variable")
+                      .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
+                dialog.showVariableSelector(LogicBlockActivity.filename, finalFilterKey, new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        if (parentBlock != null) {
+                            String parentOp = parentBlock.mOpCode != null ? parentBlock.mOpCode : "";
+                            boolean isSetter = parentOp.equals("setVarBoolean") || parentOp.equals("setVarInt") 
+                                            || parentOp.equals("setVarString") || parentOp.equals("increaseInt") 
+                                            || parentOp.equals("decreaseInt") || parentOp.equals("jsVarAssign");
+                            if (isSetter) {
+                                boolean isConst = false;
+                                ArrayList<android.util.Pair<Integer, String>> vars = DesignDataManager.getVariables(LogicBlockActivity.filename);
+                                for (android.util.Pair<Integer, String> p : vars) {
+                                    if (p.second.equals(value) && p.first >= 4) {
+                                        isConst = true;
+                                        break;
+                                    }
+                                }
+                                if (isConst) {
+                                    android.widget.Toast.makeText(getContext(), "This variable is constant and cannot be reassigned!", android.widget.Toast.LENGTH_LONG).show();
+                                    return;
+                                }
+                            }
+                        }
                         setArgValue(value);
                         if (parentBlock != null) {
                             parentBlock.recalcWidthToParent();

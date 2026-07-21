@@ -26,12 +26,15 @@ public class PaletteBlock extends LinearLayout {
         init(context);
     }
 
+    LinearLayout actionsContainer;
+
     private void init(Context context) {
         this.mContext = context;
         LayoutUtil.inflate(context, this, R.layout.palette_block);
         this.scv = (CustomScrollView) findViewById(R.id.scv);
         this.hscv = (CustomHorizontalScrollView) findViewById(R.id.hscv);
         this.blockBuilder = (LinearLayout) findViewById(R.id.block_builder);
+        this.actionsContainer = (LinearLayout) findViewById(R.id.actions_container);
         this.dip = LayoutUtil.getDip(this.mContext, 1.0f); 
     }
 
@@ -46,15 +49,55 @@ public class PaletteBlock extends LinearLayout {
     }
 
     public TextView addButton(String str) {
-        TextView textView = new TextView(this.mContext);
-        textView.setLayoutParams(new LayoutParams(-1, (int) (30.0f * this.dip)));
-        textView.setBackgroundResource(R.drawable.bg_feed); 
-        textView.setText(str);
-        textView.setTextSize(10.0f);
-        textView.setGravity(17);
-        textView.setPadding((int) (this.dip * 8.0f), 0, (int) (this.dip * 8.0f), 0);
-        this.blockBuilder.addView(textView);
-        return textView;
+        return (TextView) addButton(str, "");
+    }
+
+    public View addButton(String str, String tag) {
+        if (tag != null && tag.startsWith("label_")) {
+            TextView textView = new TextView(this.mContext);
+            LayoutParams lp = new LayoutParams(-1, (int) (32.0f * this.dip));
+            lp.setMargins(0, (int) (12.0f * this.dip), (int) (8.0f * this.dip), (int) (4.0f * this.dip));
+            textView.setLayoutParams(lp);
+            
+            android.util.TypedValue typedValue = new android.util.TypedValue();
+            int bgColor = 0xFFE0E0E0;
+            if (this.mContext.getTheme().resolveAttribute(com.google.android.material.R.attr.colorSurfaceContainerHigh, typedValue, true)) {
+                bgColor = typedValue.data;
+            } else if (this.mContext.getTheme().resolveAttribute(android.R.attr.colorBackground, typedValue, true)) {
+                bgColor = typedValue.data;
+            }
+            
+            android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+            gd.setColor(bgColor);
+            gd.setCornerRadius(8.0f * this.dip);
+            textView.setBackground(gd);
+            
+            textView.setText(str);
+            textView.setTextSize(11.0f);
+            textView.setTypeface(null, android.graphics.Typeface.BOLD);
+            textView.setGravity(17);
+            
+            int textColor = 0xFF616161;
+            if (this.mContext.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, typedValue, true)) {
+                textColor = typedValue.data;
+            }
+            textView.setTextColor(textColor);
+            
+            this.blockBuilder.addView(textView);
+            return textView;
+        } else {
+            com.google.android.material.button.MaterialButton button = new com.google.android.material.button.MaterialButton(this.mContext, null, com.google.android.material.R.attr.materialButtonTonalStyle);
+            LayoutParams lp = new LayoutParams(-1, LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, 0, (int) (8.0f * this.dip), (int) (6.0f * this.dip));
+            button.setLayoutParams(lp);
+            button.setText(str);
+            button.setCornerRadius((int) (12.0f * this.dip));
+            button.setTextSize(13.0f);
+            button.setAllCaps(false);
+            
+            this.blockBuilder.addView(button);
+            return button;
+        }
     }
 
     public void removeAllBlocks() {
