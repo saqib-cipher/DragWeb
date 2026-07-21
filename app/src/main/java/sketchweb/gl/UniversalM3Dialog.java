@@ -167,7 +167,7 @@ public final class UniversalM3Dialog {
         lp.topMargin = dp(12);
         root.addView(til, lp);
 
-        new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
             .setTitle(title.isEmpty() ? "Input Unit Value" : title)
             .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
@@ -183,8 +183,8 @@ public final class UniversalM3Dialog {
                     }
                 }
             })
-            .setNegativeButton("Cancel", null)
-            .show();
+            .setNegativeButton("Cancel", null);
+        showAndFocusKeyboard(builder, edit);
     }
 
     public void showAutocompleteChoice(List<String> suggestions, String initialValue, OnText cb) {
@@ -338,14 +338,14 @@ public final class UniversalM3Dialog {
 
         renderCurrent.run();
 
-        new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
             .setTitle(title)
             .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
                 if (cb != null) cb.onText(joinSpace(selected));
             })
-            .setNegativeButton("Cancel", null)
-            .show();
+            .setNegativeButton("Cancel", null);
+        showAndFocusKeyboard(builder, edit);
     }
 
     private static String joinSpace(java.util.LinkedHashSet<String> set) {
@@ -444,14 +444,14 @@ public final class UniversalM3Dialog {
         lp.topMargin = dp(8);
         root.addView(til, lp);
 
-        new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
             .setTitle(title)
             .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
                 if (cb != null) cb.onText(edit.getText().toString().trim());
             })
-            .setNegativeButton("Cancel", null)
-            .show();
+            .setNegativeButton("Cancel", null);
+        showAndFocusKeyboard(builder, edit);
     }
 
 
@@ -665,7 +665,7 @@ public final class UniversalM3Dialog {
         else { modeGroup.check(tagId); edit.setText(val); }
         updateSuggestions.run();
 
-        new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
             .setTitle(title)
             .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
@@ -674,8 +674,8 @@ public final class UniversalM3Dialog {
                 String prefix = (checked == idId) ? "#" : (checked == classId ? "." : "");
                 if (cb != null) cb.onText(prefix + raw.replaceFirst("^[#.]", ""));
             })
-            .setNegativeButton("Cancel", null)
-            .show();
+            .setNegativeButton("Cancel", null);
+        showAndFocusKeyboard(builder, edit);
     }
 
     public void showFourValueInput(String prop, OnText cb) {
@@ -717,10 +717,31 @@ public final class UniversalM3Dialog {
             root.addView(til, new LinearLayout.LayoutParams(-1, -2) {{ bottomMargin = dp(12); }});
         }
 
-        new MaterialAlertDialogBuilder(context).setTitle(title).setView(scroll)
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+            .setTitle(title).setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
                 if (cb != null) cb.onText(edits[0].getText().toString().trim() + " " + edits[1].getText().toString().trim() + " " + edits[2].getText().toString().trim() + " " + edits[3].getText().toString().trim());
-            }).setNegativeButton("Cancel", null).show();
+            }).setNegativeButton("Cancel", null);
+        showAndFocusKeyboard(builder, edits[0]);
+    }
+
+    private void showAndFocusKeyboard(MaterialAlertDialogBuilder builder, final View inputView) {
+        final androidx.appcompat.app.AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+        }
+        dialog.show();
+        if (inputView != null) {
+            inputView.requestFocus();
+            inputView.postDelayed(() -> {
+                try {
+                    android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) {
+                        imm.showSoftInput(inputView, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                    }
+                } catch (Exception ignored) {}
+            }, 150);
+        }
     }
 
     // --- Helpers ---

@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import java.io.File;
 import java.util.ArrayList;
@@ -108,12 +109,13 @@ public class EventsFragment extends Fragment {
                         .setTitle("Reset Logic")
                         .setMessage("Are you sure you want to delete all logic blocks for '" + selected + "'? This cannot be undone.")
                         .setPositiveButton("Reset", (d, w) -> {
-                             File dir = new File(new File(getContext().getFilesDir(), "projects"), "logic");
-                             String safeName = selected.replace("/", "_").replace(".", "_");
-                             File logicFile = new File(dir, projectId + "_" + safeName + ".logic");
+                            String cleanName = DesignDataManager.getCleanPageName(selected);
+                            File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+                                ".dragweb/projects/" + projectId + "/" + cleanName + "_logic.json");
                             if (logicFile.exists()) {
                                 logicFile.delete();
                             }
+                            DesignDataManager.mapBlocks.remove(cleanName);
                             refreshLogicList();
                             Toast.makeText(getContext(), "Logic reset successfully", Toast.LENGTH_SHORT).show();
                         })
@@ -222,43 +224,154 @@ public class EventsFragment extends Fragment {
                 }
 
                 HtmlCssImporter importer = new HtmlCssImporter(getContext());
-                List<Map<String, Object>> blockMaps;
+                ArrayList<BlockBean> importedBeans;
                 if (isJs) {
-                    blockMaps = importer.importJsOnly(codeText);
+                    importedBeans = importer.importJsToBeans(codeText);
                 } else {
-                    blockMaps = importer.importCssOnly(codeText);
+                    importedBeans = importer.importCssToBeans(codeText);
                 }
 
-                List<LogicBlockManager.LogicBlock> importedBlocks = new Gson().fromJson(
-                    new Gson().toJson(blockMaps),
-                    new TypeToken<List<LogicBlockManager.LogicBlock>>(){}.getType()
-                );
-                if (importedBlocks == null || importedBlocks.isEmpty()) {
+                if (importedBeans == null || importedBeans.isEmpty()) {
                     Toast.makeText(getContext(), "No " + codeType + " rules could be parsed into blocks.", Toast.LENGTH_LONG).show();
                     return;
                 }
 
-                File dir = new File(new File(getContext().getFilesDir(), "projects"), "logic");
-                if (!dir.exists()) dir.mkdirs();
-                String safeName = target.replace("/", "_").replace(".", "_");
-                File logicFile = new File(dir, projectId + "_" + safeName + ".logic");
+                String cleanPage = DesignDataManager.getCleanPageName(target);
+                File extDir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+                if (!extDir.exists()) extDir.mkdirs();
+                File logicFile = new File(extDir, cleanPage + "_logic.json");
 
-                List<LogicBlockManager.LogicBlock> currentBlocks = new ArrayList<>();
+                DesignDataManager.PageLogicData data = null;
                 if (logicFile.exists()) {
                     try {
                         String json = FileUtil.readFile(logicFile.getAbsolutePath());
-                        List<LogicBlockManager.LogicBlock> parsed = new Gson().fromJson(json,
-                            new TypeToken<List<LogicBlockManager.LogicBlock>>(){}.getType());
-                        if (parsed != null) {
-                            currentBlocks.addAll(parsed);
+                        if (json != null && !json.trim().isEmpty()) {
+                            data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
                         }
-                    } catch (Exception e) { android.util.Log.e("EventsFragment", "Error", e); }
+                    } catch (Exception e) {
+                        Log.e("EventsFragment", "Error reading logic file", e);
+                    }
+                }
+                if (data == null) {
+                    data = new DesignDataManager.PageLogicData();
                 }
 
-                currentBlocks.addAll(importedBlocks);
-                FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(currentBlocks));
+                String eventKey = "onCreate_initializeLogic";
+                ArrayList<BlockBean> currentBlocks = data.blocks.get(eventKey);
+                if (currentBlocks == null) {
+                    currentBlocks = new ArrayList<>();
+                    data.blocks.put(eventKey, currentBlocks);
+                }
+
+                Map<Integer, Integer> idMapping = new HashMap<>();
+                int maxId = 0;
+                for (BlockBean b : currentBlocks) {
+                    try {
+                        int idNum = Integer.parseInt(b.id);
+                        if (idNum > maxId) maxId = idNum;
+                    } catch (Exception ignored) {}
+                }
+
+                for (BlockBean bean : importedBeans) {
+                    try {
+                        int oldId = Integer.parseInt(bean.id);
+                        maxId++;
+                        idMapping.put(oldId, maxId);
+                        bean.id = String.valueOf(maxId);
+                    } catch (Exception e) {
+                        maxId++;
+                        bean.id = String.valueOf(maxId);
+                    }
+                }
+
+                for (BlockBean bean : importedBeans) {
+                    if (bean.subStack1 >= 0 && idMapping.containsKey(bean.subStack1)) {
+                        bean.subStack1 = idMapping.get(bean.subStack1);
+                    } else if (bean.subStack1 >= 0 && !idMapping.containsValue(bean.subStack1)) {
+                        bean.subStack1 = -1;
+                    }
+
+                    if (bean.subStack2 >= 0 && idMapping.containsKey(bean.subStack2)) {
+                        bean.subStack2 = idMapping.get(bean.subStack2);
+                    } else if (bean.subStack2 >= 0 && !idMapping.containsValue(bean.subStack2)) {
+                        bean.subStack2 = -1;
+                    }
+
+                    if (bean.nextBlock >= 0 && idMapping.containsKey(bean.nextBlock)) {
+                        bean.nextBlock = idMapping.get(bean.nextBlock);
+                    } else if (bean.nextBlock >= 0 && !idMapping.containsValue(bean.nextBlock)) {
+                        bean.nextBlock = -1;
+                    }
+                }
+
+                if (!currentBlocks.isEmpty() && !importedBeans.isEmpty()) {
+                    java.util.Set<Integer> referencedIds = new java.util.HashSet<>();
+                    for (BlockBean b : currentBlocks) {
+                        if (b.subStack1 >= 0) referencedIds.add(b.subStack1);
+                        if (b.subStack2 >= 0) referencedIds.add(b.subStack2);
+                        if (b.nextBlock >= 0) referencedIds.add(b.nextBlock);
+                    }
+
+                    BlockBean lastBlockInCurrent = null;
+                    for (int i = currentBlocks.size() - 1; i >= 0; i--) {
+                        BlockBean b = currentBlocks.get(i);
+                        if (b.nextBlock == -1 && !referencedIds.contains(Integer.parseInt(b.id))) {
+                            lastBlockInCurrent = b;
+                            break;
+                        }
+                    }
+                    if (lastBlockInCurrent == null) {
+                        for (int i = currentBlocks.size() - 1; i >= 0; i--) {
+                            BlockBean b = currentBlocks.get(i);
+                            if (b.nextBlock == -1) {
+                                lastBlockInCurrent = b;
+                                break;
+                            }
+                        }
+                    }
+
+                    java.util.Set<Integer> importedReferencedIds = new java.util.HashSet<>();
+                    for (BlockBean b : importedBeans) {
+                        if (b.subStack1 >= 0) importedReferencedIds.add(b.subStack1);
+                        if (b.subStack2 >= 0) importedReferencedIds.add(b.subStack2);
+                        if (b.nextBlock >= 0) importedReferencedIds.add(b.nextBlock);
+                    }
+
+                    BlockBean firstImportedTopLevel = null;
+                    for (BlockBean b : importedBeans) {
+                        int bId = Integer.parseInt(b.id);
+                        if (!importedReferencedIds.contains(bId)) {
+                            firstImportedTopLevel = b;
+                            break;
+                        }
+                    }
+                    if (firstImportedTopLevel == null && !importedBeans.isEmpty()) {
+                        firstImportedTopLevel = importedBeans.get(0);
+                    }
+
+                    if (lastBlockInCurrent != null && firstImportedTopLevel != null) {
+                        lastBlockInCurrent.nextBlock = Integer.parseInt(firstImportedTopLevel.id);
+                    }
+                }
+
+                int maxStackIndex = currentBlocks.size();
+                for (BlockBean bean : importedBeans) {
+                    bean.stackIndex = maxStackIndex++;
+                    currentBlocks.add(bean);
+                }
+
+                String updatedJson = new GsonBuilder().setPrettyPrinting().create().toJson(data);
+                FileUtil.writeFile(logicFile.getAbsolutePath(), updatedJson);
+
+                HashMap<String, ArrayList<BlockBean>> pageBlocks = DesignDataManager.mapBlocks.get(cleanPage);
+                if (pageBlocks == null) {
+                    pageBlocks = new HashMap<>();
+                    DesignDataManager.mapBlocks.put(cleanPage, pageBlocks);
+                }
+                pageBlocks.put(eventKey, currentBlocks);
+
                 refreshLogicList();
-                Toast.makeText(getContext(), "Successfully imported " + importedBlocks.size() + " " + codeType + " blocks into " + target, Toast.LENGTH_LONG).show();
+                Toast.makeText(getContext(), "Successfully imported " + importedBeans.size() + " " + codeType + " blocks into " + target, Toast.LENGTH_LONG).show();
             });
         });
     }

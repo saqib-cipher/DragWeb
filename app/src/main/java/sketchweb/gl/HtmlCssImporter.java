@@ -500,231 +500,304 @@ public class HtmlCssImporter {
         switch (property) {
             case "display":
                 info.action = "setDisplay";
-                info.spec = "display: %m.display;";
+                info.spec = "display %m.display";
                 info.paramValues.add(value);
                 break;
             case "position":
                 info.action = "setPosition";
-                info.spec = "position: %m.position;";
+                info.spec = "position %m.position";
                 info.paramValues.add(value);
                 break;
             case "overflow":
                 info.action = "setOverflow";
-                info.spec = "overflow: %m.overflow;";
+                info.spec = "overflow %m.overflow";
                 info.paramValues.add(value);
                 break;
             case "color":
                 info.action = "setColor";
-                info.spec = "color: %m.color;";
+                info.spec = "color %m.color";
                 info.paramValues.add(value);
                 break;
             case "background-color":
             case "backgroundcolor":
+                info.action = "setBackgroundColor";
+                info.spec = "background-color %m.color";
+                info.paramValues.add(value);
+                break;
             case "background":
                 if (value.contains("url(")) {
                     info.action = "setBackgroundImage";
-                    info.spec = "background-image: url(%s);";
+                    info.spec = "background-image url %s";
                     info.paramValues.add(extractUrl(value));
                 } else {
-                    info.action = "setBackground";
-                    info.spec = "background-color: %m.color;";
+                    info.action = "setBackgroundColor";
+                    info.spec = "background-color %m.color";
                     info.paramValues.add(value);
                 }
                 break;
             case "background-image":
             case "backgroundimage":
                 info.action = "setBackgroundImage";
-                info.spec = "background-image: url(%s);";
+                info.spec = "background-image url %s";
                 info.paramValues.add(extractUrl(value));
                 break;
             case "width":
                 info.action = "setWidth";
-                info.spec = "width: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "width %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "height":
                 info.action = "setHeight";
-                info.spec = "height: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "height %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "max-width":
             case "maxwidth":
                 info.action = "setMaxWidth";
-                info.spec = "max-width: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "max-width %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "max-height":
             case "maxheight":
                 info.action = "setMaxHeight";
-                info.spec = "max-height: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "max-height %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "min-width":
             case "minwidth":
                 info.action = "setMinWidth";
-                info.spec = "min-width: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "min-width %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "min-height":
             case "minheight":
                 info.action = "setMinHeight";
-                info.spec = "min-height: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "min-height %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "margin":
                 info.action = "setMargin";
-                info.spec = "margin: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "margin %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "padding":
                 info.action = "setPadding";
-                info.spec = "padding: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "padding %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "border-radius":
             case "borderradius":
                 info.action = "setRadius";
-                info.spec = "border-radius: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "border-radius %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "font-size":
             case "fontsize":
                 info.action = "setFontSize";
-                info.spec = "font-size: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "font-size %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "font-family":
             case "fontfamily":
                 info.action = "setFontFamily";
-                info.spec = "font-family: %s;";
+                info.spec = "font-family %s";
                 info.paramValues.add(value);
                 break;
             case "font-weight":
             case "fontweight":
                 info.action = "setFontWeight";
-                info.spec = "font-weight: %m.fontWeight;";
+                info.spec = "font-weight %m.fontWeight";
                 info.paramValues.add(value);
                 break;
             case "font-style":
             case "fontstyle":
                 info.action = "setFontStyle";
-                info.spec = "font-style: %m.fontStyle;";
+                info.spec = "font-style %m.fontStyle";
                 info.paramValues.add(value);
                 break;
             case "text-align":
             case "textalign":
                 info.action = "setTextAlign";
-                info.spec = "text-align: %m.textAlign;";
+                info.spec = "text-align %m.textAlign";
+                info.paramValues.add(value);
+                break;
+            case "text-transform":
+            case "texttransform":
+                info.action = "setTextTransform";
+                info.spec = "text-transform %m.textTransform";
                 info.paramValues.add(value);
                 break;
             case "text-decoration":
             case "textdecoration":
                 info.action = "setTextDecoration";
-                info.spec = "text-decoration: %m.textDecoration;";
+                info.spec = "text-decoration %m.textDecoration";
                 info.paramValues.add(value);
                 break;
             case "line-height":
             case "lineheight":
                 info.action = "setLineHeight";
-                info.spec = "line-height: %n;";
+                info.spec = "line-height %d";
                 info.paramValues.add(value);
                 break;
             case "letter-spacing":
             case "letterspacing":
                 info.action = "setLetterSpacing";
-                info.spec = "letter-spacing: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "letter-spacing %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "opacity":
                 info.action = "setOpacity";
-                info.spec = "opacity: %n;";
+                info.spec = "opacity %d";
                 info.paramValues.add(value);
                 break;
             case "z-index":
             case "zindex":
                 info.action = "setZIndex";
-                info.spec = "z-index: %n;";
+                info.spec = "z-index %d";
+                info.paramValues.add(value);
+                break;
+            case "top":
+                info.action = "setTop";
+                info.spec = "top %m.unit";
+                info.paramValues.add(value);
+                break;
+            case "bottom":
+                info.action = "setBottom";
+                info.spec = "bottom %m.unit";
+                info.paramValues.add(value);
+                break;
+            case "left":
+                info.action = "setLeft";
+                info.spec = "left %m.unit";
+                info.paramValues.add(value);
+                break;
+            case "right":
+                info.action = "setRight";
+                info.spec = "right %m.unit";
                 info.paramValues.add(value);
                 break;
             case "cursor":
                 info.action = "setCursor";
-                info.spec = "cursor: %m.cursor;";
+                info.spec = "cursor %m.cursor";
                 info.paramValues.add(value);
                 break;
             case "flex-direction":
             case "flexdirection":
                 info.action = "setFlexDirection";
-                info.spec = "flex-direction: %m.flexDirection;";
+                info.spec = "flex-direction %m.flexDirection";
+                info.paramValues.add(value);
+                break;
+            case "flex-wrap":
+            case "flexwrap":
+                info.action = "setFlexWrap";
+                info.spec = "flex-wrap %m.flexWrap";
+                info.paramValues.add(value);
+                break;
+            case "align-self":
+            case "alignself":
+                info.action = "setAlignSelf";
+                info.spec = "align-self %m.alignItems";
+                info.paramValues.add(value);
+                break;
+            case "flex-grow":
+            case "flexgrow":
+                info.action = "setFlexGrow";
+                info.spec = "flex-grow %d";
+                info.paramValues.add(value);
+                break;
+            case "flex-shrink":
+            case "flexshrink":
+                info.action = "setFlexShrink";
+                info.spec = "flex-shrink %d";
+                info.paramValues.add(value);
+                break;
+            case "order":
+                info.action = "setOrder";
+                info.spec = "order %d";
                 info.paramValues.add(value);
                 break;
             case "justify-content":
             case "justifycontent":
                 info.action = "setJustifyContent";
-                info.spec = "justify-content: %m.justifyContent;";
+                info.spec = "justify-content %m.justifyContent";
                 info.paramValues.add(value);
                 break;
             case "align-items":
             case "alignitems":
                 info.action = "setAlignItems";
-                info.spec = "align-items: %m.alignItems;";
+                info.spec = "align-items %m.alignItems";
                 info.paramValues.add(value);
                 break;
             case "gap":
                 info.action = "setGap";
-                info.spec = "gap: %n%m.unit;";
-                info.paramValues.add(numUnit[0]);
-                info.paramValues.add(numUnit[1]);
+                info.spec = "gap %m.unit";
+                info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? value : (numUnit[0] + numUnit[1]).trim());
                 break;
             case "grid-template-columns":
             case "gridtemplatecolumns":
                 info.action = "setGridTemplateColumns";
-                info.spec = "grid-template-columns: %s;";
+                info.spec = "grid columns %s";
+                info.paramValues.add(value);
+                break;
+            case "grid-template-rows":
+            case "gridtemplaterows":
+                info.action = "setGridTemplateRows";
+                info.spec = "grid rows %s";
+                info.paramValues.add(value);
+                break;
+            case "grid-column":
+            case "gridcolumn":
+                info.action = "setGridColumn";
+                info.spec = "grid-column %s";
+                info.paramValues.add(value);
+                break;
+            case "grid-row":
+            case "gridrow":
+                info.action = "setGridRow";
+                info.spec = "grid-row %s";
+                info.paramValues.add(value);
+                break;
+            case "grid-area":
+            case "gridarea":
+                info.action = "setGridArea";
+                info.spec = "grid-area %s";
                 info.paramValues.add(value);
                 break;
             case "transform":
                 info.action = "setTransform";
-                info.spec = "transform: %s;";
+                info.spec = "transform %s";
                 info.paramValues.add(value);
                 break;
             case "filter":
                 info.action = "setFilter";
-                info.spec = "filter: %s;";
+                info.spec = "filter %s";
+                info.paramValues.add(value);
+                break;
+            case "border-color":
+            case "bordercolor":
+                info.action = "setBorderColor";
+                info.spec = "border-color %m.color";
+                info.paramValues.add(value);
+                break;
+            case "border-style":
+            case "borderstyle":
+                info.action = "setBorderStyle";
+                info.spec = "border-style %m.borderStyle";
                 info.paramValues.add(value);
                 break;
             case "border":
             case "borderwidth":
             case "border-width":
-            case "bordercolor":
-            case "border-color":
                 if ("borderwidth".equals(property) || "border-width".equals(property)) {
                     info.action = "setBorder";
-                    info.spec = "border: %n%m.unit solid %m.color;";
-                    info.paramValues.add(numUnit[0]);
-                    info.paramValues.add(numUnit[1]);
+                    info.spec = "border %m.unit %m.color";
+                    info.paramValues.add((numUnit[0] + numUnit[1]).trim().isEmpty() ? "1px" : (numUnit[0] + numUnit[1]).trim());
                     info.paramValues.add("#000000");
-                } else if ("bordercolor".equals(property) || "border-color".equals(property)) {
-                    info.action = "setBorder";
-                    info.spec = "border: %n%m.unit solid %m.color;";
-                    info.paramValues.add("1");
-                    info.paramValues.add("px");
-                    info.paramValues.add(value);
                 } else {
                     String[] borderParams = parseBorderParams(value);
                     info.action = "setBorder";
-                    info.spec = "border: %n%m.unit solid %m.color;";
-                    info.paramValues.add(borderParams[0]);
-                    info.paramValues.add(borderParams[1]);
+                    info.spec = "border %m.unit %m.color";
+                    info.paramValues.add((borderParams[0] + borderParams[1]).trim().isEmpty() ? "1px" : (borderParams[0] + borderParams[1]).trim());
                     info.paramValues.add(borderParams[2]);
                 }
                 break;
@@ -732,7 +805,7 @@ public class HtmlCssImporter {
             case "boxshadow":
                 String[] shadowParams = parseBoxShadowParams(value);
                 info.action = "setBoxShadow";
-                info.spec = "box-shadow: %npx %npx %npx %m.color;";
+                info.spec = "box-shadow %d %d %d %m.color";
                 info.paramValues.add(shadowParams[0]);
                 info.paramValues.add(shadowParams[1]);
                 info.paramValues.add(shadowParams[2]);
@@ -1243,7 +1316,25 @@ public class HtmlCssImporter {
                     }
                 }
             } else {
-                bean.color = -1147626;
+                boolean isJs = bean.opCode != null && bean.opCode.toLowerCase().contains("js");
+                String asdOpCode = isJs ? "asdJs" : "asdCss";
+                bean.opCode = asdOpCode;
+                BlockDef asdDef = defMap.get(asdOpCode.toLowerCase());
+                if (asdDef != null) {
+                    bean.spec = asdDef.getSpec();
+                    bean.type = asdDef.getType();
+                    if (asdDef.color != null && !asdDef.color.isEmpty()) {
+                        try {
+                            bean.color = android.graphics.Color.parseColor(asdDef.color);
+                        } catch (Exception ignored) {
+                            bean.color = -1147626;
+                        }
+                    }
+                } else {
+                    bean.spec = "%s";
+                    bean.type = "c";
+                    bean.color = -1147626;
+                }
             }
 
             Object paramVals = map.get("paramValues");

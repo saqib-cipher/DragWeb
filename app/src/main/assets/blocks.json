@@ -13,7 +13,7 @@
         "blockType": "c",
         "color": "#546E7A",
         "spec": "//Comment BOLD %s",
-        "code": "/*===== %1$s =====*/ %2$s"
+        "code": "/*===== %1$s =====*/ \n %2$s"
     },
     {
         "id": "cssSelector",
@@ -21,7 +21,7 @@
         "blockType": "c",
         "color": "#1976D2",
         "spec": "Widget %selector",
-        "code": "%1$s { %2$s }"
+        "code": "%1$s {\n %2$s\n}\n"
     },
     {
         "id": "cssHover",
@@ -29,7 +29,7 @@
         "blockType": "c",
         "color": "#1976D2",
         "spec": "%selector hover",
-        "code": "%1$s:hover { %2$s }"
+        "code": "%1$s:hover {\n %2$s\n}\n"
     },
     {
         "id": "cssFocus",
@@ -37,7 +37,7 @@
         "blockType": "c",
         "color": "#1976D2",
         "spec": "%selector focus",
-        "code": "%1$s:focus { %2$s }"
+        "code": "%1$s:focus {\n %2$s\n}\n"
     },
     {
         "id": "cssActive",
@@ -45,7 +45,7 @@
         "blockType": "c",
         "color": "#1976D2",
         "spec": "%selector active",
-        "code": "%1$s:active { %2$s }"
+        "code": "%1$s:active {\n %2$s\n}\n"
     },
     {
         "id": "cssVisited",
@@ -53,7 +53,7 @@
         "blockType": "c",
         "color": "#1976D2",
         "spec": "%selector visited",
-        "code": "%1$s:visited { %2$s }"
+        "code": "%1$s:visited {\n%2$s\n}\n"
     },
     {
         "id": "cssBefore",
@@ -61,7 +61,7 @@
         "blockType": "c",
         "color": "#1976D2",
         "spec": "%selector before",
-        "code": "%1$s::before { %2$s }"
+        "code": "%1$s::before {\n%2$s\n}\n"
     },
     {
         "id": "cssAfter",
@@ -69,7 +69,7 @@
         "blockType": "c",
         "color": "#1976D2",
         "spec": "%selector after",
-        "code": "%1$s::after { %2$s }"
+        "code": "%1$s::after {\n%2$s\n}\n"
     },
     {
         "id": "cssFirstChild",
@@ -77,7 +77,7 @@
         "blockType": "c",
         "color": "#1976D2",
         "spec": "%selector first-child",
-        "code": "%1$s:first-child { %2$s }"
+        "code": "%1$s:first-child {\n%2$s\n}\n"
     },
     {
         "id": "cssLastChild",
@@ -85,7 +85,7 @@
         "blockType": "c",
         "color": "#1976D2",
         "spec": "%selector last-child",
-        "code": "%1$s:last-child { %2$s }"
+        "code": "%1$s:last-child {\n%2$s\n}\n"
     },
     {
         "id": "cssNthChild",
@@ -93,7 +93,7 @@
         "blockType": "c",
         "color": "#1976D2",
         "spec": "%selector %dth-child",
-        "code": "%1$s:nth-child(%2$s) { %3$s }"
+        "code": "%1$s:nth-child(%2$s) {\n%3$s\n}\n"
     },
     {
         "id": "cssMediaQuery",
@@ -101,7 +101,7 @@
         "blockType": "c",
         "color": "#1565C0",
         "spec": "@media max-width %d",
-        "code": "@media (max-width: %1$s) { %2$s }"
+        "code": "@media (max-width: %1$s) {\n%2$s\n}"
     },
     {
         "id": "setDisplay",
@@ -109,7 +109,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "display %m.display",
-        "code": "display: %1$s;"
+        "code": "display: %1$s;\n"
     },
     {
         "id": "setPosition",
@@ -117,7 +117,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "position %m.position",
-        "code": "position: %1$s;"
+        "code": "position: %1$s;\n"
     },
     {
         "id": "setOverflow",
@@ -125,7 +125,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "overflow %m.overflow",
-        "code": "overflow: %1$s;"
+        "code": "overflow: %1$s;\n"
     },
     {
         "id": "setColor",
@@ -133,7 +133,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "color %m.color",
-        "code": "color: %1$s;"
+        "code": "color: %1$s;\n"
     },
     {
         "id": "setBackground",
@@ -141,7 +141,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "background %m.color",
-        "code": "background-color: %1$s;"
+        "code": "background-color: %1$s;\n"
     },
     {
         "id": "setBackgroundImage",
@@ -149,7 +149,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "background-image url %s",
-        "code": "background-image: url(%1$s);"
+        "code": "background-image: url(%1$s);\n"
     },
     {
         "id": "setWidth",
@@ -157,7 +157,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "width %m.unit",
-        "code": "width: %1$s;"
+        "code": "width: %1$s;\n"
     },
     {
         "id": "setHeight",
@@ -165,7 +165,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "height %m.unit",
-        "code": "height: %1$s;"
+        "code": "height: %1$s;\n"
     },
     {
         "id": "setMaxWidth",
@@ -173,7 +173,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "max-width %m.unit",
-        "code": "max-width: %1$s;"
+        "code": "max-width: %1$s;\n"
     },
     {
         "id": "setMaxHeight",
@@ -181,7 +181,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "max-height %m.unit",
-        "code": "max-height: %1$s;"
+        "code": "max-height: %1$s;\n"
     },
     {
         "id": "setMinWidth",
@@ -189,7 +189,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "min-width %m.unit",
-        "code": "min-width: %1$s;"
+        "code": "min-width: %1$s;\n"
     },
     {
         "id": "setMinHeight",
@@ -197,7 +197,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "min-height %m.unit",
-        "code": "min-height: %1$s;"
+        "code": "min-height: %1$s;\n"
     },
     {
         "id": "setMargin",
@@ -205,7 +205,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "margin %m.unit",
-        "code": "margin: %1$s;"
+        "code": "margin: %1$s;\n"
     },
     {
         "id": "setPadding",
@@ -213,7 +213,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "padding %m.unit",
-        "code": "padding: %1$s;"
+        "code": "padding: %1$s;\n"
     },
     {
         "id": "setBorder",
@@ -221,7 +221,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "border %m.unit %m.color",
-        "code": "border: %1$s solid %2$s;"
+        "code": "border: %1$s solid %2$s;\n"
     },
     {
         "id": "setRadius",
@@ -229,7 +229,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "border-radius %m.unit",
-        "code": "border-radius: %1$s;"
+        "code": "border-radius: %1$s;\n"
     },
     {
         "id": "setBoxShadow",
@@ -237,7 +237,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "box-shadow %d %d %d %m.color",
-        "code": "box-shadow: %1$spx %2$spx %3$spx %4$s;"
+        "code": "box-shadow: %1$spx %2$spx %3$spx %4$s;\n"
     },
     {
         "id": "setFontSize",
@@ -245,7 +245,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "font-size %m.unit",
-        "code": "font-size: %1$s;"
+        "code": "font-size: %1$s;\n"
     },
     {
         "id": "setFontFamily",
@@ -253,7 +253,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "font-family %s",
-        "code": "font-family: %1$s;"
+        "code": "font-family: %1$s;\n"
     },
     {
         "id": "setFontWeight",
@@ -261,7 +261,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "font-weight %m.fontWeight",
-        "code": "font-weight: %1$s;"
+        "code": "font-weight: %1$s;\n"
     },
     {
         "id": "setFontStyle",
@@ -269,7 +269,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "font-style %m.fontStyle",
-        "code": "font-style: %1$s;"
+        "code": "font-style: %1$s;\n"
     },
     {
         "id": "setTextAlign",
@@ -277,7 +277,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "text-align %m.textAlign",
-        "code": "text-align: %1$s;"
+        "code": "text-align: %1$s;\n"
     },
     {
         "id": "setTextDecoration",
@@ -285,7 +285,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "text-decoration %m.textDecoration",
-        "code": "text-decoration: %1$s;"
+        "code": "text-decoration: %1$s;\n"
     },
     {
         "id": "setLineHeight",
@@ -293,7 +293,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "line-height %d",
-        "code": "line-height: %1$s;"
+        "code": "line-height: %1$s;\n"
     },
     {
         "id": "setLetterSpacing",
@@ -301,7 +301,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "letter-spacing %m.unit",
-        "code": "letter-spacing: %1$s;"
+        "code": "letter-spacing: %1$s;\n"
     },
     {
         "id": "setOpacity",
@@ -309,7 +309,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "opacity %d",
-        "code": "opacity: %1$s;"
+        "code": "opacity: %1$s;\n"
     },
     {
         "id": "setZIndex",
@@ -317,7 +317,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "z-index %d",
-        "code": "z-index: %1$s;"
+        "code": "z-index: %1$s;\n"
     },
     {
         "id": "setCursor",
@@ -325,7 +325,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "cursor %m.cursor",
-        "code": "cursor: %1$s;"
+        "code": "cursor: %1$s;\n"
     },
     {
         "id": "setFlexDirection",
@@ -333,7 +333,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "flex-direction %m.flexDirection",
-        "code": "flex-direction: %1$s;"
+        "code": "flex-direction: %1$s;\n"
     },
     {
         "id": "setJustifyContent",
@@ -341,7 +341,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "justify-content %m.justifyContent",
-        "code": "justify-content: %1$s;"
+        "code": "justify-content: %1$s;\n"
     },
     {
         "id": "setAlignItems",
@@ -349,7 +349,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "align-items %m.alignItems",
-        "code": "align-items: %1$s;"
+        "code": "align-items: %1$s;\n"
     },
     {
         "id": "setGap",
@@ -357,7 +357,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "gap %m.unit",
-        "code": "gap: %1$s;"
+        "code": "gap: %1$s;\n"
     },
     {
         "id": "setGridTemplateColumns",
@@ -365,7 +365,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "grid columns %s",
-        "code": "grid-template-columns: %1$s;"
+        "code": "grid-template-columns: %1$s;\n"
     },
     {
         "id": "setTransform",
@@ -373,7 +373,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "transform %s",
-        "code": "transform: %1$s;"
+        "code": "transform: %1$s;\n"
     },
     {
         "id": "setFilter",
@@ -381,7 +381,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "filter %s",
-        "code": "filter: %1$s;"
+        "code": "filter: %1$s;\n"
     },
     {
         "id": "animateFadeIn",
@@ -389,7 +389,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "animate fade-in %d",
-        "code": "animation: fadeIn %1$ss;"
+        "code": "animation: fadeIn %1$ss;\n"
     },
     {
         "id": "animateFadeOut",
@@ -397,7 +397,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "animate fade-out %d",
-        "code": "animation: fadeOut %1$ss;"
+        "code": "animation: fadeOut %1$ss;\n"
     },
     {
         "id": "animateSlideIn",
@@ -405,7 +405,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "animate slide-in %d",
-        "code": "animation: slideIn %1$ss;"
+        "code": "animation: slideIn %1$ss;\n"
     },
     {
         "id": "animateSlideOut",
@@ -413,7 +413,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "animate slide-out %d",
-        "code": "animation: slideOut %1$ss;"
+        "code": "animation: slideOut %1$ss;\n"
     },
     {
         "id": "animateBounce",
@@ -421,7 +421,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "animate bounce %d",
-        "code": "animation: bounce %1$ss;"
+        "code": "animation: bounce %1$ss;\n"
     },
     {
         "id": "animatePulse",
@@ -429,7 +429,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "animate pulse %d",
-        "code": "animation: pulse %1$ss;"
+        "code": "animation: pulse %1$ss;\n"
     },
     {
         "id": "animateRotate",
@@ -437,7 +437,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "animate rotate %d",
-        "code": "animation: rotate %1$ss;"
+        "code": "animation: rotate %1$ss;\n"
     },
     {
         "id": "animateShake",
@@ -445,7 +445,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "animate shake %d",
-        "code": "animation: shake %1$ss;"
+        "code": "animation: shake %1$ss;\n"
     },
     {
         "id": "transitionAll",
@@ -453,7 +453,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "transition all %d",
-        "code": "transition: all %1$ss;"
+        "code": "transition: all %1$ss;\n"
     },
     {
         "id": "transitionColor",
@@ -461,7 +461,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "transition color %d",
-        "code": "transition: color %1$ss;"
+        "code": "transition: color %1$ss;\n"
     },
     {
         "id": "transitionTransform",
@@ -469,7 +469,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "transition transform %d",
-        "code": "transition: transform %1$ss;"
+        "code": "transition: transform %1$ss;\n"
     },
     {
         "id": "animateSlideUp",
@@ -477,7 +477,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "slide-up %s",
-        "code": "animation: slideUp %1$ss ease both;"
+        "code": "animation: slideUp %1$ss ease both;\n"
     },
     {
         "id": "animateSlideDown",
@@ -485,7 +485,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "slide-down %s",
-        "code": "animation: slideDown %1$ss ease both;"
+        "code": "animation: slideDown %1$ss ease both;\n"
     },
     {
         "id": "animateSlideLeft",
@@ -493,7 +493,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "slide-left %s",
-        "code": "animation: slideLeft %1$ss ease both;"
+        "code": "animation: slideLeft %1$ss ease both;\n"
     },
     {
         "id": "animateSlideRight",
@@ -501,7 +501,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "slide-right %s",
-        "code": "animation: slideRight %1$ss ease both;"
+        "code": "animation: slideRight %1$ss ease both;\n"
     },
     {
         "id": "animateZoomIn",
@@ -509,7 +509,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "zoom-in %s",
-        "code": "animation: zoomIn %1$ss ease both;"
+        "code": "animation: zoomIn %1$ss ease both;\n"
     },
     {
         "id": "animateZoomOut",
@@ -517,7 +517,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "zoom-out %s",
-        "code": "animation: zoomOut %1$ss ease both;"
+        "code": "animation: zoomOut %1$ss ease both;\n"
     },
     {
         "id": "animateFlip",
@@ -525,7 +525,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "flip %s",
-        "code": "animation: flip %1$ss ease both;"
+        "code": "animation: flip %1$ss ease both;\n"
     },
     {
         "id": "animateCustom",
@@ -533,7 +533,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "%s %s %s %s %m.iter %m.fill",
-        "code": "animation: %1$s %2$ss %3$s %4$s %5$s %6$s;"
+        "code": "animation: %1$s %2$ss %3$s %4$s %5$s %6$s;\n"
     },
     {
         "id": "transitionCustom",
@@ -541,7 +541,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "transition %s %s %s %s",
-        "code": "transition: %1$s %2$ss %3$s %4$s;"
+        "code": "transition: %1$s %2$ss %3$s %4$s;\n"
     },
     {
         "id": "hoverScale",
@@ -549,7 +549,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "hover scale %d",
-        "code": "transition: transform 0.2s ease; transform: scale(1);"
+        "code": "transition: transform 0.2s ease; transform: scale(1);\n"
     },
     {
         "id": "scrollReveal",
@@ -557,7 +557,7 @@
         "blockType": "normal",
         "color": "#9C27B0",
         "spec": "scroll reveal %s",
-        "code": "animation: %1$s 0.6s ease both; animation-timeline: view();"
+        "code": "animation: %1$s 0.6s ease both; animation-timeline: view();\n"
     },
     {
         "id": "valueString",
@@ -565,7 +565,7 @@
         "blockType": "s",
         "color": "#7E57C2",
         "spec": "%s",
-        "code": "%1$s"
+        "code": "%1$s\n"
     },
     {
         "id": "valueNumber",
@@ -589,7 +589,7 @@
         "blockType": "s",
         "color": "#7E57C2",
         "spec": "%m.color",
-        "code": "%1$s"
+        "code": "%1$s\n"
     },
     {
         "id": "stringConcat",
@@ -597,7 +597,7 @@
         "blockType": "s",
         "color": "#7E57C2",
         "spec": "%s + %s",
-        "code": "%1$s %2$s"
+        "code": "%1$s %2$s\n"
     },
     {
         "id": "ifBlock",
@@ -605,7 +605,7 @@
         "blockType": "c",
         "color": "#E91E63",
         "spec": "if %s",
-        "code": "if (%1$s) { %2$s }"
+        "code": "if (%1$s) {\n%2$s\n}\n"
     },
     {
         "id": "loop",
@@ -613,7 +613,7 @@
         "blockType": "c",
         "color": "#E91E63",
         "spec": "repeat %d",
-        "code": "for (var i = 0; i < %1$s; i++) { %2$s }"
+        "code": "for (var i = 0; i < %1$s; i++) {\n%2$s\n}\n"
     },
     {
         "id": "asdHtml",
@@ -621,7 +621,7 @@
         "blockType": "normal",
         "color": "#455A64",
         "spec": "HTML source %s",
-        "code": "%1$s"
+        "code": "%1$s\n"
     },
     {
         "id": "asdCss",
@@ -629,7 +629,7 @@
         "blockType": "normal",
         "color": "#455A64",
         "spec": "CSS source %s",
-        "code": "%1$s"
+        "code": "%1$s\n"
     },
     {
         "id": "asdJs",
@@ -637,7 +637,7 @@
         "blockType": "normal",
         "color": "#455A64",
         "spec": "JS source %s",
-        "code": "%1$s"
+        "code": "%1$s\n"
     },
     {
         "id": "asdHead",
@@ -645,7 +645,7 @@
         "blockType": "normal",
         "color": "#455A64",
         "spec": "Head source %s",
-        "code": "%1$s"
+        "code": "%1$s\n"
     },
     {
         "id": "asdMeta",
@@ -653,7 +653,7 @@
         "blockType": "normal",
         "color": "#455A64",
         "spec": "Meta tag %s",
-        "code": "%1$s"
+        "code": "%1$s\n"
     },
     {
         "id": "constDefine",
@@ -661,7 +661,7 @@
         "blockType": "normal",
         "color": "#E91E63",
         "spec": "const %s = %s",
-        "code": "const %1$s = %2$s;"
+        "code": "const %1$s = %2$s;\n"
     },
     {
         "id": "jsAlert",
@@ -669,7 +669,7 @@
         "blockType": "normal",
         "color": "#E91E63",
         "spec": "alert %s",
-        "code": "alert(%1$s);"
+        "code": "alert(%1$s);\n"
     },
     {
         "id": "jsConsoleLog",
@@ -677,7 +677,7 @@
         "blockType": "normal",
         "color": "#E91E63",
         "spec": "console.log %s",
-        "code": "console.log(%1$s);"
+        "code": "console.log(%1$s);\n"
     },
     {
         "id": "jsGetElementById",
@@ -685,7 +685,7 @@
         "blockType": "s",
         "color": "#E91E63",
         "spec": "get element %s",
-        "code": "document.querySelector('%1$s')"
+        "code": "document.querySelector('%1$s')\n"
     },
     {
         "id": "jsSetInnerHTML",
@@ -693,7 +693,7 @@
         "blockType": "normal",
         "color": "#E91E63",
         "spec": "set innerHTML of element %s to %s",
-        "code": "document.querySelector('%1$s').innerHTML = %2$s;"
+        "code": "document.querySelector('%1$s').innerHTML = %2$s;\n"
     },
     {
         "id": "jsSetStyle",
@@ -701,7 +701,7 @@
         "blockType": "normal",
         "color": "#E91E63",
         "spec": "on element %s set style %s to %s",
-        "code": "document.querySelector('%1$s').style['%2$s'] = %3$s;"
+        "code": "document.querySelector('%1$s').style['%2$s'] = %3$s;\n"
     },
     {
         "id": "jsSetTimeout",
@@ -709,7 +709,7 @@
         "blockType": "c",
         "color": "#E91E63",
         "spec": "run after %d ms",
-        "code": "setTimeout(function() { %2$s }, %1$s);"
+        "code": "setTimeout(function() {\n%2$s\n}, %1$s);\n"
     },
     {
         "id": "jsAddEvent",
@@ -717,7 +717,7 @@
         "blockType": "c",
         "color": "#E91E63",
         "spec": "on element %s add event listener %s",
-        "code": "document.querySelector('%1$s').addEventListener('%2$s', function() { %3$s });"
+        "code": "document.querySelector('%1$s').addEventListener('%2$s', function() {\n%3$s\n});\n"
     },
     {
         "id": "jsWindowLocation",
@@ -725,7 +725,7 @@
         "blockType": "normal",
         "color": "#E91E63",
         "spec": "redirect to url %s",
-        "code": "window.location.href = %1$s;"
+        "code": "window.location.href = %1$s;\n"
     },
     {
         "id": "jsQuerySelector",
@@ -733,7 +733,7 @@
         "blockType": "s",
         "color": "#F57C00",
         "spec": "query %selector",
-        "code": "document.querySelector('%1$s')"
+        "code": "document.querySelector('%1$s')\n"
     },
     {
         "id": "jsQuerySelectorAll",
@@ -741,7 +741,7 @@
         "blockType": "s",
         "color": "#F57C00",
         "spec": "queryAll %selector",
-        "code": "document.querySelectorAll('%1$s')"
+        "code": "document.querySelectorAll('%1$s')\n"
     },
     {
         "id": "jsGetById",
@@ -749,7 +749,7 @@
         "blockType": "s",
         "color": "#F57C00",
         "spec": "getElementById %s",
-        "code": "document.getElementById('%1$s')"
+        "code": "document.getElementById('%1$s')\n"
     },
     {
         "id": "jsQueryOnVar",
@@ -757,7 +757,7 @@
         "blockType": "s",
         "color": "#F57C00",
         "spec": "%s .querySelector %selector",
-        "code": "%1$s.querySelector('%2$s')"
+        "code": "%1$s.querySelector('%2$s')\n"
     },
     {
         "id": "jsQueryAllOnVar",
@@ -765,7 +765,7 @@
         "blockType": "s",
         "color": "#F57C00",
         "spec": "%s .querySelectorAll %selector",
-        "code": "%1$s.querySelectorAll('%2$s')"
+        "code": "%1$s.querySelectorAll('%2$s')\n"
     },
     {
         "id": "jsParentElement",
@@ -773,7 +773,7 @@
         "blockType": "s",
         "color": "#F57C00",
         "spec": "%s .parentElement",
-        "code": "%1$s.parentElement"
+        "code": "%1$s.parentElement\n"
     },
     {
         "id": "jsClosest",
@@ -781,7 +781,7 @@
         "blockType": "s",
         "color": "#F57C00",
         "spec": "%s .closest %selector",
-        "code": "%1$s.closest('%2$s')"
+        "code": "%1$s.closest('%2$s')\n"
     },
     {
         "id": "jsAddClass",
@@ -789,7 +789,7 @@
         "blockType": "normal",
         "color": "#EF6C00",
         "spec": "%s .addClass %s",
-        "code": "%1$s.classList.add('%2$s');"
+        "code": "%1$s.classList.add('%2$s');\n"
     },
     {
         "id": "jsRemoveClass",
@@ -797,7 +797,7 @@
         "blockType": "normal",
         "color": "#EF6C00",
         "spec": "%s .removeClass %s",
-        "code": "%1$s.classList.remove('%2$s');"
+        "code": "%1$s.classList.remove('%2$s');\n"
     },
     {
         "id": "jsToggleClass",
@@ -805,7 +805,7 @@
         "blockType": "normal",
         "color": "#EF6C00",
         "spec": "%s .toggleClass %s",
-        "code": "%1$s.classList.toggle('%2$s');"
+        "code": "%1$s.classList.toggle('%2$s');\n"
     },
     {
         "id": "jsHasClass",
@@ -821,7 +821,7 @@
         "blockType": "normal",
         "color": "#EF6C00",
         "spec": "%s .replaceClass %s â†’ %s",
-        "code": "%1$s.classList.replace('%2$s', '%3$s');"
+        "code": "%1$s.classList.replace('%2$s', '%3$s');\n"
     },
     {
         "id": "jsRemoveClassAll",
@@ -829,7 +829,7 @@
         "blockType": "normal",
         "color": "#EF6C00",
         "spec": "remove class %s from all %s",
-        "code": "document.querySelectorAll('%1$s').forEach(el => el.classList.remove('%2$s'));"
+        "code": "document.querySelectorAll('%1$s').forEach(el => el.classList.remove('%2$s'));\n"
     },
     {
         "id": "jsToggleFunctionBlock",
@@ -837,7 +837,7 @@
         "blockType": "normal",
         "color": "#EF6C00",
         "spec": "define toggleActive for %s in %s %s",
-        "code": "function toggleActive(selectedEl) { const group = selectedEl.parentElement; group.querySelectorAll('%1$s').forEach(el => el.classList.remove('%2$s')); selectedEl.classList.add('%3$s'); }"
+        "code": "function toggleActive(selectedEl) {\nconst group = selectedEl.parentElement; group.querySelectorAll('%1$s').forEach(el => el.classList.remove('%2$s')); selectedEl.classList.add('%3$s');\n}\n"
     },
     {
         "id": "jsCallToggleActive",
@@ -845,7 +845,7 @@
         "blockType": "normal",
         "color": "#EF6C00",
         "spec": "call toggleActive on %s",
-        "code": "toggleActive(%1$s);"
+        "code": "toggleActive(%1$s);\n"
     },
     {
         "id": "jsSetStyleProp",
@@ -853,7 +853,7 @@
         "blockType": "normal",
         "color": "#E65100",
         "spec": "%s .style %s = %s",
-        "code": "%1$s.style['%2$s'] = '%3$s';"
+        "code": "%1$s.style['%2$s'] = '%3$s';\n"
     },
     {
         "id": "jsSetStyleColor",
@@ -861,7 +861,7 @@
         "blockType": "normal",
         "color": "#E65100",
         "spec": "%s .style color = %m.color",
-        "code": "%1$s.style['color'] = '%2$s';"
+        "code": "%1$s.style['color'] = '%2$s';\n"
     },
     {
         "id": "jsSetStyleBg",
@@ -869,7 +869,7 @@
         "blockType": "normal",
         "color": "#E65100",
         "spec": "%s .style background = %m.color",
-        "code": "%1$s.style['background'] = '%2$s';"
+        "code": "%1$s.style['background'] = '%2$s';\n"
     },
     {
         "id": "jsSetStyleDisplay",
@@ -877,7 +877,7 @@
         "blockType": "normal",
         "color": "#E65100",
         "spec": "%s .style display = %m.display",
-        "code": "%1$s.style['display'] = '%2$s';"
+        "code": "%1$s.style['display'] = '%2$s';\n"
     },
     {
         "id": "jsSetStyleOpacity",
@@ -885,7 +885,7 @@
         "blockType": "normal",
         "color": "#E65100",
         "spec": "%s .style opacity = %d",
-        "code": "%1$s.style['opacity'] = %2$s;"
+        "code": "%1$s.style['opacity'] = %2$s;\n"
     },
     {
         "id": "jsSetCSSVar",
@@ -893,7 +893,7 @@
         "blockType": "normal",
         "color": "#E65100",
         "spec": "CSS var --%s = %s on %s",
-        "code": "%1$s.style.setProperty('--%2$s', '%3$s');"
+        "code": "%1$s.style.setProperty('--%2$s', '%3$s');\n"
     },
     {
         "id": "jsGetCSSVar",
@@ -901,7 +901,7 @@
         "blockType": "s",
         "color": "#E65100",
         "spec": "get CSS var --%s from %s",
-        "code": "getComputedStyle(%1$s).getPropertyValue('--%2$s').trim()"
+        "code": "getComputedStyle(%1$s).getPropertyValue('--%2$s').trim()\n"
     },
     {
         "id": "jsSetAttribute",
@@ -909,7 +909,7 @@
         "blockType": "normal",
         "color": "#BF360C",
         "spec": "%s .setAttribute %s = %s",
-        "code": "%1$s.setAttribute('%2$s', '%3$s');"
+        "code": "%1$s.setAttribute('%2$s', '%3$s');\n"
     },
     {
         "id": "jsGetAttribute",
@@ -917,7 +917,7 @@
         "blockType": "s",
         "color": "#BF360C",
         "spec": "%s .getAttribute %s",
-        "code": "%1$s.getAttribute('%2$s')"
+        "code": "%1$s.getAttribute('%2$s')\n"
     },
     {
         "id": "jsRemoveAttribute",
@@ -925,7 +925,7 @@
         "blockType": "normal",
         "color": "#BF360C",
         "spec": "%s .removeAttribute %s",
-        "code": "%1$s.removeAttribute('%2$s');"
+        "code": "%1$s.removeAttribute('%2$s');\n"
     },
     {
         "id": "jsSetInnerText",
@@ -933,7 +933,7 @@
         "blockType": "normal",
         "color": "#BF360C",
         "spec": "%s .innerText = %s",
-        "code": "%1$s.innerText = %2$s;"
+        "code": "%1$s.innerText = %2$s;\n"
     },
     {
         "id": "jsSetInnerHTML2",
@@ -941,7 +941,7 @@
         "blockType": "normal",
         "color": "#BF360C",
         "spec": "%s .innerHTML = %s",
-        "code": "%1$s.innerHTML = %2$s;"
+        "code": "%1$s.innerHTML = %2$s;\n"
     },
     {
         "id": "jsSetValue",
@@ -949,7 +949,7 @@
         "blockType": "normal",
         "color": "#BF360C",
         "spec": "%s .value = %s",
-        "code": "%1$s.value = %2$s;"
+        "code": "%1$s.value = %2$s;\n"
     },
     {
         "id": "jsGetValue",
@@ -957,7 +957,7 @@
         "blockType": "s",
         "color": "#BF360C",
         "spec": "%s .value",
-        "code": "%1$s.value"
+        "code": "%1$s.value\n"
     },
     {
         "id": "jsCreateElement",
@@ -965,7 +965,7 @@
         "blockType": "s",
         "color": "#F57C00",
         "spec": "createElement %s",
-        "code": "document.createElement('%1$s')"
+        "code": "document.createElement('%1$s')\n"
     },
     {
         "id": "jsAppendChild",
@@ -973,7 +973,7 @@
         "blockType": "normal",
         "color": "#F57C00",
         "spec": "%s .appendChild %s",
-        "code": "%1$s.appendChild(%2$s);"
+        "code": "%1$s.appendChild(%2$s);\n"
     },
     {
         "id": "jsRemoveElement",
@@ -981,7 +981,7 @@
         "blockType": "normal",
         "color": "#F57C00",
         "spec": "%s .remove",
-        "code": "%1$s.remove();"
+        "code": "%1$s.remove();\n"
     },
     {
         "id": "jsCloneElement",
@@ -989,7 +989,7 @@
         "blockType": "s",
         "color": "#F57C00",
         "spec": "%s .cloneNode",
-        "code": "%1$s.cloneNode(true)"
+        "code": "%1$s.cloneNode(true)\n"
     },
     {
         "id": "jsInsertHTML",
@@ -997,7 +997,7 @@
         "blockType": "normal",
         "color": "#F57C00",
         "spec": "%s insertAdjacentHTML %s %s",
-        "code": "%1$s.insertAdjacentHTML('%2$s', %3$s);"
+        "code": "%1$s.insertAdjacentHTML('%2$s', %3$s);\n"
     },
     {
         "id": "jsVarLet",
@@ -1005,7 +1005,7 @@
         "blockType": "normal",
         "color": "#2E7D32",
         "spec": "let %s = %s",
-        "code": "let %1$s = %2$s;"
+        "code": "let %1$s = %2$s;\n"
     },
     {
         "id": "jsVarConst",
@@ -1013,7 +1013,7 @@
         "blockType": "normal",
         "color": "#2E7D32",
         "spec": "const %s = %s",
-        "code": "const %1$s = %2$s;"
+        "code": "const %1$s = %2$s;\n"
     },
     {
         "id": "jsVarAssign",
@@ -1021,7 +1021,7 @@
         "blockType": "normal",
         "color": "#2E7D32",
         "spec": "set %s = %s",
-        "code": "%1$s = %2$s;"
+        "code": "%1$s = %2$s;\n"
     },
     {
         "id": "jsVarRef",
@@ -1029,7 +1029,7 @@
         "blockType": "s",
         "color": "#2E7D32",
         "spec": "var %s",
-        "code": "%1$s"
+        "code": "%1$s\n"
     },
     {
         "id": "jsFunctionDefine",
@@ -1037,7 +1037,7 @@
         "blockType": "c",
         "color": "#1B5E20",
         "spec": "function function name %s function %b",
-        "code": "function %1$s(%2$s) { %3$s }"
+        "code": "function %1$s(%2$s) {\n%3$s\n}\n"
     },
     {
         "id": "jsFunctionArrow",
@@ -1045,7 +1045,7 @@
         "blockType": "c",
         "color": "#1B5E20",
         "spec": "const %s = %s =>",
-        "code": "const %1$s = (%2$s) => { %3$s };"
+        "code": "const %1$s = (%2$s) => {\n%3$s\n};\n"
     },
     {
         "id": "jsFunctionCall",
@@ -1053,7 +1053,7 @@
         "blockType": "normal",
         "color": "#1B5E20",
         "spec": "call %s %s",
-        "code": "%1$s(%2$s);"
+        "code": "%1$s(%2$s);\n"
     },
     {
         "id": "jsReturn",
@@ -1061,7 +1061,7 @@
         "blockType": "normal",
         "color": "#1B5E20",
         "spec": "return %s",
-        "code": "return %1$s;"
+        "code": "return %1$s;\n"
     },
     {
         "id": "jsAsyncFunction",
@@ -1069,7 +1069,7 @@
         "blockType": "c",
         "color": "#1B5E20",
         "spec": "async function %s %s",
-        "code": "async function %1$s(%2$s) { %3$s }"
+        "code": "async function %1$s(%2$s) {\n%3$s\n}\n"
     },
     {
         "id": "jsAwait",
@@ -1077,7 +1077,7 @@
         "blockType": "s",
         "color": "#1B5E20",
         "spec": "await %s",
-        "code": "await %1$s"
+        "code": "await %1$s\n"
     },
     {
         "id": "jsTryCatch",
@@ -1085,7 +1085,7 @@
         "blockType": "c",
         "color": "#1B5E20",
         "spec": "try catch %s",
-        "code": "try { %2$s } catch (%1$s) { %2$s }"
+        "code": "try {\n%2$s\n} catch (%1$s) {\n%2$s\n}\n"
     },
     {
         "id": "jsIf",
@@ -1093,7 +1093,7 @@
         "blockType": "c",
         "color": "#880E4F",
         "spec": "if %s",
-        "code": "if (%1$s) { %2$s }"
+        "code": "if (%1$s) {\n%2$s\n}\n"
     },
     {
         "id": "jsIfElse",
@@ -1101,7 +1101,7 @@
         "blockType": "c",
         "color": "#880E4F",
         "spec": "if %s else",
-        "code": "if (%1$s) { %2$s } else { %2$s }"
+        "code": "if (%1$s) {\n%2$s\n} else {\n%2$s\n}\n"
     },
     {
         "id": "jsTernary",
@@ -1109,7 +1109,7 @@
         "blockType": "s",
         "color": "#880E4F",
         "spec": "%s ? %s %s",
-        "code": "(%1$s ? %2$s : %3$s)"
+        "code": "(%1$s ? %2$s : %3$s)\n"
     },
     {
         "id": "jsForEach",
@@ -1117,7 +1117,7 @@
         "blockType": "c",
         "color": "#880E4F",
         "spec": "%s .forEach %s =>",
-        "code": "%1$s.forEach(%2$s => { %3$s });"
+        "code": "%1$s.forEach(%2$s => {\n%3$s\n});\n"
     },
     {
         "id": "jsForOf",
@@ -1125,7 +1125,7 @@
         "blockType": "c",
         "color": "#880E4F",
         "spec": "for %s of %s",
-        "code": "for (const %1$s of %2$s) { %3$s }"
+        "code": "for (const %1$s of %2$s) {\n%3$s\n}\n"
     },
     {
         "id": "jsForLoop",
@@ -1133,7 +1133,7 @@
         "blockType": "c",
         "color": "#880E4F",
         "spec": "for i = 0 to %d",
-        "code": "for (let i = 0; i < %1$s; i++) { %2$s }"
+        "code": "for (let i = 0; i < %1$s; i++) {\n%2$s\n}\n"
     },
     {
         "id": "jsWhile",
@@ -1141,7 +1141,7 @@
         "blockType": "c",
         "color": "#880E4F",
         "spec": "while %s",
-        "code": "while (%1$s) { %2$s }"
+        "code": "while (%1$s) {\n%2$s\n}\n"
     },
     {
         "id": "jsMathRandom",
@@ -1149,7 +1149,7 @@
         "blockType": "s",
         "color": "#2E7D32",
         "spec": "random 0â€“%d",
-        "code": "Math.floor(Math.random() * %1$s)"
+        "code": "Math.floor(Math.random() * %1$s)\n"
     },
     {
         "id": "jsMathRound",
@@ -1157,7 +1157,7 @@
         "blockType": "s",
         "color": "#2E7D32",
         "spec": "round %s",
-        "code": "Math.round(%1$s)"
+        "code": "Math.round(%1$s)\n"
     },
     {
         "id": "jsMathClamp",
@@ -1165,7 +1165,7 @@
         "blockType": "s",
         "color": "#2E7D32",
         "spec": "clamp %s min %d max %d",
-        "code": "Math.min(Math.max(%1$s, %2$s), %3$s)"
+        "code": "Math.min(Math.max(%1$s, %2$s), %3$s)\n"
     },
     {
         "id": "jsStringTemplate",
@@ -1173,7 +1173,7 @@
         "blockType": "s",
         "color": "#2E7D32",
         "spec": "template ` %s `",
-        "code": "`%1$s`"
+        "code": "`%1$s`\n"
     },
     {
         "id": "jsParseInt",
@@ -1181,7 +1181,7 @@
         "blockType": "s",
         "color": "#2E7D32",
         "spec": "parseInt %s",
-        "code": "parseInt(%1$s, 10)"
+        "code": "parseInt(%1$s, 10)\n"
     },
     {
         "id": "jsParseFloat",
@@ -1189,7 +1189,7 @@
         "blockType": "s",
         "color": "#2E7D32",
         "spec": "parseFloat %s",
-        "code": "parseFloat(%1$s)"
+        "code": "parseFloat(%1$s)\n"
     },
     {
         "id": "jsTypeOf",
@@ -1197,7 +1197,7 @@
         "blockType": "s",
         "color": "#2E7D32",
         "spec": "typeof %s",
-        "code": "typeof %1$s"
+        "code": "typeof %1$s\n"
     },
     {
         "id": "jsConsoleLog2",
@@ -1205,7 +1205,7 @@
         "blockType": "normal",
         "color": "#2E7D32",
         "spec": "console.log %s",
-        "code": "console.log(%1$s);"
+        "code": "console.log(%1$s);\n"
     },
     {
         "id": "jsConsoleWarn",
@@ -1213,7 +1213,7 @@
         "blockType": "normal",
         "color": "#2E7D32",
         "spec": "console.warn %s",
-        "code": "console.warn(%1$s);"
+        "code": "console.warn(%1$s);\n"
     },
     {
         "id": "jsOnClick",
@@ -1221,7 +1221,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "%selector on click",
-        "code": "document.querySelector('%1$s').addEventListener('click', function(e) { %2$s });"
+        "code": "document.querySelector('%1$s').addEventListener('click', function(e) {\n%2$s\n});\n"
     },
     {
         "id": "jsOnInput",
@@ -1229,7 +1229,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "%selector on input",
-        "code": "document.querySelector('%1$s').addEventListener('input', function(e) { %2$s });"
+        "code": "document.querySelector('%1$s').addEventListener('input', function(e) {\n%2$s\n});\n"
     },
     {
         "id": "jsOnChange",
@@ -1237,7 +1237,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "%selector on change",
-        "code": "document.querySelector('%1$s').addEventListener('change', function(e) { %2$s });"
+        "code": "document.querySelector('%1$s').addEventListener('change', function(e) {\n%2$s\n});\n"
     },
     {
         "id": "jsOnSubmit",
@@ -1245,7 +1245,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "%selector on submit",
-        "code": "document.querySelector('%1$s').addEventListener('submit', function(e) { e.preventDefault(); %2$s });"
+        "code": "document.querySelector('%1$s').addEventListener('submit', function(e) {\ne.preventDefault(); %2$s\n});\n"
     },
     {
         "id": "jsOnKeyDown",
@@ -1253,7 +1253,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "%selector on keydown",
-        "code": "document.querySelector('%1$s').addEventListener('keydown', function(e) { %2$s });"
+        "code": "document.querySelector('%1$s').addEventListener('keydown', function(e) {\n%2$s\n});\n"
     },
     {
         "id": "jsOnMouseEnter",
@@ -1261,7 +1261,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "%selector on mouseenter",
-        "code": "document.querySelector('%1$s').addEventListener('mouseenter', function(e) { %2$s });"
+        "code": "document.querySelector('%1$s').addEventListener('mouseenter', function(e) {\n%2$s\n});\n"
     },
     {
         "id": "jsOnMouseLeave",
@@ -1269,7 +1269,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "%selector on mouseleave",
-        "code": "document.querySelector('%1$s').addEventListener('mouseleave', function(e) { %2$s });"
+        "code": "document.querySelector('%1$s').addEventListener('mouseleave', function(e) {\n%2$s\n});\n"
     },
     {
         "id": "jsOnScroll",
@@ -1277,7 +1277,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "window on scroll",
-        "code": "window.addEventListener('scroll', function() { %1$s });"
+        "code": "window.addEventListener('scroll', function() {\n%1$s\n});\n"
     },
     {
         "id": "jsOnLoad",
@@ -1285,7 +1285,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "on DOMContentLoaded",
-        "code": "document.addEventListener('DOMContentLoaded', function() { %1$s });"
+        "code": "document.addEventListener('DOMContentLoaded', function() {\n%1$s\n});\n"
     },
     {
         "id": "jsAddEventOnVar",
@@ -1293,7 +1293,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "%s addEventListener %s",
-        "code": "%1$s.addEventListener('%2$s', function(e) { %3$s });"
+        "code": "%1$s.addEventListener('%2$s', function(e) {\n%3$s\n});\n"
     },
     {
         "id": "jsRemoveEventOnVar",
@@ -1301,7 +1301,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "%s removeEventListener %s %s",
-        "code": "%1$s.removeEventListener('%2$s', %3$s);"
+        "code": "%1$s.removeEventListener('%2$s', %3$s);\n"
     },
     {
         "id": "jsDispatchCustomEvent",
@@ -1309,7 +1309,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "%s dispatch event %s",
-        "code": "%1$s.dispatchEvent(new CustomEvent('%2$s', { bubbles: true }));"
+        "code": "%1$s.dispatchEvent(new CustomEvent('%2$s', {\nbubbles: true\n}));\n"
     },
     {
         "id": "jsStopPropagation",
@@ -1317,7 +1317,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "e.stopPropagation",
-        "code": "e.stopPropagation();"
+        "code": "e.stopPropagation();\n"
     },
     {
         "id": "jsPreventDefault",
@@ -1325,7 +1325,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "e.preventDefault",
-        "code": "e.preventDefault();"
+        "code": "e.preventDefault();\n"
     },
     {
         "id": "jsIntersectionObserver",
@@ -1333,7 +1333,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "observe %s on enter",
-        "code": "new IntersectionObserver((entries) => { entries.forEach(entry => { if (entry.isIntersecting) { %2$s } }); }).observe(document.querySelector('%1$s'));"
+        "code": "new IntersectionObserver((entries) => {\nentries.forEach(entry => {\nif (entry.isIntersecting) {\n%2$s\n}\n});\n}).observe(document.querySelector('%1$s'));\n"
     },
     {
         "id": "jsObserveAddClass",
@@ -1341,7 +1341,7 @@
         "blockType": "e",
         "color": "#0277BD",
         "spec": "observe %s â†’ add class %s",
-        "code": "new IntersectionObserver((entries) => { entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('%1$s'); }); }, { threshold: 0.1 }).observe(document.querySelector('%2$s'));"
+        "code": "new IntersectionObserver((entries) => {\nentries.forEach(entry => {\nif (entry.isIntersecting) entry.target.classList.add('%1$s');\n});\n}, {\nthreshold: 0.1\n}).observe(document.querySelector('%2$s'));\n"
     },
     {
         "id": "jsSetTimeout2",
@@ -1349,7 +1349,7 @@
         "blockType": "c",
         "color": "#00695C",
         "spec": "after %d ms",
-        "code": "setTimeout(function() { %2$s }, %1$s);"
+        "code": "setTimeout(function() {\n%2$s\n}, %1$s);\n"
     },
     {
         "id": "jsSetInterval",
@@ -1357,7 +1357,7 @@
         "blockType": "c",
         "color": "#00695C",
         "spec": "every %d ms",
-        "code": "setInterval(function() { %2$s }, %1$s);"
+        "code": "setInterval(function() {\n%2$s\n}, %1$s);\n"
     },
     {
         "id": "jsSetTimeoutSave",
@@ -1365,7 +1365,7 @@
         "blockType": "normal",
         "color": "#00695C",
         "spec": "save timer %s = after %d ms call %s",
-        "code": "const %1$s = setTimeout(%2$s, %3$s);"
+        "code": "const %1$s = setTimeout(%2$s, %3$s);\n"
     },
     {
         "id": "jsClearTimeout",
@@ -1373,7 +1373,7 @@
         "blockType": "normal",
         "color": "#00695C",
         "spec": "clearTimeout %s",
-        "code": "clearTimeout(%1$s);"
+        "code": "clearTimeout(%1$s);\n"
     },
     {
         "id": "jsClearInterval",
@@ -1381,7 +1381,7 @@
         "blockType": "normal",
         "color": "#00695C",
         "spec": "clearInterval %s",
-        "code": "clearInterval(%1$s);"
+        "code": "clearInterval(%1$s);\n"
     },
     {
         "id": "jsRequestAnimFrame",
@@ -1389,7 +1389,7 @@
         "blockType": "c",
         "color": "#00695C",
         "spec": "requestAnimationFrame",
-        "code": "requestAnimationFrame(function() { %1$s });"
+        "code": "requestAnimationFrame(function() {\n%1$s\n});\n"
     },
     {
         "id": "jsScrollToEl",
@@ -1397,7 +1397,7 @@
         "blockType": "normal",
         "color": "#4527A0",
         "spec": "scrollIntoView %s",
-        "code": "document.querySelector('%1$s').scrollIntoView({ behavior: 'smooth' });"
+        "code": "document.querySelector('%1$s').scrollIntoView({\nbehavior: 'smooth'\n});\n"
     },
     {
         "id": "jsScrollToTop",
@@ -1405,7 +1405,7 @@
         "blockType": "normal",
         "color": "#4527A0",
         "spec": "scroll to top",
-        "code": "window.scrollTo({ top: 0, behavior: 'smooth' });"
+        "code": "window.scrollTo({\ntop: 0, behavior: 'smooth'\n});\n"
     },
     {
         "id": "jsScrollY",
@@ -1413,7 +1413,7 @@
         "blockType": "s",
         "color": "#4527A0",
         "spec": "window.scrollY",
-        "code": "window.scrollY"
+        "code": "window.scrollY\n"
     },
     {
         "id": "jsWindowWidth",
@@ -1421,7 +1421,7 @@
         "blockType": "s",
         "color": "#4527A0",
         "spec": "window.innerWidth",
-        "code": "window.innerWidth"
+        "code": "window.innerWidth\n"
     },
     {
         "id": "jsWindowHeight",
@@ -1429,7 +1429,7 @@
         "blockType": "s",
         "color": "#4527A0",
         "spec": "window.innerHeight",
-        "code": "window.innerHeight"
+        "code": "window.innerHeight\n"
     },
     {
         "id": "jsWindowRedirect",
@@ -1437,7 +1437,7 @@
         "blockType": "normal",
         "color": "#4527A0",
         "spec": "redirect to %s",
-        "code": "window.location.href = '%1$s';"
+        "code": "window.location.href = '%1$s';\n"
     },
     {
         "id": "jsOpenTab",
@@ -1445,7 +1445,7 @@
         "blockType": "normal",
         "color": "#4527A0",
         "spec": "open new tab %s",
-        "code": "window.open('%1$s', '_blank');"
+        "code": "window.open('%1$s', '_blank');\n"
     },
     {
         "id": "jsLocalStorageSet",
@@ -1453,7 +1453,7 @@
         "blockType": "normal",
         "color": "#4527A0",
         "spec": "localStorage set %s = %s",
-        "code": "localStorage.setItem('%1$s', %2$s);"
+        "code": "localStorage.setItem('%1$s', %2$s);\n"
     },
     {
         "id": "jsLocalStorageGet",
@@ -1461,7 +1461,7 @@
         "blockType": "s",
         "color": "#4527A0",
         "spec": "localStorage get %s",
-        "code": "localStorage.getItem('%1$s')"
+        "code": "localStorage.getItem('%1$s')\n"
     },
     {
         "id": "jsLocalStorageRemove",
@@ -1469,7 +1469,7 @@
         "blockType": "normal",
         "color": "#4527A0",
         "spec": "localStorage remove %s",
-        "code": "localStorage.removeItem('%1$s');"
+        "code": "localStorage.removeItem('%1$s');\n"
     },
     {
         "id": "jsFetch",
@@ -1477,7 +1477,7 @@
         "blockType": "c",
         "color": "#4527A0",
         "spec": "fetch %s then",
-        "code": "fetch('%1$s').then(r => r.json()).then(data => { %2$s });"
+        "code": "fetch('%1$s').then(r => r.json()).then(data => {\n%2$s\n});\n"
     },
     {
         "id": "cssKeyframes",
@@ -1485,7 +1485,7 @@
         "blockType": "c",
         "color": "#9C27B0",
         "spec": "▾ keyframes %s",
-        "code": "@keyframes %1$s { %2$s }"
+        "code": "@keyframes %1$s {\n%2$s\n}\n"
     },
     {
         "id": "cssKeyframeStep",
@@ -1493,7 +1493,7 @@
         "blockType": "c",
         "color": "#9C27B0",
         "spec": "▾ step %s",
-        "code": "%1$s { %2$s }"
+        "code": "%1$s {\n%2$s\n}\n"
     },
     {
         "id": "setAlignSelf",
@@ -1501,7 +1501,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "align-self %m.alignItems",
-        "code": "align-self: %1$s;"
+        "code": "align-self: %1$s;\n"
     },
     {
         "id": "setFlexWrap",
@@ -1509,7 +1509,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "flex-wrap %m.flexWrap",
-        "code": "flex-wrap: %1$s;"
+        "code": "flex-wrap: %1$s;\n"
     },
     {
         "id": "setFlexGrow",
@@ -1517,7 +1517,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "flex-grow %d",
-        "code": "flex-grow: %1$s;"
+        "code": "flex-grow: %1$s;\n"
     },
     {
         "id": "setFlexShrink",
@@ -1525,7 +1525,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "flex-shrink %d",
-        "code": "flex-shrink: %1$s;"
+        "code": "flex-shrink: %1$s;\n"
     },
     {
         "id": "setOrder",
@@ -1533,7 +1533,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "order %d",
-        "code": "order: %1$s;"
+        "code": "order: %1$s;\n"
     },
     {
         "id": "setGridTemplateRows",
@@ -1541,7 +1541,7 @@
         "blockType": "normal",
         "color": "#00796B",
         "spec": "grid rows %s",
-        "code": "grid-template-rows: %1$s;"
+        "code": "grid-template-rows: %1$s;\n"
     },
     {
         "id": "setGridColumn",
@@ -1549,7 +1549,7 @@
         "blockType": "normal",
         "color": "#00796B",
         "spec": "grid-column %s",
-        "code": "grid-column: %1$s;"
+        "code": "grid-column: %1$s;\n"
     },
     {
         "id": "setGridRow",
@@ -1557,7 +1557,7 @@
         "blockType": "normal",
         "color": "#00796B",
         "spec": "grid-row %s",
-        "code": "grid-row: %1$s;"
+        "code": "grid-row: %1$s;\n"
     },
     {
         "id": "setGridArea",
@@ -1565,7 +1565,7 @@
         "blockType": "normal",
         "color": "#00796B",
         "spec": "grid-area %s",
-        "code": "grid-area: %1$s;"
+        "code": "grid-area: %1$s;\n"
     },
     {
         "id": "setBackgroundColor",
@@ -1573,7 +1573,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "background-color %m.color",
-        "code": "background-color: %1$s;"
+        "code": "background-color: %1$s;\n"
     },
     {
         "id": "setBorderColor",
@@ -1581,7 +1581,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "border-color %m.color",
-        "code": "border-color: %1$s;"
+        "code": "border-color: %1$s;\n"
     },
     {
         "id": "setBorderStyle",
@@ -1589,7 +1589,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "border-style %m.borderStyle",
-        "code": "border-style: %1$s;"
+        "code": "border-style: %1$s;\n"
     },
     {
         "id": "setTop",
@@ -1597,7 +1597,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "top %m.unit",
-        "code": "top: %1$s;"
+        "code": "top: %1$s;\n"
     },
     {
         "id": "setBottom",
@@ -1605,7 +1605,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "bottom %m.unit",
-        "code": "bottom: %1$s;"
+        "code": "bottom: %1$s;\n"
     },
     {
         "id": "setLeft",
@@ -1613,7 +1613,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "left %m.unit",
-        "code": "left: %1$s;"
+        "code": "left: %1$s;\n"
     },
     {
         "id": "setRight",
@@ -1621,7 +1621,7 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "right %m.unit",
-        "code": "right: %1$s;"
+        "code": "right: %1$s;\n"
     },
     {
         "id": "setTextTransform",
@@ -1629,6 +1629,6 @@
         "blockType": "normal",
         "color": "#2196F3",
         "spec": "text-transform %m.textTransform",
-        "code": "text-transform: %1$s;"
+        "code": "text-transform: %1$s;\n"
     }
 ]

@@ -1612,7 +1612,7 @@ public class MainEditorFragment extends Fragment {
 		tilLocation.addView(actvLocation);
 		layout.addView(tilLocation);
 
-		new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+		com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
 			.setTitle("New Stylesheet")
 			.setView(layout)
 			.setPositiveButton("Create", (dialog, which) -> {
@@ -1648,8 +1648,22 @@ public class MainEditorFragment extends Fragment {
 					Toast.makeText(getContext(), "Failed to create stylesheet: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 				}
 			})
-			.setNegativeButton("Cancel", null)
-			.show();
+			.setNegativeButton("Cancel", null);
+
+		androidx.appcompat.app.AlertDialog dialog = builder.create();
+		if (dialog.getWindow() != null) {
+			dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+		}
+		dialog.show();
+		etName.requestFocus();
+		etName.postDelayed(() -> {
+			try {
+				android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+				if (imm != null) {
+					imm.showSoftInput(etName, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+				}
+			} catch (Exception ignored) {}
+		}, 150);
 	}
 
 	private List<String> getJsFiles() {
@@ -1739,7 +1753,7 @@ public class MainEditorFragment extends Fragment {
 		tilLocation.addView(actvLocation);
 		layout.addView(tilLocation);
 
-		new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+		com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
 			.setTitle("New JavaScript File")
 			.setView(layout)
 			.setPositiveButton("Create", (dialog, which) -> {
@@ -1775,8 +1789,22 @@ public class MainEditorFragment extends Fragment {
 					Toast.makeText(getContext(), "Failed to create JavaScript file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 				}
 			})
-			.setNegativeButton("Cancel", null)
-			.show();
+			.setNegativeButton("Cancel", null);
+
+		androidx.appcompat.app.AlertDialog dialog = builder.create();
+		if (dialog.getWindow() != null) {
+			dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+		}
+		dialog.show();
+		etName.requestFocus();
+		etName.postDelayed(() -> {
+			try {
+				android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+				if (imm != null) {
+					imm.showSoftInput(etName, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+				}
+			} catch (Exception ignored) {}
+		}, 150);
 	}
 
 	private void showAddPageDialog() {
