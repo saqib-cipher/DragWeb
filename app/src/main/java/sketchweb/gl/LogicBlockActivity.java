@@ -1937,8 +1937,11 @@ return;
 				View rootLayout = findViewById(R.id.layout);
 				if (rootLayout != null) {
 						androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
-								androidx.core.graphics.Insets systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars());
-								v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+								androidx.core.graphics.Insets insetsType = insets.getInsets(
+										androidx.core.view.WindowInsetsCompat.Type.systemBars() |
+										androidx.core.view.WindowInsetsCompat.Type.ime()
+								);
+								v.setPadding(insetsType.left, insetsType.top, insetsType.right, insetsType.bottom);
 								return insets;
 						});
 				}
