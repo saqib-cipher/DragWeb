@@ -63,7 +63,7 @@
 			android:name=".LogicBlockActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
-			android:windowSoftInputMode="stateHidden"
+			android:windowSoftInputMode="stateHidden|adjustResize"
 			android:exported="false" />
 		<activity
 			android:name=".TextEditorActivity"

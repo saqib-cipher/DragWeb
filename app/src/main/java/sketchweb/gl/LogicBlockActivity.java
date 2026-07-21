@@ -738,8 +738,8 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						}
 						int[] iArr = new int[2];
 						this.editor.getLocationOnScreen(iArr);
-						int width = iArr[0] + (this.editor.getWidth() / 2);
-						i3 = ((int) LayoutUtil.getDip(getApplicationContext(), 4.0f)) + iArr[1];
+						int width = iArr[0] + (this.editor.getWidth() / 2) - (int) LayoutUtil.getDip(getApplicationContext(), 40.0f);
+						i3 = iArr[1] + (this.editor.getHeight() / 2) - (int) LayoutUtil.getDip(getApplicationContext(), 30.0f);
 						it3 = clipboard.iterator();
 						Block block = null;
 						while (it3.hasNext()) {
@@ -2447,11 +2447,17 @@ return;
 										} else if (this.bActiveIconSave) {
 												activeIconSave(false);
 												this.pane.setVisibleBlock((Block) view, 0);
-												if (view instanceof Block) saveBlockToCollection((Block) view);
+												if (view instanceof Block) {
+														restoreOriginalRelation((Block) view);
+														saveBlockToCollection((Block) view);
+												}
 										} else if (this.bActiveIconDuplicate) {
 												activeIconDuplicate(false);
 												this.pane.setVisibleBlock((Block) view, 0);
-												if (view instanceof Block) duplicateBlock((Block) view);
+												if (view instanceof Block) {
+														restoreOriginalRelation((Block) view);
+														duplicateBlock((Block) view);
+												}
 										} else if (view instanceof Block) {
 												this.dummy.getDummyPosition(this.posDummy);
 												if (((Block) view).getBlockType() == 1) {
@@ -2475,24 +2481,7 @@ return;
 										}
 								} else if (((Block) view).getBlockType() == 0) {
 										this.pane.setVisibleBlock((Block) view, 0);
-										if (this.originalParent != null) {
-												if (this.originalInsertOption == 0) {
-														this.originalParent.nextBlock = ((Integer) view.getTag()).intValue();
-												}
-												if (this.originalInsertOption == 2) {
-														this.originalParent.subStack1 = ((Integer) view.getTag()).intValue();
-												}
-												if (this.originalInsertOption == 3) {
-														this.originalParent.subStack2 = ((Integer) view.getTag()).intValue();
-												}
-												if (this.originalInsertOption == 5) {
-														this.originalParent.replaceArgWithBlock((BlockBase) this.originalParent.args.get(this.originalArgIndex), (Block) view);
-												}
-												((Block) view).parentBlock = this.originalParent;
-												this.originalParent.topBlock().fixLayout();
-										} else {
-												((Block) view).topBlock().fixLayout();
-										}
+										restoreOriginalRelation((Block) view);
 								}
 								this.dummy.setAllow(false);
 								showIconDelete(false);
@@ -2516,11 +2505,29 @@ return;
 						return false;
 				}
 		}
-		
+
+		private void restoreOriginalRelation(Block view) {
+				if (view == null) return;
+				if (this.originalParent != null) {
+						if (this.originalInsertOption == 0) {
+								this.originalParent.nextBlock = ((Integer) view.getTag()).intValue();
+						} else if (this.originalInsertOption == 2) {
+								this.originalParent.subStack1 = ((Integer) view.getTag()).intValue();
+						} else if (this.originalInsertOption == 3) {
+								this.originalParent.subStack2 = ((Integer) view.getTag()).intValue();
+						} else if (this.originalInsertOption == 5 && this.originalArgIndex >= 0 && this.originalArgIndex < this.originalParent.args.size()) {
+								this.originalParent.replaceArgWithBlock((BlockBase) this.originalParent.args.get(this.originalArgIndex), view);
+						}
+						view.parentBlock = this.originalParent;
+						this.originalParent.topBlock().fixLayout();
+				} else {
+						view.topBlock().fixLayout();
+				}
+		}
+
 		private void duplicateBlock(Block block) {
 				if (block == null) return;
-				ArrayList<Block> list = new ArrayList<>();
-				list.add(block);
+				ArrayList<Block> list = block.getAllChildren();
 				DesignDataManager.copyBlocks(filename, list);
 				pasteCopiedBlocks();
 				Toast.makeText(this, "Block duplicated", Toast.LENGTH_SHORT).show();

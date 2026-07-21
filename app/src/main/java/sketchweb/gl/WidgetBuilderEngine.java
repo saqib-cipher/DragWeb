@@ -354,16 +354,23 @@ public class WidgetBuilderEngine {
         int defaultBorderColor = Color.TRANSPARENT;
         float defaultCornerRadius = 0;
 
-        if ("button".equals(tag)) {
+        boolean isLayoutContainer = "div".equalsIgnoreCase(tag) || "section".equalsIgnoreCase(tag) || "header".equalsIgnoreCase(tag)
+                || "footer".equalsIgnoreCase(tag) || "nav".equalsIgnoreCase(tag) || "main".equalsIgnoreCase(tag)
+                || "aside".equalsIgnoreCase(tag) || "form".equalsIgnoreCase(tag) || "article".equalsIgnoreCase(tag);
+
+        if ("button".equalsIgnoreCase(tag)) {
             defaultBgColor = Color.parseColor("#EFEFEF");
             defaultBorderWidth = dpToPx(1);
             defaultBorderColor = Color.parseColor("#B0BEC5");
             defaultCornerRadius = dpToPx(4);
-        } else if ("input".equals(tag) || "textarea".equals(tag)) {
+        } else if ("input".equalsIgnoreCase(tag) || "textarea".equalsIgnoreCase(tag)) {
             defaultBgColor = Color.parseColor("#FFFFFF");
             defaultBorderWidth = dpToPx(1);
             defaultBorderColor = Color.parseColor("#B0BEC5");
             defaultCornerRadius = dpToPx(4);
+        } else if (isLayoutContainer) {
+            defaultBorderWidth = dpToPx(1);
+            defaultBorderColor = Color.parseColor("#CCCCCC");
         }
 
         // Background color
@@ -413,7 +420,12 @@ public class WidgetBuilderEngine {
                 // ignore
             }
         }
-        shape.setStroke(borderWidth, borderColor);
+
+        if (isLayoutContainer && !style.containsKey("border") && !style.containsKey("borderWidth")) {
+            shape.setStroke(borderWidth, borderColor, dpToPx(4), dpToPx(3));
+        } else {
+            shape.setStroke(borderWidth, borderColor);
+        }
 
         view.setBackground(shape);
 

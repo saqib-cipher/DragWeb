@@ -593,7 +593,7 @@ public class MainEditorFragment extends Fragment {
 			Chip allChip = new Chip(requireContext());
 			allChip.setText("All");
 			allChip.setCheckable(true);
-			allChip.setChecked(true);
+			allChip.setChecked(false);
 			allChip.setTag("all");
 			allChip.setId(View.generateViewId());
 			chipGroupCategories.addView(allChip);
@@ -612,7 +612,7 @@ public class MainEditorFragment extends Fragment {
 			chipGroupDrawerCategories.removeAllViews();
 			Chip allChip = new Chip(requireContext());
 			allChip.setText("All");
-			allChip.setChecked(true);
+			allChip.setChecked(false);
 			allChip.setCheckable(true);
 			allChip.setClickable(true);
 			allChip.setTextSize(11);
@@ -2257,13 +2257,10 @@ public class MainEditorFragment extends Fragment {
 				case DragEvent.ACTION_DRAG_STARTED:
 					return event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
 				case DragEvent.ACTION_DRAG_ENTERED:
-					v.setBackgroundColor(Color.parseColor("#90A4AE"));
 					return true;
 				case DragEvent.ACTION_DRAG_EXITED:
-					v.setBackgroundColor(Color.parseColor("#B0BEC5"));
 					return true;
 				case DragEvent.ACTION_DROP:
-					v.setBackgroundColor(Color.parseColor("#B0BEC5"));
 					ClipData data = event.getClipData();
 					if (data != null && data.getItemCount() > 0) {
 						try {
@@ -2301,7 +2298,6 @@ public class MainEditorFragment extends Fragment {
 					}
 					return true;
 				case DragEvent.ACTION_DRAG_ENDED:
-					v.setBackgroundColor(Color.parseColor("#B0BEC5"));
 					return true;
 				case DragEvent.ACTION_DRAG_LOCATION:
 					return true;
@@ -2354,12 +2350,6 @@ public class MainEditorFragment extends Fragment {
 					}
 					if (!newStyle.containsKey("padding")) {
 						newStyle.put("padding", "16px");
-					}
-					if (!newStyle.containsKey("background-color")) {
-						newStyle.put("background-color", "#f8f9fa");
-					}
-					if (!newStyle.containsKey("border")) {
-						newStyle.put("border", "1px dashed #ced4da");
 					}
 				} else if ("img".equalsIgnoreCase(tag)) {
 					if (!newStyle.containsKey("width")) {

@@ -121,7 +121,7 @@
 							android:padding="4dp"
 							android:gravity="center_horizontal|top"
 							android:orientation="vertical"
-							android:background="#F5F5F7"
+							android:background="@color/lighter_grey"
 							android:elevation="2dp"
 							android:minHeight="540dp" />
 					</androidx.core.widget.NestedScrollView>
