@@ -57,11 +57,21 @@
             android:background="?selectableItemBackgroundBorderless" />
 
         <ImageView
+            android:id="@+id/btn_share_cat"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="6dp"
+            android:src="@drawable/share"
+            android:tint="?attr/colorPrimary"
+            android:contentDescription="Share"
+            android:background="?selectableItemBackgroundBorderless" />
+
+        <ImageView
             android:id="@+id/btn_delete_cat"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:padding="6dp"
-            android:src="@drawable/trash"
+            android:src="@drawable/trash_act"
             android:tint="?attr/colorError"
             android:contentDescription="Delete"
             android:background="?selectableItemBackgroundBorderless" />

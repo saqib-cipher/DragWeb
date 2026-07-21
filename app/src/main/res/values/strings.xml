@@ -59,7 +59,7 @@
 	<string name="dialog_button_no" translatable="false">No</string>
 
     <!-- String resources for blocks_logic package -->
-    <string name="root_spec_initialize">On activity create</string>
+    <string name="root_spec_initialize">On Page Load</string>
     <string name="root_spec_define">Define</string>
     <string name="root_spec_when">When</string>
     <string name="root_spec_onclicked">clicked</string>

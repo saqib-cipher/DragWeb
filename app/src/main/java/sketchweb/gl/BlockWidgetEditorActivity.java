@@ -14,6 +14,8 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.graphics.Insets;
 
+import android.graphics.drawable.GradientDrawable;
+import sketchweb.gl.colorpicker.ColorPickerDialogFragment;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
@@ -131,6 +133,73 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
         etCategory.setOnClickListener(categoryChooser);
         tilCategory.setEndIconOnClickListener(categoryChooser);
 
+        // Color picker behavior for widget color
+        Runnable updateColorPreview = () -> {
+            String colorStr = etWidgetColor.getText() != null ? etWidgetColor.getText().toString().trim() : "";
+            try {
+                int parsed = colorStr.isEmpty() ? Color.TRANSPARENT : Color.parseColor(colorStr.startsWith("#") ? colorStr : "#" + colorStr);
+                GradientDrawable dot = new GradientDrawable();
+                dot.setShape(GradientDrawable.OVAL);
+                dot.setColor(parsed);
+                dot.setStroke((int)(1 * getResources().getDisplayMetrics().density), Color.LTGRAY);
+                int size = (int)(20 * getResources().getDisplayMetrics().density);
+                dot.setBounds(0, 0, size, size);
+                etWidgetColor.setCompoundDrawablesRelative(null, null, dot, null);
+            } catch (Exception ignored) {}
+        };
+
+        if (etWidgetColor != null) {
+            etWidgetColor.setFocusable(false);
+            etWidgetColor.setCursorVisible(false);
+            etWidgetColor.setOnClickListener(v -> {
+                ColorPickerDialogFragment colorPicker = new ColorPickerDialogFragment();
+                colorPicker.setHexOnlyMode(true);
+                colorPicker.setOnColorSelectedListener(selectedHex -> {
+                    etWidgetColor.setText(selectedHex);
+                    updateColorPreview.run();
+                });
+                colorPicker.show(getSupportFragmentManager(), "widget_color_picker");
+            });
+
+            etWidgetColor.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateColorPreview.run(); }
+                @Override public void afterTextChanged(Editable s) {}
+            });
+            updateColorPreview.run();
+        }
+
+        // Real-time ID validation
+        if (etId != null && tilId != null) {
+            etId.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    String inputId = s.toString().trim();
+                    if (inputId.isEmpty()) {
+                        tilId.setError(null);
+                        return;
+                    }
+                    boolean exists = false;
+                    if ("block".equals(type)) {
+                        exists = customBlockManager.findDefinition(inputId) != null && (!isEditMode || !inputId.equalsIgnoreCase(editId));
+                    } else {
+                        for (HashMap<String, Object> w : widgetRegistry.getAllWidgets()) {
+                            if (inputId.equalsIgnoreCase(String.valueOf(w.get("name"))) && (!isEditMode || !inputId.equalsIgnoreCase(editId))) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (exists) {
+                        tilId.setError("block".equals(type) ? "Block ID already exists" : "Widget name already exists");
+                    } else {
+                        tilId.setError(null);
+                    }
+                }
+                @Override public void afterTextChanged(Editable s) {}
+            });
+        }
+
         // Cancel click
         btnCancel.setOnClickListener(v -> finish());
 
@@ -156,7 +225,6 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
                 ManageBlocksWidgets.CustomBlockDef def = customBlockManager.findDefinition(editId);
                 if (def != null) {
                     etId.setText(def.id);
-                    etId.setEnabled(false); // ID is final in edit
                     etCategory.setText(def.category);
                     etDisplayText.setText(def.display);
                     etCode.setText(def.template);
@@ -187,7 +255,6 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
                 HashMap<String, Object> widget = widgetRegistry.getWidgetByName(editId);
                 if (widget != null) {
                     etId.setText(String.valueOf(widget.get("name")));
-                    etId.setEnabled(false); // Name is final in edit
                     etCategory.setText(String.valueOf(widget.get("category")));
                     etWidgetTag.setText(String.valueOf(widget.get("tag")));
                     etWidgetColor.setText(widget.containsKey("color") ? String.valueOf(widget.get("color")) : "#FFBB33");
@@ -289,11 +356,16 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
                 return;
             }
 
-            if (!isEditMode) {
+            if (!isEditMode || !id.equalsIgnoreCase(editId)) {
                 if (customBlockManager.findDefinition(id) != null) {
-                    Toast.makeText(this, "Block ID already exists", Toast.LENGTH_SHORT).show();
+                    if (tilId != null) tilId.setError("Block ID already exists");
                     return;
                 }
+            }
+            if (tilId != null) tilId.setError(null);
+
+            if (isEditMode && editId != null && !editId.equalsIgnoreCase(id)) {
+                customBlockManager.removeDefinition(editId);
             }
 
             ManageBlocksWidgets.CustomBlockDef def = new ManageBlocksWidgets.CustomBlockDef();
@@ -339,14 +411,19 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
                 return;
             }
 
-            // Verify uniqueness of name when creating new
-            if (!isEditMode) {
+            // Verify uniqueness of name
+            if (!isEditMode || !id.equalsIgnoreCase(editId)) {
                 for (HashMap<String, Object> w : widgetRegistry.getAllWidgets()) {
                     if (id.equalsIgnoreCase(String.valueOf(w.get("name")))) {
-                        Toast.makeText(this, "Widget name already exists", Toast.LENGTH_SHORT).show();
+                        if (tilId != null) tilId.setError("Widget name already exists");
                         return;
                     }
                 }
+            }
+            if (tilId != null) tilId.setError(null);
+
+            if (isEditMode && editId != null && !editId.equalsIgnoreCase(id)) {
+                widgetRegistry.deleteWidget(editId);
             }
 
             HashMap<String, Object> newWidget = new HashMap<>();

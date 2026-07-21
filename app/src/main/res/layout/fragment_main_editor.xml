@@ -324,7 +324,7 @@
 					android:layout_height="wrap_content"
 					android:enabled="false"
 					style="?attr/materialIconButtonFilledStyle"
-					app:icon="@drawable/trash" />
+					app:icon="@drawable/trash_act" />
 
 
 

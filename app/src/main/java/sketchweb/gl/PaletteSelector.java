@@ -153,7 +153,6 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
     private void init(Context context) {
         this.mContext = context;
         setOrientation(1);
-        setLayoutParams(new LayoutParams(-1, -2));
         int dip = (int) LayoutUtil.getDip(context, 8.0f);
         int dip2 = (int) LayoutUtil.getDip(context, 4.0f);
         setPadding(dip, dip2, dip, dip2);

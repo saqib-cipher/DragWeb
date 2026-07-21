@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
@@ -10,6 +11,7 @@
         android:padding="20dp">
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/til_cat_id"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Category ID (unique, e.g. css_animation)"
@@ -35,6 +37,7 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/til_cat_color"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Category Color Hex (e.g. #FFA000)"
@@ -47,19 +50,19 @@
                 android:inputType="text" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <TextView
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/til_cat_type"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Event Scope Type"
-            android:textSize="12sp"
-            android:paddingTop="12dp"
-            android:paddingBottom="4dp" />
-
-        <Spinner
-            android:id="@+id/sp_cat_type"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="48dp" />
+            android:layout_marginTop="12dp"
+            android:hint="Event Scope Type"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/et_cat_type"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none" />
+        </com.google.android.material.textfield.TextInputLayout>
 
     </LinearLayout>
 </ScrollView>

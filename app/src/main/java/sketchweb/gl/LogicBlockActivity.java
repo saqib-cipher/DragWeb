@@ -115,6 +115,10 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		private boolean useVibrate;
 		private Vibrator vibrator;
 		private Map<String, ArrayList<BlockBean>> collectionBlocksMap = new HashMap<>();
+		private PaletteSelector.CategoryItem currentCategoryItem;
+		private final ArrayList<String> undoStack = new ArrayList<>();
+		private final ArrayList<String> redoStack = new ArrayList<>();
+		private boolean isUndoRedoAction = false;
 		
 		//new
 		public int BLOCK_DRAG_X = 0;
@@ -124,9 +128,9 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				if (this.bActiveIconDelete != z) {
 						this.bActiveIconDelete = z;
 						if (this.bActiveIconDelete) {
-								this.iconDelete.setImageResource(R.drawable.icon_delete_active);
+								this.iconDelete.setImageResource(R.drawable.trash_act);
 						} else {
-								this.iconDelete.setImageResource(R.drawable.icon_delete);
+								this.iconDelete.setImageResource(R.drawable.trash);
 						}
 				}
 		}
@@ -136,9 +140,9 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						this.bActiveIconSave = z;
 						if (this.iconSave != null) {
 								if (this.bActiveIconSave) {
-										this.iconSave.setColorFilter(android.graphics.Color.parseColor("#FF4CAF50"));
+									this.iconSave.setImageResource(R.drawable.device_floppy_act);
 								} else {
-										this.iconSave.setColorFilter(android.graphics.Color.parseColor("#FF888888"));
+									this.iconSave.setImageResource(R.drawable.device_floppy);
 								}
 						}
 				}
@@ -149,9 +153,9 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						this.bActiveIconDuplicate = z;
 						if (this.iconDuplicate != null) {
 								if (this.bActiveIconDuplicate) {
-										this.iconDuplicate.setColorFilter(android.graphics.Color.parseColor("#FFFF9800"));
+									this.iconDuplicate.setImageResource(R.drawable.copy_act);
 								} else {
-										this.iconDuplicate.setColorFilter(android.graphics.Color.parseColor("#FF888888"));
+									this.iconDuplicate.setImageResource(R.drawable.copy);
 								}
 						}
 				}
@@ -320,6 +324,8 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						this.dummy.bringToFront();
 						if (((Block) this.currentTouchedView).getBlockType() == 0) {
 								getOriginalState((Block) this.currentTouchedView);
+								if (this.iconSave != null) { this.iconSave.setVisibility(View.VISIBLE); this.iconSave.setAlpha(1.0f); }
+								if (this.iconDuplicate != null) { this.iconDuplicate.setVisibility(View.VISIBLE); this.iconDuplicate.setAlpha(1.0f); }
 								showIconDelete(true);
 								this.dummy.makeDummyWithBlock((Block) this.currentTouchedView);
 								this.pane.setVisibleBlock((Block) this.currentTouchedView, 8);
@@ -327,7 +333,12 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						} else {
 								Block b = (Block) this.currentTouchedView;
 								if (b != null && b.mOpCode != null && collectionBlocksMap.containsKey(b.mOpCode)) {
+										if (this.iconSave != null) { this.iconSave.setVisibility(View.GONE); }
+										if (this.iconDuplicate != null) { this.iconDuplicate.setVisibility(View.GONE); }
 										showIconDelete(true);
+								} else {
+										if (this.iconSave != null) { this.iconSave.setVisibility(View.VISIBLE); this.iconSave.setAlpha(1.0f); }
+										if (this.iconDuplicate != null) { this.iconDuplicate.setVisibility(View.VISIBLE); this.iconDuplicate.setAlpha(1.0f); }
 								}
 								this.dummy.makeDummyWithBlock((Block) this.currentTouchedView);
 						}
@@ -1373,6 +1384,8 @@ var0.dismissProgress();
 								this.aniShowIconDelete.start();
 						} else {
 								this.aniHideIconDelete.start();
+								if (this.iconSave != null) { this.iconSave.setVisibility(View.VISIBLE); this.iconSave.setAlpha(1.0f); }
+								if (this.iconDuplicate != null) { this.iconDuplicate.setVisibility(View.VISIBLE); this.iconDuplicate.setAlpha(1.0f); }
 						}
 				}
 		}
@@ -1661,6 +1674,7 @@ startActivityForResult(intent, 209);
 						}
 				}
 				if (selectedCat == null) return;
+				this.currentCategoryItem = selectedCat;
 
 				if (selectedCat.type == 0) {
 						addButtonToPalette(getString(R.string.logic_btn_add_variable), "variableAdd");
@@ -1719,6 +1733,146 @@ startActivityForResult(intent, 209);
 										}
 								} catch (Exception e) {
 										e.printStackTrace();
+								}
+						}
+				}
+				EditText etPaletteSearch = (EditText) findViewById(R.id.et_palette_search);
+				if (etPaletteSearch != null && etPaletteSearch.getText() != null && etPaletteSearch.getText().length() > 0) {
+						filterPalette(etPaletteSearch.getText().toString());
+				}
+		}
+
+		private boolean doesCategoryMatchQuery(PaletteSelector.CategoryItem cat, String q) {
+				if (cat == null) return false;
+				if (cat.name != null && cat.name.toLowerCase().contains(q)) return true;
+				if (cat.originalCategory != null && cat.originalCategory.toLowerCase().contains(q)) return true;
+
+				if (cat.type == 0) {
+						String[] varOps = {"getvar", "setvarboolean", "setvarint", "increaseint", "decreaseint", "setvarstring"};
+						for (String op : varOps) {
+								if (op.contains(q)) return true;
+						}
+						ArrayList vars = DesignDataManager.getVariables(filename);
+						if (vars != null) {
+								for (Object obj : vars) {
+										if (obj instanceof Pair) {
+												String vName = (String) ((Pair) obj).second;
+												if (vName != null && vName.toLowerCase().contains(q)) return true;
+										}
+								}
+						}
+				} else if (cat.type == 1) {
+						String[] listOps = {"addlistint", "insertlistint", "getatlistint", "indexlistint", "containlistint",
+								            "addliststr", "insertliststr", "getatliststr", "indexliststr", "containliststr",
+								            "deletelist", "lengthlist", "clearlist"};
+						for (String op : listOps) {
+								if (op.contains(q)) return true;
+						}
+						ArrayList lists = DesignDataManager.getLists(filename);
+						if (lists != null) {
+								for (Object obj : lists) {
+										if (obj instanceof Pair) {
+												String lName = (String) ((Pair) obj).second;
+												if (lName != null && lName.toLowerCase().contains(q)) return true;
+										}
+								}
+						}
+				} else if (cat.type == 2) {
+						for (BlockDef def : BlockDef.getDefinitions(this.context)) {
+								if (def.category != null && def.category.equalsIgnoreCase(cat.originalCategory)) {
+										String spec = def.getSpec() != null ? def.getSpec().toLowerCase() : "";
+										String op = def.getOpCode() != null ? def.getOpCode().toLowerCase() : "";
+										if (spec.contains(q) || op.contains(q)) return true;
+								}
+						}
+				} else if (cat.type == 3) {
+						for (Map.Entry<String, ArrayList<BlockBean>> entry : collectionBlocksMap.entrySet()) {
+								String colOp = entry.getKey().toLowerCase();
+								if (colOp.contains(q)) return true;
+								if (entry.getValue() != null) {
+										for (BlockBean bean : entry.getValue()) {
+												if (bean != null) {
+														String spec = bean.spec != null ? bean.spec.toLowerCase() : "";
+														String op = bean.opCode != null ? bean.opCode.toLowerCase() : "";
+														if (spec.contains(q) || op.contains(q)) return true;
+												}
+										}
+								}
+						}
+				} else if (cat.type == 4) {
+						ArrayList funcs = DesignDataManager.getFunctions(filename);
+						if (funcs != null) {
+								for (Object obj : funcs) {
+										if (obj instanceof Pair) {
+												String fName = (String) ((Pair) obj).second;
+												if (fName != null && fName.toLowerCase().contains(q)) return true;
+										}
+								}
+						}
+				}
+				return false;
+		}
+
+		private void filterPalette(String query) {
+				String q = query != null ? query.trim().toLowerCase() : "";
+				boolean isSearching = !q.isEmpty();
+
+				PaletteSelector.CategoryItem firstVisibleCat = null;
+				boolean currentCatIsVisible = false;
+
+				if (this.paletteSelector != null) {
+						for (int i = 0; i < this.paletteSelector.getChildCount(); i++) {
+								View tabView = this.paletteSelector.getChildAt(i);
+								if (i < PaletteSelector.categoriesList.size()) {
+										PaletteSelector.CategoryItem cat = PaletteSelector.categoriesList.get(i);
+										boolean matches = !isSearching || doesCategoryMatchQuery(cat, q);
+										if (matches) {
+												tabView.setVisibility(View.VISIBLE);
+												if (firstVisibleCat == null) {
+														firstVisibleCat = cat;
+												}
+												if (this.currentCategoryItem != null && this.currentCategoryItem.index == cat.index) {
+														currentCatIsVisible = true;
+												}
+										} else {
+												tabView.setVisibility(View.GONE);
+										}
+								}
+						}
+				}
+
+				if (isSearching && !currentCatIsVisible && firstVisibleCat != null) {
+						onBlockCategorySelect(firstVisibleCat.index, firstVisibleCat.color);
+						return;
+				}
+
+				if (this.paletteBlock == null) return;
+				LinearLayout builder = (LinearLayout) this.paletteBlock.findViewById(R.id.block_builder);
+				if (builder == null) return;
+
+				for (int i = 0; i < builder.getChildCount(); i++) {
+						View child = builder.getChildAt(i);
+						if (child instanceof Block) {
+								Block block = (Block) child;
+								String opCode = block.mOpCode != null ? block.mOpCode.toLowerCase() : "";
+								String spec = block.mSpec != null ? block.mSpec.toLowerCase() : "";
+
+								if (!isSearching || opCode.contains(q) || spec.contains(q)) {
+										child.setVisibility(View.VISIBLE);
+										if (i > 0) {
+												View prev = builder.getChildAt(i - 1);
+												if (!(prev instanceof Block) && !(prev instanceof TextView)) {
+														prev.setVisibility(View.VISIBLE);
+												}
+										}
+								} else {
+										child.setVisibility(View.GONE);
+										if (i > 0) {
+												View prev = builder.getChildAt(i - 1);
+												if (!(prev instanceof Block) && !(prev instanceof TextView)) {
+														prev.setVisibility(View.GONE);
+												}
+										}
 								}
 						}
 				}
@@ -1883,6 +2037,49 @@ return;
 										openPalette(!isPaletteOpened);
 								}
 						});
+
+						final FloatingActionButton fabSearchPalette = (FloatingActionButton) findViewById(R.id.fab_search_palette);
+						final com.google.android.material.card.MaterialCardView cardSearchPalette = (com.google.android.material.card.MaterialCardView) findViewById(R.id.card_search_palette);
+						final EditText etPaletteSearch = (EditText) findViewById(R.id.et_palette_search);
+
+						if (fabSearchPalette != null && cardSearchPalette != null && etPaletteSearch != null) {
+								etPaletteSearch.addTextChangedListener(new android.text.TextWatcher() {
+										@Override
+										public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+										@Override
+										public void onTextChanged(CharSequence s, int start, int before, int count) {
+												String text = s != null ? s.toString() : "";
+												if (text.length() > 0) {
+														fabSearchPalette.setImageResource(R.drawable.x);
+												} else {
+														fabSearchPalette.setImageResource(R.drawable.ic_search);
+												}
+												filterPalette(text);
+										}
+
+										@Override
+										public void afterTextChanged(android.text.Editable s) {}
+								});
+
+								fabSearchPalette.setOnClickListener(v -> {
+										String currentText = etPaletteSearch.getText() != null ? etPaletteSearch.getText().toString() : "";
+										if (currentText.length() > 0) {
+												etPaletteSearch.setText("");
+										} else {
+												if (cardSearchPalette.getVisibility() == View.VISIBLE) {
+														cardSearchPalette.setVisibility(View.GONE);
+														android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+														if (imm != null) imm.hideSoftInputFromWindow(etPaletteSearch.getWindowToken(), 0);
+												} else {
+														cardSearchPalette.setVisibility(View.VISIBLE);
+														etPaletteSearch.requestFocus();
+														android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+														if (imm != null) imm.showSoftInput(etPaletteSearch, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+												}
+										}
+								});
+						}
 						return;
 				}
 				if (bundle != null) {
@@ -1891,10 +2088,103 @@ return;
 				finish();
 		}
 		
+		private void saveUndoState() {
+				if (this.isUndoRedoAction || this.pane == null) return;
+				try {
+						ArrayList<BlockBean> blocks = this.pane.getBlocks();
+						String json = new com.google.gson.Gson().toJson(blocks != null ? blocks : new ArrayList<>());
+						if (!this.undoStack.isEmpty() && this.undoStack.get(this.undoStack.size() - 1).equals(json)) {
+								return;
+						}
+						this.undoStack.add(json);
+						if (this.undoStack.size() > 50) {
+								this.undoStack.remove(0);
+						}
+						this.redoStack.clear();
+						updateUndoRedoMenuState();
+				} catch (Exception e) {
+						e.printStackTrace();
+				}
+		}
+
+		private void restoreState(String json) {
+				if (json == null || this.pane == null) return;
+				this.isUndoRedoAction = true;
+				try {
+						ArrayList<Block> allBlocks = new ArrayList<>();
+						for (int i = 0; i < this.pane.getChildCount(); i++) {
+								View child = this.pane.getChildAt(i);
+								if (child instanceof Block && child != this.pane.getRoot()) {
+										allBlocks.add((Block) child);
+								}
+						}
+						for (Block b : allBlocks) {
+								this.pane.removeBlock(b);
+						}
+
+						java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<BlockBean>>(){}.getType();
+						ArrayList<BlockBean> blockBeans = new com.google.gson.Gson().fromJson(json, type);
+						if (blockBeans != null && !blockBeans.isEmpty()) {
+								unpackCollectionBlocks(blockBeans, 20, 20);
+						}
+				} catch (Exception e) {
+						e.printStackTrace();
+				} finally {
+						this.isUndoRedoAction = false;
+						updateUndoRedoMenuState();
+				}
+		}
+
+		private void performUndo() {
+				if (this.undoStack.size() <= 1) {
+						Toast.makeText(this, "Nothing to undo", Toast.LENGTH_SHORT).show();
+						return;
+				}
+				String currentState = this.undoStack.remove(this.undoStack.size() - 1);
+				this.redoStack.add(currentState);
+				String targetState = this.undoStack.get(this.undoStack.size() - 1);
+				restoreState(targetState);
+		}
+
+		private void performRedo() {
+				if (this.redoStack.isEmpty()) {
+						Toast.makeText(this, "Nothing to redo", Toast.LENGTH_SHORT).show();
+						return;
+				}
+				String targetState = this.redoStack.remove(this.redoStack.size() - 1);
+				this.undoStack.add(targetState);
+				restoreState(targetState);
+		}
+
+		private void updateUndoRedoMenuState() {
+				if (this.menu == null) return;
+				MenuItem itemUndo = this.menu.findItem(R.id.menu_logic_undo);
+				MenuItem itemRedo = this.menu.findItem(R.id.menu_logic_redo);
+				boolean canUndo = this.undoStack.size() > 1;
+				boolean canRedo = !this.redoStack.isEmpty();
+
+				int m3ColorOnSurface = com.google.android.material.color.MaterialColors.getColor(
+						this, com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK);
+
+				if (itemUndo != null) {
+						itemUndo.setEnabled(canUndo);
+						if (itemUndo.getIcon() != null) {
+								itemUndo.getIcon().setTint(m3ColorOnSurface);
+								itemUndo.getIcon().setAlpha(canUndo ? 255 : 100);
+						}
+				}
+				if (itemRedo != null) {
+						itemRedo.setEnabled(canRedo);
+						if (itemRedo.getIcon() != null) {
+								itemRedo.getIcon().setTint(m3ColorOnSurface);
+								itemRedo.getIcon().setAlpha(canRedo ? 255 : 100);
+						}
+				}
+		}
+
 		public boolean onCreateOptionsMenu(Menu menu) {
 				getMenuInflater().inflate(R.menu.logic_menu, menu);
 				this.menu = menu;
-				refreshPasteIcon();
 
 				int m3ColorOnSurface = com.google.android.material.color.MaterialColors.getColor(
 						this, com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK);
@@ -1913,6 +2203,7 @@ return;
 						toolbarView.getNavigationIcon().setTint(m3ColorOnSurface);
 				}
 
+				updateUndoRedoMenuState();
 				return true;
 		}
 		
@@ -1921,8 +2212,16 @@ return;
 		}
 		
 		public boolean onOptionsItemSelected(MenuItem menuItem) {
-				if (menuItem.getItemId() == R.id.menu_show_source) {
+				int id = menuItem.getItemId();
+				if (id == R.id.menu_show_source) {
 						showSourceCode();
+						return true;
+				} else if (id == R.id.menu_logic_undo) {
+						performUndo();
+						return true;
+				} else if (id == R.id.menu_logic_redo) {
+						performRedo();
+						return true;
 				}
 				return super.onOptionsItemSelected(menuItem);
 		}
@@ -2062,6 +2361,7 @@ return;
 				this.pane.getRoot().fixLayout();
 				this.loadLogic();
 				this.allocatePalette(this.getResources().getConfiguration().orientation);
+				saveUndoState();
 		}
 		
 		protected void onResume() {
@@ -2090,19 +2390,20 @@ return;
 						if (this.isDragged) {
 								this.handler.removeCallbacks(this.longPressed);
 								this.dummy.moveDummy(view, motionEvent.getX(), motionEvent.getY(), this.posInitX, this.posInitY, (float)BLOCK_DRAG_X, (float)BLOCK_DRAG_Y);
+								boolean isCollection = view instanceof Block && ((Block) view).mOpCode != null && collectionBlocksMap.containsKey(((Block) view).mOpCode);
 								if (hitTestIcon(this.iconDelete, motionEvent.getRawX(), motionEvent.getRawY())) {
 										this.dummy.setAllow(true);
 										activeIconDelete(true);
 										activeIconSave(false);
 										activeIconDuplicate(false);
 										return true;
-								} else if (hitTestIcon(this.iconSave, motionEvent.getRawX(), motionEvent.getRawY())) {
+								} else if (!isCollection && hitTestIcon(this.iconSave, motionEvent.getRawX(), motionEvent.getRawY())) {
 										this.dummy.setAllow(true);
 										activeIconDelete(false);
 										activeIconSave(true);
 										activeIconDuplicate(false);
 										return true;
-								} else if (hitTestIcon(this.iconDuplicate, motionEvent.getRawX(), motionEvent.getRawY())) {
+								} else if (!isCollection && hitTestIcon(this.iconDuplicate, motionEvent.getRawX(), motionEvent.getRawY())) {
 										this.dummy.setAllow(true);
 										activeIconDelete(false);
 										activeIconSave(false);
@@ -2196,6 +2497,7 @@ return;
 								this.dummy.setAllow(false);
 								showIconDelete(false);
 								this.isDragged = false;
+								saveUndoState();
 								return true;
 						}
 						if ((view instanceof Block) && ((Block) view).getBlockType() == 0) {
@@ -2276,11 +2578,11 @@ return;
 				                  ArrayList<Block> children = block.getAllChildren();
 				                  if (children != null && !children.isEmpty()) {
 				                      for (Block child : children) {
-				                          if (child != null) {
+				                          if (child != null && child.getBean() != null) {
 				                              blockBeans.add(child.getBean());
 				                          }
 				                      }
-				                  } else {
+				                  } else if (block != null && block.getBean() != null) {
 				                      blockBeans.add(block.getBean());
 				                  }
 
@@ -2303,6 +2605,9 @@ return;
 				                  Toast.makeText(this, "Saved collection: " + safeName, Toast.LENGTH_SHORT).show();
 				                  if (paletteSelector != null) {
 				                      paletteSelector.refresh();
+				                  }
+				                  if (this.currentCategoryItem != null && this.currentCategoryItem.type == 3) {
+				                      onBlockCategorySelect(this.currentCategoryItem.index, this.currentCategoryItem.color);
 				                  }
 				              } catch (Exception e) {
 				                  e.printStackTrace();
@@ -2345,6 +2650,9 @@ return;
 										Toast.makeText(this, "Collection deleted: " + colName, Toast.LENGTH_SHORT).show();
 										if (paletteSelector != null) {
 												paletteSelector.refresh();
+										}
+										if (this.currentCategoryItem != null && this.currentCategoryItem.type == 3) {
+												onBlockCategorySelect(this.currentCategoryItem.index, this.currentCategoryItem.color);
 										}
 								} catch (Exception e) {
 										e.printStackTrace();
@@ -2413,9 +2721,7 @@ return;
 						rebasedList.add(newBean);
 				}
 
-				// Phase 1: Instantiate all blocks and add to pane (no linking yet)
 				Map<Integer, Block> blockMap = new HashMap<>();
-
 				for (BlockBean bean : rebasedList) {
 						Block block = makeBlockFromBean(bean);
 						int bId = ((Integer) block.getTag()).intValue();
@@ -2424,32 +2730,26 @@ return;
 						block.setOnTouchListener(this);
 				}
 
-				// Phase 2: Link blocks and fix layout — deferred to next UI frame to avoid measure-during-layout crash
-				final Map<Integer, Block> finalBlockMap = blockMap;
-				final ArrayList<BlockBean> finalRebasedList = rebasedList;
-				this.pane.post(() -> {
-						Block firstRootBlock = null;
-						for (BlockBean bean : finalRebasedList) {
-								int bId = safeParseInt(bean.id);
-								Block block = finalBlockMap.get(Integer.valueOf(bId));
-								if (block == null) continue;
-
-								if (bean.subStack1 >= 0 && finalBlockMap.containsKey(Integer.valueOf(bean.subStack1))) {
-										block.insertBlockSub1(finalBlockMap.get(Integer.valueOf(bean.subStack1)));
+				for (BlockBean bean : rebasedList) {
+						int bId = safeParseInt(bean.id);
+						Block block = blockMap.get(Integer.valueOf(bId));
+						if (block != null) {
+								if (bean.subStack1 >= 0 && blockMap.containsKey(Integer.valueOf(bean.subStack1))) {
+										block.insertBlockSub1(blockMap.get(Integer.valueOf(bean.subStack1)));
 								}
-								if (bean.subStack2 >= 0 && finalBlockMap.containsKey(Integer.valueOf(bean.subStack2))) {
-										block.insertBlockSub2(finalBlockMap.get(Integer.valueOf(bean.subStack2)));
+								if (bean.subStack2 >= 0 && blockMap.containsKey(Integer.valueOf(bean.subStack2))) {
+										block.insertBlockSub2(blockMap.get(Integer.valueOf(bean.subStack2)));
 								}
-								if (bean.nextBlock >= 0 && finalBlockMap.containsKey(Integer.valueOf(bean.nextBlock))) {
-										block.insertBlock(finalBlockMap.get(Integer.valueOf(bean.nextBlock)));
+								if (bean.nextBlock >= 0 && blockMap.containsKey(Integer.valueOf(bean.nextBlock))) {
+										block.insertBlock(blockMap.get(Integer.valueOf(bean.nextBlock)));
 								}
 								for (int p = 0; p < bean.parameters.size(); p++) {
 										String paramVal = bean.parameters.get(p);
 										if (paramVal != null && !paramVal.isEmpty()) {
 												if (paramVal.startsWith("@")) {
 														int refId = safeParseInt(paramVal.substring(1));
-														if (finalBlockMap.containsKey(Integer.valueOf(refId))) {
-																block.replaceArgWithBlock((BlockBase) block.args.get(p), finalBlockMap.get(Integer.valueOf(refId)));
+														if (blockMap.containsKey(Integer.valueOf(refId))) {
+																block.replaceArgWithBlock((BlockBase) block.args.get(p), blockMap.get(Integer.valueOf(refId)));
 														}
 												} else if (p < block.args.size() && block.args.get(p) instanceof BlockArg) {
 														((BlockArg) block.args.get(p)).setArgValue(paramVal);
@@ -2457,23 +2757,24 @@ return;
 												}
 										}
 								}
+						}
+				}
+
+				Block firstRootBlock = null;
+				for (BlockBean bean : rebasedList) {
+						int bId = safeParseInt(bean.id);
+						Block block = blockMap.get(Integer.valueOf(bId));
+						if (block != null && block.parentBlock == null) {
+								this.pane.getRoot().insertBlock(block);
 								if (firstRootBlock == null) {
-										this.pane.getRoot().insertBlock(block);
 										firstRootBlock = block;
 								}
 						}
-						this.pane.getRoot().fixLayout();
-						this.pane.calculateWidthHeight();
-				});
-		}
-
-		public void refreshPasteIcon() {
-				if (DesignDataManager.isExistClipboard(filename)) {
-						this.menu.getItem(1).setIcon(R.drawable.ic_content_paste_white_24dp);
-						this.menu.getItem(1).setEnabled(true);
-						return;
 				}
-				this.menu.getItem(1).setIcon(R.drawable.ic_content_paste_grey600_24dp);
-				this.menu.getItem(1).setEnabled(false);
+
+				if (firstRootBlock != null) {
+						firstRootBlock.topBlock().fixLayout();
+				}
+				this.pane.calculateWidthHeight();
 		}
 }

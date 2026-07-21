@@ -8,10 +8,7 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.TextView;
-/*import com.besome.sketch.lib.ui.CustomHorizontalScrollView;
-import com.besome.sketch.lib.ui.CustomScrollView;
-import com.besome.sketch.lib.utils.LayoutUtil;
-*/
+
 public class PaletteBlock extends LinearLayout {
     LinearLayout blockBuilder;
     private float dip = 0.0f;

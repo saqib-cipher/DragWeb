@@ -15,6 +15,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -111,6 +112,23 @@ public class ManageWidgetsActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_manage_import_export, menu);
+        int m3ColorOnSurface = com.google.android.material.color.MaterialColors.getColor(
+                this, com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK);
+
+        if (menu != null) {
+            for (int i = 0; i < menu.size(); i++) {
+                MenuItem item = menu.getItem(i);
+                if (item.getIcon() != null) {
+                    item.getIcon().setTint(m3ColorOnSurface);
+                }
+            }
+        }
+
+        Toolbar toolbarView = findViewById(R.id.toolbar);
+        if (toolbarView != null && toolbarView.getNavigationIcon() != null) {
+            toolbarView.getNavigationIcon().setTint(m3ColorOnSurface);
+        }
+
         return true;
     }
 
@@ -140,7 +158,41 @@ public class ManageWidgetsActivity extends AppCompatActivity {
             .show();
     }
 
+    private androidx.appcompat.app.AlertDialog showProgressDialog(String message) {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_progress_material, null);
+        TextView tvMessage = dialogView.findViewById(R.id.progress_message);
+        if (tvMessage != null) tvMessage.setText(message);
+
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create();
+        dialog.show();
+        return dialog;
+    }
+
+    private String getUniqueWidgetName(String baseName, List<HashMap<String, Object>> list) {
+        if (baseName == null || baseName.trim().isEmpty() || "null".equalsIgnoreCase(baseName.trim())) baseName = "custom_widget";
+        String candidate = baseName.trim();
+        int counter = 1;
+        while (isWidgetNameExists(candidate, list)) {
+            candidate = baseName.trim() + "_" + counter;
+            counter++;
+        }
+        return candidate;
+    }
+
+    private boolean isWidgetNameExists(String name, List<HashMap<String, Object>> list) {
+        if (name == null) return false;
+        for (HashMap<String, Object> w : list) {
+            String wName = String.valueOf(w.get("name"));
+            if (wName != null && wName.equalsIgnoreCase(name.trim())) return true;
+        }
+        return false;
+    }
+
     private void importFromClipboard() {
+        androidx.appcompat.app.AlertDialog progress = showProgressDialog("Importing widgets...");
         try {
             android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
@@ -152,6 +204,10 @@ public class ManageWidgetsActivity extends AppCompatActivity {
                         for (HashMap<String, Object> w : imported) {
                             String name = String.valueOf(w.get("name"));
                             if (name != null && !name.isEmpty() && !"null".equalsIgnoreCase(name)) {
+                                if (isWidgetNameExists(name, widgets)) {
+                                    String uniqueName = getUniqueWidgetName(name, widgets);
+                                    w.put("name", uniqueName);
+                                }
                                 widgetRegistry.saveWidget(w);
                             }
                         }
@@ -168,6 +224,8 @@ public class ManageWidgetsActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        } finally {
+            if (progress != null && progress.isShowing()) progress.dismiss();
         }
     }
 
@@ -189,6 +247,7 @@ public class ManageWidgetsActivity extends AppCompatActivity {
     }
 
     private void importWidgetsFromUri(Uri uri) {
+        androidx.appcompat.app.AlertDialog progress = showProgressDialog("Importing widgets...");
         try (InputStream is = getContentResolver().openInputStream(uri);
              InputStreamReader reader = new InputStreamReader(is, "UTF-8")) {
             List<HashMap<String, Object>> imported = new Gson().fromJson(reader, new TypeToken<List<HashMap<String, Object>>>(){}.getType());
@@ -196,6 +255,10 @@ public class ManageWidgetsActivity extends AppCompatActivity {
                 for (HashMap<String, Object> w : imported) {
                     String name = String.valueOf(w.get("name"));
                     if (name != null && !name.isEmpty() && !"null".equalsIgnoreCase(name)) {
+                        if (isWidgetNameExists(name, widgets)) {
+                            String uniqueName = getUniqueWidgetName(name, widgets);
+                            w.put("name", uniqueName);
+                        }
                         widgetRegistry.saveWidget(w);
                     }
                 }
@@ -204,6 +267,8 @@ public class ManageWidgetsActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        } finally {
+            if (progress != null && progress.isShowing()) progress.dismiss();
         }
     }
 

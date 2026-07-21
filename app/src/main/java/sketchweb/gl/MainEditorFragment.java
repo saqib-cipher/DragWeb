@@ -3,8 +3,6 @@ package sketchweb.gl;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipDescription;
-import android.content.ClipboardManager;
-import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -22,14 +20,11 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -37,8 +32,6 @@ import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
-import androidx.viewpager2.adapter.FragmentStateAdapter;
-import com.google.android.material.tabs.TabLayoutMediator;
 import androidx.fragment.app.Fragment;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -2814,7 +2807,7 @@ public class MainEditorFragment extends Fragment {
 
 				new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
 					if (button4 instanceof com.google.android.material.button.MaterialButton) {
-						((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.device_floppy);
+						((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.device_floppy_act);
 					}
 				}, 1500);
 			}

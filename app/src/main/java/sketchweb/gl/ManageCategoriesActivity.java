@@ -20,13 +20,19 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import android.text.Editable;
+import android.text.TextWatcher;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
+import sketchweb.gl.colorpicker.ColorPickerDialogFragment;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -108,6 +114,23 @@ public class ManageCategoriesActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_manage_import_export, menu);
+        int m3ColorOnSurface = com.google.android.material.color.MaterialColors.getColor(
+                this, com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK);
+
+        if (menu != null) {
+            for (int i = 0; i < menu.size(); i++) {
+                MenuItem item = menu.getItem(i);
+                if (item.getIcon() != null) {
+                    item.getIcon().setTint(m3ColorOnSurface);
+                }
+            }
+        }
+
+        Toolbar toolbarView = findViewById(R.id.toolbar);
+        if (toolbarView != null && toolbarView.getNavigationIcon() != null) {
+            toolbarView.getNavigationIcon().setTint(m3ColorOnSurface);
+        }
+
         return true;
     }
 
@@ -137,7 +160,40 @@ public class ManageCategoriesActivity extends AppCompatActivity {
             .show();
     }
 
+    private androidx.appcompat.app.AlertDialog showProgressDialog(String message) {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_progress_material, null);
+        TextView tvMessage = dialogView.findViewById(R.id.progress_message);
+        if (tvMessage != null) tvMessage.setText(message);
+
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create();
+        dialog.show();
+        return dialog;
+    }
+
+    private String getUniqueCategoryId(String baseId, List<CategoryDef> list) {
+        if (baseId == null || baseId.trim().isEmpty()) baseId = "custom_cat";
+        String candidate = baseId.trim();
+        int counter = 1;
+        while (isCategoryIdExists(candidate, list)) {
+            candidate = baseId.trim() + "_" + counter;
+            counter++;
+        }
+        return candidate;
+    }
+
+    private boolean isCategoryIdExists(String id, List<CategoryDef> list) {
+        if (id == null) return false;
+        for (CategoryDef cat : list) {
+            if (cat.id != null && cat.id.equalsIgnoreCase(id.trim())) return true;
+        }
+        return false;
+    }
+
     private void importFromClipboard() {
+        androidx.appcompat.app.AlertDialog progress = showProgressDialog("Importing categories...");
         try {
             android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
@@ -148,7 +204,9 @@ public class ManageCategoriesActivity extends AppCompatActivity {
                     if (imported != null && !imported.isEmpty()) {
                         for (CategoryDef cat : imported) {
                             if (cat.id != null && !cat.id.isEmpty()) {
-                                categories.removeIf(c -> cat.id.equalsIgnoreCase(c.id));
+                                if (isCategoryIdExists(cat.id, categories)) {
+                                    cat.id = getUniqueCategoryId(cat.id, categories);
+                                }
                                 categories.add(cat);
                             }
                         }
@@ -166,6 +224,25 @@ public class ManageCategoriesActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        } finally {
+            if (progress != null && progress.isShowing()) progress.dismiss();
+        }
+    }
+
+    private void shareCategory(CategoryDef cat) {
+        if (cat == null) return;
+        try {
+            List<CategoryDef> singleList = new ArrayList<>();
+            singleList.add(cat);
+            String json = new GsonBuilder().setPrettyPrinting().create().toJson(singleList);
+
+            android.content.Intent shareIntent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+            shareIntent.setType("text/plain");
+            shareIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Category: " + cat.name);
+            shareIntent.putExtra(android.content.Intent.EXTRA_TEXT, json);
+            startActivity(android.content.Intent.createChooser(shareIntent, "Share Category"));
+        } catch (Exception e) {
+            Toast.makeText(this, "Failed to share: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -208,8 +285,8 @@ public class ManageCategoriesActivity extends AppCompatActivity {
 
     private void saveCategoriesToStorage() {
         try {
-            File storageFile = getCustomCategoriesFile();
             String json = new GsonBuilder().setPrettyPrinting().create().toJson(categories);
+            File storageFile = CustomStorageUtil.getCustomFile(this, "categories.json");
             FileUtil.writeFile(storageFile.getAbsolutePath(), json);
             CategoryDef.clearCache();
         } catch (Exception e) {
@@ -219,74 +296,161 @@ public class ManageCategoriesActivity extends AppCompatActivity {
 
     private void showEditCategoryDialog(final CategoryDef existing) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_category, null);
+        final com.google.android.material.textfield.TextInputLayout tilId = dialogView.findViewById(R.id.til_cat_id);
         final TextInputEditText etId = dialogView.findViewById(R.id.et_cat_id);
         final TextInputEditText etName = dialogView.findViewById(R.id.et_cat_name);
         final TextInputEditText etColor = dialogView.findViewById(R.id.et_cat_color);
-        final Spinner spType = dialogView.findViewById(R.id.sp_cat_type);
+        final MaterialAutoCompleteTextView etType = dialogView.findViewById(R.id.et_cat_type);
 
         String[] types = new String[]{"css", "js", "common"};
-        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, types);
-        typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spType.setAdapter(typeAdapter);
+        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, types);
+        if (etType != null) {
+            etType.setAdapter(typeAdapter);
+            etType.setText(types[0], false);
+        }
+
+        Runnable updatePreview = () -> {
+            String hex = etColor.getText() != null ? etColor.getText().toString().trim() : "";
+            if (!hex.startsWith("#") && !hex.isEmpty()) hex = "#" + hex;
+            try {
+                int parsed = hex.isEmpty() ? Color.TRANSPARENT : Color.parseColor(hex);
+                GradientDrawable dot = new GradientDrawable();
+                dot.setShape(GradientDrawable.OVAL);
+                dot.setColor(parsed);
+                dot.setStroke((int)(1 * getResources().getDisplayMetrics().density), Color.LTGRAY);
+                int size = (int)(20 * getResources().getDisplayMetrics().density);
+                dot.setBounds(0, 0, size, size);
+                etColor.setCompoundDrawablesRelative(null, null, dot, null);
+            } catch (Exception ignored) {}
+        };
+
+        if (etColor != null) {
+            etColor.setFocusable(false);
+            etColor.setCursorVisible(false);
+            etColor.setOnClickListener(v -> {
+                ColorPickerDialogFragment colorPicker = new ColorPickerDialogFragment();
+                colorPicker.setHexOnlyMode(true);
+                colorPicker.setOnColorSelectedListener(selectedHex -> {
+                    etColor.setText(selectedHex);
+                    updatePreview.run();
+                });
+                colorPicker.show(getSupportFragmentManager(), "category_color_picker");
+            });
+
+            etColor.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updatePreview.run(); }
+                @Override public void afterTextChanged(Editable s) {}
+            });
+        }
+
+        // Real-time ID validation
+        if (etId != null && tilId != null) {
+            etId.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    String inputId = s.toString().trim();
+                    if (inputId.isEmpty()) {
+                        tilId.setError(null);
+                        return;
+                    }
+                    boolean exists = false;
+                    for (CategoryDef cat : categories) {
+                        if (cat != existing && cat.id != null && cat.id.equalsIgnoreCase(inputId)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (exists) {
+                        tilId.setError("Category ID already exists");
+                    } else {
+                        tilId.setError(null);
+                    }
+                }
+                @Override public void afterTextChanged(Editable s) {}
+            });
+        }
 
         if (existing != null) {
             etId.setText(existing.id);
-            etId.setEnabled(false);
             etName.setText(existing.name);
             etColor.setText(existing.catColor != null ? existing.catColor : "#1976D2");
-            if (existing.type != null) {
-                for (int i = 0; i < types.length; i++) {
-                    if (types[i].equalsIgnoreCase(existing.type)) {
-                        spType.setSelection(i);
-                        break;
-                    }
-                }
+            if (existing.type != null && etType != null) {
+                etType.setText(existing.type, false);
             }
         } else {
             etColor.setText("#1976D2");
         }
+        updatePreview.run();
 
-        new MaterialAlertDialogBuilder(this)
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
             .setTitle(existing == null ? "Create Category" : "Edit Category")
             .setView(dialogView)
-            .setPositiveButton("Save", (dialog, which) -> {
+            .setPositiveButton("Save", null)
+            .setNegativeButton("Cancel", null)
+            .create();
+
+        dialog.setOnShowListener(dialogInterface -> {
+            android.widget.Button saveBtn = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE);
+            saveBtn.setOnClickListener(v -> {
                 String id = etId.getText().toString().trim();
                 String name = etName.getText().toString().trim();
                 String color = etColor.getText().toString().trim();
                 if (!color.startsWith("#") && !color.isEmpty()) color = "#" + color;
-                String type = (String) spType.getSelectedItem();
+                String type = etType != null ? etType.getText().toString().trim() : "";
 
-                if (id.isEmpty() || name.isEmpty()) {
-                    Toast.makeText(ManageCategoriesActivity.this, "ID and Name are required", Toast.LENGTH_SHORT).show();
+                if (id.isEmpty()) {
+                    if (tilId != null) tilId.setError("ID is required");
+                    return;
+                }
+                if (name.isEmpty()) {
+                    Toast.makeText(ManageCategoriesActivity.this, "Name is required", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                CategoryDef target = existing != null ? existing : new CategoryDef();
-                target.id = id;
-                target.name = name;
-                target.catColor = color.isEmpty() ? "#1976D2" : color;
-                target.type = type;
+                for (CategoryDef cat : categories) {
+                    if (cat != existing && cat.id != null && cat.id.equalsIgnoreCase(id)) {
+                        if (tilId != null) tilId.setError("Category ID already exists");
+                        return;
+                    }
+                }
+                if (tilId != null) tilId.setError(null);
 
                 if (existing == null) {
-                    categories.add(target);
+                    CategoryDef newCat = new CategoryDef();
+                    newCat.id = id;
+                    newCat.name = name;
+                    newCat.catColor = color;
+                    newCat.type = type;
+                    categories.add(newCat);
+                } else {
+                    existing.id = id;
+                    existing.name = name;
+                    existing.catColor = color;
+                    existing.type = type;
                 }
 
                 saveCategoriesToStorage();
                 loadCategoriesFromStorage();
                 Toast.makeText(ManageCategoriesActivity.this, "Category saved", Toast.LENGTH_SHORT).show();
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
+                dialog.dismiss();
+            });
+        });
+
+        dialog.show();
     }
 
     private void importCategoriesFromUri(Uri uri) {
+        androidx.appcompat.app.AlertDialog progress = showProgressDialog("Importing categories...");
         try (InputStream is = getContentResolver().openInputStream(uri);
              InputStreamReader reader = new InputStreamReader(is, "UTF-8")) {
             List<CategoryDef> imported = new Gson().fromJson(reader, new TypeToken<List<CategoryDef>>(){}.getType());
             if (imported != null && !imported.isEmpty()) {
                 for (CategoryDef cat : imported) {
                     if (cat.id != null && !cat.id.isEmpty()) {
-                        categories.removeIf(c -> cat.id.equalsIgnoreCase(c.id));
+                        if (isCategoryIdExists(cat.id, categories)) {
+                            cat.id = getUniqueCategoryId(cat.id, categories);
+                        }
                         categories.add(cat);
                     }
                 }
@@ -296,6 +460,8 @@ public class ManageCategoriesActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        } finally {
+            if (progress != null && progress.isShowing()) progress.dismiss();
         }
     }
 
@@ -333,6 +499,7 @@ public class ManageCategoriesActivity extends AppCompatActivity {
             if (holder.viewColorDot != null) holder.viewColorDot.setBackground(dot);
 
             holder.btnEdit.setOnClickListener(v -> showEditCategoryDialog(cat));
+            if (holder.btnShare != null) holder.btnShare.setOnClickListener(v -> shareCategory(cat));
             holder.btnDelete.setOnClickListener(v -> {
                 new MaterialAlertDialogBuilder(ManageCategoriesActivity.this)
                     .setTitle("Delete Category")
@@ -355,7 +522,7 @@ public class ManageCategoriesActivity extends AppCompatActivity {
         class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvId, tvName;
             View viewColorDot;
-            View btnEdit, btnDelete;
+            View btnEdit, btnShare, btnDelete;
 
             ViewHolder(View itemView) {
                 super(itemView);
@@ -363,6 +530,7 @@ public class ManageCategoriesActivity extends AppCompatActivity {
                 tvName = itemView.findViewById(R.id.tv_cat_name);
                 viewColorDot = itemView.findViewById(R.id.view_cat_color);
                 btnEdit = itemView.findViewById(R.id.btn_edit_cat);
+                btnShare = itemView.findViewById(R.id.btn_share_cat);
                 btnDelete = itemView.findViewById(R.id.btn_delete_cat);
             }
         }

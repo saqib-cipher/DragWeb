@@ -4,7 +4,7 @@
 
     <item
         android:id="@+id/menu_show_source"
-        android:icon="@drawable/code_xml_24px"
+        android:icon="@drawable/source_code"
         android:orderInCategory="100"
         android:title="Show Source Code"
         app:showAsAction="always" />
@@ -21,13 +21,6 @@
         android:icon="@drawable/icon_redo_round"
         android:orderInCategory="100"
         android:title="Redo"
-        app:showAsAction="always" />
-
-    <item
-        android:id="@+id/menu_block_paste"
-        android:icon="@drawable/ic_content_paste_white_24dp"
-        android:orderInCategory="100"
-        android:title="Paste Block"
         app:showAsAction="always" />
 
 </menu>

@@ -28,7 +28,7 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:layout_marginStart="8dp"
-		android:src="@drawable/trash"
+		android:src="@drawable/trash_act"
 		app:tint="@color/colorError"
 		android:background="?attr/selectableItemBackgroundBorderless"
 		android:padding="12dp"

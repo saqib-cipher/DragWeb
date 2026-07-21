@@ -1,7 +1,5 @@
 package sketchweb.gl;
 
-import android.content.Context;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -100,7 +98,7 @@ public class TextEditorActivity extends AppCompatActivity {
         // Add save icon to toolbar if file is editable
         if (!isReadOnly) {
             toolbar.getMenu().add(0, 1, 0, "Save")
-                   .setIcon(R.drawable.device_floppy)
+                   .setIcon(R.drawable.device_floppy_act)
                    .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
 
             toolbar.setOnMenuItemClickListener(item -> {

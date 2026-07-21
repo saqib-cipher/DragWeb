@@ -23,6 +23,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -33,6 +34,7 @@ import com.google.android.material.chip.ChipGroup;
 import sketchweb.gl.colorpicker.ColorPickerDialogFragment;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -123,6 +125,21 @@ public class ManageBlocksActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_manage_import_export, menu);
+        int m3ColorOnSurface = com.google.android.material.color.MaterialColors.getColor(
+                this, com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK);
+
+        if (menu != null) {
+            for (int i = 0; i < menu.size(); i++) {
+                MenuItem item = menu.getItem(i);
+                if (item.getIcon() != null) {
+                    item.getIcon().setTint(m3ColorOnSurface);
+                }
+            }
+        }
+
+        Toolbar toolbarView = findViewById(R.id.toolbar);
+        if (toolbarView != null && toolbarView.getNavigationIcon() != null)
+            toolbarView.getNavigationIcon().setTint(m3ColorOnSurface);
         return true;
     }
 
@@ -138,6 +155,8 @@ public class ManageBlocksActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+
+
     private void showImportOptionsDialog() {
         String[] options = new String[]{"Import from JSON File", "Import from Clipboard"};
         new MaterialAlertDialogBuilder(this)
@@ -152,7 +171,40 @@ public class ManageBlocksActivity extends AppCompatActivity {
             .show();
     }
 
+    private androidx.appcompat.app.AlertDialog showProgressDialog(String message) {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_progress_material, null);
+        TextView tvMessage = dialogView.findViewById(R.id.progress_message);
+        if (tvMessage != null) tvMessage.setText(message);
+
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create();
+        dialog.show();
+        return dialog;
+    }
+
+    private String getUniqueBlockId(String baseId, List<BlockDef> list) {
+        if (baseId == null || baseId.trim().isEmpty()) baseId = "custom_block";
+        String candidate = baseId.trim();
+        int counter = 1;
+        while (isBlockIdExists(candidate, list)) {
+            candidate = baseId.trim() + "_" + counter;
+            counter++;
+        }
+        return candidate;
+    }
+
+    private boolean isBlockIdExists(String id, List<BlockDef> list) {
+        if (id == null) return false;
+        for (BlockDef def : list) {
+            if (def.id != null && def.id.equalsIgnoreCase(id.trim())) return true;
+        }
+        return false;
+    }
+
     private void importFromClipboard() {
+        androidx.appcompat.app.AlertDialog progress = showProgressDialog("Importing blocks...");
         try {
             android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
@@ -163,7 +215,9 @@ public class ManageBlocksActivity extends AppCompatActivity {
                     if (imported != null && !imported.isEmpty()) {
                         for (BlockDef def : imported) {
                             if (def.id != null && !def.id.isEmpty()) {
-                                allBlockDefs.removeIf(b -> def.id.equalsIgnoreCase(b.id));
+                                if (isBlockIdExists(def.id, allBlockDefs)) {
+                                    def.id = getUniqueBlockId(def.id, allBlockDefs);
+                                }
                                 allBlockDefs.add(def);
                             }
                         }
@@ -181,6 +235,8 @@ public class ManageBlocksActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             Toast.makeText(this, "Clipboard import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        } finally {
+            if (progress != null && progress.isShowing()) progress.dismiss();
         }
     }
 
@@ -280,8 +336,8 @@ public class ManageBlocksActivity extends AppCompatActivity {
 
     private void saveBlocksToStorage() {
         try {
-            File storageFile = getCustomBlocksFile();
             String json = new GsonBuilder().setPrettyPrinting().create().toJson(allBlockDefs);
+            File storageFile = CustomStorageUtil.getCustomFile(this, "blocks.json");
             FileUtil.writeFile(storageFile.getAbsolutePath(), json);
             BlockDef.clearCache();
         } catch (Exception e) {
@@ -291,11 +347,11 @@ public class ManageBlocksActivity extends AppCompatActivity {
 
     private void showEditBlockDialog(final BlockDef existing) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_custom_block, null);
+        final com.google.android.material.textfield.TextInputLayout tilId = dialogView.findViewById(R.id.til_block_id);
         final TextInputEditText etId = dialogView.findViewById(R.id.et_block_id);
-        final Spinner spCategory = dialogView.findViewById(R.id.sp_block_category);
-        final Spinner spType = dialogView.findViewById(R.id.sp_block_type);
+        final MaterialAutoCompleteTextView etCategory = dialogView.findViewById(R.id.et_block_category);
+        final MaterialAutoCompleteTextView etType = dialogView.findViewById(R.id.et_block_type);
         final TextInputEditText etColor = dialogView.findViewById(R.id.et_block_color);
-        final View viewColorPreview = dialogView.findViewById(R.id.view_block_color_preview);
         final TextInputEditText etSpec = dialogView.findViewById(R.id.et_block_spec);
         final TextInputEditText etCode = dialogView.findViewById(R.id.et_block_code);
 
@@ -303,57 +359,89 @@ public class ManageBlocksActivity extends AppCompatActivity {
         List<String> catIds = new ArrayList<>();
         for (CategoryDef c : catDefs) catIds.add(c.id);
 
-        ArrayAdapter<String> catAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, catIds);
-        catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spCategory.setAdapter(catAdapter);
+        ArrayAdapter<String> catAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, catIds);
+        if (etCategory != null) {
+            etCategory.setAdapter(catAdapter);
+            if (!catIds.isEmpty()) etCategory.setText(catIds.get(0), false);
+        }
 
         String[] types = new String[]{"normal", "c", "e", "b", "d", "s", "h"};
-        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, types);
-        typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spType.setAdapter(typeAdapter);
+        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, types);
+        if (etType != null) {
+            etType.setAdapter(typeAdapter);
+            etType.setText(types[0], false);
+        }
 
         Runnable updatePreview = () -> {
             String hex = etColor.getText() != null ? etColor.getText().toString().trim() : "";
             if (!hex.startsWith("#") && !hex.isEmpty()) hex = "#" + hex;
             try {
+                int parsed = hex.isEmpty() ? Color.TRANSPARENT : Color.parseColor(hex);
                 GradientDrawable dot = new GradientDrawable();
                 dot.setShape(GradientDrawable.OVAL);
-                dot.setColor(Color.parseColor(hex));
-                if (viewColorPreview != null) viewColorPreview.setBackground(dot);
+                dot.setColor(parsed);
+                dot.setStroke((int)(1 * getResources().getDisplayMetrics().density), Color.LTGRAY);
+                int size = (int)(20 * getResources().getDisplayMetrics().density);
+                dot.setBounds(0, 0, size, size);
+                etColor.setCompoundDrawablesRelative(null, null, dot, null);
             } catch (Exception ignored) {}
         };
 
-        etColor.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updatePreview.run(); }
-            @Override public void afterTextChanged(Editable s) {}
-        });
-
-        View.OnClickListener launchColorPicker = v -> {
-            ColorPickerDialogFragment colorPicker = new ColorPickerDialogFragment();
-            colorPicker.setHexOnlyMode(true);
-            colorPicker.setOnColorSelectedListener(selectedHex -> {
-                etColor.setText(selectedHex);
-                updatePreview.run();
+        if (etColor != null) {
+            etColor.setFocusable(false);
+            etColor.setCursorVisible(false);
+            etColor.setOnClickListener(v -> {
+                ColorPickerDialogFragment colorPicker = new ColorPickerDialogFragment();
+                colorPicker.setHexOnlyMode(true);
+                colorPicker.setOnColorSelectedListener(selectedHex -> {
+                    etColor.setText(selectedHex);
+                    updatePreview.run();
+                });
+                colorPicker.show(getSupportFragmentManager(), "block_color_picker");
             });
-            colorPicker.show(getSupportFragmentManager(), "block_color_picker");
-        };
 
-        if (viewColorPreview != null) viewColorPreview.setOnClickListener(launchColorPicker);
+            etColor.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updatePreview.run(); }
+                @Override public void afterTextChanged(Editable s) {}
+            });
+        }
+
+        // Real-time ID validation
+        if (etId != null && tilId != null) {
+            etId.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    String inputId = s.toString().trim();
+                    if (inputId.isEmpty()) {
+                        tilId.setError(null);
+                        return;
+                    }
+                    boolean exists = false;
+                    for (BlockDef def : allBlockDefs) {
+                        if (def != existing && def.id != null && def.id.equalsIgnoreCase(inputId)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (exists) {
+                        tilId.setError("Block ID already exists");
+                    } else {
+                        tilId.setError(null);
+                    }
+                }
+                @Override public void afterTextChanged(Editable s) {}
+            });
+        }
 
         if (existing != null) {
             etId.setText(existing.id);
-            etId.setEnabled(false);
-            if (existing.category != null) {
-                int pos = catIds.indexOf(existing.category);
-                if (pos >= 0) spCategory.setSelection(pos);
+            if (existing.category != null && etCategory != null) {
+                etCategory.setText(existing.category, false);
             }
             String currentType = existing.getType();
-            for (int i = 0; i < types.length; i++) {
-                if (types[i].equalsIgnoreCase(currentType)) {
-                    spType.setSelection(i);
-                    break;
-                }
+            if (currentType != null && etType != null) {
+                etType.setText(currentType, false);
             }
             etColor.setText(existing.color != null ? existing.color : "#2196F3");
             etSpec.setText(existing.getSpec());
@@ -363,22 +451,40 @@ public class ManageBlocksActivity extends AppCompatActivity {
         }
         updatePreview.run();
 
-        new MaterialAlertDialogBuilder(this)
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
             .setTitle(existing == null ? "Create Custom Block" : "Edit Custom Block")
             .setView(dialogView)
-            .setPositiveButton("Save", (dialog, which) -> {
+            .setPositiveButton("Save", null)
+            .setNegativeButton("Cancel", null)
+            .create();
+
+        dialog.setOnShowListener(dialogInterface -> {
+            android.widget.Button saveBtn = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE);
+            saveBtn.setOnClickListener(v -> {
                 String id = etId.getText().toString().trim();
-                String cat = (String) spCategory.getSelectedItem();
-                String type = (String) spType.getSelectedItem();
+                String cat = etCategory != null ? etCategory.getText().toString().trim() : "";
+                String type = etType != null ? etType.getText().toString().trim() : "";
                 String color = etColor.getText().toString().trim();
                 if (!color.startsWith("#") && !color.isEmpty()) color = "#" + color;
                 String spec = etSpec.getText().toString().trim();
                 String code = etCode.getText().toString().trim();
 
-                if (id.isEmpty() || spec.isEmpty()) {
-                    Toast.makeText(ManageBlocksActivity.this, "ID and Spec are required", Toast.LENGTH_SHORT).show();
+                if (id.isEmpty()) {
+                    if (tilId != null) tilId.setError("ID is required");
                     return;
                 }
+                if (spec.isEmpty()) {
+                    Toast.makeText(ManageBlocksActivity.this, "Spec is required", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                for (BlockDef def : allBlockDefs) {
+                    if (def != existing && def.id != null && def.id.equalsIgnoreCase(id)) {
+                        if (tilId != null) tilId.setError("Block ID already exists");
+                        return;
+                    }
+                }
+                if (tilId != null) tilId.setError(null);
 
                 BlockDef target = existing != null ? existing : new BlockDef();
                 target.id = id;
@@ -398,19 +504,24 @@ public class ManageBlocksActivity extends AppCompatActivity {
                 saveBlocksToStorage();
                 loadBlocksFromStorage();
                 Toast.makeText(ManageBlocksActivity.this, "Block saved", Toast.LENGTH_SHORT).show();
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
+                dialog.dismiss();
+            });
+        });
+
+        dialog.show();
     }
 
     private void importBlocksFromUri(Uri uri) {
+        androidx.appcompat.app.AlertDialog progress = showProgressDialog("Importing blocks...");
         try (InputStream is = getContentResolver().openInputStream(uri);
              InputStreamReader reader = new InputStreamReader(is, "UTF-8")) {
             List<BlockDef> imported = new Gson().fromJson(reader, new TypeToken<List<BlockDef>>(){}.getType());
             if (imported != null && !imported.isEmpty()) {
                 for (BlockDef def : imported) {
                     if (def.id != null && !def.id.isEmpty()) {
-                        allBlockDefs.removeIf(b -> def.id.equalsIgnoreCase(b.id));
+                        if (isBlockIdExists(def.id, allBlockDefs)) {
+                            def.id = getUniqueBlockId(def.id, allBlockDefs);
+                        }
                         allBlockDefs.add(def);
                     }
                 }
@@ -420,6 +531,8 @@ public class ManageBlocksActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             Toast.makeText(this, "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        } finally {
+            if (progress != null && progress.isShowing()) progress.dismiss();
         }
     }
 
