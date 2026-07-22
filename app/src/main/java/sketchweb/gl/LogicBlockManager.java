@@ -563,18 +563,12 @@ public class LogicBlockManager {
             if (block.parentBlockId != null && !block.parentBlockId.isEmpty()) continue;
 
             emittedAny = true;
-            js.append("// ").append(eventName != null ? eventName : "immediate")
-              .append(" -> ").append(block.action).append("\n");
-
             js.append(emitJsBlock(block, resolveElement(block), 0));
             js.append("\n");
         }
 
         if (!emittedAny) return "";
-        return "// =====================================================\n"
-            + "// Logic blocks (events / page-load / element handlers)\n"
-            + "// =====================================================\n"
-            + js.toString();
+        return js.toString();
     }
 
     private String emitJsBlock(LogicBlock b, String elVar, int depth) {

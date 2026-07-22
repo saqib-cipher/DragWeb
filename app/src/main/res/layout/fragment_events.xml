@@ -3,8 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
-    android:padding="16dp"
     android:background="?attr/colorSurface">
 
     <LinearLayout
@@ -12,13 +12,16 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingBottom="8dp">
+        android:background="?attr/colorSurfaceContainerHigh"
+        android:paddingBottom="8dp"
+        android:paddingLeft="16dp">
 
         <TextView
+            android:id="@+id/tvSectionTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Stylesheet Logic"
+            android:text="CSS Stylesheets"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface" />
@@ -27,7 +30,7 @@
             android:id="@+id/btnImportCss"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Import CSS"
+            android:text="Import Code"
             style="@style/Widget.Material3.Button.TextButton"
             app:icon="@drawable/code_plus"
             android:layout_marginEnd="4dp" />
@@ -41,12 +44,25 @@
             app:icon="@drawable/trash" />
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_events"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingVertical="8dp"
-        android:clipToPadding="false"/>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <com.google.android.material.navigationrail.NavigationRailView
+            android:id="@+id/navigation_rail"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            app:menu="@menu/events_nav_rail_menu"
+            app:headerLayout="@null"
+            android:background="?attr/colorSurfaceContainerLow"/>
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_events"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingVertical="8dp"
+            android:clipToPadding="false" />
+
+    </LinearLayout>
 </LinearLayout>

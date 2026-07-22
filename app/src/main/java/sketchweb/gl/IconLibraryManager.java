@@ -224,9 +224,9 @@ public final class IconLibraryManager {
     // -------------------------------------------------------------------
 
     File configFile() {
-        File dir = new File(context.getFilesDir(), "projects");
+        File dir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
         if (!dir.exists()) dir.mkdirs();
-        return new File(dir, projectId + ".icons");
+        return new File(dir, "icons.json");
     }
 
     private void load() {

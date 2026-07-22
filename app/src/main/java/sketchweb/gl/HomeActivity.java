@@ -384,58 +384,30 @@ public class HomeActivity extends AppCompatActivity {
 
 	private void loadProjects() {
 		projectList.clear();
-		File dir = new File(getFilesDir(), "projects");
+		File dir = new File(Environment.getExternalStorageDirectory(), ".dragweb/projects");
+		if (!dir.exists()) {
+			dir.mkdirs();
+		}
 		if (dir.exists() && dir.isDirectory()) {
 			File[] files = dir.listFiles();
 			if (files != null) {
-				for (File file : files) {
-					if (file.getName().endsWith(".json")) {
-						String fileId = file.getName().replace(".json", "");
-						if (fileId.equals("widgets") || fileId.equals("params")) {
-							continue;
-						}
-						// Check if corresponding external directory exists. If not, this project was deleted from storage.
-						String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-							+ "/.dragweb/projects/" + fileId;
-						File extDir = new File(extPath);
-						if (!extDir.exists()) {
-							// Delete internal project files so they don't remain in list
-							file.delete();
-							new File(dir, fileId + ".meta").delete();
-							new File(dir, fileId + ".theme").delete();
-							new File(dir, fileId + ".icons").delete();
-							new File(dir, fileId + ".components.json").delete();
-							new File(dir, fileId + ".animations").delete();
-							new File(dir, fileId + ".breakpoints.json").delete();
-							File logicDir = new File(dir, "logic");
-							File[] logicFiles = logicDir.listFiles();
-							if (logicFiles != null) {
-								for (File lf : logicFiles) {
-									if (lf.getName().startsWith(fileId + "_") || lf.getName().startsWith(fileId + ".")) {
-										lf.delete();
-									}
-								}
-							}
-							continue;
-						}
-						int lastUnderscore = fileId.lastIndexOf('_');
-						if (lastUnderscore > 0) {
-							String possibleProjectId = fileId.substring(0, lastUnderscore);
-							File possibleProjectFile = new File(dir, possibleProjectId + ".json");
-							if (possibleProjectFile.exists()) {
-								continue;
-							}
+				for (File projectFolder : files) {
+					if (projectFolder.isDirectory()) {
+						String fileId = projectFolder.getName();
+						File metaFile = new File(projectFolder, "project.meta");
+						if (!metaFile.exists()) {
+							metaFile = new File(projectFolder, "project.config.json");
 						}
 						Map<String, String> project = new HashMap<>();
 						project.put("id", fileId);
-						project.put("path", file.getAbsolutePath());
-
-						File metaFile = new File(dir, fileId + ".meta");
+						project.put("path", projectFolder.getAbsolutePath());
+						project.put("name", fileId);
+						project.put("description", "Website Project");
+						
 						if (metaFile.exists()) {
 							try {
 								String metaJson = FileUtil.readFile(metaFile.getAbsolutePath());
-								Map<String, String> meta = new Gson().fromJson(metaJson,
-									new TypeToken<Map<String, String>>(){}.getType());
+								Map<String, String> meta = new Gson().fromJson(metaJson, new TypeToken<Map<String, String>>(){}.getType());
 								if (meta != null) {
 									if (meta.containsKey("name")) project.put("name", meta.get("name"));
 									if (meta.containsKey("description")) project.put("description", meta.get("description"));
@@ -443,21 +415,18 @@ public class HomeActivity extends AppCompatActivity {
 									if (meta.containsKey("id")) project.put("id", meta.get("id"));
 									if (meta.containsKey("logoPath")) project.put("logoPath", meta.get("logoPath"));
 								}
-							} catch (Exception e) {
-								// ignore
-							}
-						}
-
-						if (!project.containsKey("name")) project.put("name", fileId);
-						if (!project.containsKey("description")) project.put("description", "Website project");
-						if (!project.containsKey("created")) {
+							} catch (Exception ignored) {}
+						} else {
+							Map<String, String> meta = new HashMap<>();
+							meta.put("id", fileId);
+							meta.put("name", fileId);
+							meta.put("description", "Website Project");
 							SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-							project.put("created", sdf.format(new Date(file.lastModified())));
+							meta.put("created", sdf.format(new Date(projectFolder.lastModified())));
+							FileUtil.writeFile(new File(projectFolder, "project.meta").getAbsolutePath(), new Gson().toJson(meta));
 						}
-
-						// Last modified time
 						SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
-						project.put("lastModified", sdf.format(new Date(file.lastModified())));
+						project.put("lastModified", sdf.format(new Date(projectFolder.lastModified())));
 
 						projectList.add(project);
 					}
@@ -465,7 +434,6 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		}
 
-		loadExternalProjects();
 		updateEmptyState();
 		adapter.notifyDataSetChanged();
 	}
@@ -535,37 +503,25 @@ public class HomeActivity extends AppCompatActivity {
 	}
 
 	private void createProject(String projectId, String name, String description) {
-		File dir = new File(getFilesDir(), "projects");
-		if (!dir.exists()) dir.mkdirs();
+		File extDir = new File(Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+		if (!extDir.exists()) extDir.mkdirs();
 
-		File projectFile = new File(dir, projectId + ".json");
-		FileUtil.writeFile(projectFile.getAbsolutePath(), "[]");
+		File pagesDir = new File(extDir, "pages");
+		if (!pagesDir.exists()) pagesDir.mkdirs();
 
-		File metaFile = new File(dir, projectId + ".meta");
+		File assetsDir = new File(extDir, "assets");
+		if (!assetsDir.exists()) assetsDir.mkdirs();
+
+		File indexPage = new File(pagesDir, "index.json");
+		FileUtil.writeFile(indexPage.getAbsolutePath(), "[]");
+
 		Map<String, String> meta = new HashMap<>();
 		meta.put("id", projectId);
 		meta.put("name", name);
 		meta.put("description", description.isEmpty() ? "Website project" : description);
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 		meta.put("created", sdf.format(new Date()));
-
-		try {
-			String extPath = Environment.getExternalStorageDirectory().getAbsolutePath()
-				+ "/.dragweb/projects/" + projectId;
-			new File(extPath).mkdirs();
-			File assetsDir = new File(extPath + "/assets");
-			assetsDir.mkdirs();
-
-			File configFile = new File(extPath, "project.config.json");
-			Map<String, String> config = new HashMap<>();
-			config.put("id", projectId);
-			config.put("name", name);
-			config.put("description", description.isEmpty() ? "Website project" : description);
-			FileUtil.writeFile(configFile.getAbsolutePath(), new Gson().toJson(config));
-		} catch (Exception e) {
-			Log.w("HomeActivity", "Could not create external project dir");
-		}
-		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
+		FileUtil.writeFile(new File(extDir, "project.meta").getAbsolutePath(), new Gson().toJson(meta));
 
 		openProject(projectId, name);
 	}

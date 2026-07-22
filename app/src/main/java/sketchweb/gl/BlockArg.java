@@ -1,6 +1,5 @@
 package sketchweb.gl;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Rect;
 import android.view.View;
@@ -19,7 +18,6 @@ public class BlockArg extends BlockBase {
     private int defaultArgWidth = 20;
     private boolean isEditable = true;
     private Context mContext;
-    private AlertDialog mDlg;
     private String mMenuName = "";
     private TextView mTextView;
     private int paddingText = 4;
@@ -66,7 +64,7 @@ public class BlockArg extends BlockBase {
         LinearLayout var4 = new LinearLayout(this.getContext());
         var4.setLayoutParams(new LinearLayout.LayoutParams(-1, (int)(60.0F * var3)));
         var4.setGravity(19);
-        var4.setOrientation(0);
+        var4.setOrientation(LinearLayout.HORIZONTAL);
         TextView var5 = new TextView(this.getContext());
         LinearLayout.LayoutParams var6 = new LinearLayout.LayoutParams(0, -2);
         var6.weight = 1.0F;
@@ -367,8 +365,7 @@ public class BlockArg extends BlockBase {
                 if (parentBlock != null) {
                     String parentOp = parentBlock.mOpCode != null ? parentBlock.mOpCode : "";
                     isSetter = parentOp.equals("setVarBoolean") || parentOp.equals("setVarInt") 
-                            || parentOp.equals("setVarString") || parentOp.equals("increaseInt") 
-                            || parentOp.equals("decreaseInt") || parentOp.equals("jsVarAssign")
+                            || parentOp.equals("setVarString") || parentOp.equals("jsVarAssign")
                             || parentOp.startsWith("setVar") || parentOp.startsWith("assignVar");
 
                     if (isSetter && parentBlock.pane != null) {

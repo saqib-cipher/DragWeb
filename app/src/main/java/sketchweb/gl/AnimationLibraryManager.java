@@ -84,9 +84,9 @@ public final class AnimationLibraryManager {
     // -------------------------------------------------------------------
 
     File configFile() {
-        File dir = new File(context.getFilesDir(), "projects");
+        File dir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
         if (!dir.exists()) dir.mkdirs();
-        return new File(dir, projectId + ".animations");
+        return new File(dir, "animations.json");
     }
 
     private void load() {

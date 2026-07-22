@@ -55,30 +55,27 @@ public class ProjectDataManager {
         this.context = context;
     }
 
-    /** Generate a short unique project ID using a numeric system (project_XX) */
     public static String generateProjectId(Context context) {
-        File dir = new File(context.getFilesDir(), "projects");
+        File dir = new File(Environment.getExternalStorageDirectory(), ".dragweb/projects");
+        if (!dir.exists()) dir.mkdirs();
         int maxNumber = 0;
         if (dir.exists() && dir.isDirectory()) {
             File[] files = dir.listFiles();
             if (files != null) {
                 for (File file : files) {
-                    if (file.getName().endsWith(".json")) {
-                        String fileId = file.getName().replace(".json", "");
-                        if (fileId.startsWith("project_")) {
-                            try {
-                                String numStr = fileId.substring("project_".length());
-                                // Support IDs like project_01 or project_01_about
-                                if (numStr.contains("_")) {
-                                    numStr = numStr.substring(0, numStr.indexOf("_"));
-                                }
-                                int num = Integer.parseInt(numStr);
-                                if (num > maxNumber) {
-                                    maxNumber = num;
-                                }
-                            } catch (NumberFormatException e) {
-                                // ignore
+                    String fileId = file.getName();
+                    if (fileId.startsWith("project_")) {
+                        try {
+                            String numStr = fileId.substring("project_".length());
+                            if (numStr.contains("_")) {
+                                numStr = numStr.substring(0, numStr.indexOf("_"));
                             }
+                            int num = Integer.parseInt(numStr);
+                            if (num > maxNumber) {
+                                maxNumber = num;
+                            }
+                        } catch (NumberFormatException e) {
+                            // ignore
                         }
                     }
                 }

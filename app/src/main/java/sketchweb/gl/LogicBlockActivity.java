@@ -1,8 +1,9 @@
 package sketchweb.gl;
 
+import static android.content.Intent.getIntent;
+
 import android.animation.ObjectAnimator;
-import android.app.AlertDialog;
-import android.app.AlertDialog.Builder;
+import androidx.appcompat.app.AlertDialog;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Rect;
@@ -176,23 +177,28 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 		
 		private void addFunctions() {
-				Iterator it = DesignDataManager.getFunctions(filename).iterator();
-				while (it.hasNext()) {
-						addBlockToPalette((String) ((Pair) it.next()).second, " ", "definedFunc", -7711273, new Object[0]);
+				ArrayList<DesignDataManager.MoreBlockData> storedBlocks = DesignDataManager.getProjectMoreBlocks(this.projectId);
+				if (storedBlocks != null && !storedBlocks.isEmpty()) {
+						for (DesignDataManager.MoreBlockData mb : storedBlocks) {
+								if (mb != null) {
+										String type = mb.type != null && !mb.type.isEmpty() ? mb.type : " ";
+										String spec = mb.spec != null && !mb.spec.isEmpty() ? mb.spec : mb.name;
+										addBlockToPalette(spec, type, "definedFunc", -7711273, new Object[0]);
+								}
+						}
 				}
 		}
-		
+
 		private void addLists() {
 				addLists(-3384542);
 		}
 
 		private void addLists(int listColor) {
-				ArrayList<Pair<Integer, String>> lists = DesignDataManager.getLists(filename);
+				ArrayList<Pair<Integer, String>> lists = DesignDataManager.getLists(filename, this.projectId);
 				if (lists == null || lists.isEmpty()) {
-						return; // Hide all list blocks if no lists have been created yet
+						return;
 				}
 
-				// 1. Add list variable getter blocks for created lists (rectangle shape "s")
 				for (Pair<Integer, String> p : lists) {
 						String listName = p.second;
 						addBlockToPalette(listName, "s", "getListVar", listColor, new Object[0]);
@@ -343,6 +349,21 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						this.isDragged = true;
 						this.dummy.setDummyVisibility(View.VISIBLE);
 						this.dummy.bringToFront();
+
+						if (this.currentTouchedView instanceof Block) {
+								Block b = (Block) this.currentTouchedView;
+								if (b.mOpCode != null && ("getArg".equals(b.mOpCode) || "getParam".equals(b.mOpCode)) && b.getBlockType() == 0) {
+										BlockBean bean = b.getBean();
+										this.pane.blockId++;
+										bean.id = String.valueOf(this.pane.blockId);
+										Block clone = makeBlockFromBean(bean);
+										clone.setBlockType(0);
+										clone.setOnTouchListener(this);
+										this.pane.addBlock(clone, (int) b.getX(), (int) b.getY());
+										this.currentTouchedView = clone;
+								}
+						}
+
 						if (((Block) this.currentTouchedView).getBlockType() == 0) {
 								getOriginalState((Block) this.currentTouchedView);
 								if (this.iconSave != null) { this.iconSave.setVisibility(View.VISIBLE); this.iconSave.setAlpha(1.0f); }
@@ -572,7 +593,21 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				String str2 = str;
 				while (it.hasNext()) {
 						Pair pair = (Pair) it.next();
-						str2 = ((String) pair.first).equals("b") ? str2 + " %b." + ((String) pair.second) : ((String) pair.first).equals("d") ? str2 + " %d." + ((String) pair.second) : ((String) pair.first).equals("s") ? str2 + " %s." + ((String) pair.second) : str2 + " " + ((String) pair.second);
+						String typeKey = (String) pair.first;
+						String paramVal = (String) pair.second;
+						if ("b".equals(typeKey)) {
+								str2 = str2 + " %b." + paramVal;
+						} else if ("d".equals(typeKey)) {
+								str2 = str2 + " %d." + paramVal;
+						} else if ("s".equals(typeKey)) {
+								str2 = str2 + " %s." + paramVal;
+						} else if ("l".equals(typeKey)) {
+								str2 = str2 + " %m.list." + paramVal;
+						} else if ("m".equals(typeKey)) {
+								str2 = str2 + " %m.selector." + paramVal;
+						} else {
+								str2 = str2 + " " + paramVal;
+						}
 				}
 				block.setSpec(str2, null);
 				int size = arrayList.size();
@@ -581,20 +616,9 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						Pair pair = (Pair) arrayList.get(i);
 						Block block2;
 						int i4;
-						if (((String) pair.first).equals("b")) {
-								block2 = new Block(getApplicationContext(), arrayList.indexOf(pair) + 1, (String) pair.second, "b", "getParam", new Object[]{Integer.valueOf(-7711273), ""});
-								viewGroup.addView(block2);
-								i4 = i3 + 1;
-								block.replaceArgWithBlock((BlockBase) block.args.get(i3), block2);
-								i2 = i4;
-						} else if (((String) pair.first).equals("d")) {
-								block2 = new Block(getApplicationContext(), arrayList.indexOf(pair) + 1, (String) pair.second, "d", "getParam", new Object[]{Integer.valueOf(-7711273), ""});
-								viewGroup.addView(block2);
-								i4 = i3 + 1;
-								block.replaceArgWithBlock((BlockBase) block.args.get(i3), block2);
-								i2 = i4;
-						} else if (((String) pair.first).equals("s")) {
-								block2 = new Block(getApplicationContext(), arrayList.indexOf(pair) + 1, (String) pair.second, "s", "getParam", new Object[]{Integer.valueOf(-7711273), ""});
+						String typeKey = (String) pair.first;
+						if ("b".equals(typeKey) || "d".equals(typeKey) || "s".equals(typeKey) || "l".equals(typeKey) || "m".equals(typeKey)) {
+								block2 = new Block(getApplicationContext(), arrayList.indexOf(pair) + 1, (String) pair.second, "b".equals(typeKey) ? "b" : "d".equals(typeKey) ? "d" : "s", "getParam", new Object[]{Integer.valueOf(-7711273), ""});
 								viewGroup.addView(block2);
 								i4 = i3 + 1;
 								block.replaceArgWithBlock((BlockBase) block.args.get(i3), block2);
@@ -716,18 +740,19 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 
 		private void saveLogic() {
 				DesignDataManager.setBlocks(LogicBlockActivity.filename, this.id + LogicBlockActivity.LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
+				DesignDataManager.saveSavedLogic(getApplicationContext(), this.projectId, LogicBlockActivity.filename);
 		}
 		
 		private void showAddBlockPopup() {
 				View inflate = LayoutUtil.inflate(this, R.layout.logic_popup_add_block);
-				Builder builder = new Builder(this);
+				com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this);
 				builder.setView(inflate);
 				builder.setTitle(getString(R.string.logic_popup_title_make_block));
 				ArrayList arrayList = new ArrayList();
 				RelativeLayout relativeLayout = (RelativeLayout) inflate.findViewById(R.id.block_area);
 				LinearLayout linearLayout = (LinearLayout) inflate.findViewById(R.id.remove_area);
-				Block block = new Block(getApplicationContext(), 0, "", " ", "definedFunc", new Object[]{Integer.valueOf(-7711273)});
-				relativeLayout.addView(block);
+				final Block[] activeBlockHolder = new Block[]{ new Block(getApplicationContext(), 0, "", " ", "definedFunc", new Object[]{Integer.valueOf(-7711273)}) };
+				relativeLayout.addView(activeBlockHolder[0]);
 				TextInputLayout textInputLayout = (TextInputLayout) inflate.findViewById(R.id.ti_boolean);
 				TextInputLayout textInputLayout2 = (TextInputLayout) inflate.findViewById(R.id.ti_number);
 				TextInputLayout textInputLayout3 = (TextInputLayout) inflate.findViewById(R.id.ti_string);
@@ -740,39 +765,61 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				EditText editText3 = (EditText) inflate.findViewById(R.id.ed_number);
 				EditText editText4 = (EditText) inflate.findViewById(R.id.ed_string);
 				EditText editText5 = (EditText) inflate.findViewById(R.id.ed_label);
-				editText.setPrivateImeOptions("defaultInputmode=english;");
-				editText2.setPrivateImeOptions("defaultInputmode=english;");
-				editText3.setPrivateImeOptions("defaultInputmode=english;");
-				editText4.setPrivateImeOptions("defaultInputmode=english;");
-				editText5.setPrivateImeOptions("defaultInputmode=english;");
-				editText.addTextChangedListener(new LogicBlockActivity$12(this, relativeLayout, linearLayout, block, arrayList));
-				((Button) inflate.findViewById(R.id.add_boolean)).setOnClickListener(new LogicBlockActivity$13(this, arrayList, editText2, relativeLayout, linearLayout, block, editText, editText3, editText4));
-				((Button) inflate.findViewById(R.id.add_number)).setOnClickListener(new LogicBlockActivity$14(this, arrayList, editText3, relativeLayout, linearLayout, block, editText, editText2, editText4));
-				((Button) inflate.findViewById(R.id.add_string)).setOnClickListener(new LogicBlockActivity$15(this, arrayList, editText4, relativeLayout, linearLayout, block, editText, editText2, editText3));
-				((Button) inflate.findViewById(R.id.add_label)).setOnClickListener(new LogicBlockActivity$16(this, arrayList, editText5, relativeLayout, linearLayout, block, editText));
+				if (editText != null) editText.setPrivateImeOptions("defaultInputmode=english;");
+				if (editText2 != null) editText2.setPrivateImeOptions("defaultInputmode=english;");
+				if (editText3 != null) editText3.setPrivateImeOptions("defaultInputmode=english;");
+				if (editText4 != null) editText4.setPrivateImeOptions("defaultInputmode=english;");
+				if (editText5 != null) editText5.setPrivateImeOptions("defaultInputmode=english;");
+				if (editText != null) editText.addTextChangedListener(new LogicBlockActivity$12(this, relativeLayout, linearLayout, activeBlockHolder[0], arrayList));
+				
+				View btnBool = inflate.findViewById(R.id.add_boolean);
+				if (btnBool != null) btnBool.setOnClickListener(new LogicBlockActivity$13(this, arrayList, editText2, relativeLayout, linearLayout, activeBlockHolder[0], editText, editText3, editText4));
+				View btnNum = inflate.findViewById(R.id.add_number);
+				if (btnNum != null) btnNum.setOnClickListener(new LogicBlockActivity$14(this, arrayList, editText3, relativeLayout, linearLayout, activeBlockHolder[0], editText, editText2, editText4));
+				View btnStr = inflate.findViewById(R.id.add_string);
+				if (btnStr != null) btnStr.setOnClickListener(new LogicBlockActivity$15(this, arrayList, editText4, relativeLayout, linearLayout, activeBlockHolder[0], editText, editText2, editText3));
+				View btnLbl = inflate.findViewById(R.id.add_label);
+				if (btnLbl != null) btnLbl.setOnClickListener(new LogicBlockActivity$16(this, arrayList, editText5, relativeLayout, linearLayout, activeBlockHolder[0], editText));
+
+				com.google.android.material.chip.ChipGroup cgBlockType = inflate.findViewById(R.id.cg_block_type);
+				if (cgBlockType != null) {
+						cgBlockType.setOnCheckedStateChangeListener((group, checkedIds) -> {
+								if (!checkedIds.isEmpty()) {
+										int checkedId = checkedIds.get(0);
+										String selectedType = " ";
+										if (checkedId == R.id.chip_type_string) selectedType = "s";
+										else if (checkedId == R.id.chip_type_boolean) selectedType = "b";
+										else if (checkedId == R.id.chip_type_number) selectedType = "d";
+										else if (checkedId == R.id.chip_type_list) selectedType = "s";
+										else if (checkedId == R.id.chip_type_selector) selectedType = "s";
+
+										activeBlockHolder[0] = new Block(getApplicationContext(), 0, "", selectedType, "definedFunc", new Object[]{Integer.valueOf(-7711273)});
+										makeBlockWithSpec(relativeLayout, linearLayout, activeBlockHolder[0], editText != null ? editText.getText().toString() : "", arrayList);
+								}
+						});
+				}
+
 				builder.setNegativeButton(R.string.btn_cancel, null);
 				builder.setPositiveButton(R.string.btn_accept, null);
 				this.mDlg = builder.create();
-				this.mDlg.setOnShowListener(new LogicBlockActivity$17(this, variableNameValidator, editText, block));
+				this.mDlg.setOnShowListener(new LogicBlockActivity$17(this, variableNameValidator, editText, activeBlockHolder, cgBlockType));
 				this.mDlg.show();
 		}
 		
 		
 		class LogicBlockActivity$17 implements DialogInterface.OnShowListener {
-				// $FF: synthetic field
 				final LogicBlockActivity this$0;
-				// $FF: synthetic field
-				final Block val$block;
-				// $FF: synthetic field
+				final Block[] val$blockHolder;
 				final EditText val$edName;
-				// $FF: synthetic field
 				final VariableNameValidator val$varNameValidator;
+				final com.google.android.material.chip.ChipGroup val$cgType;
 				
-				LogicBlockActivity$17(LogicBlockActivity var1, VariableNameValidator var2, EditText var3, Block var4) {
+				LogicBlockActivity$17(LogicBlockActivity var1, VariableNameValidator var2, EditText var3, Block[] var4, com.google.android.material.chip.ChipGroup var5) {
 						this.this$0 = var1;
 						this.val$varNameValidator = var2;
 						this.val$edName = var3;
-						this.val$block = var4;
+						this.val$blockHolder = var4;
+						this.val$cgType = var5;
 				}
 				
 				public void onShow(DialogInterface var1) {
@@ -781,7 +828,6 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 		
 		class LogicBlockActivity$17$1 implements OnClickListener {
-				// $FF: synthetic field
 				final LogicBlockActivity$17 this$1;
 				
 				LogicBlockActivity$17$1(LogicBlockActivity$17 var1) {
@@ -790,8 +836,27 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				
 				public void onClick(View var1) {
 						if(this.this$1.val$varNameValidator.isValid()) {
-								DesignDataManager.addFunction(LogicBlockActivity.filename, this.this$1.val$edName.getText().toString(), this.this$1.val$block.mSpec);
-								this.this$1.this$0.onBlockCategorySelect(5, -7711273);
+								String selectedType = " ";
+								if (this.this$1.val$cgType != null) {
+										int checkedId = this.this$1.val$cgType.getCheckedChipId();
+										if (checkedId == R.id.chip_type_string) selectedType = "s";
+										else if (checkedId == R.id.chip_type_boolean) selectedType = "b";
+										else if (checkedId == R.id.chip_type_number) selectedType = "d";
+										else if (checkedId == R.id.chip_type_list) selectedType = "l";
+										else if (checkedId == R.id.chip_type_selector) selectedType = "m";
+								}
+								String fName = this.this$1.val$edName != null ? this.this$1.val$edName.getText().toString() : "";
+								String fSpec = this.this$1.val$blockHolder[0] != null ? this.this$1.val$blockHolder[0].mSpec : fName;
+
+								DesignDataManager.MoreBlockData mb = new DesignDataManager.MoreBlockData();
+								mb.name = fName;
+								mb.type = selectedType;
+								mb.spec = fSpec;
+								mb.linkedFile = LogicBlockActivity.filename;
+								DesignDataManager.saveProjectMoreBlock(this.this$1.this$0.projectId, mb);
+
+								this.this$1.this$0.addFunctions();
+								this.this$1.this$0.filterPalette("");
 								LogicBlockActivity.access$800(this.this$1.this$0).dismiss();
 						}
 				}
@@ -1177,7 +1242,7 @@ var0.dismissProgress();
 				dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
 						if (validator.isValid()) {
 								String listName = etName.getText() != null ? etName.getText().toString().trim() : "";
-								DesignDataManager.addList(filename, 1, listName);
+								DesignDataManager.saveProjectList(this.projectId, 1, listName, filename);
 								onBlockCategorySelect(1, -3384542);
 								dialog.dismiss();
 						}
@@ -1467,7 +1532,7 @@ var0.dismissProgress();
 		}
 		
 		private void showRemoveListPopup() {
-				ArrayList<Pair<Integer, String>> lists = DesignDataManager.getLists(filename);
+				ArrayList<Pair<Integer, String>> lists = DesignDataManager.getLists(filename, this.projectId);
 				if (lists == null || lists.isEmpty()) {
 						Toast.makeText(getApplicationContext(), "No lists to remove", Toast.LENGTH_SHORT).show();
 						return;
@@ -1507,7 +1572,7 @@ var0.dismissProgress();
 												Toast.makeText(getApplicationContext(), getString(R.string.err_currently_used_list), Toast.LENGTH_SHORT).show();
 												return;
 										}
-										DesignDataManager.removeList(filename, listName);
+										DesignDataManager.deleteProjectList(this.projectId, listName, filename);
 										onBlockCategorySelect(1, -3384542);
 								}
 						});
@@ -1690,17 +1755,13 @@ startActivityForResult(intent, 209);
 
 					if (this.projectId != null && !this.projectId.isEmpty() && this.pageName != null && !this.pageName.isEmpty()) {
 							if (this.pageName.endsWith(".css")) {
-									BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
-									String compiledCode = jsm.getSource(0, this.pane.getBlocks());
-
+									String compiledCode = DesignDataManager.compileFileSource(this, this.projectId, this.pageName);
 									java.io.File targetStyleFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
 											+ "/.dragweb/projects/" + this.projectId + "/assets/" + this.pageName);
 									targetStyleFile.getParentFile().mkdirs();
 									FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCode);
 							} else if (this.pageName.endsWith(".js")) {
-									BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
-									String compiledCode = jsm.getSource(0, this.pane.getBlocks());
-
+									String compiledCode = DesignDataManager.compileFileSource(this, this.projectId, this.pageName);
 									java.io.File targetJsFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
 											+ "/.dragweb/projects/" + this.projectId + "/assets/" + this.pageName);
 									targetJsFile.getParentFile().mkdirs();
@@ -1746,6 +1807,7 @@ startActivityForResult(intent, 209);
 						addLists(selectedCat.color);
 				} else if (selectedCat.type == 4) {
 						addButtonToPalette(getString(R.string.logic_btn_make_block), "blockAdd");
+						addButtonToPalette("Remove Block", "blockRemove");
 						addFunctions();
 				} else if (selectedCat.type == 2) {
 						for (BlockDef def : BlockDef.getDefinitions(this.context)) {
@@ -1950,20 +2012,159 @@ startActivityForResult(intent, 209);
 								showRemoveListPopup();
 						} else if (view.getTag().equals("blockAdd")) {
 								showAddBlockPopup();
+						} else if (view.getTag().equals("blockRemove")) {
+								showRemoveBlockPopup();
 						}
 				}
-				/*     switch (view.getId()) {
-case R.id.btn_cancel:
-setResult(0);
-finish();
-return;
-case R.id.btn_accept:
-setResult(-1, new Intent());
-finish();
-return;
-default:
-return;
-}*/
+		}
+
+		private boolean isMoreBlockUsed(String funcName, String spec) {
+				if (funcName == null || funcName.trim().isEmpty()) return false;
+				String targetName = funcName.trim();
+				String targetSpec = spec != null ? spec.trim() : targetName;
+
+				if (this.pane != null) {
+						for (int i = 0; i < this.pane.getChildCount(); i++) {
+								View child = this.pane.getChildAt(i);
+								if (child instanceof Block) {
+										if (isBlockUsingFunction((Block) child, targetName, targetSpec)) {
+												return true;
+										}
+								}
+						}
+				}
+
+				if (DesignDataManager.mapBlocks != null) {
+						for (HashMap<String, ArrayList<BlockBean>> pageBlocks : DesignDataManager.mapBlocks.values()) {
+								if (pageBlocks != null) {
+										for (Map.Entry<String, ArrayList<BlockBean>> entry : pageBlocks.entrySet()) {
+												if (entry.getKey().equals("func_" + targetName)) {
+														continue;
+												}
+												ArrayList<BlockBean> list = entry.getValue();
+												if (list != null) {
+														for (BlockBean bean : list) {
+																if (bean != null && "definedFunc".equals(bean.opCode)) {
+																		if (targetName.equals(bean.spec) || targetSpec.equals(bean.spec)) {
+																				return true;
+																		}
+																}
+														}
+												}
+										}
+								}
+						}
+				}
+
+				return false;
+		}
+
+		private boolean isBlockUsingFunction(Block b, String targetName, String targetSpec) {
+				if (b == null) return false;
+				if ("definedFunc".equals(b.mOpCode)) {
+						if (targetName.equals(b.mSpec) || targetSpec.equals(b.mSpec)) {
+								return true;
+						}
+				}
+				if (b.args != null) {
+						for (Object arg : b.args) {
+								if (arg instanceof Block) {
+										if (isBlockUsingFunction((Block) arg, targetName, targetSpec)) {
+												return true;
+										}
+								}
+						}
+				}
+				if (b.nextBlock != -1 && this.pane != null) {
+						View nextView = this.pane.findViewWithTag(Integer.valueOf(b.nextBlock));
+						if (nextView instanceof Block) {
+								if (isBlockUsingFunction((Block) nextView, targetName, targetSpec)) {
+										return true;
+								}
+						}
+				}
+				if (b.subStack1 != -1 && this.pane != null) {
+						View sub1View = this.pane.findViewWithTag(Integer.valueOf(b.subStack1));
+						if (sub1View instanceof Block) {
+								if (isBlockUsingFunction((Block) sub1View, targetName, targetSpec)) {
+										return true;
+								}
+						}
+				}
+				if (b.subStack2 != -1 && this.pane != null) {
+						View sub2View = this.pane.findViewWithTag(Integer.valueOf(b.subStack2));
+						if (sub2View instanceof Block) {
+								if (isBlockUsingFunction((Block) sub2View, targetName, targetSpec)) {
+										return true;
+								}
+						}
+				}
+				return false;
+		}
+
+		private void showRemoveBlockPopup() {
+				String pid = this.projectId;
+				if (pid == null || pid.isEmpty()) pid = DesignDataManager.currentProjectId;
+				if (pid == null || pid.isEmpty()) pid = DesignActivity.getScId();
+
+				ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(pid);
+				if (funcs == null || funcs.isEmpty()) {
+						Toast.makeText(this, "No MoreBlocks to remove", Toast.LENGTH_SHORT).show();
+						return;
+				}
+
+				int pad = (int)(24 * getResources().getDisplayMetrics().density);
+				LinearLayout root = new LinearLayout(this);
+				root.setOrientation(LinearLayout.VERTICAL);
+				root.setPadding(pad, (int)(12 * getResources().getDisplayMetrics().density), pad, (int)(20 * getResources().getDisplayMetrics().density));
+
+				ScrollView scroll = new ScrollView(this);
+				root.addView(scroll);
+
+				final RadioGroup rg = new RadioGroup(this);
+				rg.setOrientation(RadioGroup.VERTICAL);
+				scroll.addView(rg);
+
+				for (int i = 0; i < funcs.size(); i++) {
+						DesignDataManager.MoreBlockData mb = funcs.get(i);
+						String name = mb.name != null ? mb.name : mb.spec;
+						com.google.android.material.radiobutton.MaterialRadioButton rb = new com.google.android.material.radiobutton.MaterialRadioButton(this);
+						rb.setText(name);
+						rb.setTag(mb);
+						rb.setTextSize(16);
+						rb.setPadding((int)(8 * getResources().getDisplayMetrics().density), (int)(10 * getResources().getDisplayMetrics().density), (int)(8 * getResources().getDisplayMetrics().density), (int)(10 * getResources().getDisplayMetrics().density));
+						if (i == 0) rb.setChecked(true);
+						rg.addView(rb);
+				}
+
+				final String targetPid = pid;
+				com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+						.setTitle("Select MoreBlock to Remove")
+						.setView(root)
+						.setNegativeButton(R.string.btn_cancel, null)
+						.setPositiveButton(R.string.btn_accept, (dialogInterface, which) -> {
+								int checkedId = rg.getCheckedRadioButtonId();
+								View selectedRb = rg.findViewById(checkedId);
+								if (selectedRb instanceof android.widget.RadioButton) {
+										Object tag = selectedRb.getTag();
+										if (tag instanceof DesignDataManager.MoreBlockData) {
+												DesignDataManager.MoreBlockData mb = (DesignDataManager.MoreBlockData) tag;
+												String funcName = mb.name != null ? mb.name : mb.spec;
+
+												if (isMoreBlockUsed(funcName, mb.spec)) {
+														Toast.makeText(getApplicationContext(), getString(R.string.err_currently_used_list), Toast.LENGTH_SHORT).show();
+														return;
+												}
+
+												DesignDataManager.deleteProjectMoreBlock(targetPid, funcName, filename);
+												addFunctions();
+												filterPalette("");
+												Toast.makeText(getApplicationContext(), "Removed MoreBlock: " + funcName, Toast.LENGTH_SHORT).show();
+										}
+								}
+						});
+
+				builder.show();
 		}
 		
 		public void onConfigurationChanged(Configuration configuration) {
@@ -2340,12 +2541,30 @@ return;
 		protected void onPostCreate(@Nullable Bundle var1) {
 				super.onPostCreate(var1);
 				String var2;
-				if(this.eventName.equals("initializeLogic")) {
+				if (this.eventName.equals("initializeLogic")) {
 						var2 = this.getString(R.string.root_spec_initialize);
-				} else if(this.eventName.equals("moreBlock")) {
-						String var20 = DesignDataManager.getFunctionSpec(filename, this.id);
-						var2 = this.getString(R.string.root_spec_define) + " " + var20;
-				} else if(this.eventName.equals("onClick")) {
+				} else if ("func".equals(this.id) || (this.id != null && this.id.startsWith("func")) || this.eventName.equals("moreBlock")) {
+						String pid = this.projectId;
+						if (pid == null || pid.isEmpty()) pid = DesignDataManager.currentProjectId;
+						if (pid == null || pid.isEmpty()) pid = DesignActivity.getScId();
+						String funcSpec = "";
+						ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(pid);
+						if (funcs != null) {
+								for (DesignDataManager.MoreBlockData mb : funcs) {
+										if (mb != null && (this.eventName.equals(mb.name) || this.eventName.equals(mb.spec))) {
+												funcSpec = mb.spec != null ? mb.spec : mb.name;
+												break;
+										}
+								}
+						}
+						if (funcSpec.isEmpty()) {
+								funcSpec = DesignDataManager.getFunctionSpec(filename, this.id);
+						}
+						if (funcSpec.isEmpty()) {
+								funcSpec = this.eventName;
+						}
+						var2 = this.getString(R.string.root_spec_define) + " " + funcSpec;
+				} else if (this.eventName.equals("onClick")) {
 						var2 = this.getString(R.string.root_spec_when) + " " + this.id + " " + this.getString(R.string.root_spec_onclicked);
 				} else if(this.eventName.equals("onCheckedChange")) {
 						var2 = this.getString(R.string.root_spec_when) + " " + this.id + " " + this.getString(R.string.root_spec_oncheckchanged);

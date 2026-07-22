@@ -1224,7 +1224,7 @@ public final class UniversalM3Dialog {
         // Chip group for filtering types: boolean, number, string
         final com.google.android.material.chip.ChipGroup cgFilter = new com.google.android.material.chip.ChipGroup(context);
         cgFilter.setSingleSelection(true);
-        cgFilter.setSelectionRequired(false);
+        cgFilter.setSelectionRequired(true);
         cgFilter.setChipSpacingHorizontal(dp(8));
         cgFilter.setPadding(0, 0, 0, dp(12));
 

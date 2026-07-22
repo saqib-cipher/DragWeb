@@ -2808,10 +2808,10 @@ public class MainEditorFragment extends Fragment {
 		// Save main layout (index page for backwards compat)
 		projectDataManager.saveProject(screen, projectId, null);
 
-		File dir = new File(requireContext().getFilesDir(), "projects");
-		if (!dir.exists()) dir.mkdirs();
-		File themeFile = new File(dir, projectId + ".theme");
-		FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
+		File extThemeFile = new File(Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId + "/theme.json");
+		File parentDir = extThemeFile.getParentFile();
+		if (parentDir != null && !parentDir.exists()) parentDir.mkdirs();
+		FileUtil.writeFile(extThemeFile.getAbsolutePath(), themeManager.toJson());
 
 		// Save all logic blocks to .dragweb
 		DesignDataManager.saveAllSavedLogic(requireContext(), projectId);
@@ -2837,10 +2837,7 @@ public class MainEditorFragment extends Fragment {
 			File extDir = new File(basePath);
 			if (!extDir.exists()) extDir.mkdirs();
 
-			// Save theme
 			FileUtil.writeFile(new File(extDir, "theme.json").getAbsolutePath(), themeManager.toJson());
-
-			// Logic blocks are already saved to .dragweb by DesignDataManager.saveSavedLogic
 		} catch (Exception e) {
 			Log.w("MainActivity", "Could not save to external: " + e.getMessage());
 		}
@@ -2878,13 +2875,10 @@ public class MainEditorFragment extends Fragment {
 			projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager, null);
 		}
 
-
-
 		// Register all loaded widgets for reorder drag
 		registerAllWidgetsForDrag(screen);
 
-		File dir = new File(requireContext().getFilesDir(), "projects");
-		File themeFile = new File(dir, projectId + ".theme");
+		File themeFile = new File(Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId + "/theme.json");
 		if (themeFile.exists()) {
 			String themeJson = FileUtil.readFile(themeFile.getAbsolutePath());
 			themeManager.fromJson(themeJson);

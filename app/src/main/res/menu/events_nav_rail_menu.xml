@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_rail_css"
+        android:icon="@drawable/file_type_css"
+        android:title="CSS" />
+    <item
+        android:id="@+id/nav_rail_js"
+        android:icon="@drawable/file_type_js"
+        android:title="JS" />
+    <item
+        android:id="@+id/nav_rail_html"
+        android:icon="@drawable/file_type_html"
+        android:title="HTML" />
+    <item
+        android:id="@+id/nav_rail_functions"
+        android:icon="@drawable/puzzle"
+        android:title="Functions" />
+</menu>

@@ -37,6 +37,192 @@ public class DesignDataManager {
                    .replace("\\", "_");
     }
 
+    public static class MoreBlockData {
+        public String name;
+        public String type;
+        public String spec;
+        public String linkedFile;
+        public ArrayList<BlockBean> blocks;
+    }
+
+    public static File getMoreBlocksFile(String projectId) {
+        File dir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+        if (!dir.exists()) dir.mkdirs();
+        return new File(dir, "moreblocks.json");
+    }
+
+    public static ArrayList<MoreBlockData> getProjectMoreBlocks(String projectId) {
+        ArrayList<MoreBlockData> list = new ArrayList<>();
+        if (projectId == null || projectId.isEmpty()) return list;
+        File f = getMoreBlocksFile(projectId);
+        if (f.exists()) {
+            try {
+                String json = FileUtil.readFile(f.getAbsolutePath());
+                if (json != null && !json.trim().isEmpty()) {
+                    java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<MoreBlockData>>(){}.getType();
+                    ArrayList<MoreBlockData> parsed = new com.google.gson.Gson().fromJson(json, type);
+                    if (parsed != null) list = parsed;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return list;
+    }
+
+    public static void saveProjectMoreBlock(String projectId, MoreBlockData data) {
+        if (projectId == null || projectId.isEmpty() || data == null) return;
+        ArrayList<MoreBlockData> list = getProjectMoreBlocks(projectId);
+        boolean updated = false;
+        for (int i = 0; i < list.size(); i++) {
+            MoreBlockData existing = list.get(i);
+            if (existing != null && existing.name != null && existing.name.equals(data.name) 
+                && existing.linkedFile != null && existing.linkedFile.equals(data.linkedFile)) {
+                list.set(i, data);
+                updated = true;
+                break;
+            }
+        }
+        if (!updated) {
+            list.add(data);
+        }
+        File f = getMoreBlocksFile(projectId);
+        String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(list);
+        FileUtil.writeFile(f.getAbsolutePath(), json);
+
+        addFunction(data.linkedFile, data.type != null ? data.type : " ", data.spec != null ? data.spec : data.name);
+    }
+
+    public static void deleteProjectMoreBlock(String projectId, String funcName, String linkedFile) {
+        if (projectId == null || projectId.isEmpty()) return;
+        ArrayList<MoreBlockData> list = getProjectMoreBlocks(projectId);
+        boolean removed = false;
+        for (int i = list.size() - 1; i >= 0; i--) {
+            MoreBlockData existing = list.get(i);
+            if (existing != null && existing.name != null && existing.name.equals(funcName)) {
+                list.remove(i);
+                removed = true;
+            }
+        }
+        if (removed) {
+            File f = getMoreBlocksFile(projectId);
+            String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(list);
+            FileUtil.writeFile(f.getAbsolutePath(), json);
+        }
+
+        String funcKey = funcName != null ? funcName : "";
+        String cleanPage = getCleanPageName(linkedFile);
+        File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+            ".dragweb/projects/" + projectId + "/" + cleanPage + "_func_" + funcKey + "_logic.json");
+        if (logicFile.exists()) {
+            logicFile.delete();
+        }
+
+        if (mapFunctions.containsKey(cleanPage)) {
+            ArrayList funcs = mapFunctions.get(cleanPage);
+            if (funcs != null) {
+                for (int i = funcs.size() - 1; i >= 0; i--) {
+                    Object obj = funcs.get(i);
+                    if (obj instanceof Pair) {
+                        Pair p = (Pair) obj;
+                        String fName = p.first != null ? (String) p.first : (String) p.second;
+                        if (funcName != null && funcName.equals(fName)) {
+                            funcs.remove(i);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public static class ProjectListData {
+        public int type;
+        public String name;
+        public String linkedFile;
+    }
+
+    public static File getListsFile(String projectId) {
+        File dir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+        if (!dir.exists()) dir.mkdirs();
+        return new File(dir, "lists.json");
+    }
+
+    public static ArrayList<ProjectListData> getProjectLists(String projectId) {
+        ArrayList<ProjectListData> list = new ArrayList<>();
+        if (projectId == null || projectId.isEmpty()) return list;
+        File f = getListsFile(projectId);
+        if (f.exists()) {
+            try {
+                String json = FileUtil.readFile(f.getAbsolutePath());
+                if (json != null && !json.trim().isEmpty()) {
+                    java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<ProjectListData>>(){}.getType();
+                    ArrayList<ProjectListData> parsed = new com.google.gson.Gson().fromJson(json, type);
+                    if (parsed != null) list = parsed;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return list;
+    }
+
+    public static void saveProjectList(String projectId, int listType, String listName, String linkedFile) {
+        if (projectId == null || projectId.isEmpty() || listName == null || listName.isEmpty()) return;
+        ArrayList<ProjectListData> list = getProjectLists(projectId);
+        boolean exists = false;
+        for (ProjectListData existing : list) {
+            if (existing != null && listName.equals(existing.name)) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
+            ProjectListData item = new ProjectListData();
+            item.type = listType;
+            item.name = listName;
+            item.linkedFile = linkedFile;
+            list.add(item);
+            File f = getListsFile(projectId);
+            String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(list);
+            FileUtil.writeFile(f.getAbsolutePath(), json);
+        }
+        addList(linkedFile, listType, listName);
+    }
+
+    public static void deleteProjectList(String projectId, String listName, String linkedFile) {
+        if (projectId == null || projectId.isEmpty() || listName == null) return;
+        ArrayList<ProjectListData> list = getProjectLists(projectId);
+        boolean removed = false;
+        for (int i = list.size() - 1; i >= 0; i--) {
+            ProjectListData existing = list.get(i);
+            if (existing != null && listName.equals(existing.name)) {
+                list.remove(i);
+                removed = true;
+            }
+        }
+        if (removed) {
+            File f = getListsFile(projectId);
+            String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(list);
+            FileUtil.writeFile(f.getAbsolutePath(), json);
+        }
+
+        String clean = getCleanPageName(linkedFile);
+        if (mapLists.containsKey(clean)) {
+            ArrayList arr = mapLists.get(clean);
+            if (arr != null) {
+                for (int i = arr.size() - 1; i >= 0; i--) {
+                    Object obj = arr.get(i);
+                    if (obj instanceof Pair) {
+                        Pair p = (Pair) obj;
+                        if (listName.equals(p.second)) {
+                            arr.remove(i);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public static void addFunction(String str, String str2, String str3) {
         String clean = getCleanPageName(str);
         Pair pair = new Pair(str2, str3);
@@ -200,9 +386,27 @@ public class DesignDataManager {
         return mapFunctions.containsKey(clean) ? (ArrayList) mapFunctions.get(clean) : new ArrayList();
     }
 
+    public static ArrayList<Pair<Integer, String>> getLists(String str, String projectId) {
+        ArrayList<Pair<Integer, String>> result = new ArrayList<>();
+        ArrayList<ProjectListData> projectLists = getProjectLists(projectId);
+        if (projectLists != null && !projectLists.isEmpty()) {
+            for (ProjectListData pl : projectLists) {
+                if (pl != null) {
+                    result.add(new Pair<>(pl.type, pl.name));
+                }
+            }
+        }
+        if (result.isEmpty()) {
+            String clean = getCleanPageName(str);
+            if (mapLists.containsKey(clean)) {
+                result = (ArrayList) mapLists.get(clean);
+            }
+        }
+        return result;
+    }
+
     public static ArrayList<Pair<Integer, String>> getLists(String str) {
-        String clean = getCleanPageName(str);
-        return mapLists.containsKey(clean) ? (ArrayList) mapLists.get(clean) : new ArrayList();
+        return getLists(str, "");
     }
 
     public static ArrayList<String> getListsByType(String str, int i) {
@@ -509,7 +713,7 @@ public class DesignDataManager {
 
         HashMap<String, ArrayList<BlockBean>> blocksMap = mapBlocks.get(cleanPage);
         if (blocksMap == null && !mapBlocks.containsKey(cleanPage)) {
-            return; // Don't overwrite disk with empty data if cleanPage was never loaded
+            return;
         }
 
         PageLogicData data = new PageLogicData();
@@ -535,7 +739,6 @@ public class DesignDataManager {
 
         String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(data);
 
-        // Single source of truth: .dragweb/projects/<projectId>/<page>_logic.json
         File extDir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
         if (!extDir.exists()) extDir.mkdirs();
         File extFile = new File(extDir, cleanPage + "_logic.json");
@@ -552,6 +755,40 @@ public class DesignDataManager {
 
     public static void saveSavedLogic(String filename) {
         saveSavedLogic(null, currentProjectId, filename);
+    }
+
+    public static String compileFileSource(Context context, String projectId, String pageName) {
+        if (projectId == null || projectId.isEmpty()) projectId = currentProjectId;
+        if (pageName == null || pageName.isEmpty()) pageName = currentPageName;
+        String cleanPage = getCleanPageName(pageName);
+
+        HashMap<String, ArrayList<BlockBean>> blocksMap = mapBlocks.get(cleanPage);
+        if (blocksMap == null || blocksMap.isEmpty()) return "";
+
+        BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
+        StringBuilder sb = new StringBuilder();
+
+        for (Entry<String, ArrayList<BlockBean>> entry : blocksMap.entrySet()) {
+            String key = entry.getKey();
+            if (key.startsWith("func_") || key.contains("moreBlock")) {
+                String code = compiler.getSource(0, entry.getValue());
+                if (code != null && !code.trim().isEmpty()) {
+                    sb.append(code).append("\n\n");
+                }
+            }
+        }
+
+        for (Entry<String, ArrayList<BlockBean>> entry : blocksMap.entrySet()) {
+            String key = entry.getKey();
+            if (!key.startsWith("func_") && !key.contains("moreBlock")) {
+                String code = compiler.getSource(0, entry.getValue());
+                if (code != null && !code.trim().isEmpty()) {
+                    sb.append(code).append("\n\n");
+                }
+            }
+        }
+
+        return sb.toString().trim();
     }
 
 

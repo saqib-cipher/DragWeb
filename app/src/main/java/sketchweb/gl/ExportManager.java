@@ -146,15 +146,6 @@ public class ExportManager {
         }
         accumulatedCssBuffer.append("\n");
 
-        // 2. Common JS header
-        accumulatedJsBuffer.append("/* ==========================================================\n");
-        accumulatedJsBuffer.append(" * DragWeb generated runtime — DO NOT edit by hand.\n");
-        accumulatedJsBuffer.append(" * Sections: state, init, events, api, animations.\n");
-        accumulatedJsBuffer.append(" * ========================================================== */\n\n");
-        accumulatedJsBuffer.append("'use strict';\n\n");
-        accumulatedJsBuffer.append("/* ----- state ----- */\n");
-        accumulatedJsBuffer.append("var DW = window.DW = window.DW || { state: {}, components: {} };\n\n");
-
         // Load default global JS stylesheet/script blocks and append
         String globalJsClean = DesignDataManager.getCleanPageName("js/script.js");
         File globalJsLogicFile = new File(android.os.Environment.getExternalStorageDirectory(),
@@ -167,10 +158,10 @@ public class ExportManager {
                 String jsBlocks = globalJsLogic.generateJavaScript();
                 String asdJs = globalJsLogic.generateAsdSource("js");
                 if (asdJs != null && !asdJs.trim().isEmpty()) {
-                    accumulatedJsBuffer.append("\n/* Global Stylesheet ASD JS */\n").append(asdJs).append("\n");
+                    accumulatedJsBuffer.append(asdJs).append("\n");
                 }
                 if (jsBlocks != null && !jsBlocks.trim().isEmpty()) {
-                    accumulatedJsBuffer.append("\n/* Global Stylesheet Logic Blocks JS */\n").append(jsBlocks).append("\n");
+                    accumulatedJsBuffer.append(jsBlocks).append("\n");
                 }
             } catch (Exception e) {
                 Log.w("ExportManager", "Error parsing global JS blocks: " + e.getMessage());
@@ -218,29 +209,24 @@ public class ExportManager {
             if (pageLogic != null) {
                 String pseudoRules = pageLogic.generateCssPseudoRules();
                 if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
-                    accumulatedCssBuffer.append("/* CSS Interaction Rules for ").append(pageName).append(" */\n");
                     accumulatedCssBuffer.append(pseudoRules).append("\n");
                 }
                 String baseRules = pageLogic.generateBaseCssRules();
                 if (baseRules != null && !baseRules.trim().isEmpty()) {
-                    accumulatedCssBuffer.append("/* Logic Block Styles for ").append(pageName).append(" */\n");
                     accumulatedCssBuffer.append(baseRules).append("\n");
                 }
                 String asdCss = pageLogic.generateAsdSource("css");
                 if (asdCss != null && !asdCss.trim().isEmpty()) {
-                    accumulatedCssBuffer.append("/* ASD CSS source for ").append(pageName).append(" */\n");
                     accumulatedCssBuffer.append(asdCss).append("\n");
                 }
 
                 // Accumulate page-specific JS rules
                 String logicJs = pageLogic.generateJavaScript();
                 if (logicJs != null && !logicJs.isEmpty()) {
-                    accumulatedJsBuffer.append("/* ----- logic blocks for ").append(pageName).append(" ----- */\n");
                     accumulatedJsBuffer.append(logicJs).append("\n");
                 }
                 String asdJs = pageLogic.generateAsdSource("js");
                 if (asdJs != null && !asdJs.trim().isEmpty()) {
-                    accumulatedJsBuffer.append("/* ----- user JS (ASD) for ").append(pageName).append(" ----- */\n");
                     accumulatedJsBuffer.append(asdJs).append("\n");
                 }
             }

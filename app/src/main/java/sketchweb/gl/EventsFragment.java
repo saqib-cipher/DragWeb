@@ -6,11 +6,11 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
@@ -23,10 +23,11 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.graphics.Insets;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.navigationrail.NavigationRailView;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,9 +45,29 @@ public class EventsFragment extends Fragment {
     private PageManager pageManager;
     private ActivityResultLauncher<Intent> logicBlockLauncher;
 
+    private NavigationRailView navigationRail;
+    private TextView tvSectionTitle;
     private RecyclerView rvEvents;
     private Button btnResetLogic;
     private Button btnImportCss;
+
+    private int currentTab = 0; // 0: CSS, 1: JS, 2: HTML, 3: Functions (MoreBlocks)
+
+    public static class FunctionItem {
+        public String name;
+        public String spec;
+        public String linkedFile;
+    }
+
+    public static class EventListItem {
+        public boolean isFunction;
+        public String title;
+        public String subtitle;
+        public String tag;
+        public String targetPath;
+        public String funcName;
+        public int blockCount;
+    }
 
     public static EventsFragment newInstance(String projectId, String currentPage) {
         EventsFragment fragment = new EventsFragment();
@@ -91,6 +112,8 @@ public class EventsFragment extends Fragment {
             return insets;
         });
 
+        navigationRail = view.findViewById(R.id.navigation_rail);
+        tvSectionTitle = view.findViewById(R.id.tvSectionTitle);
         rvEvents = view.findViewById(R.id.rv_events);
         btnResetLogic = view.findViewById(R.id.btnResetLogic);
         btnImportCss = view.findViewById(R.id.btnImportCss);
@@ -98,8 +121,29 @@ public class EventsFragment extends Fragment {
         pageManager = new PageManager(getContext(), projectId);
         rvEvents.setLayoutManager(new LinearLayoutManager(getContext()));
 
+        if (navigationRail != null) {
+            navigationRail.setOnItemSelectedListener(item -> {
+                int id = item.getItemId();
+                if (id == R.id.nav_rail_css) {
+                    currentTab = 0;
+                    if (tvSectionTitle != null) tvSectionTitle.setText("CSS Stylesheets");
+                } else if (id == R.id.nav_rail_js) {
+                    currentTab = 1;
+                    if (tvSectionTitle != null) tvSectionTitle.setText("JavaScript Scripts");
+                } else if (id == R.id.nav_rail_html) {
+                    currentTab = 2;
+                    if (tvSectionTitle != null) tvSectionTitle.setText("HTML Pages");
+                } else if (id == R.id.nav_rail_functions) {
+                    currentTab = 3;
+                    if (tvSectionTitle != null) tvSectionTitle.setText("JS Functions (MoreBlocks)");
+                }
+                refreshLogicList();
+                return true;
+            });
+        }
+
         btnResetLogic.setOnClickListener(v -> {
-            List<String> files = getCssAndJsFiles();
+            List<String> files = getProjectFiles();
             String[] items = files.toArray(new String[0]);
             new MaterialAlertDialogBuilder(getContext())
                 .setTitle("Select stylesheet/script to reset")
@@ -139,36 +183,97 @@ public class EventsFragment extends Fragment {
         refreshLogicList();
     }
 
-    private void refreshLogicList() {
-        if (getContext() == null || rvEvents == null) return;
-        List<String> files = getCssAndJsFiles();
-        rvEvents.setAdapter(new CssFilesAdapter(files));
+    private String getCleanBlockName(String text) {
+        if (text == null) return "";
+        String clean = text.replaceAll("%[sdb]|%m\\.[a-zA-Z0-9_.]+", "").replaceAll("\\s+", " ").trim();
+        return clean.isEmpty() ? text : clean;
     }
 
+    private void refreshLogicList() {
+        if (getContext() == null || rvEvents == null) return;
 
+        List<EventListItem> items = new ArrayList<>();
 
-    private List<String> getCssAndJsFiles() {
+        if (currentTab == 3) {
+            List<FunctionItem> functions = getAllProjectFunctions();
+            for (FunctionItem f : functions) {
+                EventListItem item = new EventListItem();
+                item.isFunction = true;
+                item.title = getCleanBlockName(f.name != null && !f.name.isEmpty() ? f.name : f.spec);
+                item.subtitle = "Linked to: " + f.linkedFile;
+                item.tag = "FUNC";
+                item.targetPath = f.linkedFile;
+                item.funcName = f.name;
+                item.blockCount = getBlockCountForCss(f.linkedFile);
+                items.add(item);
+            }
+        } else {
+            List<String> filteredFiles = getFilteredFiles(currentTab);
+            for (String f : filteredFiles) {
+                EventListItem item = new EventListItem();
+                item.isFunction = false;
+                String displayName = f.substring(f.lastIndexOf('/') + 1);
+                item.title = displayName;
+                item.subtitle = f;
+                item.tag = f.endsWith(".js") ? "JS" : f.endsWith(".html") ? "HTML" : "CSS";
+                item.targetPath = f;
+                item.blockCount = getBlockCountForCss(f);
+                items.add(item);
+            }
+        }
+
+        rvEvents.setAdapter(new CssFilesAdapter(items));
+    }
+
+    private List<String> getFilteredFiles(int tab) {
+        List<String> allFiles = getProjectFiles();
+        List<String> result = new ArrayList<>();
+        for (String f : allFiles) {
+            String lower = f.toLowerCase();
+            if (tab == 0 && lower.endsWith(".css")) {
+                result.add(f);
+            } else if (tab == 1 && lower.endsWith(".js")) {
+                result.add(f);
+            } else if (tab == 2 && (lower.endsWith(".html") || lower.endsWith(".htm"))) {
+                result.add(f);
+            }
+        }
+        return result;
+    }
+
+    private List<String> getProjectFiles() {
         List<String> files = new ArrayList<>();
         files.add("css/style.css");
         files.add("js/script.js");
+        files.add("index.html");
+
+        if (pageManager != null) {
+            for (String page : pageManager.getPages()) {
+                String htmlName = page.endsWith(".html") ? page : page + ".html";
+                if (!files.contains(htmlName)) {
+                    files.add(htmlName);
+                }
+            }
+        }
+
         String path = Environment.getExternalStorageDirectory().getAbsolutePath()
             + "/.dragweb/projects/" + projectId + "/assets";
         File dir = new File(path);
         if (dir.exists() && dir.isDirectory()) {
-            collectCssAndJsFilesRecursive(dir, dir, files);
+            collectFilesRecursive(dir, dir, files);
         }
         return files;
     }
 
-    private void collectCssAndJsFilesRecursive(File root, File current, List<String> filesList) {
+    private void collectFilesRecursive(File root, File current, List<String> filesList) {
         File[] files = current.listFiles();
         if (files != null) {
             for (File f : files) {
                 if (f.isDirectory()) {
-                    collectCssAndJsFilesRecursive(root, f, filesList);
+                    collectFilesRecursive(root, f, filesList);
                 } else if (f.isFile()) {
                     String name = f.getName().toLowerCase();
-                    if (name.endsWith(".css") || name.endsWith(".js")) {
+                    if (name.endsWith(".css") || name.endsWith(".js") || name.endsWith(".html")) {
                         String relative = f.getAbsolutePath().substring(root.getAbsolutePath().length() + 1);
                         relative = relative.replace("\\", "/");
                         if (!filesList.contains(relative)) {
@@ -178,6 +283,45 @@ public class EventsFragment extends Fragment {
                 }
             }
         }
+    }
+
+    private List<FunctionItem> getAllProjectFunctions() {
+        List<FunctionItem> result = new ArrayList<>();
+        ArrayList<DesignDataManager.MoreBlockData> storedBlocks = DesignDataManager.getProjectMoreBlocks(projectId);
+        if (storedBlocks != null) {
+            for (DesignDataManager.MoreBlockData mb : storedBlocks) {
+                if (mb != null) {
+                    FunctionItem fi = new FunctionItem();
+                    fi.name = mb.name;
+                    fi.spec = mb.spec;
+                    fi.linkedFile = mb.linkedFile != null ? mb.linkedFile : "js/script.js";
+                    result.add(fi);
+                }
+            }
+        }
+        return result;
+    }
+
+    private int getBlockCountForMoreBlock(String linkedFile, String funcName) {
+        if (getContext() == null || funcName == null || funcName.isEmpty()) return 0;
+        String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
+        File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+            ".dragweb/projects/" + projectId + "/" + cleanPage + "_logic.json");
+        if (logicFile.exists()) {
+            try {
+                String json = FileUtil.readFile(logicFile.getAbsolutePath());
+                if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
+                    DesignDataManager.PageLogicData data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
+                    if (data != null && data.blocks != null) {
+                        String funcKey = "func_" + funcName;
+                        if (data.blocks.containsKey(funcKey) && data.blocks.get(funcKey) != null) {
+                            return data.blocks.get(funcKey).size();
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return 0;
     }
 
     private int getBlockCountForCss(String cssPath) {
@@ -192,22 +336,22 @@ public class EventsFragment extends Fragment {
                     DesignDataManager.PageLogicData data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
                     if (data != null && data.blocks != null) {
                         int count = 0;
-                        for (java.util.ArrayList<?> list : data.blocks.values()) {
-                            count += list.size();
+                        for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
+                            if (!entry.getKey().startsWith("func_") && entry.getValue() != null) {
+                                count += entry.getValue().size();
+                            }
                         }
                         return count;
                     }
                 }
-            } catch (Exception e) {
-                return 0;
-            }
+            } catch (Exception ignored) {}
         }
         return 0;
     }
 
     private void showImportCodeDialog() {
         if (getContext() == null) return;
-        List<String> files = getCssAndJsFiles();
+        List<String> files = getProjectFiles();
         if (files.isEmpty()) return;
 
         String[] items = files.toArray(new String[0]);
@@ -304,56 +448,6 @@ public class EventsFragment extends Fragment {
                     }
                 }
 
-                if (!currentBlocks.isEmpty() && !importedBeans.isEmpty()) {
-                    java.util.Set<Integer> referencedIds = new java.util.HashSet<>();
-                    for (BlockBean b : currentBlocks) {
-                        if (b.subStack1 >= 0) referencedIds.add(b.subStack1);
-                        if (b.subStack2 >= 0) referencedIds.add(b.subStack2);
-                        if (b.nextBlock >= 0) referencedIds.add(b.nextBlock);
-                    }
-
-                    BlockBean lastBlockInCurrent = null;
-                    for (int i = currentBlocks.size() - 1; i >= 0; i--) {
-                        BlockBean b = currentBlocks.get(i);
-                        if (b.nextBlock == -1 && !referencedIds.contains(Integer.parseInt(b.id))) {
-                            lastBlockInCurrent = b;
-                            break;
-                        }
-                    }
-                    if (lastBlockInCurrent == null) {
-                        for (int i = currentBlocks.size() - 1; i >= 0; i--) {
-                            BlockBean b = currentBlocks.get(i);
-                            if (b.nextBlock == -1) {
-                                lastBlockInCurrent = b;
-                                break;
-                            }
-                        }
-                    }
-
-                    java.util.Set<Integer> importedReferencedIds = new java.util.HashSet<>();
-                    for (BlockBean b : importedBeans) {
-                        if (b.subStack1 >= 0) importedReferencedIds.add(b.subStack1);
-                        if (b.subStack2 >= 0) importedReferencedIds.add(b.subStack2);
-                        if (b.nextBlock >= 0) importedReferencedIds.add(b.nextBlock);
-                    }
-
-                    BlockBean firstImportedTopLevel = null;
-                    for (BlockBean b : importedBeans) {
-                        int bId = Integer.parseInt(b.id);
-                        if (!importedReferencedIds.contains(bId)) {
-                            firstImportedTopLevel = b;
-                            break;
-                        }
-                    }
-                    if (firstImportedTopLevel == null && !importedBeans.isEmpty()) {
-                        firstImportedTopLevel = importedBeans.get(0);
-                    }
-
-                    if (lastBlockInCurrent != null && firstImportedTopLevel != null) {
-                        lastBlockInCurrent.nextBlock = Integer.parseInt(firstImportedTopLevel.id);
-                    }
-                }
-
                 int maxStackIndex = currentBlocks.size();
                 for (BlockBean bean : importedBeans) {
                     bean.stackIndex = maxStackIndex++;
@@ -376,18 +470,17 @@ public class EventsFragment extends Fragment {
         });
     }
 
-
-
     class CssFilesAdapter extends RecyclerView.Adapter<CssFilesAdapter.ViewHolder> {
-        private final List<String> items;
+        private final List<EventListItem> items;
 
-        CssFilesAdapter(List<String> items) {
+        CssFilesAdapter(List<EventListItem> items) {
             this.items = items;
         }
 
         class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvPageName, tvLinkedStyleName, tvPreview, tvBlocksCount;
             View cardView, actionContainer;
+            View btnEditItem, btnDeleteItem;
 
             ViewHolder(View view) {
                 super(view);
@@ -397,6 +490,8 @@ public class EventsFragment extends Fragment {
                 tvBlocksCount = view.findViewById(R.id.blockscount);
                 cardView = view.findViewById(R.id.cardView);
                 actionContainer = view.findViewById(R.id.action_container);
+                btnEditItem = view.findViewById(R.id.btn_edit_item);
+                btnDeleteItem = view.findViewById(R.id.btn_delete_item);
             }
         }
 
@@ -409,24 +504,29 @@ public class EventsFragment extends Fragment {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            String cssPath = items.get(position);
-            String displayName = cssPath.substring(cssPath.lastIndexOf('/') + 1);
-            holder.tvPageName.setText(displayName);
-            
-            int blockCount = getBlockCountForCss(cssPath);
-            holder.tvLinkedStyleName.setText(cssPath);
+            EventListItem item = items.get(position);
+            holder.tvPageName.setText(item.title);
+            holder.tvLinkedStyleName.setText(item.subtitle);
+
+            if (item.isFunction) {
+                int primaryColor = MaterialColors.getColor(holder.itemView, android.R.attr.colorPrimary, Color.BLUE);
+                holder.tvLinkedStyleName.setTextColor(primaryColor);
+                holder.tvLinkedStyleName.setTypeface(null, android.graphics.Typeface.BOLD);
+            } else {
+                int defaultColor = MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorOnSurfaceVariant, Color.GRAY);
+                holder.tvLinkedStyleName.setTextColor(defaultColor);
+                holder.tvLinkedStyleName.setTypeface(null, android.graphics.Typeface.NORMAL);
+            }
 
             if (holder.tvBlocksCount != null) {
-                holder.tvBlocksCount.setText(String.valueOf(blockCount));
+                holder.tvBlocksCount.setText(String.valueOf(item.blockCount));
             }
 
             if (holder.tvPreview != null) {
-                holder.tvPreview.setText(cssPath.endsWith(".js") ? "JS" : "CSS");
+                holder.tvPreview.setText(item.tag);
             }
 
-            // Set rounded backgrounds with margin between items
             if (holder.cardView != null) {
-                holder.cardView.setBackgroundResource(R.drawable.item_single_bg);
                 if (holder.cardView instanceof com.google.android.material.card.MaterialCardView) {
                     com.google.android.material.card.MaterialCardView mcv = (com.google.android.material.card.MaterialCardView) holder.cardView;
                     mcv.setStrokeWidth(0);
@@ -434,7 +534,6 @@ public class EventsFragment extends Fragment {
                 }
             }
 
-            // Adjust vertical margins dynamically so they have space between them
             ViewGroup.LayoutParams layoutParams = holder.itemView.getLayoutParams();
             if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
                 ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) layoutParams;
@@ -445,16 +544,64 @@ public class EventsFragment extends Fragment {
                 holder.itemView.setLayoutParams(lp);
             }
 
-            holder.itemView.setOnClickListener(v -> {
-                Intent intent = new Intent(getContext(), LogicBlockActivity.class);
-                intent.putExtra("project_id", projectId);
-                intent.putExtra("page_name", cssPath);
+            holder.itemView.setOnClickListener(v -> openLogicEditor(item));
+
+            if (holder.btnEditItem != null) {
+                holder.btnEditItem.setOnClickListener(v -> openLogicEditor(item));
+            }
+
+            if (holder.btnDeleteItem != null) {
+                holder.btnDeleteItem.setOnClickListener(v -> {
+                    if (item.isFunction) {
+                        new MaterialAlertDialogBuilder(getContext())
+                            .setTitle("Delete MoreBlock")
+                            .setMessage("Are you sure you want to delete MoreBlock '" + item.title + "'?")
+                            .setPositiveButton("Delete", (d, w) -> {
+                                String targetFunc = item.funcName != null ? item.funcName : item.title;
+                                DesignDataManager.deleteProjectMoreBlock(projectId, targetFunc, item.targetPath);
+                                refreshLogicList();
+                                Toast.makeText(getContext(), "Deleted MoreBlock: " + item.title, Toast.LENGTH_SHORT).show();
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                    } else {
+                        new MaterialAlertDialogBuilder(getContext())
+                            .setTitle("Reset Logic")
+                            .setMessage("Are you sure you want to delete all logic blocks for '" + item.title + "'? This cannot be undone.")
+                            .setPositiveButton("Reset", (d, w) -> {
+                                String cleanName = DesignDataManager.getCleanPageName(item.targetPath);
+                                File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+                                    ".dragweb/projects/" + projectId + "/" + cleanName + "_logic.json");
+                                if (logicFile.exists()) {
+                                    logicFile.delete();
+                                }
+                                DesignDataManager.mapBlocks.remove(cleanName);
+                                refreshLogicList();
+                                Toast.makeText(getContext(), "Logic reset successfully", Toast.LENGTH_SHORT).show();
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                    }
+                });
+            }
+        }
+
+        private void openLogicEditor(EventListItem item) {
+            Intent intent = new Intent(getContext(), LogicBlockActivity.class);
+            intent.putExtra("project_id", projectId);
+            intent.putExtra("page_name", item.targetPath);
+            if (item.isFunction) {
+                intent.putExtra("id", "func");
+                intent.putExtra("event", item.funcName != null ? item.funcName : item.title);
+                intent.putExtra("filename", item.targetPath);
+                intent.putExtra("event_text", "Function: " + item.title);
+            } else {
                 intent.putExtra("id", "onCreate");
                 intent.putExtra("event", "initializeLogic");
-                intent.putExtra("filename", cssPath);
-                intent.putExtra("event_text", "CSS Initialization");
-                logicBlockLauncher.launch(intent);
-            });
+                intent.putExtra("filename", item.targetPath);
+                intent.putExtra("event_text", item.title + " Logic");
+            }
+            logicBlockLauncher.launch(intent);
         }
 
         @Override
