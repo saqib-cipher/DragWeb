@@ -276,6 +276,9 @@ public class EventsFragment extends Fragment {
                     if (name.endsWith(".css") || name.endsWith(".js") || name.endsWith(".html")) {
                         String relative = f.getAbsolutePath().substring(root.getAbsolutePath().length() + 1);
                         relative = relative.replace("\\", "/");
+                        if ("css/theme.css".equals(relative)) {
+                            continue; // Lock/hide theme.css
+                        }
                         if (!filesList.contains(relative)) {
                             filesList.add(relative);
                         }
@@ -596,8 +599,8 @@ public class EventsFragment extends Fragment {
                 intent.putExtra("filename", item.targetPath);
                 intent.putExtra("event_text", "Function: " + item.title);
             } else {
-                intent.putExtra("id", "onCreate");
-                intent.putExtra("event", "initializeLogic");
+                intent.putExtra("id", "onPageLoad");
+                intent.putExtra("event", "onPageLoad");
                 intent.putExtra("filename", item.targetPath);
                 intent.putExtra("event_text", item.title + " Logic");
             }

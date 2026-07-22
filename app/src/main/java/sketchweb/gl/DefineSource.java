@@ -24,7 +24,17 @@ public class DefineSource {
     public static final int PERMISSION_CALL = 0;
     public static final int PERMISSION_INTERNET = 1;
     public static final int PERMISSION_VIBRATOR = 2;
-    public static final String[] RESERVED_WORD = new String[]{"abstract", "boolean", "break", "byte", "case", "catch", "char", "class", "const", "continue", "default", "do", "double", "else", "extends", "final", "finally", "float", "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native", "new", "null", "package", "private", "protected", "public", "return", "short", "static", "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void", "volatile", "while", "Activity", "View", "EditText", "onCreate", "onClick", "LinearLayout", "TextView", "ImageView", "Button", "ArrayList", "String", "Intent", "SharedPreperences", "Calendar"};
+    public static final String[] RESERVED_WORD = new String[]{
+        "abstract", "arguments", "await", "boolean", "break", "byte", "case", "catch", 
+        "char", "class", "const", "continue", "debugger", "default", "delete", "do", 
+        "double", "else", "enum", "eval", "export", "extends", "false", "final", 
+        "finally", "float", "for", "function", "goto", "if", "implements", "import", 
+        "in", "instanceof", "int", "interface", "let", "long", "native", "new", 
+        "null", "package", "private", "protected", "public", "return", "short", 
+        "static", "super", "switch", "synchronized", "this", "throw", "throws", 
+        "transient", "true", "try", "typeof", "var", "void", "volatile", "while", 
+        "with", "yield", "window", "document", "console", "Math", "JSON", "Array", "Object"
+    };
     public static final String SRC_LINE = "\r\n";
     public static final String TAG_FUNCTION = "function";
     public static final String TAG_INIT = "init";
@@ -36,7 +46,7 @@ public class DefineSource {
     public static final String TAG_ROOT = "root";
     public static final String TAG_VARIABLE = "variable";
     public static final String TAG_VARIABLE_LOGIC = "variable_logic";
-    public static final String[] USED_WORD_COMMON = new String[]{"onCreate", "setContentView", "initialize", "initializeLogic", "getRandom", "showMessage"};
+    public static final String[] USED_WORD_COMMON = new String[]{"window", "document", "console", "Math", "JSON", "fetch"};
     public static final String[] VISIBILITY_FIELD = new String[]{"VISIBLE", "INVISIBLE", "GONE"};
 
     public static String[] getIntentAction() {

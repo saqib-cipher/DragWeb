@@ -514,8 +514,11 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				String eventKey = this.id + LOGIC_NAME_SEPARATOR + this.eventName;
 				ArrayList blocks = DesignDataManager.getBlocks(filename, eventKey);
 				if (blocks == null || blocks.isEmpty()) {
-						if ("initializeLogic".equals(this.eventName)) {
+						if ("initializeLogic".equals(this.eventName) || "onPageLoad".equals(this.eventName)) {
 								blocks = DesignDataManager.getBlocks(filename, "onCreate_initializeLogic");
+								if (blocks == null || blocks.isEmpty()) {
+										blocks = DesignDataManager.getBlocks(filename, "onPageLoad_onPageLoad");
+								}
 						}
 				}
 				if (blocks != null) {
@@ -1751,27 +1754,25 @@ startActivityForResult(intent, 209);
 			try {
 					saveLogic();
 					DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
-					DesignDataManager.saveSavedLogic(this.context, this.projectId, this.pageName);
-
-					if (this.projectId != null && !this.projectId.isEmpty() && this.pageName != null && !this.pageName.isEmpty()) {
-							if (this.pageName.endsWith(".css")) {
-									String compiledCode = DesignDataManager.compileFileSource(this, this.projectId, this.pageName);
-									java.io.File targetStyleFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
-											+ "/.dragweb/projects/" + this.projectId + "/assets/" + this.pageName);
-									targetStyleFile.getParentFile().mkdirs();
-									FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCode);
-							} else if (this.pageName.endsWith(".js")) {
-									String compiledCode = DesignDataManager.compileFileSource(this, this.projectId, this.pageName);
-									java.io.File targetJsFile = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()
-											+ "/.dragweb/projects/" + this.projectId + "/assets/" + this.pageName);
-									targetJsFile.getParentFile().mkdirs();
-									FileUtil.writeFile(targetJsFile.getAbsolutePath(), compiledCode);
-							}
-					}
+					DesignDataManager.saveSavedLogic(this.context != null ? this.context : this, this.projectId, this.pageName);
+					ProjectCodeGenerator.generateAndSaveAssets(this.context != null ? this.context : this, this.projectId, this.pageName);
 			} catch (Exception e) {
 					e.printStackTrace();
 			}
 			setResult(RESULT_OK);
+	}
+
+	@Override
+	protected void onPause() {
+			super.onPause();
+			try {
+					saveLogic();
+					DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
+					DesignDataManager.saveSavedLogic(this.context != null ? this.context : this, this.projectId, this.pageName);
+					ProjectCodeGenerator.generateAndSaveAssets(this.context != null ? this.context : this, this.projectId, this.pageName);
+			} catch (Exception e) {
+					e.printStackTrace();
+			}
 	}
 
 		public void onBackPressed() {
@@ -2470,7 +2471,8 @@ startActivityForResult(intent, 209);
 		
 		private void showSourceCode() {
 				BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
-				final String result = jsm.getSource(0, pane.getBlocks());
+				String key = this.id + LOGIC_NAME_SEPARATOR + this.eventName;
+				final String result = jsm.compileEventOrFunction(key, pane.getBlocks());
 				
 				final boolean isCss = isCssEvent();
 				final String ext = isCss ? ".css" : ".js";
@@ -2541,7 +2543,7 @@ startActivityForResult(intent, 209);
 		protected void onPostCreate(@Nullable Bundle var1) {
 				super.onPostCreate(var1);
 				String var2;
-				if (this.eventName.equals("initializeLogic")) {
+				if (this.eventName.equals("initializeLogic") || this.eventName.equals("onPageLoad")) {
 						var2 = this.getString(R.string.root_spec_initialize);
 				} else if ("func".equals(this.id) || (this.id != null && this.id.startsWith("func")) || this.eventName.equals("moreBlock")) {
 						String pid = this.projectId;

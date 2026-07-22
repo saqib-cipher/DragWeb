@@ -671,7 +671,11 @@ public class DesignDataManager {
         }
 
         if (json == null || json.trim().isEmpty() || json.trim().equals("{}") || json.trim().equals("[]")) {
-            return; // No saved logic for this page
+            mapBlocks.put(cleanPage, new HashMap<>());
+            mapVariables.put(cleanPage, new ArrayList<>());
+            mapLists.put(cleanPage, new ArrayList<>());
+            mapFunctions.put(cleanPage, new ArrayList<>());
+            return;
         }
 
         try {
@@ -758,37 +762,7 @@ public class DesignDataManager {
     }
 
     public static String compileFileSource(Context context, String projectId, String pageName) {
-        if (projectId == null || projectId.isEmpty()) projectId = currentProjectId;
-        if (pageName == null || pageName.isEmpty()) pageName = currentPageName;
-        String cleanPage = getCleanPageName(pageName);
-
-        HashMap<String, ArrayList<BlockBean>> blocksMap = mapBlocks.get(cleanPage);
-        if (blocksMap == null || blocksMap.isEmpty()) return "";
-
-        BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
-        StringBuilder sb = new StringBuilder();
-
-        for (Entry<String, ArrayList<BlockBean>> entry : blocksMap.entrySet()) {
-            String key = entry.getKey();
-            if (key.startsWith("func_") || key.contains("moreBlock")) {
-                String code = compiler.getSource(0, entry.getValue());
-                if (code != null && !code.trim().isEmpty()) {
-                    sb.append(code).append("\n\n");
-                }
-            }
-        }
-
-        for (Entry<String, ArrayList<BlockBean>> entry : blocksMap.entrySet()) {
-            String key = entry.getKey();
-            if (!key.startsWith("func_") && !key.contains("moreBlock")) {
-                String code = compiler.getSource(0, entry.getValue());
-                if (code != null && !code.trim().isEmpty()) {
-                    sb.append(code).append("\n\n");
-                }
-            }
-        }
-
-        return sb.toString().trim();
+        return ProjectCodeGenerator.compileJsForFile(context, projectId, getCleanPageName(pageName));
     }
 
 

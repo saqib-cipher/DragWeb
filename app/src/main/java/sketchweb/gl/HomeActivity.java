@@ -757,6 +757,9 @@ public class HomeActivity extends AppCompatActivity {
 					// ignore
 				}
 
+				// Reset all in-memory static maps to clear stale cached blocks
+				DesignDataManager.initMaps();
+
 				loadProjects();
 				Toast.makeText(this, "Project deleted", Toast.LENGTH_SHORT).show();
 			})

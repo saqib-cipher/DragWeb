@@ -45,7 +45,6 @@ public class PageCodeGenerator {
                                    LogicBlockManager logicBlockManager,
                                    ManageBlocksWidgets customBlockManager) {
         this.themeManager = themeManager;
-        resetStyleCache();
         StringBuilder bodyBuilder = new StringBuilder();
 
         if (screen instanceof ViewGroup) {
@@ -97,7 +96,6 @@ public class PageCodeGenerator {
                                            LogicBlockManager logicBlockManager,
                                            ManageBlocksWidgets customBlockManager) {
         this.themeManager = themeManager;
-        resetStyleCache();
         StringBuilder bodyBuilder = new StringBuilder();
 
         if (widgetTree != null) {
@@ -142,6 +140,7 @@ public class PageCodeGenerator {
         htmlBuilder.append("  <meta charset=\"UTF-8\">\n");
         htmlBuilder.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
         htmlBuilder.append("  <title>").append(pageTitle).append("</title>\n");
+        htmlBuilder.append("  <link rel=\"stylesheet\" href=\"css/style.css\">\n");
 
         // ASD <meta> additions go before user styles.
         if (logicBlockManager != null) {
@@ -182,88 +181,7 @@ public class PageCodeGenerator {
                                   ThemeManager themeManager,
                                   LogicBlockManager logicBlockManager,
                                   ManageBlocksWidgets customBlockManager) {
-        // Consolidated <style> block at the end of body as requested.
-        htmlBuilder.append("\n  <style>\n");
-
-        // Theme CSS variables
-        if (themeManager != null) {
-            htmlBuilder.append(themeManager.generateGlobalCss());
-        }
-
-        // Resets and Utilities
-        if (themeManager == null || !themeManager.isDisableDefaultStyles()) {
-            htmlBuilder.append("    * { margin: 0; padding: 0; box-sizing: border-box; }\n");
-            htmlBuilder.append("    body { font-family: sans-serif; line-height: 1.6; }\n");
-            htmlBuilder.append("    .hidden { display: none !important; }\n");
-            htmlBuilder.append("    .flex { display: flex; }\n");
-            htmlBuilder.append("    .flex-col { flex-direction: column; }\n");
-            htmlBuilder.append("    .flex-row { flex-direction: row; }\n");
-            htmlBuilder.append("    .items-center { align-items: center; }\n");
-            htmlBuilder.append("    .justify-center { justify-content: center; }\n");
-            htmlBuilder.append("    .justify-between { justify-content: space-between; }\n");
-            htmlBuilder.append("    .text-center { text-align: center; }\n");
-            htmlBuilder.append("    .w-full { width: 100%; }\n");
-            htmlBuilder.append("    .h-full { height: 100%; }\n");
-            htmlBuilder.append("    button { cursor: pointer; font-family: inherit; }\n");
-            htmlBuilder.append("    input, textarea { font-family: inherit; }\n");
-            htmlBuilder.append("    img { max-width: 100%; height: auto; }\n");
-        } else {
-            htmlBuilder.append("    .hidden { display: none !important; }\n");
-        }
-
-        // Keyframe library
-        if (animationLibraryManager != null) {
-            htmlBuilder.append(animationLibraryManager.generateLocalKeyframesCss("    "));
-        } else {
-            htmlBuilder.append(AnimationLibrary.generateKeyframesCss("    "));
-        }
-
-        // Logic blocks and user CSS
-        if (logicBlockManager != null) {
-            String baseCss = logicBlockManager.generateBaseCssRules();
-            if (baseCss != null && !baseCss.trim().isEmpty()) {
-                htmlBuilder.append("\n    /* Logic block styles */\n").append(baseCss).append("\n");
-            }
-
-            String pseudoCss = logicBlockManager.generateCssPseudoRules();
-            if (pseudoCss != null && !pseudoCss.trim().isEmpty()) {
-                htmlBuilder.append("\n    /* CSS interaction rules */\n").append(pseudoCss).append("\n");
-            }
-            
-            String asdCss = logicBlockManager.generateAsdSource("css");
-            if (asdCss != null && !asdCss.trim().isEmpty()) {
-                htmlBuilder.append("\n    /* ASD CSS source */\n").append(asdCss).append("\n");
-            }
-        }
-
-        if (customBlockManager != null) {
-            String customCss = customBlockManager.renderAllCss();
-            if (customCss != null && !customCss.trim().isEmpty()) {
-                htmlBuilder.append("\n    /* Custom block styles */\n").append(customCss).append("\n");
-            }
-        }
-
-        htmlBuilder.append("  </style>\n");
-
-        String logicJs = logicBlockManager != null ? logicBlockManager.generateJavaScript() : "";
-        String asdJs = logicBlockManager != null ? logicBlockManager.generateAsdSource("js") : "";
-        boolean hasJs = (logicJs != null && !logicJs.trim().isEmpty())
-            || (asdJs != null && !asdJs.trim().isEmpty());
-        if (hasJs) {
-            htmlBuilder.append("\n  <script>\n");
-            htmlBuilder.append("    /* state */\n");
-            htmlBuilder.append("    var DW = window.DW = window.DW || { state: {}, components: {} };\n");
-            if (logicJs != null && !logicJs.trim().isEmpty()) {
-                htmlBuilder.append("    /* logic blocks */\n");
-                htmlBuilder.append(logicJs);
-            }
-            if (asdJs != null && !asdJs.trim().isEmpty()) {
-                if (logicJs != null && !logicJs.trim().isEmpty()) htmlBuilder.append("\n");
-                htmlBuilder.append("    /* user JS */\n");
-                htmlBuilder.append(asdJs).append("\n");
-            }
-            htmlBuilder.append("  </script>\n");
-        }
+        htmlBuilder.append("  <script src=\"js/script.js\"></script>\n");
         htmlBuilder.append("</body>\n</html>");
     }
 
@@ -516,9 +434,7 @@ public class PageCodeGenerator {
         return sb.toString();
     }
 
-    private void resetStyleCache() {
-        // Obsolete (using inline styles now)
-    }
+
 
     private String resolveAssetPath(String rawSrc) {
         if (rawSrc == null) return "";

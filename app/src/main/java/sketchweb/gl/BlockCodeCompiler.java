@@ -37,8 +37,54 @@ public class BlockCodeCompiler {
                 sb.append(compiled).append("\n");
             }
         }
-
         return sb.toString().trim();
+    }
+
+    public String compileEventOrFunction(String key, ArrayList<BlockBean> bodyBlocks) {
+        ArrayList<BlockBean> fullList = new ArrayList<>();
+        BlockBean root = new BlockBean();
+        root.id = "0";
+
+        if (key.contains("moreBlock") || key.startsWith("func_") || key.startsWith("func")) {
+            String funcName = key;
+            if (key.endsWith("_moreBlock")) {
+                funcName = key.substring(0, key.indexOf("_moreBlock"));
+            } else if (key.startsWith("func_")) {
+                funcName = key.substring(5);
+            }
+            
+            String spec = "Define " + funcName;
+            ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(projectId);
+            if (funcs != null) {
+                for (DesignDataManager.MoreBlockData mb : funcs) {
+                    if (mb.name.equals(funcName)) {
+                        spec = mb.spec != null ? mb.spec : mb.name;
+                        if (!spec.startsWith("Define ") && !spec.startsWith("definedFunc ")) {
+                            spec = "Define " + spec;
+                        }
+                        break;
+                    }
+                }
+            }
+            root.opCode = "definedFunc";
+            root.spec = spec;
+        } else {
+            root.opCode = "initializeLogic";
+            root.spec = "When On Page Load";
+        }
+
+        if (bodyBlocks != null && !bodyBlocks.isEmpty()) {
+            BlockBean firstBody = bodyBlocks.get(0);
+            try {
+                root.nextBlock = Integer.parseInt(firstBody.id);
+            } catch (Exception ignored) {}
+            fullList.add(root);
+            fullList.addAll(bodyBlocks);
+        } else {
+            fullList.add(root);
+        }
+
+        return getSource(0, fullList);
     }
 
     private boolean isChildOfAny(BlockBean target, ArrayList<BlockBean> blocks) {
@@ -58,28 +104,32 @@ public class BlockCodeCompiler {
         return false;
     }
 
-    private boolean isEventHatBlock(BlockBean block, ArrayList<BlockBean> allBlocks) {
+    private boolean isFunctionDefinitionRoot(BlockBean block, ArrayList<BlockBean> allBlocks) {
         if (block == null) return false;
         if (!isChildOfAny(block, allBlocks)) {
             String op = block.opCode != null ? block.opCode : "";
             String spec = block.spec != null ? block.spec : "";
-            if (op.equals("initializeLogic") || op.equals("onClick") || op.equals("onCheckedChange")
-                    || op.equals("onItemSelected") || op.equals("onItemClicked") || op.equals("onTextChanged")
-                    || spec.startsWith("When ") || spec.startsWith("when ")) {
+            if ("definedFunc".equals(op) || "moreBlock".equals(op) || op.startsWith("func")) {
+                return true;
+            }
+            if (spec.startsWith("When func") || spec.startsWith("definedFunc") || spec.startsWith("Define ")) {
                 return true;
             }
         }
         return false;
     }
 
-    private boolean isFunctionDefinitionRoot(BlockBean block, ArrayList<BlockBean> allBlocks) {
+    private boolean isEventHatBlock(BlockBean block, ArrayList<BlockBean> allBlocks) {
         if (block == null) return false;
         if (!isChildOfAny(block, allBlocks)) {
-            String op = block.opCode != null ? block.opCode : "";
-            if ("definedFunc".equals(op) || "moreBlock".equals(op) || op.startsWith("func")) {
-                return true;
+            if (isFunctionDefinitionRoot(block, allBlocks)) {
+                return false;
             }
-            if (block.spec != null && !block.spec.trim().isEmpty() && !op.startsWith("get") && !op.startsWith("set") && !isEventHatBlock(block, allBlocks)) {
+            String op = block.opCode != null ? block.opCode : "";
+            String spec = block.spec != null ? block.spec : "";
+            if (op.equals("initializeLogic") || op.equals("onClick") || op.equals("onCheckedChange")
+                    || op.equals("onItemSelected") || op.equals("onItemClicked") || op.equals("onTextChanged")
+                    || spec.startsWith("When ") || spec.startsWith("when ")) {
                 return true;
             }
         }
@@ -338,6 +388,9 @@ public class BlockCodeCompiler {
                 }
                 paramNames.add(pName);
             } else {
+                if ("When".equalsIgnoreCase(tok) || "func".equalsIgnoreCase(tok) || "definedFunc".equalsIgnoreCase(tok) || "Define".equalsIgnoreCase(tok)) {
+                    continue;
+                }
                 if (funcName.isEmpty()) {
                     funcName = tok;
                 }
