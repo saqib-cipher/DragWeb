@@ -24,6 +24,7 @@ public class BlockBean extends BaseBean implements Parcelable {
     public ArrayList<String> paramTypes;
     public ArrayList<String> parameters;
     public String spec;
+    public String spec2;
     public int subStack1;
     public int subStack2;
     public String type;
@@ -43,11 +44,13 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.code = "";
         this.blockType = "";
         this.stackIndex = 0;
+        this.spec2 = "";
     }
 
     public BlockBean(Parcel parcel) {
         this.id = parcel.readString();
         this.spec = parcel.readString();
+        this.spec2 = parcel.readString();
         this.type = parcel.readString();
         this.opCode = parcel.readString();
         this.color = parcel.readInt();
@@ -76,6 +79,7 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.code = "";
         this.blockType = str3;
         this.stackIndex = 0;
+        this.spec2 = "";
     }
 
     public static Creator<BlockBean> getCreator() {
@@ -97,6 +101,7 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.code = blockBean.code;
         this.blockType = blockBean.blockType;
         this.stackIndex = blockBean.stackIndex;
+        this.spec2 = blockBean.spec2;
     }
 
     public int describeContents() {
@@ -109,6 +114,7 @@ public class BlockBean extends BaseBean implements Parcelable {
     public void writeToParcel(Parcel parcel, int i) {
         parcel.writeString(this.id);
         parcel.writeString(this.spec);
+        parcel.writeString(this.spec2);
         parcel.writeString(this.type);
         parcel.writeString(this.opCode);
         parcel.writeInt(this.color);

@@ -1,11 +1,5 @@
 [
     {
-        "id": "meta",
-        "name": "Meta & Comments",
-        "catColor": "#37474F",
-        "type": "common"
-    },
-    {
         "id": "css",
         "name": "CSS Basic",
         "catColor": "#1976D2",
@@ -72,15 +66,27 @@
         "type": "css"
     },
     {
-        "id": "js_dom",
-        "name": "DOM Elements",
-        "catColor": "#EF6C00",
+        "id": "operator",
+        "name": "Operator",
+        "catColor": "#00E676",
         "type": "js"
     },
     {
         "id": "control",
         "name": "Control",
         "catColor": "#FF9100",
+        "type": "js"
+    },
+    {
+        "id": "js_logic",
+        "name": "Logic",
+        "catColor": "#FF9100",
+        "type": "js"
+    },
+    {
+        "id": "js_dom",
+        "name": "DOM Elements",
+        "catColor": "#EF6C00",
         "type": "js"
     },
     {
@@ -102,9 +108,9 @@
         "type": "js"
     },
     {
-        "id": "operator",
-        "name": "Operator",
-        "catColor": "#00E676",
-        "type": "js"
+        "id": "asd",
+        "name": "Add Source",
+        "catColor": "#37474F",
+        "type": "common"
     }
 ]

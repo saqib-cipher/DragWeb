@@ -44,6 +44,7 @@ public class BlockDef {
     // Sketchware blocks.json compatibility fields
     public String name;
     public String spec;
+    public String spec2;
     public String palette;
     public String type;
     public String blockType;
@@ -54,6 +55,10 @@ public class BlockDef {
 
     public String getSpec() {
         return spec != null && !spec.isEmpty() ? spec : label;
+    }
+
+    public String getSpec2() {
+        return spec2 != null && !spec2.isEmpty() ? spec2 : "";
     }
 
     public String getType() {

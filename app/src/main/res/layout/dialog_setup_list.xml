@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tv_setup_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:text="Build array items (String, Number, Boolean, Object):"
+        android:textSize="13sp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="260dp">
+
+        <LinearLayout
+            android:id="@+id/items_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Add New Item:"
+        android:textStyle="bold"
+        android:textSize="12sp"
+        android:layout_marginTop="16dp" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:scrollbars="none">
+
+        <com.google.android.material.button.MaterialButtonGroup
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            style="@style/Widget.Material3Expressive.MaterialButtonGroup"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_add_string"
+                style="@style/Widget.Material3Expressive.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="String"
+                app:icon="@drawable/ic_add"
+                app:iconPadding="2dp"/>
+
+            <Button
+                android:id="@+id/btn_add_number"
+                style="@style/Widget.Material3Expressive.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="Number"
+                app:icon="@drawable/ic_add"
+                app:iconPadding="2dp" />
+
+            <Button
+                android:id="@+id/btn_add_boolean"
+                style="@style/Widget.Material3Expressive.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="Bool"
+                app:icon="@drawable/ic_add"
+                app:iconPadding="2dp" />
+
+            <Button
+                android:id="@+id/btn_add_object"
+                style="@style/Widget.Material3Expressive.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Obj"
+                app:icon="@drawable/ic_add"
+                app:iconPadding="2dp" />
+        </com.google.android.material.button.MaterialButtonGroup>
+    </HorizontalScrollView>
+</LinearLayout>

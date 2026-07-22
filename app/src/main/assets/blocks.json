@@ -220,7 +220,7 @@
         "category": "css_background",
         "blockType": "normal",
         "color": "#2196F3",
-        "spec": "border %m.unit %m.color",
+        "spec": "border %m.unit solid %m.color",
         "code": "border: %1$s solid %2$s;\n"
     },
     {
@@ -552,72 +552,8 @@
         "code": "transition: transform 0.2s ease; transform: scale(1);\n"
     },
     {
-        "id": "scrollReveal",
-        "category": "css",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "scroll reveal %s",
-        "code": "animation: %1$s 0.6s ease both; animation-timeline: view();\n"
-    },
-    {
-        "id": "valueString",
-        "category": "css",
-        "blockType": "s",
-        "color": "#7E57C2",
-        "spec": "%s",
-        "code": "%1$s\n"
-    },
-    {
-        "id": "valueNumber",
-        "category": "css",
-        "blockType": "d",
-        "color": "#7E57C2",
-        "spec": "%m.unit",
-        "code": "%1$s"
-    },
-    {
-        "id": "valueBoolean",
-        "category": "css",
-        "blockType": "b",
-        "color": "#7E57C2",
-        "spec": "%b",
-        "code": "%1$s"
-    },
-    {
-        "id": "valueColor",
-        "category": "css_text",
-        "blockType": "s",
-        "color": "#7E57C2",
-        "spec": "%m.color",
-        "code": "%1$s\n"
-    },
-    {
-        "id": "stringConcat",
-        "category": "css",
-        "blockType": "s",
-        "color": "#7E57C2",
-        "spec": "%s + %s",
-        "code": "%1$s %2$s\n"
-    },
-    {
-        "id": "ifBlock",
-        "category": "css",
-        "blockType": "c",
-        "color": "#E91E63",
-        "spec": "if %s",
-        "code": "if (%1$s) {\n%2$s\n}\n"
-    },
-    {
-        "id": "loop",
-        "category": "css",
-        "blockType": "c",
-        "color": "#E91E63",
-        "spec": "repeat %d",
-        "code": "for (var i = 0; i < %1$s; i++) {\n%2$s\n}\n"
-    },
-    {
         "id": "asdHtml",
-        "category": "css",
+        "category": "asd",
         "blockType": "normal",
         "color": "#455A64",
         "spec": "HTML source %s",
@@ -625,7 +561,7 @@
     },
     {
         "id": "asdCss",
-        "category": "css",
+        "category": "asd",
         "blockType": "normal",
         "color": "#455A64",
         "spec": "CSS source %s",
@@ -633,7 +569,7 @@
     },
     {
         "id": "asdJs",
-        "category": "css",
+        "category": "asd",
         "blockType": "normal",
         "color": "#455A64",
         "spec": "JS source %s",
@@ -641,7 +577,7 @@
     },
     {
         "id": "asdHead",
-        "category": "css",
+        "category": "asd",
         "blockType": "normal",
         "color": "#455A64",
         "spec": "Head source %s",
@@ -649,7 +585,7 @@
     },
     {
         "id": "asdMeta",
-        "category": "css",
+        "category": "asd",
         "blockType": "normal",
         "color": "#455A64",
         "spec": "Meta tag %s",
@@ -1082,10 +1018,11 @@
     {
         "id": "jsTryCatch",
         "category": "control",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#FF9100",
-        "spec": "try {\n",
-        "code": "try {\n%2$s\n} catch (%1$s) {\n%2$s\n}\n"
+        "spec": "try \n",
+        "code": "try {\n%2$s\n} catch (%1$s) {\n%3$s\n}\n",
+        "spec2": "catch %s \n"
     },
     {
         "id": "jsIf",
@@ -1098,10 +1035,11 @@
     {
         "id": "jsIfElse",
         "category": "control",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#FF9100",
-        "spec": "if (%b) {\n",
-        "code": "if (%1$s) {\n%2$s\n} else {\n%2$s\n}\n"
+        "spec": "if (%b) \n",
+        "code": "if (%1$s) {\n%2$s\n} else {\n%3$s\n}\n",
+        "spec2": "else \n"
     },
     {
         "id": "jsTernary",
@@ -1118,6 +1056,78 @@
         "color": "#FF9100",
         "spec": "%s .forEach %s =>",
         "code": "%1$s.forEach(%2$s => {\n%3$s\n});\n"
+    },
+    {
+        "id": "jsSetupList",
+        "category": "js_logic",
+        "blockType": " ",
+        "color": "#CC5500",
+        "spec": "setup list %m.list %s.setupList",
+        "code": "let %1$s = %2$s;\n"
+    },
+    {
+        "id": "jsListGetItemProperty",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#CC5500",
+        "spec": "%m.list get Obj at %d Key %s",
+        "code": "%1$s[%2$s].%3$s"
+    },
+    {
+        "id": "jsListGetItem",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#CC5500",
+        "spec": "%m.list get value at %d",
+        "code": "%1$s[%2$s]"
+    },
+    {
+        "id": "jsListPush",
+        "category": "js_logic",
+        "blockType": " ",
+        "color": "#CC5500",
+        "spec": "%m.list Add at last (push) %s",
+        "code": "%1$s.push(%2$s);\n"
+    },
+    {
+        "id": "jsListPop",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#CC5500",
+        "spec": "%m.list Remove last (pop)",
+        "code": "%1$s.pop()"
+    },
+    {
+        "id": "jsListShift",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#CC5500",
+        "spec": "%m.list remove first (shift)",
+        "code": "%1$s.shift()"
+    },
+    {
+        "id": "jsListUnshift",
+        "category": "js_logic",
+        "blockType": " ",
+        "color": "#CC5500",
+        "spec": "%m.list  Add at first (unshift) %s",
+        "code": "%1$s.unshift(%2$s);\n"
+    },
+    {
+        "id": "jsListLength",
+        "category": "js_logic",
+        "blockType": "d",
+        "color": "#CC5500",
+        "spec": "%m.list length",
+        "code": "%1$s.length"
+    },
+    {
+        "id": "jsListIndexOf",
+        "category": "js_logic",
+        "blockType": "d",
+        "color": "#CC5500",
+        "spec": "indexOf %s in %m.list",
+        "code": "%2$s.indexOf(%1$s)"
     },
     {
         "id": "jsForOf",
@@ -1146,50 +1156,114 @@
     {
         "id": "jsMathRandom",
         "category": "js_logic",
-        "blockType": "s",
-        "color": "#2E7D32",
-        "spec": "random 0â€“%d",
-        "code": "Math.floor(Math.random() * %1$s)\n"
+        "blockType": "d",
+        "color": "#00897B",
+        "spec": "random number",
+        "code": "Math.random()"
+    },
+    {
+        "id": "jsMathFloor",
+        "category": "js_logic",
+        "blockType": "d",
+        "color": "#00897B",
+        "spec": "Math.floor %d",
+        "code": "Math.floor(%1$s)"
     },
     {
         "id": "jsMathRound",
         "category": "js_logic",
-        "blockType": "s",
-        "color": "#2E7D32",
-        "spec": "round %s",
-        "code": "Math.round(%1$s)\n"
+        "blockType": "d",
+        "color": "#00897B",
+        "spec": "Math.round %d",
+        "code": "Math.round(%1$s)"
     },
     {
-        "id": "jsMathClamp",
+        "id": "jsMathAbs",
         "category": "js_logic",
-        "blockType": "s",
-        "color": "#2E7D32",
-        "spec": "clamp %s min %d max %d",
-        "code": "Math.min(Math.max(%1$s, %2$s), %3$s)\n"
+        "blockType": "d",
+        "color": "#00897B",
+        "spec": "Math.abs %d",
+        "code": "Math.abs(%1$s)"
     },
     {
-        "id": "jsStringTemplate",
+        "id": "jsMathMax",
         "category": "js_logic",
-        "blockType": "s",
-        "color": "#2E7D32",
-        "spec": "template ` %s `",
-        "code": "`%1$s`\n"
+        "blockType": "d",
+        "color": "#00897B",
+        "spec": "Math.max %d , %d",
+        "code": "Math.max(%1$s, %2$s)"
     },
     {
-        "id": "jsParseInt",
+        "id": "jsMathMin",
         "category": "js_logic",
-        "blockType": "s",
-        "color": "#2E7D32",
-        "spec": "parseInt %s",
-        "code": "parseInt(%1$s, 10)\n"
+        "blockType": "d",
+        "color": "#00897B",
+        "spec": "Math.min %d , %d",
+        "code": "Math.min(%1$s, %2$s)"
     },
     {
-        "id": "jsParseFloat",
+        "id": "jsStringLength",
+        "category": "js_logic",
+        "blockType": "d",
+        "color": "#00897B",
+        "spec": "length of %s",
+        "code": "%1$s.length"
+    },
+    {
+        "id": "jsStringIncludes",
+        "category": "js_logic",
+        "blockType": "b",
+        "color": "#00897B",
+        "spec": "%s includes %s",
+        "code": "%1$s.includes(%2$s)"
+    },
+    {
+        "id": "jsStringIndexOf",
+        "category": "js_logic",
+        "blockType": "d",
+        "color": "#00897B",
+        "spec": "index of %s in %s",
+        "code": "%2$s.indexOf(%1$s)"
+    },
+    {
+        "id": "jsStringReplace",
         "category": "js_logic",
         "blockType": "s",
-        "color": "#2E7D32",
-        "spec": "parseFloat %s",
-        "code": "parseFloat(%1$s)\n"
+        "color": "#00897B",
+        "spec": "in %s replace %s with %s",
+        "code": "%1$s.replace(%2$s, %3$s)"
+    },
+    {
+        "id": "jsStringSplit",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#00897B",
+        "spec": "split %s by %s",
+        "code": "%1$s.split(%2$s)"
+    },
+    {
+        "id": "jsStringTrim",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#00897B",
+        "spec": "trim %s",
+        "code": "%1$s.trim()"
+    },
+    {
+        "id": "jsStringSubstr",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#00897B",
+        "spec": "substring of %s from %d to %d",
+        "code": "%1$s.substring(%2$s, %3$s)"
+    },
+    {
+        "id": "jsStringCase",
+        "category": "js_logic",
+        "blockType": "s",
+        "color": "#00897B",
+        "spec": "%s to upper/lower %s",
+        "code": "(%2$s === 'upper' ? %1$s.toUpperCase() : %1$s.toLowerCase())"
     },
     {
         "id": "jsTypeOf",
@@ -1218,7 +1292,7 @@
     {
         "id": "jsOnClick",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "%selector on click",
         "code": "document.querySelector('%1$s').addEventListener('click', function(e) {\n%2$s\n});\n"
@@ -1226,7 +1300,7 @@
     {
         "id": "jsOnInput",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "%selector on input",
         "code": "document.querySelector('%1$s').addEventListener('input', function(e) {\n%2$s\n});\n"
@@ -1234,7 +1308,7 @@
     {
         "id": "jsOnChange",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "%selector on change",
         "code": "document.querySelector('%1$s').addEventListener('change', function(e) {\n%2$s\n});\n"
@@ -1242,7 +1316,7 @@
     {
         "id": "jsOnSubmit",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "%selector on submit",
         "code": "document.querySelector('%1$s').addEventListener('submit', function(e) {\ne.preventDefault(); %2$s\n});\n"
@@ -1250,7 +1324,7 @@
     {
         "id": "jsOnKeyDown",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "%selector on keydown",
         "code": "document.querySelector('%1$s').addEventListener('keydown', function(e) {\n%2$s\n});\n"
@@ -1258,7 +1332,7 @@
     {
         "id": "jsOnMouseEnter",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "%selector on mouseenter",
         "code": "document.querySelector('%1$s').addEventListener('mouseenter', function(e) {\n%2$s\n});\n"
@@ -1266,7 +1340,7 @@
     {
         "id": "jsOnMouseLeave",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "%selector on mouseleave",
         "code": "document.querySelector('%1$s').addEventListener('mouseleave', function(e) {\n%2$s\n});\n"
@@ -1274,7 +1348,7 @@
     {
         "id": "jsOnScroll",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "window on scroll",
         "code": "window.addEventListener('scroll', function() {\n%1$s\n});\n"
@@ -1282,7 +1356,7 @@
     {
         "id": "jsOnLoad",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "on DOMContentLoaded",
         "code": "document.addEventListener('DOMContentLoaded', function() {\n%1$s\n});\n"
@@ -1290,7 +1364,7 @@
     {
         "id": "jsAddEventOnVar",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "%s addEventListener %s",
         "code": "%1$s.addEventListener('%2$s', function(e) {\n%3$s\n});\n"
@@ -1298,7 +1372,7 @@
     {
         "id": "jsRemoveEventOnVar",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "",
         "color": "#0277BD",
         "spec": "%s removeEventListener %s %s",
         "code": "%1$s.removeEventListener('%2$s', %3$s);\n"
@@ -1306,7 +1380,7 @@
     {
         "id": "jsDispatchCustomEvent",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "",
         "color": "#0277BD",
         "spec": "%s dispatch event %s",
         "code": "%1$s.dispatchEvent(new CustomEvent('%2$s', {\nbubbles: true\n}));\n"
@@ -1314,7 +1388,7 @@
     {
         "id": "jsStopPropagation",
         "category": "js_dom",
-        "blockType": "e",
+        "blockType": "",
         "color": "#0277BD",
         "spec": "e.stopPropagation",
         "code": "e.stopPropagation();\n"
@@ -1322,7 +1396,7 @@
     {
         "id": "jsPreventDefault",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "",
         "color": "#0277BD",
         "spec": "e.preventDefault",
         "code": "e.preventDefault();\n"
@@ -1330,7 +1404,7 @@
     {
         "id": "jsIntersectionObserver",
         "category": "js_events",
-        "blockType": "e",
+        "blockType": "c",
         "color": "#0277BD",
         "spec": "observe %s on enter",
         "code": "new IntersectionObserver((entries) => {\nentries.forEach(entry => {\nif (entry.isIntersecting) {\n%2$s\n}\n});\n}).observe(document.querySelector('%1$s'));\n"
@@ -1338,7 +1412,7 @@
     {
         "id": "jsObserveAddClass",
         "category": "js_dom",
-        "blockType": "e",
+        "blockType": "",
         "color": "#0277BD",
         "spec": "observe %s â†’ add class %s",
         "code": "new IntersectionObserver((entries) => {\nentries.forEach(entry => {\nif (entry.isIntersecting) entry.target.classList.add('%1$s');\n});\n}, {\nthreshold: 0.1\n}).observe(document.querySelector('%2$s'));\n"

@@ -329,6 +329,24 @@ public class BlockArg extends BlockBase {
                 return;
             }
 
+            if ("setupList".equalsIgnoreCase(menuName) || "array".equalsIgnoreCase(menuName) || "listData".equalsIgnoreCase(menuName) || "arrayData".equalsIgnoreCase(menuName)) {
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Setup List / Array")
+                      .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
+                dialog.showArrayListBuilder(this.argValue != null ? this.argValue.toString() : "", new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        setArgValue(value);
+                        if (parentBlock != null) {
+                            parentBlock.recalcWidthToParent();
+                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        }
+                    }
+                });
+                return;
+            }
+
             if (this.mType.equals("v") || menuName.equals("var") || menuName.equals("varInt") || menuName.equals("varBool") || menuName.equals("varStr")) {
                 String filterKey = "var";
                 if (this.mType.equals("v")) {
@@ -343,29 +361,55 @@ public class BlockArg extends BlockBase {
                 UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
                 dialog.setTitle("Select Variable")
                       .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
-                dialog.showVariableSelector(LogicBlockActivity.filename, finalFilterKey, new UniversalM3Dialog.OnText() {
-                    @Override
-                    public void onText(String value) {
-                        if (parentBlock != null) {
-                            String parentOp = parentBlock.mOpCode != null ? parentBlock.mOpCode : "";
-                            boolean isSetter = parentOp.equals("setVarBoolean") || parentOp.equals("setVarInt") 
-                                            || parentOp.equals("setVarString") || parentOp.equals("increaseInt") 
-                                            || parentOp.equals("decreaseInt") || parentOp.equals("jsVarAssign");
-                            if (isSetter) {
-                                boolean isConst = false;
-                                ArrayList<android.util.Pair<Integer, String>> vars = DesignDataManager.getVariables(LogicBlockActivity.filename);
-                                for (android.util.Pair<Integer, String> p : vars) {
-                                    if (p.second.equals(value) && p.first >= 4) {
-                                        isConst = true;
-                                        break;
-                                    }
-                                }
-                                if (isConst) {
-                                    android.widget.Toast.makeText(getContext(), "This variable is constant and cannot be reassigned!", android.widget.Toast.LENGTH_LONG).show();
-                                    return;
+
+                final java.util.HashSet<String> usedConstVars = new java.util.HashSet<>();
+                boolean isSetter = false;
+                if (parentBlock != null) {
+                    String parentOp = parentBlock.mOpCode != null ? parentBlock.mOpCode : "";
+                    isSetter = parentOp.equals("setVarBoolean") || parentOp.equals("setVarInt") 
+                            || parentOp.equals("setVarString") || parentOp.equals("increaseInt") 
+                            || parentOp.equals("decreaseInt") || parentOp.equals("jsVarAssign")
+                            || parentOp.startsWith("setVar") || parentOp.startsWith("assignVar");
+
+                    if (isSetter && parentBlock.pane != null) {
+                        String currentBlockId = parentBlock.getTag() != null ? parentBlock.getTag().toString() : "";
+                        java.util.ArrayList<BlockBean> workspaceBlocks = parentBlock.pane.getBlocks();
+                        for (BlockBean b : workspaceBlocks) {
+                            if (b.id != null && b.id.equals(currentBlockId)) continue;
+                            String op = b.opCode != null ? b.opCode : "";
+                            boolean isSetterOp = op.equals("setVarBoolean") || op.equals("setVarInt") 
+                                              || op.equals("setVarString") || op.equals("increaseInt") 
+                                              || op.equals("decreaseInt") || op.equals("jsVarAssign")
+                                              || op.startsWith("setVar") || op.startsWith("assignVar");
+                            if (isSetterOp && b.parameters != null && !b.parameters.isEmpty()) {
+                                String vName = b.parameters.get(0);
+                                if (vName != null && !vName.trim().isEmpty()) {
+                                    usedConstVars.add(vName.trim());
                                 }
                             }
                         }
+                    }
+                }
+
+                dialog.showVariableSelector(LogicBlockActivity.filename, finalFilterKey, isSetter, usedConstVars, new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        setArgValue(value);
+                        if (parentBlock != null) {
+                            parentBlock.recalcWidthToParent();
+                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        }
+                    }
+                });
+                return;
+            }
+
+            if (menuName.equals("list") || menuName.endsWith(".list") || "l".equalsIgnoreCase(this.mType)) {
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.showListSelector(LogicBlockActivity.filename, this.argValue != null ? this.argValue.toString() : "", new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
                         setArgValue(value);
                         if (parentBlock != null) {
                             parentBlock.recalcWidthToParent();

@@ -9,12 +9,15 @@ public class BlockCodeCompiler {
     private final Context context;
     private final String projectId;
 
+    private final java.util.Set<String> declaredVars = new java.util.HashSet<>();
+
     public BlockCodeCompiler(Context context, String projectId) {
         this.context = context;
         this.projectId = projectId;
     }
 
     public String getSource(int type, ArrayList<BlockBean> blocks) {
+        declaredVars.clear();
         if (blocks == null || blocks.isEmpty()) {
             return "";
         }
@@ -144,12 +147,45 @@ public class BlockCodeCompiler {
 
         String codeTemplate = (def != null) ? def.code : "";
         if (codeTemplate == null || codeTemplate.isEmpty()) {
-            if (block.opCode.equals("true")) return "true";
-            if (block.opCode.equals("false")) return "false";
-            if (block.opCode.equals("getVar")) {
-                return block.spec != null ? block.spec : "";
+            if ("true".equals(block.opCode)) return "true";
+            if ("false".equals(block.opCode)) return "false";
+            if (block.opCode != null && (block.opCode.equals("getVar") || block.opCode.equals("getListVar") || block.opCode.startsWith("getVar"))) {
+                if (block.parameters != null && !block.parameters.isEmpty()) {
+                    String vName = block.parameters.get(0);
+                    if (vName != null && !vName.trim().isEmpty()) {
+                        return vName.trim();
+                    }
+                }
+                return block.spec != null ? block.spec.trim() : "";
             }
-            return "";
+            if (block.opCode != null && (block.opCode.equals("setVarBoolean") || block.opCode.equals("setVarInt") || block.opCode.equals("setVarString") || block.opCode.startsWith("setVar"))) {
+                String varName = (block.parameters != null && !block.parameters.isEmpty()) ? block.parameters.get(0) : "";
+                if (varName != null && !varName.trim().isEmpty()) {
+                    String cleanVar = varName.trim();
+                    if (!declaredVars.contains(cleanVar)) {
+                        declaredVars.add(cleanVar);
+                        boolean isConst = false;
+                        ArrayList<android.util.Pair<Integer, String>> vars = DesignDataManager.getVariables(LogicBlockActivity.filename);
+                        for (android.util.Pair<Integer, String> p : vars) {
+                            if (p.second.equals(cleanVar) && p.first >= 4) {
+                                isConst = true;
+                                break;
+                            }
+                        }
+                        codeTemplate = isConst ? "const %1$s = %2$s;\n" : "let %1$s = %2$s;\n";
+                    } else {
+                        codeTemplate = "%1$s = %2$s;\n";
+                    }
+                } else {
+                    codeTemplate = "%1$s = %2$s;\n";
+                }
+            } else if (block.opCode != null && block.opCode.equals("increaseInt")) {
+                codeTemplate = "%1$s += %2$s;\n";
+            } else if (block.opCode != null && block.opCode.equals("decreaseInt")) {
+                codeTemplate = "%1$s -= %2$s;\n";
+            } else {
+                return "";
+            }
         }
 
         // Create indent prefix

@@ -327,128 +327,29 @@ public class DesignDataManager {
     }
 
     public static boolean isExistListBlock(String str, String str2, String str3) {
+        if (str2 == null || str2.isEmpty()) return false;
         HashMap<String, ArrayList<BlockBean>> map = mapBlocks.get(str);
         if (map == null) {
             return false;
         }
-        for (Entry entry : map.entrySet()) {
-            if (!((String) entry.getKey()).equals(str3)) {
-                Iterator it = ((ArrayList) entry.getValue()).iterator();
-                while (it.hasNext()) {
-                    BlockBean blockBean = (BlockBean) it.next();
-                    String str4 = blockBean.opCode;
-                    int i = -1;
-                    switch (str4.hashCode()) {
-                        case -1384861688:
-                            if (str4.equals("getAtListInt")) {
-                                i = 6;
-                                break;
-                            }
-                            break;
-                        case -1384851894:
-                            if (str4.equals("getAtListStr")) {
-                                i = 7;
-                                break;
-                            }
-                            break;
-                        case -1271141237:
-                            if (str4.equals("clearList")) {
-                                i = 3;
-                                break;
-                            }
-                            break;
-                        case -329562760:
-                            if (str4.equals("insertListInt")) {
-                                i = 11;
-                                break;
-                            }
-                            break;
-                        case -329552966:
-                            if (str4.equals("insertListStr")) {
-                                i = 12;
-                                break;
-                            }
-                            break;
-                        case -96313603:
-                            if (str4.equals("containListInt")) {
-                                i = VAR_TYPE_INT;
-                                break;
-                            }
-                            break;
-                        case -96303809:
-                            if (str4.equals("containListStr")) {
-                                i = VAR_TYPE_STRING;
-                                break;
-                            }
-                            break;
-                        case 762282303:
-                            if (str4.equals("indexListInt")) {
-                                i = 8;
-                                break;
-                            }
-                            break;
-                        case 762292097:
-                            if (str4.equals("indexListStr")) {
-                                i = 9;
-                                break;
-                            }
-                            break;
-                        case 1160674468:
-                            if (str4.equals("lengthList")) {
-                                i = VAR_TYPE_BOOLEAN;
-                                break;
-                            }
-                            break;
-                        case 1764351209:
-                            if (str4.equals("deleteList")) {
-                                i = 10;
-                                break;
-                            }
-                            break;
-                        case 2090179216:
-                            if (str4.equals("addListInt")) {
-                                i = 4;
-                                break;
-                            }
-                            break;
-                        case 2090189010:
-                            if (str4.equals("addListStr")) {
-                                i = 5;
-                                break;
-                            }
-                            break;
+        for (Entry<String, ArrayList<BlockBean>> entry : map.entrySet()) {
+            ArrayList<BlockBean> blockList = entry.getValue();
+            if (blockList != null) {
+                for (BlockBean bean : blockList) {
+                    if (bean == null) continue;
+                    if ("getListVar".equals(bean.opCode) && str2.equals(bean.spec)) {
+                        return true;
                     }
-                    switch (i) {
-                        case VAR_TYPE_BOOLEAN /*0*/:
-                        case VAR_TYPE_INT /*1*/:
-                        case VAR_TYPE_STRING /*2*/:
-                        case 3:
-                            if (!((String) blockBean.parameters.get(VAR_TYPE_BOOLEAN)).equals(str2)) {
-                                break;
-                            }
-                            return true;
-                        case 4:
-                        case 5:
-                        case 6:
-                        case 7:
-                        case 8:
-                        case 9:
-                        case 10:
-                            if (!((String) blockBean.parameters.get(VAR_TYPE_INT)).equals(str2)) {
-                                break;
-                            }
-                            return true;
-                        case 11:
-                        case 12:
-                            if (!((String) blockBean.parameters.get(VAR_TYPE_STRING)).equals(str2)) {
-                                break;
-                            }
-                            return true;
-                        default:
-                            break;
+                    if (bean.parameters != null) {
+                        for (String param : bean.parameters) {
+                            if (str2.equals(param)) return true;
+                        }
+                    }
+                    String op = bean.opCode != null ? bean.opCode : "";
+                    if (op.startsWith("jsList") || op.equals("jsSetupList") || op.contains("List")) {
+                        if (bean.spec != null && bean.spec.contains(str2)) return true;
                     }
                 }
-                continue;
             }
         }
         return false;

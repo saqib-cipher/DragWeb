@@ -29,6 +29,9 @@ public class Block extends BlockBase {
     public boolean isRequester = false;
     public boolean isTerminal = false;
     public ArrayList<View> labelsAndArgs = new ArrayList();
+    public String mSpec2 = "";
+    public ArrayList<View> elseLabelsAndArgs = new ArrayList<>();
+    public ArrayList<String> elseArgTypes = new ArrayList<>();
     private LayoutParams lp;
     private Object[] mDefaultArgs;
     public String mOpCode;
@@ -70,6 +73,46 @@ public class Block extends BlockBase {
             }
             this.argTypes.add(obj);
         }
+    }
+
+    private void addElseLabelsAndArgs(String str, int i) {
+        ArrayList tokenize = StringUtil.tokenize(str);
+        this.elseLabelsAndArgs = new ArrayList<>();
+        this.elseArgTypes = new ArrayList<>();
+        for (int i2 = 0; i2 < tokenize.size(); i2++) {
+            View argOrLabelFor = argOrLabelFor((String) tokenize.get(i2), i);
+            if (argOrLabelFor instanceof BlockBase) {
+                ((BlockBase) argOrLabelFor).parentBlock = this;
+            }
+            this.elseLabelsAndArgs.add(argOrLabelFor);
+            String obj = "icon";
+            if (argOrLabelFor instanceof BlockArg) {
+                obj = (String) tokenize.get(i2);
+            }
+            if (argOrLabelFor instanceof TextView) {
+                obj = "label";
+            }
+            this.elseArgTypes.add(obj);
+        }
+    }
+
+    public int getElseWidthSum() {
+        int w = this.indentLeft;
+        if (this.elseLabelsAndArgs != null) {
+            for (int i = 0; i < this.elseLabelsAndArgs.size(); i++) {
+                View view = (View) this.elseLabelsAndArgs.get(i);
+                int itemW = 0;
+                if (view instanceof TextView) {
+                    itemW = getLabelWidth((TextView) view);
+                } else if (view instanceof BlockArg) {
+                    itemW = ((BlockArg) view).getW();
+                } else if (view instanceof Block) {
+                    itemW = ((Block) view).getWidthSum();
+                }
+                w += itemW + this.defaultSpace;
+            }
+        }
+        return w + BLOCK_TYPE_HAT;
     }
 
     private void appendBlock(Block block) {
@@ -119,13 +162,46 @@ public class Block extends BlockBase {
                 this.args.add(view);
             }
         }
+        if (this.elseLabelsAndArgs != null) {
+            for (int i = 0; i < this.elseLabelsAndArgs.size(); i++) {
+                View view = (View) this.elseLabelsAndArgs.get(i);
+                if ((view instanceof Block) || (view instanceof BlockArg)) {
+                    this.args.add(view);
+                }
+            }
+        }
     }
 
     private void fixElseLabel() {
-        if (this.elseLabel != null) {
-            this.elseLabel.bringToFront();
-            this.elseLabel.setX((float) this.indentLeft);
-            this.elseLabel.setY((float) (substack2y() - this.DividerH));
+        if (this.elseLabelsAndArgs != null && !this.elseLabelsAndArgs.isEmpty()) {
+            int var1 = this.indentLeft;
+            for (int i = 0; i < this.elseLabelsAndArgs.size(); i++) {
+                View var8 = (View) this.elseLabelsAndArgs.get(i);
+                var8.bringToFront();
+                if (var8 instanceof Block) {
+                    var8.setX(this.getX() + (float) var1);
+                } else {
+                    var8.setX((float) var1);
+                }
+
+                int var10 = 0;
+                if (var8 instanceof TextView) {
+                    var10 = this.getLabelWidth((TextView) var8);
+                } else if (var8 instanceof BlockArg) {
+                    var10 = ((BlockArg) var8).getW();
+                } else if (var8 instanceof Block) {
+                    var10 = ((Block) var8).getWidthSum();
+                }
+
+                var1 += var10 + this.defaultSpace;
+                
+                if (var8 instanceof Block) {
+                    var8.setY(this.getY() + (float) (substack2y() - this.DividerH) + (float) (this.childDepth * this.childInset) + (float) ((int) (6.0f * this.dip)));
+                    ((Block) var8).fixLayout();
+                } else {
+                    var8.setY((float) (substack2y() - this.DividerH + (int) (6.0f * this.dip)));
+                }
+            }
         }
     }
 
@@ -237,6 +313,19 @@ public class Block extends BlockBase {
         }
         if (this.mColor == 0) {
             this.mColor = DefineBlock.getBlockColor(this.mOpCode, this.mType);
+        }
+
+        this.mSpec2 = "";
+        if (this.mOpCode != null) {
+            java.util.List<BlockDef> defs = BlockDef.getDefinitions(var1);
+            if (defs != null) {
+                for (BlockDef def : defs) {
+                    if (this.mOpCode.equalsIgnoreCase(def.id) || this.mOpCode.equalsIgnoreCase(def.getOpCode())) {
+                        this.mSpec2 = def.getSpec2();
+                        break;
+                    }
+                }
+            }
         }
 
         this.setSpec(this.mSpec, this.mDefaultArgs);
@@ -385,6 +474,15 @@ public class Block extends BlockBase {
                     }
                 }
             }
+            if (block.elseLabelsAndArgs != null) {
+                Iterator it = block.elseLabelsAndArgs.iterator();
+                while (it.hasNext()) {
+                    View view = (View) it.next();
+                    if (view instanceof Block) {
+                        arrayList.addAll(((Block) view).getAllChildren());
+                    }
+                }
+            }
             if (block.canHaveSubstack1() && block.subStack1 != -1 && this.pane != null) {
                 Block sub1 = (Block) this.pane.findViewWithTag(Integer.valueOf(block.subStack1));
                 if (sub1 != null) {
@@ -412,6 +510,7 @@ public class Block extends BlockBase {
         BlockBean blockBean = new BlockBean();
         blockBean.id = getTag().toString();
         blockBean.spec = this.mSpec;
+        blockBean.spec2 = this.mSpec2;
         blockBean.type = this.mType;
         blockBean.opCode = this.mOpCode;
         blockBean.color = this.mColor;
@@ -577,7 +676,9 @@ public class Block extends BlockBase {
         if (this.mType.equals("h")) {
             i2 = Math.max(i2, this.minHatWidth);
         }
-        if (this.elseLabel != null) {
+        if (this.mType.equals("e")) {
+            i2 = Math.max(i2, getElseWidthSum());
+        } else if (this.elseLabel != null) {
             i2 = Math.max(i2, (this.indentLeft + this.elseLabel.getWidth()) + BLOCK_TYPE_HAT);
         }
         setWidthAndTopHeight((float) (this.indentRight + i2), (float) (((this.indentTop + this.labelAndArgHeight) + ((this.childDepth * this.childInset) * BLOCK_TYPE_HAT)) + this.indentBottom), false);
@@ -634,11 +735,20 @@ public class Block extends BlockBase {
 
     public void replaceArgWithBlock(BlockBase blockBase, Block block) {
         int indexOf = this.labelsAndArgs.indexOf(blockBase);
+        boolean isElse = false;
+        if (indexOf < 0 && this.elseLabelsAndArgs != null) {
+            indexOf = this.elseLabelsAndArgs.indexOf(blockBase);
+            isElse = true;
+        }
         if (indexOf >= 0) {
             if (!(blockBase instanceof Block)) {
                 removeView(blockBase);
             }
-            this.labelsAndArgs.set(indexOf, block);
+            if (isElse) {
+                this.elseLabelsAndArgs.set(indexOf, block);
+            } else {
+                this.labelsAndArgs.set(indexOf, block);
+            }
             block.parentBlock = this;
             collectArgs();
             refreshChildDepth();
@@ -671,11 +781,25 @@ public class Block extends BlockBase {
         while (it.hasNext()) {
             addView((View) it.next());
         }
-        collectArgs();
         if (this.mType.equals("e")) {
-            this.elseLabel = makeLabel(getResources().getString(R.string.block_else));
-            addView(this.elseLabel);
+            if (this.mSpec2 != null && !this.mSpec2.trim().isEmpty()) {
+                this.DividerH = this.labelAndArgHeight + (int) (12.0f * this.dip);
+                addElseLabelsAndArgs(this.mSpec2, this.mColor);
+                Iterator it2 = this.elseLabelsAndArgs.iterator();
+                while (it2.hasNext()) {
+                    addView((View) it2.next());
+                }
+            } else {
+                this.DividerH = (int) (15.0f * this.dip);
+                this.elseLabel = makeLabel(getResources().getString(R.string.block_else));
+                this.elseLabelsAndArgs = new ArrayList<>();
+                this.elseLabelsAndArgs.add(this.elseLabel);
+                this.elseArgTypes = new ArrayList<>();
+                this.elseArgTypes.add("label");
+                addView(this.elseLabel);
+            }
         }
+        collectArgs();
         fixLayout();
     }
 

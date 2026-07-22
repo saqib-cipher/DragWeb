@@ -32,6 +32,7 @@ import android.widget.LinearLayout.LayoutParams;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -182,36 +183,31 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 		
 		private void addLists() {
-				Iterator it = DesignDataManager.getLists(filename).iterator();
-				int i = 0;
-				int i2 = 0;
-				while (it.hasNext()) {
-						if (((Integer) ((Pair) it.next()).first).intValue() == 1) {
-								i2++;
-						} else {
-								i++;
-						}
+				addLists(-3384542);
+		}
+
+		private void addLists(int listColor) {
+				ArrayList<Pair<Integer, String>> lists = DesignDataManager.getLists(filename);
+				if (lists == null || lists.isEmpty()) {
+						return; // Hide all list blocks if no lists have been created yet
 				}
-				if (i2 > 0) {
-						ArrayList arrayList = new ArrayList();
-						addBlockToPalette("", " ", "addListInt", -3384542, new Object[0]);
-						addBlockToPalette("", " ", "insertListInt", -3384542, new Object[0]);
-						addBlockToPalette("", "d", "getAtListInt", -3384542, new Object[0]);
-						addBlockToPalette("", "d", "indexListInt", -3384542, new Object[0]);
-						addBlockToPalette("", "b", "containListInt", -3384542, new Object[0]);
+
+				// 1. Add list variable getter blocks for created lists (rectangle shape "s")
+				for (Pair<Integer, String> p : lists) {
+						String listName = p.second;
+						addBlockToPalette(listName, "s", "getListVar", listColor, new Object[0]);
 				}
-				if (i > 0) {
-						addBlockToPalette("", " ", "addListStr", -3384542, new Object[0]);
-						addBlockToPalette("", " ", "insertListStr", -3384542, new Object[0]);
-						addBlockToPalette("", "s", "getAtListStr", -3384542, new Object[0]);
-						addBlockToPalette("", "d", "indexListStr", -3384542, new Object[0]);
-						addBlockToPalette("", "b", "containListStr", -3384542, new Object[0]);
-				}
-				if (i2 > 0 || i > 0) {
-						addBlockToPalette("", " ", "deleteList", -3384542, new Object[0]);
-						addBlockToPalette("", "d", "lengthList", -3384542, new Object[0]);
-						addBlockToPalette("", " ", "clearList", -3384542, new Object[0]);
-				}
+
+				// 2. Add standard List / Array operations blocks with %m.list variable selectors
+				addBlockToPalette("setup list %m.list %s.setupList", " ", "jsSetupList", listColor, new Object[0]);
+				addBlockToPalette("%m.list get Obj at %d Key %s", "s", "jsListGetItemProperty", listColor, new Object[0]);
+				addBlockToPalette("%m.list get value at %d", "s", "jsListGetItem", listColor, new Object[0]);
+				addBlockToPalette("%m.list Add at last (push) %s", " ", "jsListPush", listColor, new Object[0]);
+				addBlockToPalette("%m.list Remove last (pop)", "s", "jsListPop", listColor, new Object[0]);
+				addBlockToPalette("%m.list remove first (shift)", "s", "jsListShift", listColor, new Object[0]);
+				addBlockToPalette("%m.list Add at first (unshift) %s", " ", "jsListUnshift", listColor, new Object[0]);
+				addBlockToPalette("%m.list length", "d", "jsListLength", listColor, new Object[0]);
+				addBlockToPalette("indexOf %s in %m.list", "d", "jsListIndexOf", listColor, new Object[0]);
 		}
 		
 		private void addVariables() {
@@ -710,138 +706,16 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 
 		private void pasteCopiedBlocks() {
-				if (DesignDataManager.isExistClipboard(filename)) {
-						int i;
-						BlockBean blockBean;
-						int i2;
-						int i3;
-						Block makeBlockFromBean;
-						Map hashMap = new HashMap();
-						Map hashMap2 = new HashMap();
-						ArrayList clipboard = DesignDataManager.getClipboard(filename);
-						Iterator it = clipboard.iterator();
-						while (it.hasNext()) {
-								Integer valueOf = Integer.valueOf(safeParseInt(((BlockBean) it.next()).id));
-								BlockPane blockPane = this.pane;
-								i = blockPane.blockId;
-								blockPane.blockId = i + 1;
-								hashMap2.put(valueOf, Integer.valueOf(i));
-						}
-						Iterator it2 = clipboard.iterator();
-						while (it2.hasNext()) {
-								blockBean = (BlockBean) it2.next();
-								if (blockBean.opCode.equals("getArg")) {
-										i = 0;
-										i2 = 0;
-										while (i < this.pane.getRoot().args.size()) {
-												View view = (View) this.pane.getRoot().args.get(i);
-												i3 = ((view instanceof Block) && blockBean.type.equals(((Block) view).mType) && blockBean.spec.equals(((Block) view).mSpec)) ? 1 : i2;
-												i++;
-												i2 = i3;
-										}
-										if (i2 == 0) {
-												hashMap2.put(Integer.valueOf(safeParseInt(blockBean.id)), Integer.valueOf(0));
-										}
-								}
-						}
-						Iterator it3 = clipboard.iterator();
-						while (it3.hasNext()) {
-								blockBean = (BlockBean) it3.next();
-								Integer mappedId = (Integer) hashMap2.get(Integer.valueOf(safeParseInt(blockBean.id)));
-								blockBean.id = String.valueOf(mappedId != null ? mappedId.intValue() : 0);
-								i2 = blockBean.parameters.size();
-								for (i3 = 0; i3 < i2; i3++) {
-										String str = (String) blockBean.parameters.get(i3);
-										if (str != null && str.length() > 0 && str.charAt(0) == '@') {
-												Integer num = (Integer) hashMap2.get(Integer.valueOf(safeParseInt(str.substring(1))));
-												if (num == null) {
-														blockBean.parameters.set(i3, "");
-												} else {
-														blockBean.parameters.set(i3, '@' + String.valueOf(num));
-												}
-										}
-								}
-								if (blockBean.subStack1 >= 0) {
-										Integer num = (Integer) hashMap2.get(Integer.valueOf(blockBean.subStack1));
-										blockBean.subStack1 = num != null ? num.intValue() : -1;
-								}
-								if (blockBean.subStack2 >= 0) {
-										Integer num = (Integer) hashMap2.get(Integer.valueOf(blockBean.subStack2));
-										blockBean.subStack2 = num != null ? num.intValue() : -1;
-								}
-								if (blockBean.nextBlock >= 0) {
-										Integer num = (Integer) hashMap2.get(Integer.valueOf(blockBean.nextBlock));
-										blockBean.nextBlock = num != null ? num.intValue() : -1;
-								}
-						}
-						int[] iArr = new int[2];
-						this.editor.getLocationOnScreen(iArr);
-						int width = iArr[0] + (this.editor.getWidth() / 2) - (int) LayoutUtil.getDip(getApplicationContext(), 40.0f);
-						i3 = iArr[1] + (this.editor.getHeight() / 2) - (int) LayoutUtil.getDip(getApplicationContext(), 30.0f);
-						it3 = clipboard.iterator();
-						Block block = null;
-						while (it3.hasNext()) {
-								blockBean = (BlockBean) it3.next();
-								if (!blockBean.id.equals("0")) {
-										makeBlockFromBean = makeBlockFromBean(blockBean);
-										hashMap.put(Integer.valueOf(makeBlockFromBean.getTag().toString()), makeBlockFromBean);
-										this.pane.addBlock(makeBlockFromBean, width, i3);
-										makeBlockFromBean.setOnTouchListener(this);
-										block = makeBlockFromBean;
-								}
-						}
-						Iterator it4 = clipboard.iterator();
-						while (it4.hasNext()) {
-								blockBean = (BlockBean) it4.next();
-								if (!blockBean.id.equals("0")) {
-										Block block2 = (Block) hashMap.get(Integer.valueOf(blockBean.id));
-										if (block2 != null) {
-												Block block3;
-												int size = blockBean.parameters.size();
-												for (int i4 = 0; i4 < size; i4++) {
-														String str2 = (String) blockBean.parameters.get(i4);
-														if (str2 != null && str2.length() > 0) {
-																if (str2.charAt(0) == '@') {
-																		block3 = (Block) hashMap.get(Integer.valueOf(Integer.valueOf(str2.substring(1)).intValue()));
-																		if (block3 != null) {
-																				block2.replaceArgWithBlock((BlockBase) block2.args.get(i4), block3);
-																		}
-																} else {
-																		((BlockArg) block2.args.get(i4)).setArgValue(str2);
-																		block2.recalcWidthToParent();
-																}
-														}
-												}
-												if (blockBean.subStack1 >= 0) {
-														block3 = (Block) hashMap.get(Integer.valueOf(blockBean.subStack1));
-														if (block3 != null) {
-																block2.insertBlockSub1(block3);
-														}
-												}
-												if (blockBean.subStack2 >= 0) {
-														block3 = (Block) hashMap.get(Integer.valueOf(blockBean.subStack2));
-														if (block3 != null) {
-																block2.insertBlockSub2(block3);
-														}
-												}
-												if (blockBean.nextBlock >= 0) {
-														makeBlockFromBean = (Block) hashMap.get(Integer.valueOf(blockBean.nextBlock));
-														if (makeBlockFromBean != null) {
-																block2.insertBlock(makeBlockFromBean);
-														}
-												}
-										}
-								}
-						}
-						block.topBlock().fixLayout();
-						this.pane.calculateWidthHeight();
-						return;
-				}
-				Toast.makeText(this, "No block for copying (for debug)", 0).show();
+				ArrayList<BlockBean> clipboard = DesignDataManager.getClipboard(filename);
+				if (clipboard == null || clipboard.isEmpty()) return;
+
+				int spawnX = (int) LayoutUtil.getDip(getApplicationContext(), 50.0f);
+				int spawnY = (int) LayoutUtil.getDip(getApplicationContext(), 50.0f);
+				unpackCollectionBlocks(clipboard, spawnX, spawnY);
 		}
-		
+
 		private void saveLogic() {
-				DesignDataManager.setBlocks(filename, this.id + LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
+				DesignDataManager.setBlocks(LogicBlockActivity.filename, this.id + LogicBlockActivity.LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
 		}
 		
 		private void showAddBlockPopup() {
@@ -1250,19 +1124,64 @@ var0.dismissProgress();
 		
 		
 		private void showAddListPopup() {
-				View inflate = LayoutUtil.inflate(this, R.layout.logic_popup_add_list);
-				Builder builder = new Builder(this);
-				builder.setView(inflate);
-				builder.setTitle(getString(R.string.logic_popup_title_add_list));
-				RadioGroup radioGroup = (RadioGroup) inflate.findViewById(R.id.rg_type);
-				EditText editText = (EditText) inflate.findViewById(R.id.ed_input);
-				VariableNameValidator variableNameValidator = new VariableNameValidator(this.context, (TextInputLayout) inflate.findViewById(R.id.ti_input), DefineSource.RESERVED_WORD, DefineSource.getUsedWord(DesignActivity.getScId()), DesignDataManager.getAllNamesForValid(filename));
-				editText.setPrivateImeOptions("defaultInputmode=english;");
-				builder.setNegativeButton(R.string.btn_cancel, new LogicBlockActivity$9(this));
-				builder.setPositiveButton(R.string.btn_accept, null);
-				this.mDlg = builder.create();
-				this.mDlg.setOnShowListener(new LogicBlockActivity$10(this, variableNameValidator, radioGroup, editText));
-				this.mDlg.show();
+				LinearLayout root = new LinearLayout(this);
+				root.setOrientation(LinearLayout.VERTICAL);
+				int pad = (int)(24 * getResources().getDisplayMetrics().density);
+				root.setPadding(pad, (int)(12 * getResources().getDisplayMetrics().density), pad, (int)(20 * getResources().getDisplayMetrics().density));
+
+				// Enter list name outlined text input
+				com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+				til.setHint("Enter list name");
+				til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+				int cornerRadius = (int)(14 * getResources().getDisplayMetrics().density);
+				til.setBoxCornerRadii(cornerRadius, cornerRadius, cornerRadius, cornerRadius);
+				LinearLayout.LayoutParams tilLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+				til.setLayoutParams(tilLp);
+
+				com.google.android.material.textfield.TextInputEditText etName = new com.google.android.material.textfield.TextInputEditText(til.getContext());
+				etName.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+				etName.setSingleLine(true);
+				etName.setMinimumHeight((int)(56 * getResources().getDisplayMetrics().density));
+				int hPadding = (int)(16 * getResources().getDisplayMetrics().density);
+				int vPadding = (int)(12 * getResources().getDisplayMetrics().density);
+				etName.setPadding(hPadding, vPadding, hPadding, vPadding);
+				etName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15);
+				etName.setPrivateImeOptions("defaultInputmode=english;");
+				til.addView(etName);
+				root.addView(til);
+
+				VariableNameValidator validator = new VariableNameValidator(this.context != null ? this.context : this, til, DefineSource.RESERVED_WORD, DefineSource.getUsedWord(DesignActivity.getScId()), DesignDataManager.getAllNamesForValid(filename));
+
+				com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+						.setTitle(getString(R.string.logic_popup_title_add_list))
+						.setView(root)
+						.setNegativeButton(R.string.btn_cancel, null)
+						.setPositiveButton(R.string.btn_accept, null);
+
+				final androidx.appcompat.app.AlertDialog dialog = builder.create();
+				if (dialog.getWindow() != null) {
+						dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+				}
+				dialog.show();
+
+				etName.requestFocus();
+				etName.postDelayed(() -> {
+						try {
+								android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+								if (imm != null) {
+										imm.showSoftInput(etName, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+								}
+						} catch (Exception ignored) {}
+				}, 150);
+
+				dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+						if (validator.isValid()) {
+								String listName = etName.getText() != null ? etName.getText().toString().trim() : "";
+								DesignDataManager.addList(filename, 1, listName);
+								onBlockCategorySelect(1, -3384542);
+								dialog.dismiss();
+						}
+				});
 		}
 		
 		
@@ -1548,76 +1467,52 @@ var0.dismissProgress();
 		}
 		
 		private void showRemoveListPopup() {
-				View inflate = LayoutUtil.inflate(this, R.layout.property_popup_selector_single);
-				Builder builder = new Builder(this);
-				builder.setView(inflate);
-				builder.setTitle(getString(R.string.logic_popup_title_remove_list));
-				ViewGroup viewGroup = (ViewGroup) inflate.findViewById(R.id.rg_content);
-				ArrayList arrayList = new ArrayList();
-				Iterator it = DesignDataManager.getLists(filename).iterator();
-				while (it.hasNext()) {
-						viewGroup.addView(createSingleItem((String) ((Pair) it.next()).second));
+				ArrayList<Pair<Integer, String>> lists = DesignDataManager.getLists(filename);
+				if (lists == null || lists.isEmpty()) {
+						Toast.makeText(getApplicationContext(), "No lists to remove", Toast.LENGTH_SHORT).show();
+						return;
 				}
-				builder.setNegativeButton(R.string.btn_cancel, null);
-				builder.setPositiveButton(R.string.btn_accept, null);
-				this.mDlg = builder.create();
-				this.mDlg.setOnShowListener(new LogicBlockActivity$11(this, viewGroup));
-				this.mDlg.show();
-		}
-		
-		
-		class LogicBlockActivity$11 implements DialogInterface.OnShowListener {
-				// $FF: synthetic field
-				final LogicBlockActivity this$0;
-				// $FF: synthetic field
-				final ViewGroup val$content;
-				
-				LogicBlockActivity$11(LogicBlockActivity var1, ViewGroup var2) {
-						this.this$0 = var1;
-						this.val$content = var2;
+
+				int pad = (int)(24 * getResources().getDisplayMetrics().density);
+				LinearLayout root = new LinearLayout(this);
+				root.setOrientation(LinearLayout.VERTICAL);
+				root.setPadding(pad, (int)(12 * getResources().getDisplayMetrics().density), pad, (int)(20 * getResources().getDisplayMetrics().density));
+
+				ScrollView scroll = new ScrollView(this);
+				root.addView(scroll);
+
+				final RadioGroup rg = new RadioGroup(this);
+				rg.setOrientation(RadioGroup.VERTICAL);
+				scroll.addView(rg);
+
+				for (Pair<Integer, String> p : lists) {
+						com.google.android.material.radiobutton.MaterialRadioButton rb = new com.google.android.material.radiobutton.MaterialRadioButton(this);
+						rb.setText(p.second);
+						rb.setTag(p.second);
+						rb.setTextSize(16);
+						rb.setPadding((int)(8 * getResources().getDisplayMetrics().density), (int)(10 * getResources().getDisplayMetrics().density), (int)(8 * getResources().getDisplayMetrics().density), (int)(10 * getResources().getDisplayMetrics().density));
+						rg.addView(rb);
 				}
-				
-				public void onShow(DialogInterface var1) {
-						LogicBlockActivity.access$800(this.this$0).getButton(-1).setOnClickListener(new LogicBlockActivity$11$1(this));
-				}
-		}
-		
-		
-		
-		
-		class LogicBlockActivity$11$1 implements OnClickListener {
-				// $FF: synthetic field
-				final LogicBlockActivity$11 this$1;
-				
-				LogicBlockActivity$11$1(LogicBlockActivity$11 var1) {
-						this.this$1 = var1;
-				}
-				
-				public void onClick(View var1) {
-						int var2 = this.this$1.val$content.getChildCount();
-						int var3 = 0;
-						
-						while(true) {
-								if(var3 < var2) {
-										RadioButton var4 = (RadioButton)this.this$1.val$content.getChildAt(var3);
-										if(!var4.isChecked()) {
-												++var3;
-												continue;
-										}
-										
-										if(LogicBlockActivity.access$900(this.this$1.this$0).isExistListBlock(var4.getText().toString()) || DesignDataManager.isExistListBlock(LogicBlockActivity.filename, var4.getText().toString(), LogicBlockActivity.access$1000(this.this$1.this$0) + "_" + LogicBlockActivity.access$1100(this.this$1.this$0))) {
-												Toast.makeText(this.this$1.this$0.getApplicationContext(), this.this$1.this$0.getString(R.string.err_currently_used_list), 0).show();
+
+				com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+						.setTitle(getString(R.string.logic_popup_title_remove_list))
+						.setView(root)
+						.setNegativeButton(R.string.btn_cancel, null)
+						.setPositiveButton(R.string.btn_accept, (dialogInterface, which) -> {
+								int checkedId = rg.getCheckedRadioButtonId();
+								View selectedRb = rg.findViewById(checkedId);
+								if (selectedRb instanceof RadioButton) {
+										String listName = ((RadioButton) selectedRb).getText().toString();
+										if (pane.isExistListBlock(listName) || DesignDataManager.isExistListBlock(filename, listName, this.id + "_" + this.eventName)) {
+												Toast.makeText(getApplicationContext(), getString(R.string.err_currently_used_list), Toast.LENGTH_SHORT).show();
 												return;
 										}
-										
-										DesignDataManager.removeList(LogicBlockActivity.filename, var4.getText().toString());
-										this.this$1.this$0.onBlockCategorySelect(1, -3384542);
+										DesignDataManager.removeList(filename, listName);
+										onBlockCategorySelect(1, -3384542);
 								}
-								
-								LogicBlockActivity.access$800(this.this$1.this$0).dismiss();
-								return;
-						}
-				}
+						});
+
+				builder.show();
 		}
 		
 		
@@ -1776,7 +1671,12 @@ startActivityForResult(intent, 209);
 						type = "c";
 				}
 
-				Block block = new Block(this, Integer.valueOf(blockBean.id).intValue(), spec, type, blockBean.opCode, new Object[]{Integer.valueOf(color)});
+				int idVal = safeParseInt(blockBean.id);
+				if (idVal <= 0 && this.pane != null) {
+						idVal = this.pane.blockId++;
+				}
+
+				Block block = new Block(this, idVal, spec, type, blockBean.opCode, new Object[]{Integer.valueOf(color)});
 				if (blockBean.category != null) block.mCategory = blockBean.category;
 				if (blockBean.code != null) block.mCode = blockBean.code;
 				return block;
@@ -1843,7 +1743,7 @@ startActivityForResult(intent, 209);
 				} else if (selectedCat.type == 1) {
 						addButtonToPalette(getString(R.string.logic_btn_add_list), "listAdd");
 						addButtonToPalette(getString(R.string.logic_btn_remove_list), "listRemove");
-						addLists();
+						addLists(selectedCat.color);
 				} else if (selectedCat.type == 4) {
 						addButtonToPalette(getString(R.string.logic_btn_make_block), "blockAdd");
 						addFunctions();
@@ -2668,10 +2568,32 @@ return;
 
 		private void duplicateBlock(Block block) {
 				if (block == null) return;
-				ArrayList<Block> list = block.getAllChildren();
-				DesignDataManager.copyBlocks(filename, list);
-				pasteCopiedBlocks();
-				Toast.makeText(this, "Block duplicated", Toast.LENGTH_SHORT).show();
+				ArrayList<Block> children = block.getAllChildren();
+				ArrayList<BlockBean> blockBeans = new ArrayList<>();
+				if (children != null && !children.isEmpty()) {
+						for (Block child : children) {
+								if (child != null && child.getBean() != null) {
+										blockBeans.add(child.getBean());
+								}
+						}
+				} else if (block.getBean() != null) {
+						blockBeans.add(block.getBean());
+				}
+
+				if (blockBeans.isEmpty()) return;
+
+				int spawnX = (int) LayoutUtil.getDip(getApplicationContext(), 40.0f);
+				int spawnY = (int) LayoutUtil.getDip(getApplicationContext(), 40.0f);
+				if (this.editor != null) {
+						int edW = this.editor.getWidth();
+						int edH = this.editor.getHeight();
+						if (edW > 0 && edH > 0) {
+								spawnX = Math.max(20, (edW / 2) - (int) LayoutUtil.getDip(getApplicationContext(), 40.0f) + this.editor.getScrollX());
+								spawnY = Math.max(20, (edH / 2) - (int) LayoutUtil.getDip(getApplicationContext(), 30.0f) + this.editor.getScrollY());
+						}
+				}
+
+				unpackCollectionBlocks(blockBeans, spawnX, spawnY);
 		}
 
 		private void saveBlockToCollection(final Block block) {
@@ -2896,7 +2818,7 @@ return;
 										if (paramVal != null && !paramVal.isEmpty()) {
 												if (paramVal.startsWith("@")) {
 														int refId = safeParseInt(paramVal.substring(1));
-														if (blockMap.containsKey(Integer.valueOf(refId))) {
+														if (blockMap.containsKey(Integer.valueOf(refId)) && p < block.args.size()) {
 																block.replaceArgWithBlock((BlockBase) block.args.get(p), blockMap.get(Integer.valueOf(refId)));
 														}
 												} else if (p < block.args.size() && block.args.get(p) instanceof BlockArg) {
@@ -2913,7 +2835,6 @@ return;
 						int bId = safeParseInt(bean.id);
 						Block block = blockMap.get(Integer.valueOf(bId));
 						if (block != null && block.parentBlock == null) {
-								this.pane.getRoot().insertBlock(block);
 								if (firstRootBlock == null) {
 										firstRootBlock = block;
 								}

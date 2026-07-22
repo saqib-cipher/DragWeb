@@ -69,7 +69,17 @@ public class BlockPane extends RelativeLayout {
     private boolean dropCompatible(Block block, View view) {
         if (block.isReporter) {
             String str = block.mType;
-            if ((view instanceof BlockBase) && !((BlockBase) view).mType.equals(str)) {
+            if (view instanceof BlockBase) {
+                String targetType = ((BlockBase) view).mType;
+                if (targetType.equals(str)) {
+                    return true;
+                }
+                if (targetType.equals("m") || targetType.equals("v") || targetType.equals("l")) {
+                    return true;
+                }
+                if (("s".equals(str) || "d".equals(str)) && ("s".equals(targetType) || "d".equals(targetType))) {
+                    return true;
+                }
                 return false;
             }
         }
@@ -336,121 +346,26 @@ public class BlockPane extends RelativeLayout {
     }
 
     public boolean isExistListBlock(String str) {
+        if (str == null || str.isEmpty()) return false;
         int childCount = getChildCount();
-        for (int i = INSERT_NORMAL; i < childCount; i += INSERT_ABOVE) {
+        for (int i = 0; i < childCount; i++) {
             View childAt = getChildAt(i);
             if (childAt instanceof Block) {
-                BlockBean bean = ((Block) childAt).getBean();
-                String str2 = bean.opCode;
-                int i2 = -1;
-                switch (str2.hashCode()) {
-                    case -1384861688:
-                        if (str2.equals("getAtListInt")) {
-                            i2 = 6;
-                            break;
-                        }
-                        break;
-                    case -1384851894:
-                        if (str2.equals("getAtListStr")) {
-                            i2 = 7;
-                            break;
-                        }
-                        break;
-                    case -1271141237:
-                        if (str2.equals("clearList")) {
-                            i2 = INSERT_SUB2;
-                            break;
-                        }
-                        break;
-                    case -329562760:
-                        if (str2.equals("insertListInt")) {
-                            i2 = 11;
-                            break;
-                        }
-                        break;
-                    case -329552966:
-                        if (str2.equals("insertListStr")) {
-                            i2 = 12;
-                            break;
-                        }
-                        break;
-                    case -96313603:
-                        if (str2.equals("containListInt")) {
-                            i2 = INSERT_ABOVE;
-                            break;
-                        }
-                        break;
-                    case -96303809:
-                        if (str2.equals("containListStr")) {
-                            i2 = INSERT_SUB1;
-                            break;
-                        }
-                        break;
-                    case 762282303:
-                        if (str2.equals("indexListInt")) {
-                            i2 = 8;
-                            break;
-                        }
-                        break;
-                    case 762292097:
-                        if (str2.equals("indexListStr")) {
-                            i2 = 9;
-                            break;
-                        }
-                        break;
-                    case 1160674468:
-                        if (str2.equals("lengthList")) {
-                            i2 = INSERT_NORMAL;
-                            break;
-                        }
-                        break;
-                    case 1764351209:
-                        if (str2.equals("deleteList")) {
-                            i2 = 10;
-                            break;
-                        }
-                        break;
-                    case 2090179216:
-                        if (str2.equals("addListInt")) {
-                            i2 = INSERT_WRAP;
-                            break;
-                        }
-                        break;
-                    case 2090189010:
-                        if (str2.equals("addListStr")) {
-                            i2 = INSERT_PARAM;
-                            break;
-                        }
-                        break;
-                }
-                switch (i2) {
-                    case INSERT_NORMAL /*0*/:
-                    case INSERT_ABOVE /*1*/:
-                    case INSERT_SUB1 /*2*/:
-                    case INSERT_SUB2 /*3*/:
-                        if (!((String) bean.parameters.get(INSERT_NORMAL)).equals(str)) {
-                            break;
-                        }
+                Block block = (Block) childAt;
+                BlockBean bean = block.getBean();
+                if (bean != null) {
+                    if ("getListVar".equals(bean.opCode) && str.equals(bean.spec)) {
                         return true;
-                    case INSERT_WRAP /*4*/:
-                    case INSERT_PARAM /*5*/:
-                    case 6:
-                    case 7:
-                    case 8:
-                    case 9:
-                    case 10:
-                        if (!((String) bean.parameters.get(INSERT_ABOVE)).equals(str)) {
-                            break;
+                    }
+                    if (bean.parameters != null) {
+                        for (String param : bean.parameters) {
+                            if (str.equals(param)) return true;
                         }
-                        return true;
-                    case 11:
-                    case 12:
-                        if (!((String) bean.parameters.get(INSERT_SUB1)).equals(str)) {
-                            break;
-                        }
-                        return true;
-                    default:
-                        continue;
+                    }
+                    String op = bean.opCode != null ? bean.opCode : "";
+                    if (op.startsWith("jsList") || op.equals("jsSetupList") || op.contains("List")) {
+                        if (bean.spec != null && bean.spec.contains(str)) return true;
+                    }
                 }
             }
         }

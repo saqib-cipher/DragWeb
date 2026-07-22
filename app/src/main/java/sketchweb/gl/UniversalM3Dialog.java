@@ -7,9 +7,13 @@ import android.util.TypedValue;
 import android.view.View;
 import android.view.Gravity;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ArrayAdapter;
 import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.google.android.material.chip.Chip;
@@ -569,6 +573,374 @@ public final class UniversalM3Dialog {
         dialog.show();
     }
 
+    public static class ArrayItemRow {
+        public String type = "string";
+        public View rowView;
+        public EditText etValue;
+        public Spinner spBool;
+        public View spBoolView;
+    }
+
+    public interface ArrayRowAdder {
+        void add(ArrayItemRow row);
+    }
+
+    public void showArrayListBuilder(String initialValue, final OnText cb) {
+        View root = android.view.LayoutInflater.from(context).inflate(R.layout.dialog_setup_list, null);
+        final LinearLayout itemsContainer = root.findViewById(R.id.items_container);
+        Button btnAddStr = root.findViewById(R.id.btn_add_string);
+        Button btnAddNum = root.findViewById(R.id.btn_add_number);
+        Button btnAddBool = root.findViewById(R.id.btn_add_boolean);
+        Button btnAddObj = root.findViewById(R.id.btn_add_object);
+
+        final ArrayList<ArrayItemRow> rows = new ArrayList<>();
+
+        final Runnable refreshIndices = () -> {
+            for (int i = 0; i < rows.size(); i++) {
+                View itemRoot = rows.get(i).rowView;
+                if (itemRoot != null) {
+                    TextView tvIdx = itemRoot.findViewById(1001);
+                    if (tvIdx != null) tvIdx.setText("[" + i + "]");
+                }
+            }
+        };
+
+        final ArrayRowAdder adder = new ArrayRowAdder() {
+            @Override
+            public void add(final ArrayItemRow row) {
+                final LinearLayout rowLayout = new LinearLayout(context);
+                rowLayout.setOrientation(LinearLayout.HORIZONTAL);
+                rowLayout.setGravity(Gravity.CENTER_VERTICAL);
+                rowLayout.setPadding(dp(4), dp(4), dp(4), dp(4));
+
+                TextView tvIdx = new TextView(context);
+                tvIdx.setId(1001);
+                tvIdx.setText("[" + rows.size() + "]");
+                tvIdx.setTextSize(12);
+                tvIdx.setTypeface(null, android.graphics.Typeface.BOLD);
+                tvIdx.setPadding(0, 0, dp(6), 0);
+                rowLayout.addView(tvIdx);
+
+                if ("string".equals(row.type)) {
+                    com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+                    til.setHint("String (e.g. Saqib)");
+                    til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+                    lp.setMargins(dp(2), dp(2), dp(2), dp(2));
+                    til.setLayoutParams(lp);
+
+                    com.google.android.material.textfield.TextInputEditText etInput = new com.google.android.material.textfield.TextInputEditText(til.getContext());
+                    etInput.setTextSize(13);
+                    if (row.etValue != null && row.etValue.getText() != null) etInput.setText(row.etValue.getText());
+                    til.addView(etInput);
+                    rowLayout.addView(til);
+                    row.etValue = etInput;
+                } else if ("number".equals(row.type)) {
+                    com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+                    til.setHint("Number (e.g. 20)");
+                    til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+                    lp.setMargins(dp(2), dp(2), dp(2), dp(2));
+                    til.setLayoutParams(lp);
+
+                    com.google.android.material.textfield.TextInputEditText etInput = new com.google.android.material.textfield.TextInputEditText(til.getContext());
+                    etInput.setTextSize(13);
+                    etInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
+                    if (row.etValue != null && row.etValue.getText() != null) etInput.setText(row.etValue.getText());
+                    til.addView(etInput);
+                    rowLayout.addView(til);
+                    row.etValue = etInput;
+                } else if ("boolean".equals(row.type)) {
+                    com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+                    til.setHint("Boolean");
+                    til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+                    lp.setMargins(dp(2), dp(2), dp(2), dp(2));
+                    til.setLayoutParams(lp);
+
+                    com.google.android.material.textfield.MaterialAutoCompleteTextView actv = new com.google.android.material.textfield.MaterialAutoCompleteTextView(til.getContext());
+                    actv.setTextSize(13);
+                    actv.setSimpleItems(new String[]{"true", "false"});
+                    actv.setText("true", false);
+                    til.addView(actv);
+                    rowLayout.addView(til);
+                    row.spBoolView = actv;
+                } else if ("object".equals(row.type)) {
+                    final TextView tvObj = new TextView(context);
+                    tvObj.setTextSize(13);
+                    tvObj.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+                    tvObj.setPadding(dp(10), dp(10), dp(10), dp(10));
+                    int primaryColor = com.google.android.material.color.MaterialColors.getColor(context, android.R.attr.colorPrimary, 0xFF00897B);
+                    tvObj.setBackgroundColor(primaryColor & 0x1FFFFFFF);
+                    tvObj.setTextColor(primaryColor);
+                    tvObj.setTypeface(null, android.graphics.Typeface.BOLD);
+
+                    String curVal = (row.etValue != null && row.etValue.getText() != null && !row.etValue.getText().toString().isEmpty()) 
+                                    ? row.etValue.getText().toString() : "{ name: \"Ali\", age: 20 }";
+                    tvObj.setText(curVal);
+                    if (row.etValue == null) {
+                        row.etValue = new EditText(context);
+                    }
+                    row.etValue.setText(curVal);
+
+                    ImageView btnPencil = new ImageView(context);
+                    btnPencil.setImageResource(R.drawable.pencil);
+                    btnPencil.setImageTintList(com.google.android.material.color.MaterialColors.getColorStateList(context, android.R.attr.colorPrimary, android.content.res.ColorStateList.valueOf(0xFF00897B)));
+                    btnPencil.setPadding(dp(6), dp(6), dp(6), dp(6));
+                    btnPencil.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            String initObj = row.etValue.getText() != null ? row.etValue.getText().toString() : "{}";
+                            showObjectPropertiesBuilder(initObj, new OnText() {
+                                @Override
+                                public void onText(String value) {
+                                    row.etValue.setText(value);
+                                    tvObj.setText(value);
+                                }
+                            });
+                        }
+                    });
+
+                    rowLayout.addView(tvObj);
+                    rowLayout.addView(btnPencil);
+                }
+
+                ImageView btnDel = new ImageView(context);
+                btnDel.setImageResource(R.drawable.trash);
+                btnDel.setImageTintList(com.google.android.material.color.MaterialColors.getColorStateList(context, android.R.attr.colorError, android.content.res.ColorStateList.valueOf(0xFFB00020)));
+                btnDel.setPadding(dp(6), dp(6), dp(6), dp(6));
+                btnDel.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        itemsContainer.removeView(rowLayout);
+                        rows.remove(row);
+                        refreshIndices.run();
+                    }
+                });
+                rowLayout.addView(btnDel);
+
+                row.rowView = rowLayout;
+                rows.add(row);
+                itemsContainer.addView(rowLayout);
+            }
+        };
+
+        // Parse initial value if present
+        if (initialValue != null && !initialValue.trim().isEmpty()) {
+            String cleanInit = initialValue.trim();
+            if (cleanInit.startsWith("[") && cleanInit.endsWith("]")) {
+                cleanInit = cleanInit.substring(1, cleanInit.length() - 1).trim();
+            }
+            if (!cleanInit.isEmpty()) {
+                String[] parts = cleanInit.split(",");
+                for (String part : parts) {
+                    String p = part.trim();
+                    ArrayItemRow row = new ArrayItemRow();
+                    if (p.startsWith("{") || p.endsWith("}")) {
+                        row.type = "object";
+                        row.etValue = new EditText(context);
+                        row.etValue.setText(p);
+                    } else if (p.startsWith("\"") || p.startsWith("'")) {
+                        row.type = "string";
+                        row.etValue = new EditText(context);
+                        row.etValue.setText(p.replaceAll("^[\"']|[\"']$", ""));
+                    } else if ("true".equals(p) || "false".equals(p)) {
+                        row.type = "boolean";
+                    } else {
+                        row.type = "number";
+                        row.etValue = new EditText(context);
+                        row.etValue.setText(p);
+                    }
+                    adder.add(row);
+                }
+            }
+        }
+
+        if (rows.isEmpty()) {
+            ArrayItemRow defaultRow = new ArrayItemRow();
+            defaultRow.type = "string";
+            adder.add(defaultRow);
+        }
+
+        btnAddStr.setOnClickListener(v -> { ArrayItemRow r = new ArrayItemRow(); r.type = "string"; adder.add(r); });
+        btnAddNum.setOnClickListener(v -> { ArrayItemRow r = new ArrayItemRow(); r.type = "number"; adder.add(r); });
+        btnAddBool.setOnClickListener(v -> { ArrayItemRow r = new ArrayItemRow(); r.type = "boolean"; adder.add(r); });
+        btnAddObj.setOnClickListener(v -> { ArrayItemRow r = new ArrayItemRow(); r.type = "object"; adder.add(r); });
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+            .setTitle("Setup List / Array")
+            .setView(root)
+            .setPositiveButton("Save", (dialogInterface, which) -> {
+                StringBuilder sb = new StringBuilder("[ ");
+                for (int i = 0; i < rows.size(); i++) {
+                    ArrayItemRow r = rows.get(i);
+                    if (i > 0) sb.append(", ");
+                    if ("string".equals(r.type)) {
+                        String txt = r.etValue != null ? r.etValue.getText().toString() : "";
+                        sb.append("\"").append(txt.replace("\"", "\\\"")).append("\"");
+                    } else if ("number".equals(r.type)) {
+                        String txt = r.etValue != null ? r.etValue.getText().toString() : "0";
+                        sb.append(txt.isEmpty() ? "0" : txt);
+                    } else if ("boolean".equals(r.type)) {
+                        String txt = "true";
+                        if (r.spBoolView instanceof android.widget.AutoCompleteTextView) {
+                            txt = ((android.widget.AutoCompleteTextView) r.spBoolView).getText().toString();
+                        } else if (r.spBool != null) {
+                            txt = r.spBool.getSelectedItem().toString();
+                        }
+                        sb.append(txt.isEmpty() ? "true" : txt);
+                    } else if ("object".equals(r.type)) {
+                        String txt = r.etValue != null ? r.etValue.getText().toString() : "{}";
+                        sb.append(txt.isEmpty() ? "{}" : txt);
+                    }
+                }
+                sb.append(" ]");
+                if (cb != null) cb.onText(sb.toString());
+            })
+            .setNegativeButton("Cancel", null);
+
+        builder.show();
+    }
+
+    public static class ObjPropRow {
+        public String key = "";
+        public EditText etKey;
+        public EditText etVal;
+        public View rowView;
+    }
+
+    public interface ObjPropRowAdder {
+        void add(ObjPropRow row);
+    }
+
+    public void showObjectPropertiesBuilder(String initialObjJson, final OnText cb) {
+        View root = android.view.LayoutInflater.from(context).inflate(R.layout.dialog_setup_object, null);
+        final LinearLayout propsContainer = root.findViewById(R.id.props_container);
+        Button btnAddProp = root.findViewById(R.id.btn_add_property);
+
+        final ArrayList<ObjPropRow> rows = new ArrayList<>();
+
+        final ObjPropRowAdder adder = new ObjPropRowAdder() {
+            @Override
+            public void add(final ObjPropRow row) {
+                final LinearLayout rowLayout = new LinearLayout(context);
+                rowLayout.setOrientation(LinearLayout.HORIZONTAL);
+                rowLayout.setGravity(Gravity.CENTER_VERTICAL);
+                rowLayout.setPadding(dp(4), dp(4), dp(4), dp(4));
+
+                com.google.android.material.textfield.TextInputLayout tilKey = new com.google.android.material.textfield.TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+                tilKey.setHint("Key");
+                tilKey.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+                LinearLayout.LayoutParams lpKey = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+                lpKey.setMargins(dp(2), dp(2), dp(2), dp(2));
+                tilKey.setLayoutParams(lpKey);
+
+                com.google.android.material.textfield.TextInputEditText etKey = new com.google.android.material.textfield.TextInputEditText(tilKey.getContext());
+                etKey.setTextSize(13);
+                if (row.key != null && !row.key.isEmpty()) etKey.setText(row.key);
+                tilKey.addView(etKey);
+                rowLayout.addView(tilKey);
+                row.etKey = etKey;
+
+                TextView tvColon = new TextView(context);
+                tvColon.setText(" : ");
+                tvColon.setTypeface(null, android.graphics.Typeface.BOLD);
+                tvColon.setPadding(dp(2), 0, dp(2), 0);
+                rowLayout.addView(tvColon);
+
+                com.google.android.material.textfield.TextInputLayout tilVal = new com.google.android.material.textfield.TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+                tilVal.setHint("Value");
+                tilVal.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+                LinearLayout.LayoutParams lpVal = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+                lpVal.setMargins(dp(2), dp(2), dp(2), dp(2));
+                tilVal.setLayoutParams(lpVal);
+
+                com.google.android.material.textfield.TextInputEditText etVal = new com.google.android.material.textfield.TextInputEditText(tilVal.getContext());
+                etVal.setTextSize(13);
+                if (row.etVal != null && row.etVal.getText() != null) etVal.setText(row.etVal.getText());
+                tilVal.addView(etVal);
+                rowLayout.addView(tilVal);
+                row.etVal = etVal;
+
+                ImageView btnDel = new ImageView(context);
+                btnDel.setImageResource(R.drawable.trash);
+                btnDel.setImageTintList(com.google.android.material.color.MaterialColors.getColorStateList(context, android.R.attr.colorError, android.content.res.ColorStateList.valueOf(0xFFB00020)));
+                btnDel.setPadding(dp(6), dp(6), dp(6), dp(6));
+                btnDel.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        propsContainer.removeView(rowLayout);
+                        rows.remove(row);
+                    }
+                });
+                rowLayout.addView(btnDel);
+
+                row.rowView = rowLayout;
+                rows.add(row);
+                propsContainer.addView(rowLayout);
+            }
+        };
+
+        if (initialObjJson != null && !initialObjJson.trim().isEmpty()) {
+            String clean = initialObjJson.trim();
+            if (clean.startsWith("{") && clean.endsWith("}")) {
+                clean = clean.substring(1, clean.length() - 1).trim();
+            }
+            if (!clean.isEmpty()) {
+                String[] parts = clean.split(",");
+                for (String part : parts) {
+                    String[] kv = part.split(":", 2);
+                    if (kv.length == 2) {
+                        ObjPropRow r = new ObjPropRow();
+                        r.key = kv[0].trim().replaceAll("^[\"']|[\"']$", "");
+                        r.etVal = new EditText(context);
+                        r.etVal.setText(kv[1].trim().replaceAll("^[\"']|[\"']$", ""));
+                        adder.add(r);
+                    }
+                }
+            }
+        }
+
+        if (rows.isEmpty()) {
+            ObjPropRow defaultRow = new ObjPropRow();
+            defaultRow.key = "name";
+            defaultRow.etVal = new EditText(context);
+            defaultRow.etVal.setText("Ali");
+            adder.add(defaultRow);
+        }
+
+        btnAddProp.setOnClickListener(v -> {
+            ObjPropRow r = new ObjPropRow();
+            r.etVal = new EditText(context);
+            adder.add(r);
+        });
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+            .setTitle("Edit Object Element")
+            .setView(root)
+            .setPositiveButton("Save Object", (dialogInterface, which) -> {
+                StringBuilder sb = new StringBuilder("{ ");
+                for (int i = 0; i < rows.size(); i++) {
+                    ObjPropRow r = rows.get(i);
+                    String k = r.etKey != null ? r.etKey.getText().toString().trim() : "";
+                    String v = r.etVal != null ? r.etVal.getText().toString().trim() : "";
+                    if (k.isEmpty()) continue;
+                    if (i > 0) sb.append(", ");
+                    sb.append(k).append(": ");
+                    if (v.matches("^-?\\d+(\\.\\d+)?$") || "true".equals(v) || "false".equals(v) || v.startsWith("{") || v.startsWith("[")) {
+                        sb.append(v.isEmpty() ? "\"\"" : v);
+                    } else {
+                        sb.append("\"").append(v.replace("\"", "\\\"")).append("\"");
+                    }
+                }
+                sb.append(" }");
+                if (cb != null) cb.onText(sb.toString());
+            })
+            .setNegativeButton("Cancel", null);
+
+        builder.show();
+    }
+
     public void showSelectorInput(List<String> idSuggestions, 
                                  List<String> classSuggestions, 
                                  List<String> tagSuggestions, 
@@ -836,6 +1208,14 @@ public final class UniversalM3Dialog {
     private int dp(int v) { return (int) (v * context.getResources().getDisplayMetrics().density); }
 
     public void showVariableSelector(String filename, String menuName, final OnText cb) {
+        showVariableSelector(filename, menuName, false, null, cb);
+    }
+
+    public void showVariableSelector(String filename, String menuName, final boolean disableConst, final OnText cb) {
+        showVariableSelector(filename, menuName, disableConst, null, cb);
+    }
+
+    public void showVariableSelector(String filename, String menuName, final boolean disableConst, final java.util.Set<String> usedConstVars, final OnText cb) {
         int pad = dp(24);
         LinearLayout dialogContainer = new LinearLayout(context);
         dialogContainer.setOrientation(LinearLayout.VERTICAL);
@@ -907,6 +1287,10 @@ public final class UniversalM3Dialog {
                     rb.setTag(p.second);
                     rb.setTextSize(16);
                     rb.setPadding(dp(8), dp(10), dp(8), dp(10));
+                    if (disableConst && isConst && usedConstVars != null && usedConstVars.contains(p.second)) {
+                        rb.setEnabled(false);
+                        rb.setAlpha(0.45f);
+                    }
                     rg.addView(rb);
                 }
 
@@ -967,7 +1351,7 @@ public final class UniversalM3Dialog {
                 public void onClick(android.content.DialogInterface dialogInterface, int which) {
                     int checkedId = rg.getCheckedRadioButtonId();
                     View selectedRb = rg.findViewById(checkedId);
-                    if (selectedRb instanceof com.google.android.material.radiobutton.MaterialRadioButton) {
+                    if (selectedRb instanceof com.google.android.material.radiobutton.MaterialRadioButton && selectedRb.isEnabled()) {
                         String selectedVar = ((com.google.android.material.radiobutton.MaterialRadioButton) selectedRb).getTag().toString();
                         if (cb != null) cb.onText(selectedVar);
                     }
@@ -976,5 +1360,62 @@ public final class UniversalM3Dialog {
             .setNegativeButton("Cancel", null);
 
         builder.create().show();
+    }
+
+    public void showListSelector(String filename, String initial, final OnText cb) {
+        int pad = dp(24);
+        LinearLayout dialogContainer = new LinearLayout(context);
+        dialogContainer.setOrientation(LinearLayout.VERTICAL);
+        dialogContainer.setPadding(pad, dp(12), pad, dp(20));
+
+        ScrollView scroll = new ScrollView(context);
+        dialogContainer.addView(scroll);
+
+        final android.widget.RadioGroup rg = new android.widget.RadioGroup(context);
+        rg.setOrientation(android.widget.RadioGroup.VERTICAL);
+        scroll.addView(rg);
+
+        final ArrayList<Pair<Integer, String>> allLists = DesignDataManager.getLists(filename);
+        String currentVal = initial != null ? initial.trim() : "";
+
+        if (allLists != null) {
+            for (Pair<Integer, String> p : allLists) {
+                com.google.android.material.radiobutton.MaterialRadioButton rb = new com.google.android.material.radiobutton.MaterialRadioButton(context);
+                rb.setText(p.second);
+                rb.setTag(p.second);
+                rb.setTextSize(16);
+                rb.setPadding(dp(8), dp(10), dp(8), dp(10));
+                if (p.second.equals(currentVal)) {
+                    rb.setChecked(true);
+                }
+                rg.addView(rb);
+            }
+        }
+
+        if (rg.getChildCount() == 0) {
+            TextView tvEmpty = new TextView(context);
+            tvEmpty.setText("No lists created yet.");
+            tvEmpty.setPadding(dp(8), dp(16), dp(8), dp(16));
+            tvEmpty.setGravity(Gravity.CENTER);
+            rg.addView(tvEmpty);
+        }
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+            .setTitle("Select List")
+            .setView(dialogContainer)
+            .setPositiveButton("Select", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialogInterface, int which) {
+                    int checkedId = rg.getCheckedRadioButtonId();
+                    View selectedRb = rg.findViewById(checkedId);
+                    if (selectedRb instanceof com.google.android.material.radiobutton.MaterialRadioButton) {
+                        String selectedVar = ((com.google.android.material.radiobutton.MaterialRadioButton) selectedRb).getTag().toString();
+                        if (cb != null) cb.onText(selectedVar);
+                    }
+                }
+            })
+            .setNegativeButton("Cancel", null);
+
+        builder.show();
     }
 }
