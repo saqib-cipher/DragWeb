@@ -1,0 +1,624 @@
+================================================================================
+SKETCHWARE BLOCK CODE GENERATION SYSTEM - TECHNICAL DOCUMENTATION
+================================================================================
+
+Based on analysis of saqib-cipher/Sketchware-DayDream repository
+Generated for DragWeb Logic Blocks Auto-Generation and Auto-Saving
+
+================================================================================
+1. BLOCK SYSTEM OVERVIEW
+================================================================================
+
+The Sketchware block system uses a hierarchical structure to represent visual
+programming blocks that are compiled into Java code. Blocks can be:
+
+Block Types (by Return Type):
+  - "c" : Command block (no return value)
+  - "b" : Boolean block (returns true/false)
+  - "d" : Number/Double block (returns numeric value)
+  - "s" : String block (returns text)
+  - "f" : Final value block
+  - "e" : Event block (special event handlers)
+  - "t" : Custom variable/parameter block (text label type)
+
+Block Structure Components:
+  - id: Unique block identifier (string)
+  - spec: Parameter specification pattern (e.g., "%b.variable %d.number")
+  - type: Block type indicator (c, b, d, s, f, e, t)
+  - typeName: Extended type name for complex types
+  - opCode: Operation code for code generation
+  - parameters: ArrayList of actual parameter values
+  - color: Visual color ID (integer)
+  - nextBlock: Index of next connected block (-1 if none)
+  - subStack1: Index of first conditional/loop body block (-1 if none)
+  - subStack2: Index of second conditional body block (-1 if none)
+
+
+================================================================================
+2. BLOCKBEAN DATA STRUCTURE (Core Block Object)
+================================================================================
+
+Location: com.besome.sketch.beans.BlockBean
+
+Key Properties:
+  public String id                      // Unique block identifier
+  public String spec                    // Parameter specification
+  public String type                    // Type indicator (c, b, d, s, f, e, t)
+  public String typeName                // Extended type information
+  public String opCode                  // Operation code for code generation
+  public ArrayList<String> parameters   // Parameter values
+  public int color                      // Color ID for visual rendering
+  public int nextBlock                  // Next block index in sequence
+  public int subStack1                  // First substage block index (if/loop)
+  public int subStack2                  // Second substage block index (else)
+  public Gx classInfo                   // Class type information
+  public ArrayList<Gx> paramClassInfo   // Parameter type information
+
+Constructor Examples:
+  new BlockBean()                              // Empty block
+  new BlockBean(id, spec, type, opCode)      // Basic initialization
+  new BlockBean(id, spec, type, typeName, opCode)  // Full initialization
+
+Key Methods:
+  void copy(BlockBean other)           // Deep copy of another block
+  void buildClassInfo()                 // Build class type information
+  boolean isEqual(BlockBean other)      // Compare with another block
+  BlockBean clone()                     // Create independent copy
+
+
+================================================================================
+3. CODE GENERATION ARCHITECTURE
+================================================================================
+
+Main Generator Class: a.a.a.Jx (JavaCodeGenerator)
+
+Generation Method:
+  public String generateCode(boolean isAndroidStudioExport, String sc_id)
+
+The generateCode() process:
+  1. Initialize handlers
+     - extraVariables()           // Add custom variables
+     - handleAppCompat()          // Setup AppCompat imports
+     - addFieldsDeclaration()     // Declare fields
+     - addDrawerComponentInitializer()
+     - initializeEventsCodeGenerator()
+     - addMoreBlockCodes()        // Add custom block code
+     - addAdapterCode()           // RecyclerView adapters
+     - addRequestCodeConstants()  // Permission/request codes
+     - addImportsForBlocks()      // Required imports for blocks
+     - addLocalLibraryImports()   // Local dependencies
+
+  2. Build package and class declaration
+     - Package statement
+     - Imports (sorted alphabetically)
+     - Class declaration with proper extension (Activity/Fragment/DialogFragment)
+
+  3. Generate event handlers
+     - Activity lifecycle callbacks (onCreate, onResume, etc.)
+     - Event methods from block definitions
+     - More block implementations
+
+  4. Write final Java source code
+
+Key Code Generation Properties:
+  - isAndroidStudioExport: Enables full view binding
+  - isViewBindingEnabled: Use ViewBinding instead of findViewById
+  - isFirebaseEnabled: Include Firebase dependencies
+  - isAdMobEnabled: Include Google Ads SDK
+  - isDebugBuild: Debug-specific imports and configurations
+
+
+================================================================================
+4. BLOCK EXECUTION AND CODE MAPPING
+================================================================================
+
+Block to Java Code Mapping (opCode Examples):
+
+Command Blocks (type: "c"):
+  opCode: "toastText" 
+  Parameters: %s.text
+  Generated Code: Toast.makeText(MainActivity.this, text, Toast.LENGTH_SHORT).show();
+
+Boolean Blocks (type: "b"):
+  opCode: "comparisonEqual"
+  Parameters: %d.value1, %d.value2
+  Generated Code: (value1 == value2)
+
+String Blocks (type: "s"):
+  opCode: "concatStr"
+  Parameters: %s.str1, %s.str2
+  Generated Code: (str1 + str2)
+
+Number Blocks (type: "d"):
+  opCode: "mathPlus"
+  Parameters: %d.num1, %d.num2
+  Generated Code: (num1 + num2)
+
+Event Blocks (type: "e"):
+  opCode: "onCreate"
+  Generated Code: @Override
+                 public void onCreate(Bundle savedInstanceState) { ... }
+
+Custom More Blocks:
+  Type: Special definedFunc blocks
+  Generator: Fx (More Block Code Generator)
+  Parameters: Activity name, block definition, method body code
+  Output: Private method definition with signature
+
+
+================================================================================
+5. MORE BLOCK SYSTEM (CUSTOM BLOCK CREATION)
+================================================================================
+
+MoreBlock Builder: com.besome.sketch.editor.makeblock.MoreBlockBuilderView
+
+More blocks are user-defined custom blocks that generate method definitions.
+
+Structure Components:
+  - Block Name: Custom method identifier
+  - Variables: Parameters the block accepts
+    Format: Pair<spec, name>
+    Specs: "b" (boolean), "d" (number), "s" (string), "m.type" (custom)
+  - Labels: Text labels in block display
+  - Return Type: Void, String, Number, Boolean
+
+Code Pattern:
+  private <returnType> <blockName>(<params>) {
+    // User-defined logic blocks
+    // Can use parameters and call other blocks
+    return <value>;  // if return type != void
+  }
+
+Example Generation Process (from MoreBlockBuilderView):
+  1. Get block name from input
+  2. Collect parameters with types
+  3. Collect text labels
+  4. Build spec string with type indicators
+  5. Create Rs (block visual) with specification
+  6. Update block preview with all components
+  7. Store variables as Pair<spec, name>
+  8. Generate method code with full signature
+
+Return More Block Manager: mod.hey.studios.moreblock.ReturnMoreblockManager
+  - Injects block type information
+  - Converts type specifications
+  - Generates method signatures with return types
+
+
+================================================================================
+6. BLOCK PARAMETER SPECIFICATION FORMAT
+================================================================================
+
+Spec String Format:
+  %<type>.<paramName> - Parameter placeholder
+  %<type>.<property>.<subProperty> - Complex type reference
+
+Type Indicators in Specs:
+  %c - Command (void block)
+  %b - Boolean value
+  %d - Number/Double value
+  %s - String value
+  %m - Component/Module reference
+  %l - List reference
+  %a - Array reference
+  %f - Final/constant value
+  %e - Event reference
+
+Property Chain:
+  %m.button1        - Button component reference
+  %l.myList         - List variable reference
+  %m.activity       - Activity context reference
+
+Examples:
+  "showDialog %s.message %b.cancelable"
+    -> showDialog method with String and Boolean parameters
+  
+  "%m.textView setText %s.text"
+    -> Call setText on TextViewcomponent with String parameter
+  
+  "%d.num1 + %d.num2"
+    -> Addition operation on two numeric parameters
+
+
+================================================================================
+7. AUTO-GENERATION AND AUTO-SAVING IMPLEMENTATION
+================================================================================
+
+File Auto-Save Mechanism:
+
+Location Strategy:
+  Path: /storage/.dragweb/
+  Structure:
+    .dragweb/
+    ├── blocks/
+    │   ├── saved/
+    │   │   ├── <projectName>/
+    │   │   │   ├── events/
+    │   │   │   │   └── <eventName>_blocks.json
+    │   │   │   ├── custom/
+    │   │   │   │   └── <customBlockName>_definition.json
+    │   │   │   └── project_metadata.json
+    │   │   └── last_opened.json
+    │   ├── generated/
+    │   │   ├── <projectName>/
+    │   │   │   ├── Java/
+    │   │   │   │   └── <FileName>.java
+    │   │   │   ├── XML/
+    │   │   │   │   └── <layoutName>.xml
+    │   │   │   └── manifest/
+    │   │   │       └── AndroidManifest.xml
+    │   │   └── compile_log.json
+    │   └── templates/
+    │       ├── event_templates.json
+    │       ├── block_templates.json
+    │       └── snippet_templates.json
+    └── config/
+        ├── auto_save_settings.json
+        └── export_preferences.json
+
+Auto-Save Configuration File:
+  Location: /storage/.dragweb/config/auto_save_settings.json
+  
+  {
+    "autoSaveEnabled": true,
+    "saveInterval": 30000,              // milliseconds
+    "compressionEnabled": true,
+    "maxBackups": 5,
+    "autoGenerateCode": true,
+    "codeGenerationTriggers": [
+      "on_block_add",
+      "on_block_remove",
+      "on_parameter_change",
+      "on_save_action"
+    ],
+    "exportFormats": ["json", "java", "xml"],
+    "includeMetadata": true,
+    "timestampFormat": "yyyy-MM-dd'T'HHmmss"
+  }
+
+Block Save Format (JSON):
+  {
+    "id": "<blockId>",
+    "spec": "<parameterSpec>",
+    "type": "<typeIndicator>",
+    "typeName": "<extendedType>",
+    "opCode": "<operationCode>",
+    "parameters": [<values>],
+    "color": <colorId>,
+    "nextBlock": <nextIndex>,
+    "subStack1": <substackIndex>,
+    "subStack2": <secondSubstackIndex>,
+    "metadata": {
+      "savedAt": "2024-01-15T143022",
+      "savedBy": "auto_save_system",
+      "version": "1.0"
+    }
+  }
+
+Event Blocks Save Format:
+  {
+    "eventName": "<eventType>",
+    "blockSequence": [<blockArray>],
+    "eventMetadata": {
+      "eventType": "onCreate",
+      "activityName": "MainActivity",
+      "triggerType": "lifecycle"
+    },
+    "generatedCode": "<javaCode>",
+    "codeMetadata": {
+      "generatedAt": "2024-01-15T143022",
+      "generatorVersion": "1.0",
+      "androidStudioExport": false
+    }
+  }
+
+Custom Block Save Format:
+  {
+    "blockName": "<customBlockName>",
+    "returnType": "void|String|Number|Boolean",
+    "parameters": [
+      {
+        "name": "<paramName>",
+        "type": "b|d|s|m.<type>"
+      }
+    ],
+    "labels": [<labelTexts>],
+    "bodyBlocks": [<blockArray>],
+    "generatedMethod": "<javaMethodCode>",
+    "metadata": {
+      "createdAt": "2024-01-15T143022",
+      "lastModified": "2024-01-15T143022",
+      "usageCount": 0
+    }
+  }
+
+
+================================================================================
+8. IMPLEMENTATION GUIDE FOR DRAGWEB
+================================================================================
+
+Step 1: Create Block Storage Manager
+---------
+Class: BlockStorageManager
+Purpose: Handle all block persistence operations
+
+public class BlockStorageManager {
+    private static final String BLOCKS_DIR = "/storage/.dragweb/blocks/";
+    private static final String SAVED_BLOCKS_DIR = BLOCKS_DIR + "saved/";
+    private static final String GENERATED_CODE_DIR = BLOCKS_DIR + "generated/";
+    
+    public void saveBlockToFile(BlockBean block, String projectName, 
+                                 String category) throws IOException
+    
+    public void saveEventBlocks(List<BlockBean> blocks, String projectName, 
+                                 String eventName) throws IOException
+    
+    public void saveCustomBlock(MoreBlockDefinition block, 
+                                String projectName) throws IOException
+    
+    public List<BlockBean> loadBlocksFromFile(String projectName, 
+                                              String category) throws IOException
+    
+    public String generateBlockSequenceCode(List<BlockBean> blocks, 
+                                            String context) throws IOException
+}
+
+Step 2: Create Auto-Save Timer Service
+---------
+Class: BlockAutoSaveService
+Purpose: Periodically save blocks and generate code
+
+public class BlockAutoSaveService extends Service {
+    private Timer autoSaveTimer;
+    private static final int AUTO_SAVE_INTERVAL = 30000; // 30 seconds
+    
+    private void initializeAutoSave() {
+        autoSaveTimer = new Timer();
+        autoSaveTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                triggerAutoSave();
+            }
+        }, AUTO_SAVE_INTERVAL, AUTO_SAVE_INTERVAL);
+    }
+    
+    private void triggerAutoSave() {
+        // Save current block state
+        // Generate code if blocks changed
+        // Update backup copies
+    }
+}
+
+Step 3: Create Code Generation Trigger System
+---------
+Class: CodeGenerationTrigger
+Purpose: Generate code on specific block events
+
+public class CodeGenerationTrigger {
+    private BlockCodeGenerator codeGenerator;
+    
+    public void onBlockAdded(BlockBean newBlock) {
+        if (shouldRegenerateCode()) {
+            regenerateActivityCode();
+        }
+    }
+    
+    public void onBlockRemoved(int blockId) {
+        updateBlockReferences();
+        if (shouldRegenerateCode()) {
+            regenerateActivityCode();
+        }
+    }
+    
+    public void onParameterChanged(int blockId, String paramName, 
+                                    Object newValue) {
+        updateBlockParameter(blockId, paramName, newValue);
+        if (shouldRegenerateCode()) {
+            regenerateActivityCode();
+        }
+    }
+}
+
+Step 4: Create Block Template System
+---------
+Class: BlockTemplateManager
+Purpose: Store and retrieve block templates for easy insertion
+
+public class BlockTemplateManager {
+    private List<BlockTemplate> templates;
+    
+    public BlockTemplate createTemplateFromBlock(BlockBean block)
+    
+    public BlockBean instantiateTemplate(String templateId, 
+                                          Map<String, Object> parameters)
+    
+    public void saveTemplate(BlockTemplate template, String category)
+    
+    public List<BlockTemplate> getTemplates(String category)
+}
+
+Step 5: Create Export/Import Utilities
+---------
+Class: BlockImportExporter
+Purpose: Export blocks to different formats and import from files
+
+public class BlockImportExporter {
+    
+    public void exportToJSON(List<BlockBean> blocks, File outputFile) 
+        throws IOException
+    
+    public void exportToJava(List<BlockBean> blocks, File outputFile, 
+                             String packageName) throws IOException
+    
+    public void exportToXML(List<BlockBean> blocks, File outputFile) 
+        throws IOException
+    
+    public List<BlockBean> importFromJSON(File inputFile) 
+        throws IOException, JSONException
+    
+    public List<BlockBean> importFromJava(File javaFile) 
+        throws IOException
+}
+
+
+================================================================================
+9. BLOCK TYPES REFERENCE TABLE
+================================================================================
+
+TYPE    RETURN VALUE    USAGE                           EXAMPLE
+------  ---------------  ------                          -------
+c       void             Command/Action                   Toast, set variable
+b       boolean          Conditions, comparisons          x > y, var == "test"
+d       double/number    Math operations, values          1 + 2, x / y
+s       String           Text operations                  "Hello" + name
+f       final constant   Immutable values                 Math.PI, Color.RED
+e       event            Event handlers                   onCreate, onResume
+t       text/label       Display labels in blocks        "Set" label in method
+m       component        UI Component reference           button1, textView2
+l       list             List variable reference          myList, stringArray
+a       array            Array reference                  intArray, objectArray
+
+
+================================================================================
+10. COMMON OPERATION CODES (opCode Reference)
+================================================================================
+
+COMMAND BLOCKS (type: "c"):
+  toastText              - Show toast message
+  showDialog             - Display dialog box
+  setVariable            - Assign value to variable
+  putListItem            - Add item to list
+  setViewProperty        - Modify component property
+  startActivity          - Launch new activity
+  finishActivity         - Close current activity
+  pauseThread            - Thread sleep
+  playSound              - Play audio file
+
+BOOLEAN BLOCKS (type: "b"):
+  comparisonEqual        - Check equality (==)
+  comparisonNotEqual     - Check inequality (!=)
+  comparisonGreater      - Greater than (>)
+  comparisonLess         - Less than (<)
+  logicalAnd             - AND operation
+  logicalOr              - OR operation
+  logicalNot             - NOT operation
+  fileExists             - Check file existence
+  stringContains         - Check substring
+
+NUMBER BLOCKS (type: "d"):
+  mathPlus               - Addition (+)
+  mathMinus              - Subtraction (-)
+  mathMultiply           - Multiplication (*)
+  mathDivide             - Division (/)
+  mathModulo             - Modulo (%)
+  mathAbsolute           - Absolute value
+  stringLength           - Get string length
+  randomNumber           - Random integer
+
+STRING BLOCKS (type: "s"):
+  concatStr              - String concatenation
+  stringSubstring        - Extract substring
+  stringReplace          - Replace substring
+  stringToUpperCase      - Convert to uppercase
+  stringToLowerCase      - Convert to lowercase
+  stringTrim             - Remove whitespace
+  numberToString         - Convert number to string
+  booleanToString        - Convert boolean to string
+
+EVENT BLOCKS (type: "e"):
+  onCreate               - Activity created
+  onResume               - Activity resumed
+  onPause                - Activity paused
+  onDestroy              - Activity destroyed
+  onViewClick            - View clicked
+  onTextChanged          - EditText changed
+  onItemClick            - List item clicked
+
+
+================================================================================
+11. BEST PRACTICES FOR BLOCK MANAGEMENT
+================================================================================
+
+1. Block Organization:
+   - Group related blocks by functionality
+   - Use consistent naming conventions for block IDs
+   - Maintain clear parameter ordering
+   - Document custom block parameters
+
+2. Performance:
+   - Batch save operations when multiple blocks change
+   - Use compression for large block sequences
+   - Cache generated code during development
+   - Clean up unused block definitions regularly
+
+3. Data Integrity:
+   - Validate block structure before saving
+   - Maintain version information for compatibility
+   - Keep multiple backup copies
+   - Verify generated code compiles
+
+4. Code Generation:
+   - Separate UI event handlers from custom logic
+   - Minimize nested block depth
+   - Use meaningful variable names
+   - Add comments in generated code
+   - Test generated code thoroughly
+
+5. User Experience:
+   - Provide immediate visual feedback for block actions
+   - Show auto-save progress indicators
+   - Implement undo/redo for block operations
+   - Display code generation status messages
+
+
+================================================================================
+12. FILE STRUCTURE FOR AUTO-SAVE IMPLEMENTATION
+================================================================================
+
+DragWeb Project Structure:
+
+app/src/main/java/
+├── storage/
+│   ├── BlockStorageManager.java
+│   ├── BlockFileHandler.java
+│   └── BlockSerializer.java
+├── generation/
+│   ├── CodeGenerationTrigger.java
+│   ├── BlockCodeGenerator.java
+│   └── MoreBlockCodeGenerator.java
+├── autosave/
+│   ├── BlockAutoSaveService.java
+│   ├── AutoSaveConfiguration.java
+│   └── SaveStateManager.java
+├── templates/
+│   ├── BlockTemplateManager.java
+│   ├── BlockTemplate.java
+│   └── TemplateRepository.java
+├── import_export/
+│   ├── BlockImportExporter.java
+│   ├── JSONBlockExporter.java
+│   ├── JavaBlockExporter.java
+│   └── XMLBlockExporter.java
+└── models/
+    ├── SavedBlock.java
+    ├── EventBlockSequence.java
+    ├── CustomBlockDefinition.java
+    └── CodeGenerationMetadata.java
+
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
+
+This documentation provides a complete technical overview of the Sketchware
+block code generation system as implemented in Sketchware-DayDream, with
+specific guidance for implementing auto-generation and auto-saving features
+in the DragWeb project.
+
+For implementation support, refer to:
+- Source: saqib-cipher/Sketchware-DayDream
+- Main Generator: a.a.a.Jx (JavaCodeGenerator)
+- Block Model: com.besome.sketch.beans.BlockBean
+- MoreBlock Builder: com.besome.sketch.editor.makeblock.MoreBlockBuilderView
+
+================================================================================
