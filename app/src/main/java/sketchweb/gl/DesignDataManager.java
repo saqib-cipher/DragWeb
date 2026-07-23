@@ -92,6 +92,9 @@ public class DesignDataManager {
         FileUtil.writeFile(f.getAbsolutePath(), json);
 
         addFunction(data.linkedFile, data.type != null ? data.type : " ", data.spec != null ? data.spec : data.name);
+
+        // Persist the updated mapFunctions for the linked file to disk
+        saveSavedLogic(null, projectId, data.linkedFile);
     }
 
     public static void deleteProjectMoreBlock(String projectId, String funcName, String linkedFile) {
