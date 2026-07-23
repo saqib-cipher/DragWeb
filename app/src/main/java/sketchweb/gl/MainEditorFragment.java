@@ -2818,6 +2818,13 @@ public class MainEditorFragment extends Fragment {
 
 		saveProjectToExternal();
 
+		// Compile and save logic assets to files
+		try {
+			ProjectCodeGenerator.generateAndSaveAssets(requireContext(), projectId, pageManager.getCurrentPage());
+		} catch (Exception e) {
+			Log.w("MainEditor", "Failed to compile logic assets: " + e.getMessage());
+		}
+
 		// Compile all pages and sync with assets folder in real-time
 		if (exportManager != null) {
 			try {

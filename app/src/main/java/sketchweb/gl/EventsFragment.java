@@ -275,8 +275,7 @@ public class EventsFragment extends Fragment {
                     String name = f.getName().toLowerCase();
                     if (name.endsWith(".css") || name.endsWith(".js") || name.endsWith(".html")) {
                         String relative = f.getAbsolutePath().substring(root.getAbsolutePath().length() + 1);
-                        relative = relative.replace("\\", "/");
-                        if ("css/theme.css".equals(relative)) {
+                        if (name.contains("theme.css") || relative.contains("theme.css")) {
                             continue; // Lock/hide theme.css
                         }
                         if (!filesList.contains(relative)) {

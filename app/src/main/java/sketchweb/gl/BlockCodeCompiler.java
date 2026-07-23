@@ -40,53 +40,6 @@ public class BlockCodeCompiler {
         return sb.toString().trim();
     }
 
-    public String compileEventOrFunction(String key, ArrayList<BlockBean> bodyBlocks) {
-        ArrayList<BlockBean> fullList = new ArrayList<>();
-        BlockBean root = new BlockBean();
-        root.id = "0";
-
-        if (key.contains("moreBlock") || key.startsWith("func_") || key.startsWith("func")) {
-            String funcName = key;
-            if (key.endsWith("_moreBlock")) {
-                funcName = key.substring(0, key.indexOf("_moreBlock"));
-            } else if (key.startsWith("func_")) {
-                funcName = key.substring(5);
-            }
-            
-            String spec = "Define " + funcName;
-            ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(projectId);
-            if (funcs != null) {
-                for (DesignDataManager.MoreBlockData mb : funcs) {
-                    if (mb.name.equals(funcName)) {
-                        spec = mb.spec != null ? mb.spec : mb.name;
-                        if (!spec.startsWith("Define ") && !spec.startsWith("definedFunc ")) {
-                            spec = "Define " + spec;
-                        }
-                        break;
-                    }
-                }
-            }
-            root.opCode = "definedFunc";
-            root.spec = spec;
-        } else {
-            root.opCode = "initializeLogic";
-            root.spec = "When On Page Load";
-        }
-
-        if (bodyBlocks != null && !bodyBlocks.isEmpty()) {
-            BlockBean firstBody = bodyBlocks.get(0);
-            try {
-                root.nextBlock = Integer.parseInt(firstBody.id);
-            } catch (Exception ignored) {}
-            fullList.add(root);
-            fullList.addAll(bodyBlocks);
-        } else {
-            fullList.add(root);
-        }
-
-        return getSource(0, fullList);
-    }
-
     private boolean isChildOfAny(BlockBean target, ArrayList<BlockBean> blocks) {
         if (target.id == null || target.id.isEmpty()) return false;
         int targetId = Integer.parseInt(target.id);
@@ -104,52 +57,11 @@ public class BlockCodeCompiler {
         return false;
     }
 
-    private boolean isFunctionDefinitionRoot(BlockBean block, ArrayList<BlockBean> allBlocks) {
-        if (block == null) return false;
-        if (!isChildOfAny(block, allBlocks)) {
-            String op = block.opCode != null ? block.opCode : "";
-            String spec = block.spec != null ? block.spec : "";
-            if ("definedFunc".equals(op) || "moreBlock".equals(op) || op.startsWith("func")) {
-                return true;
-            }
-            if (spec.startsWith("When func") || spec.startsWith("definedFunc") || spec.startsWith("Define ")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean isEventHatBlock(BlockBean block, ArrayList<BlockBean> allBlocks) {
-        if (block == null) return false;
-        if (!isChildOfAny(block, allBlocks)) {
-            if (isFunctionDefinitionRoot(block, allBlocks)) {
-                return false;
-            }
-            String op = block.opCode != null ? block.opCode : "";
-            String spec = block.spec != null ? block.spec : "";
-            if (op.equals("initializeLogic") || op.equals("onClick") || op.equals("onCheckedChange")
-                    || op.equals("onItemSelected") || op.equals("onItemClicked") || op.equals("onTextChanged")
-                    || spec.startsWith("When ") || spec.startsWith("when ")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private String compileBlockAndNext(BlockBean block, ArrayList<BlockBean> allBlocks, int indentLevel) {
         if (block == null) return "";
 
-        if (isFunctionDefinitionRoot(block, allBlocks)) {
-            return compileFunctionDefinition(block, allBlocks, indentLevel);
-        }
-
         StringBuilder sb = new StringBuilder();
         BlockBean current = block;
-
-        if (isEventHatBlock(current, allBlocks)) {
-            int nextId = current.nextBlock;
-            current = findBlockById(String.valueOf(nextId), allBlocks);
-        }
 
         while (current != null) {
             String code = compileBlock(current, allBlocks, indentLevel);
@@ -273,7 +185,7 @@ public class BlockCodeCompiler {
                 codeTemplate = "%1$s -= %2$s;\n";
             } else if ("definedFunc".equals(block.opCode) || (block.spec != null && !block.spec.trim().isEmpty() && !block.opCode.startsWith("get") && !block.opCode.startsWith("set"))) {
                 if (!isChildOfAny(block, allBlocks)) {
-                    return compileFunctionDefinition(block, allBlocks, indentLevel);
+                    return "";
                 } else {
                     return compileMoreBlockCall(block, allBlocks, indentLevel);
                 }
@@ -370,63 +282,7 @@ public class BlockCodeCompiler {
         return res.toString();
     }
 
-    private String compileFunctionDefinition(BlockBean block, ArrayList<BlockBean> allBlocks, int indentLevel) {
-        String spec = block.spec != null ? block.spec : "";
-        String funcName = "";
-        ArrayList<String> paramNames = new ArrayList<>();
-        ArrayList<String> tokens = StringUtil.tokenize(spec);
-        for (String tok : tokens) {
-            if (tok.startsWith("%")) {
-                String pName = tok;
-                if (tok.startsWith("%b.") || tok.startsWith("%d.") || tok.startsWith("%s.")) {
-                    pName = tok.substring(3);
-                } else if (tok.length() > 2) {
-                    pName = tok.substring(2);
-                }
-                if (pName.contains(".")) {
-                    pName = pName.substring(0, pName.indexOf('.'));
-                }
-                paramNames.add(pName);
-            } else {
-                if ("When".equalsIgnoreCase(tok) || "func".equalsIgnoreCase(tok) || "definedFunc".equalsIgnoreCase(tok) || "Define".equalsIgnoreCase(tok)) {
-                    continue;
-                }
-                if (funcName.isEmpty()) {
-                    funcName = tok;
-                }
-            }
-        }
-        if (funcName.isEmpty()) {
-            funcName = block.opCode != null ? block.opCode : "func";
-        }
 
-        StringBuilder paramsSb = new StringBuilder();
-        for (int i = 0; i < paramNames.size(); i++) {
-            if (i > 0) paramsSb.append(", ");
-            paramsSb.append(paramNames.get(i));
-        }
-
-        StringBuilder indent = new StringBuilder();
-        for (int i = 0; i < indentLevel; i++) {
-            indent.append("  ");
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(indent).append("function ").append(funcName).append("(").append(paramsSb.toString()).append(") {\n");
-
-        if (block.nextBlock >= 0) {
-            BlockBean nextBlock = findBlockById(String.valueOf(block.nextBlock), allBlocks);
-            if (nextBlock != null) {
-                String bodyCode = compileBlockAndNext(nextBlock, allBlocks, indentLevel + 1);
-                if (!bodyCode.isEmpty()) {
-                    sb.append(bodyCode).append("\n");
-                }
-            }
-        }
-
-        sb.append(indent).append("}\n");
-        return sb.toString();
-    }
 
     private String compileMoreBlockCall(BlockBean block, ArrayList<BlockBean> allBlocks, int indentLevel) {
         String spec = block.spec != null ? block.spec : "";

@@ -99,6 +99,10 @@ public class LogicBlockManager {
         this.context = context;
     }
 
+    public Context getContext() {
+        return context;
+    }
+
     public void addBlock(LogicBlock block) {
         blocks.add(block);
     }
@@ -291,11 +295,14 @@ public class LogicBlockManager {
      */
     private boolean isCssEmitting(LogicBlock b) {
         if (b == null) return false;
-        if ("css".equals(b.category)) return true;
-        if ("animation".equals(b.category)) return true;
+        String cat = b.category != null ? b.category : "";
+        if ("css".equals(cat) || "responsive".equals(cat) || "comment".equals(cat) || "animation".equals(cat) || cat.startsWith("css_")) {
+            return true;
+        }
         if ("asdCss".equals(b.action)) return true;
-        // Group / comment blocks are passthroughs that wrap their children's
-        // CSS output – they only contribute when their first child does.
+        if ("initializeLogic".equals(b.action) || "onPageLoad".equals(b.action) || "onCreate".equals(b.action)) {
+            return true;
+        }
         if ("groupBlock".equals(b.action) || "commentBlock".equals(b.action)) return true;
         return false;
     }
@@ -317,6 +324,15 @@ public class LogicBlockManager {
     private void emitCssBlock(StringBuilder out, LogicBlock b, int depth) {
         if (b == null) return;
         String indent = repeatStr("  ", depth);
+
+        if ("initializeLogic".equals(b.action) || "onPageLoad".equals(b.action) || "onCreate".equals(b.action)) {
+            for (LogicBlock c : blocks) {
+                if (b.id != null && b.id.equals(c.parentBlockId)) {
+                    emitCssBlock(out, c, depth);
+                }
+            }
+            return;
+        }
 
         if ("groupBlock".equals(b.action)) {
             String name = paramAt(b, 0);

@@ -557,7 +557,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             if (relative.equals("css") || relative.equals("js")) {
                 return true;
             }
-            if (relative.equals("css/style.css") || relative.equals("js/script.js")) {
+            if (relative.equals("css/style.css") || relative.equals("js/script.js") || relative.equals("css/theme.css") || relative.equals("theme.css")) {
                 return true;
             }
             if (!relative.contains("/") && (relative.endsWith(".html") || relative.endsWith(".htm"))) {

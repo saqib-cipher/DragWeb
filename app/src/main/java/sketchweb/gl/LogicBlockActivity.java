@@ -1755,7 +1755,6 @@ startActivityForResult(intent, 209);
 					saveLogic();
 					DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
 					DesignDataManager.saveSavedLogic(this.context != null ? this.context : this, this.projectId, this.pageName);
-					ProjectCodeGenerator.generateAndSaveAssets(this.context != null ? this.context : this, this.projectId, this.pageName);
 			} catch (Exception e) {
 					e.printStackTrace();
 			}
@@ -1769,7 +1768,6 @@ startActivityForResult(intent, 209);
 					saveLogic();
 					DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
 					DesignDataManager.saveSavedLogic(this.context != null ? this.context : this, this.projectId, this.pageName);
-					ProjectCodeGenerator.generateAndSaveAssets(this.context != null ? this.context : this, this.projectId, this.pageName);
 			} catch (Exception e) {
 					e.printStackTrace();
 			}
@@ -2212,6 +2210,12 @@ startActivityForResult(intent, 209);
 				
 				this.context = this.getApplicationContext();
 
+				if (this.pageName != null && (this.pageName.toLowerCase().contains("theme.css"))) {
+						Toast.makeText(this, "theme.css is a system-locked stylesheet and cannot be edited.", Toast.LENGTH_LONG).show();
+						finish();
+						return;
+				}
+
 				String initProjId = (this.projectId != null && !this.projectId.isEmpty()) ? this.projectId : "default_project";
 				String initPageName = (this.pageName != null && !this.pageName.isEmpty()) ? this.pageName : "index";
 				DesignDataManager.initialize(this.context, initProjId, initPageName);
@@ -2470,11 +2474,42 @@ startActivityForResult(intent, 209);
 		}
 		
 		private void showSourceCode() {
-				BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
-				String key = this.id + LOGIC_NAME_SEPARATOR + this.eventName;
-				final String result = jsm.compileEventOrFunction(key, pane.getBlocks());
-				
 				final boolean isCss = isCssEvent();
+				String result = "";
+
+				if (isCss) {
+						try {
+								ArrayList<BlockBean> workspaceBlocks = pane.getBlocks();
+								if (workspaceBlocks != null && !workspaceBlocks.isEmpty()) {
+										java.util.Map<String, Object> wrapper = new java.util.HashMap<>();
+										java.util.Map<String, Object> blocksMap = new java.util.HashMap<>();
+										blocksMap.put("css_style", workspaceBlocks);
+										wrapper.put("blocks", blocksMap);
+										
+										String json = new com.google.gson.Gson().toJson(wrapper);
+										LogicBlockManager manager = new LogicBlockManager(this);
+										manager.fromJson(json);
+										
+										StringBuilder cssSb = new StringBuilder();
+										String baseRules = manager.generateBaseCssRules();
+										String pseudoRules = manager.generateCssPseudoRules();
+										if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
+												cssSb.append(pseudoRules).append("\n");
+										}
+										if (baseRules != null && !baseRules.trim().isEmpty()) {
+												cssSb.append(baseRules).append("\n");
+										}
+										result = cssSb.toString().trim();
+								}
+						} catch (Exception e) {
+								e.printStackTrace();
+								result = "";
+						}
+				} else {
+						BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
+						result = jsm.getSource(0, pane.getBlocks());
+				}
+				
 				final String ext = isCss ? ".css" : ".js";
 
 				java.io.File targetFile;
