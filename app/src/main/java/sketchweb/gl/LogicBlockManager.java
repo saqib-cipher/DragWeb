@@ -262,8 +262,8 @@ public class LogicBlockManager {
         // 2. Process legacy changeStyle blocks
         for (LogicBlock block : blocks) {
             if (!isStaticChangeStyleBlock(block)) continue;
-            if (block.params == null) continue;
-            String[] parts = block.params.split(":", 2);
+            String delimiter = block.params.contains("|") ? "\\|" : ":";
+            String[] parts = block.params.split(delimiter, 2);
             if (parts.length == 2) {
                 String property = camelToKebab(parts[0].trim());
                 String value = parts[1].trim();
@@ -312,7 +312,9 @@ public class LogicBlockManager {
         if (!ACTION_CHANGE_STYLE.equals(b.action)) return false;
         String ev = b.event;
         return ev == null || ev.isEmpty()
-            || "immediate".equals(ev) || EVENT_LOAD.equals(ev) || EVENT_PAGE_LOAD.equals(ev);
+            || "immediate".equals(ev) || EVENT_LOAD.equals(ev) || EVENT_PAGE_LOAD.equals(ev)
+            || ev.contains("onPageLoad") || ev.contains("onLoad") || ev.contains("immediate")
+            || ev.contains("css_style") || ev.contains("initializeLogic");
     }
 
     /**
@@ -396,38 +398,64 @@ public class LogicBlockManager {
     String applyChipTemplate(LogicBlock b) {
         if (b == null) return "";
         String tmpl = b.spec;
-        if (tmpl == null || tmpl.isEmpty()) return "";
-        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
-            "%(?:(selector)|(m\\.[a-zA-Z_\\.]+|var\\.[sbd]|var)|([nsbd]))");
-        java.util.regex.Matcher m = p.matcher(tmpl);
-        StringBuilder sb = new StringBuilder();
-        int last = 0;
-        int idx = 0;
-        int slotIdx = 0;
-        while (m.find()) {
-            sb.append(tmpl, last, m.start());
-            String selectorLit = m.group(1);
-            String mType = m.group(2);
-            if (mType != null && mType.endsWith("space")) {
-                if (slotIdx == 0) {
-                    sb.append("@@CHILDREN@@");
-                } else {
-                    sb.append("@@CHILDREN_").append(slotIdx).append("@@");
+        
+        BlockDef def = null;
+        if (b.action != null && context != null) {
+            for (BlockDef d : BlockDef.getDefinitions(context)) {
+                if (b.action.equals(d.getOpCode())) {
+                    def = d;
+                    tmpl = d.resolvedTemplate();
+                    break;
                 }
-                slotIdx++;
-            } else if ("selector".equals(selectorLit) || "selector".equals(mType)) {
-                String value = paramAt(b, idx);
-                sb.append(value != null ? value : "");
-                idx++;
-            } else {
-                String value = paramAt(b, idx);
-                sb.append(value != null ? value : "");
-                idx++;
             }
-            last = m.end();
         }
-        sb.append(tmpl.substring(last));
-        return sb.toString();
+        
+        if (tmpl == null || tmpl.isEmpty()) return "";
+        
+        // Compile parameters/arguments
+        ArrayList<Object> compiledParams = new ArrayList<>();
+        if (b.paramValues != null) {
+            for (String val : b.paramValues) {
+                compiledParams.add(val != null ? val : "");
+            }
+        }
+        
+        // Normalize placeholders to %s
+        String normalizedTemplate = tmpl.replace("%selector", "%s")
+                                         .replace("%var.s", "%s")
+                                         .replace("%var.b", "%s")
+                                         .replace("%var.d", "%s")
+                                         .replace("%var", "%s")
+                                         .replace("%b", "%s")
+                                         .replace("%n", "%s")
+                                         .replace("%d", "%s")
+                                         .replace("%s", "%s");
+        
+        // Handle substacks / children formatting if template requires it
+        if (normalizedTemplate.contains("%2$s") || normalizedTemplate.contains("@@CHILDREN@@") || (def != null && "c".equals(def.shape))) {
+            StringBuilder children = new StringBuilder();
+            for (LogicBlock c : blocks) {
+                if (b.id != null && b.id.equals(c.parentBlockId)) {
+                    emitCssBlock(children, c, 1);
+                }
+            }
+            if (normalizedTemplate.contains("@@CHILDREN@@")) {
+                normalizedTemplate = normalizedTemplate.replace("@@CHILDREN@@", children.toString());
+            } else {
+                compiledParams.add(children.toString());
+            }
+        }
+        
+        try {
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile("%(?:m\\.[a-zA-Z_\\.]+|[nsbd])");
+            java.util.regex.Matcher m = p.matcher(normalizedTemplate);
+            normalizedTemplate = m.replaceAll("%s");
+            
+            return String.format(normalizedTemplate, compiledParams.toArray()).trim();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return tmpl.trim();
+        }
     }
 
     private String paramAt(LogicBlock b, int idx) {
@@ -688,7 +716,8 @@ public class LogicBlockManager {
     private String generateActionJs(LogicBlock block, String elVar) {
         switch (block.action) {
             case ACTION_CHANGE_STYLE: {
-                String[] parts = block.params.split(":", 2);
+                String delimiter = block.params.contains("|") ? "\\|" : ":";
+                String[] parts = block.params.split(delimiter, 2);
                 if (parts.length == 2) {
                     return elVar + ".style." + parts[0].trim() + " = '" + parts[1].trim() + "';\n";
                 }

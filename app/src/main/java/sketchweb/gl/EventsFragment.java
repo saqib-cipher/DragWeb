@@ -313,7 +313,7 @@ public class EventsFragment extends Fragment {
             try {
                 String json = FileUtil.readFile(logicFile.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
-                    DesignDataManager.PageLogicData data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
+                    DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(json, linkedFile);
                     if (data != null && data.blocks != null) {
                         String funcKey = "func_" + funcName;
                         if (data.blocks.containsKey(funcKey) && data.blocks.get(funcKey) != null) {
@@ -335,7 +335,7 @@ public class EventsFragment extends Fragment {
             try {
                 String json = FileUtil.readFile(logicFile.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
-                    DesignDataManager.PageLogicData data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
+                    DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(json, cssPath);
                     if (data != null && data.blocks != null) {
                         int count = 0;
                         for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {

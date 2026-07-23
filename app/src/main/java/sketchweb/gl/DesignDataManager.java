@@ -8,6 +8,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -639,6 +640,187 @@ public class DesignDataManager {
         public ArrayList<Pair<Integer, String>> variables = new ArrayList<>();
         public ArrayList<Pair<Integer, String>> lists = new ArrayList<>();
         public ArrayList<Pair<String, String>> functions = new ArrayList<>();
+        public ArrayList<String> components = new ArrayList<>();
+        public ArrayList<String> events = new ArrayList<>();
+    }
+
+    public static String serializePageLogicData(PageLogicData data, String pageName) {
+        StringBuilder sb = new StringBuilder();
+        
+        // _var
+        sb.append("@").append(pageName).append("_var\n");
+        if (data.lists != null) {
+            for (Pair<Integer, String> p : data.lists) {
+                sb.append(p.first).append(":").append(p.second).append("\n");
+            }
+        }
+        if (data.variables != null) {
+            for (Pair<Integer, String> p : data.variables) {
+                sb.append(p.first).append(":").append(p.second).append("\n");
+            }
+        }
+        sb.append("\n");
+        
+        // _func
+        sb.append("@").append(pageName).append("_func\n");
+        if (data.functions != null) {
+            for (Pair<String, String> p : data.functions) {
+                sb.append(p.first).append(":").append(p.second).append("\n");
+            }
+        }
+        sb.append("\n");
+        
+        // _components
+        sb.append("@").append(pageName).append("_components\n");
+        if (data.components != null) {
+            for (String c : data.components) {
+                sb.append(c).append("\n");
+            }
+        }
+        sb.append("\n");
+        
+        // _events
+        sb.append("@").append(pageName).append("_events\n");
+        if (data.events != null) {
+            for (String e : data.events) {
+                sb.append(e).append("\n");
+            }
+        }
+        sb.append("\n");
+        
+        // _blocks
+        sb.append("@").append(pageName).append("_blocks\n");
+        Gson gson = new Gson();
+        if (data.blocks != null) {
+            for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
+                if (entry.getValue() != null) {
+                    for (BlockBean b : entry.getValue()) {
+                        sb.append(gson.toJson(b)).append("\n");
+                    }
+                }
+            }
+        }
+        sb.append("\n");
+        
+        // _workspace
+        sb.append("@").append(pageName).append("_workspace\n");
+        if (data.blocks != null) {
+            for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
+                if (entry.getValue() != null && !entry.getValue().isEmpty()) {
+                    sb.append(entry.getKey()).append(":");
+                    for (int i = 0; i < entry.getValue().size(); i++) {
+                        if (i > 0) sb.append(",");
+                        sb.append(entry.getValue().get(i).id);
+                    }
+                    sb.append("\n");
+                }
+            }
+        }
+        
+        return sb.toString();
+    }
+
+    public static PageLogicData deserializePageLogicData(String text, String pageName) {
+        PageLogicData data = new PageLogicData();
+        if (text == null || text.trim().isEmpty()) {
+            return data;
+        }
+        
+        String trimmed = text.trim();
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            try {
+                Gson gson = new Gson();
+                PageLogicData parsed = gson.fromJson(trimmed, PageLogicData.class);
+                if (parsed != null && parsed.blocks != null) {
+                    return parsed;
+                }
+                
+                java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BlockBean>>(){}.getType();
+                ArrayList<BlockBean> blockList = gson.fromJson(trimmed, listType);
+                if (blockList != null && !blockList.isEmpty() && blockList.get(0) != null && blockList.get(0).opCode != null) {
+                    data.blocks.put("onCreate_initializeLogic", blockList);
+                    return data;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return data;
+        }
+        
+        String[] lines = text.split("\n");
+        String currentSection = "";
+        
+        Map<String, BlockBean> allBlocksMap = new HashMap<>();
+        Map<String, List<String>> workspaceMap = new HashMap<>();
+        
+        for (String line : lines) {
+            String trimmedLine = line.trim();
+            if (trimmedLine.isEmpty()) continue;
+            
+            if (trimmedLine.startsWith("@")) {
+                currentSection = trimmedLine;
+                continue;
+            }
+            
+            if (currentSection.endsWith("_var")) {
+                int colonIdx = trimmedLine.indexOf(":");
+                if (colonIdx > 0) {
+                    try {
+                        int type = Integer.parseInt(trimmedLine.substring(0, colonIdx));
+                        String name = trimmedLine.substring(colonIdx + 1);
+                        data.variables.add(new Pair<>(type, name));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else if (currentSection.endsWith("_func")) {
+                int colonIdx = trimmedLine.indexOf(":");
+                if (colonIdx > 0) {
+                    String name = trimmedLine.substring(0, colonIdx);
+                    String spec = trimmedLine.substring(colonIdx + 1);
+                    data.functions.add(new Pair<>(name, spec));
+                }
+            } else if (currentSection.endsWith("_components")) {
+                data.components.add(trimmedLine);
+            } else if (currentSection.endsWith("_events")) {
+                data.events.add(trimmedLine);
+            } else if (currentSection.endsWith("_blocks")) {
+                try {
+                    BlockBean b = new Gson().fromJson(trimmedLine, BlockBean.class);
+                    if (b != null && b.id != null) {
+                        allBlocksMap.put(b.id, b);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } else if (currentSection.endsWith("_workspace")) {
+                int colonIdx = trimmedLine.indexOf(":");
+                if (colonIdx > 0) {
+                    String eventKey = trimmedLine.substring(0, colonIdx);
+                    String[] ids = trimmedLine.substring(colonIdx + 1).split(",");
+                    List<String> idList = new ArrayList<>();
+                    for (String id : ids) {
+                        if (!id.trim().isEmpty()) {
+                            idList.add(id.trim());
+                        }
+                    }
+                    workspaceMap.put(eventKey, idList);
+                }
+            }
+        }
+        
+        for (Map.Entry<String, List<String>> entry : workspaceMap.entrySet()) {
+            ArrayList<BlockBean> eventBlocks = new ArrayList<>();
+            for (String id : entry.getValue()) {
+                BlockBean b = allBlocksMap.get(id);
+                if (b != null) {
+                    eventBlocks.add(b);
+                }
+            }
+            data.blocks.put(entry.getKey(), eventBlocks);
+        }
+        
+        return data;
     }
 
     public static void loadSavedLogic(Context context, String projectId, String pageName) {
@@ -648,13 +830,12 @@ public class DesignDataManager {
         if (pageName == null || pageName.isEmpty()) pageName = "index";
         String cleanPage = getCleanPageName(pageName);
 
-        // Single source of truth: .dragweb/projects/<projectId>/<page>_logic.json
         File extLogicFile = new File(android.os.Environment.getExternalStorageDirectory(),
             ".dragweb/projects/" + projectId + "/" + cleanPage + "_logic.json");
 
-        String json = null;
+        String content = null;
         if (extLogicFile.exists()) {
-            json = FileUtil.readFile(extLogicFile.getAbsolutePath());
+            content = FileUtil.readFile(extLogicFile.getAbsolutePath());
         }
 
         if (!mapBlocks.containsKey(cleanPage)) {
@@ -670,7 +851,7 @@ public class DesignDataManager {
             mapFunctions.put(cleanPage, new ArrayList<>());
         }
 
-        if (json == null || json.trim().isEmpty() || json.trim().equals("{}") || json.trim().equals("[]")) {
+        if (content == null || content.trim().isEmpty() || content.trim().equals("{}") || content.trim().equals("[]")) {
             mapBlocks.put(cleanPage, new HashMap<>());
             mapVariables.put(cleanPage, new ArrayList<>());
             mapLists.put(cleanPage, new ArrayList<>());
@@ -679,25 +860,12 @@ public class DesignDataManager {
         }
 
         try {
-            Gson gson = new Gson();
-
-            // Try structured PageLogicData format first
-            PageLogicData data = gson.fromJson(json, PageLogicData.class);
-            if (data != null && data.blocks != null) {
-                mapBlocks.put(cleanPage, new HashMap<>(data.blocks));
+            PageLogicData data = deserializePageLogicData(content, pageName);
+            if (data != null) {
+                if (data.blocks != null) mapBlocks.put(cleanPage, new HashMap<>(data.blocks));
                 if (data.variables != null) mapVariables.put(cleanPage, new ArrayList<>(data.variables));
                 if (data.lists != null) mapLists.put(cleanPage, new ArrayList<>(data.lists));
                 if (data.functions != null) mapFunctions.put(cleanPage, new ArrayList<>(data.functions));
-                return;
-            }
-
-            // Fallback: direct List<BlockBean> array format
-            java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BlockBean>>(){}.getType();
-            ArrayList<BlockBean> blockList = gson.fromJson(json, listType);
-            if (blockList != null && !blockList.isEmpty() && blockList.get(0) != null && blockList.get(0).opCode != null) {
-                HashMap<String, ArrayList<BlockBean>> pageBlocks = new HashMap<>();
-                pageBlocks.put("onCreate_initializeLogic", blockList);
-                mapBlocks.put(cleanPage, pageBlocks);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -741,12 +909,12 @@ public class DesignDataManager {
             data.functions.addAll(funcs);
         }
 
-        String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(data);
+        String content = serializePageLogicData(data, pageName);
 
         File extDir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
         if (!extDir.exists()) extDir.mkdirs();
         File extFile = new File(extDir, cleanPage + "_logic.json");
-        FileUtil.writeFile(extFile.getAbsolutePath(), json);
+        FileUtil.writeFile(extFile.getAbsolutePath(), content);
     }
 
     public static void saveAllSavedLogic(Context context, String projectId) {

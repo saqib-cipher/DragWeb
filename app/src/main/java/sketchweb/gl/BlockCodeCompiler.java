@@ -22,6 +22,15 @@ public class BlockCodeCompiler {
             return "";
         }
 
+        // Find if there is a definedFunc block
+        BlockBean definedFuncBlock = null;
+        for (BlockBean b : blocks) {
+            if ("definedFunc".equals(b.opCode)) {
+                definedFuncBlock = b;
+                break;
+            }
+        }
+
         // Find all root blocks (blocks that are not connected or nested under any other block)
         ArrayList<BlockBean> rootBlocks = new ArrayList<>();
         for (BlockBean b : blocks) {
@@ -31,10 +40,57 @@ public class BlockCodeCompiler {
         }
 
         StringBuilder sb = new StringBuilder();
-        for (BlockBean root : rootBlocks) {
-            String compiled = compileBlockAndNext(root, blocks, 0);
-            if (!compiled.isEmpty()) {
-                sb.append(compiled).append("\n");
+        if (definedFuncBlock != null) {
+            // Compile as a function definition!
+            String spec = definedFuncBlock.spec != null ? definedFuncBlock.spec : "";
+            ArrayList<String> paramNames = new ArrayList<>();
+            ArrayList<String> tokens = StringUtil.tokenize(spec);
+            String funcName = "";
+            for (String tok : tokens) {
+                if (tok.startsWith("%")) {
+                    String pName = tok;
+                    if (tok.startsWith("%b.") || tok.startsWith("%d.") || tok.startsWith("%s.")) {
+                        pName = tok.substring(3);
+                    } else if (tok.length() > 2) {
+                        pName = tok.substring(2);
+                    }
+                    if (pName.contains(".")) {
+                        pName = pName.substring(0, pName.indexOf('.'));
+                    }
+                    paramNames.add(pName);
+                } else if (funcName.isEmpty()) {
+                    funcName = tok;
+                }
+            }
+            if (funcName.isEmpty()) {
+                funcName = "myFunction";
+            }
+            
+            StringBuilder paramsSb = new StringBuilder();
+            for (int i = 0; i < paramNames.size(); i++) {
+                if (i > 0) paramsSb.append(", ");
+                paramsSb.append(paramNames.get(i));
+            }
+            
+            sb.append("function ").append(funcName).append("(").append(paramsSb.toString()).append(") {\n");
+            
+            // Compile the body (which is the nextBlock of definedFuncBlock)
+            if (definedFuncBlock.nextBlock >= 0) {
+                BlockBean bodyStart = findBlockById(String.valueOf(definedFuncBlock.nextBlock), blocks);
+                if (bodyStart != null) {
+                    String bodyCode = compileBlockAndNext(bodyStart, blocks, 1);
+                    if (!bodyCode.trim().isEmpty()) {
+                        sb.append(bodyCode).append("\n");
+                    }
+                }
+            }
+            sb.append("}");
+        } else {
+            for (BlockBean root : rootBlocks) {
+                String compiled = compileBlockAndNext(root, blocks, 0);
+                if (!compiled.isEmpty()) {
+                    sb.append(compiled).append("\n");
+                }
             }
         }
         return sb.toString().trim();
@@ -138,6 +194,9 @@ public class BlockCodeCompiler {
 
         String codeTemplate = (def != null) ? def.code : "";
         if (codeTemplate == null || codeTemplate.isEmpty()) {
+            if (block.subStack1 >= 0) {
+                return compileSubstack(block.subStack1, allBlocks, indentLevel);
+            }
             if ("true".equals(block.opCode)) return "true";
             if ("false".equals(block.opCode)) return "false";
             if ("getArg".equals(block.opCode)) {
