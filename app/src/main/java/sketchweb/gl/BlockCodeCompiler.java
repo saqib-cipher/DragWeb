@@ -262,9 +262,9 @@ public class BlockCodeCompiler {
                     codeTemplate = "%1$s = %2$s;\n";
                 }
             } else if (block.opCode != null && block.opCode.equals("increaseInt")) {
-                codeTemplate = "%1$s += %2$s;\n";
+                codeTemplate = "%1$s++;\n";
             } else if (block.opCode != null && block.opCode.equals("decreaseInt")) {
-                codeTemplate = "%1$s -= %2$s;\n";
+                codeTemplate = "%1$s--;\n";
             } else if ("definedFunc".equals(block.opCode) || (block.spec != null && !block.spec.trim().isEmpty() && !block.opCode.startsWith("get") && !block.opCode.startsWith("set"))) {
                 return compileMoreBlockCall(block, allBlocks, indentLevel);
             } else {

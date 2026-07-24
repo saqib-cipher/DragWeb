@@ -62,8 +62,8 @@
     <string name="block_set_var_bool" formatted="false">set %var.b to %b</string>
     <string name="block_set_var_int" formatted="false">set %var.d to %d</string>
     <string name="block_set_var_str" formatted="false">set %var.s to %s</string>
-    <string name="block_increase_int" formatted="false">increase %var.d by %d</string>
-    <string name="block_decrease_int" formatted="false">decrease %var.d by %d</string>
+    <string name="block_increase_int" formatted="false">increase %var.d ++</string>
+    <string name="block_decrease_int" formatted="false">decrease %var.d --</string>
     <string name="root_spec_initialize">On Page Load</string>
     <string name="root_spec_define">Define</string>
     <string name="root_spec_when">When</string>

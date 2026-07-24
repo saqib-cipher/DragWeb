@@ -1265,62 +1265,9 @@ var0.dismissProgress();
 		}
 		
 		
-		
-		
-		class LogicBlockActivity$10 implements DialogInterface.OnShowListener {
-				// $FF: synthetic field
-				final LogicBlockActivity this$0;
-				// $FF: synthetic field
-				final EditText val$edInput;
-				// $FF: synthetic field
-				final RadioGroup val$rgType;
-				// $FF: synthetic field
-				final VariableNameValidator val$varNameValidator;
-				
-				LogicBlockActivity$10(LogicBlockActivity var1, VariableNameValidator var2, RadioGroup var3, EditText var4) {
-						this.this$0 = var1;
-						this.val$varNameValidator = var2;
-						this.val$rgType = var3;
-						this.val$edInput = var4;
-				}
-				
-				public void onShow(DialogInterface var1) {
-						LogicBlockActivity.access$800(this.this$0).getButton(-1).setOnClickListener(new LogicBlockActivity$10$1(this));
-				}
-		}
-		
-		
-		
-		class LogicBlockActivity$10$1 implements OnClickListener {
-				// $FF: synthetic field
-				final LogicBlockActivity$10 this$1;
-				
-				LogicBlockActivity$10$1(LogicBlockActivity$10 var1) {
-						this.this$1 = var1;
-				}
-				
-				public void onClick(View var1) {
-						if(this.this$1.val$varNameValidator.isValid()) {
-								byte var2 = 1;
-								if(this.this$1.val$rgType.getCheckedRadioButtonId() == R.id.rb_int) {
-										var2 = 1;
-								} else if(this.this$1.val$rgType.getCheckedRadioButtonId() == R.id.rb_string) {
-										var2 = 2;
-								}
-								
-								String var3 = this.this$1.val$edInput.getText().toString();
-								DesignDataManager.addList(LogicBlockActivity.filename, var2, var3);
-								this.this$1.this$0.onBlockCategorySelect(1, -3384542);
-								LogicBlockActivity.access$800(this.this$1.this$0).dismiss();
-						}
-				}
-		}
-		
-		
-		
-		
-		
-		class LogicBlockActivity$9 implements DialogInterface.OnClickListener {
+	
+	
+	class LogicBlockActivity$9 implements DialogInterface.OnClickListener {
 				// $FF: synthetic field
 				final LogicBlockActivity this$0;
 				
@@ -1474,60 +1421,8 @@ var0.dismissProgress();
 		
 		
 		
-		
-		class LogicBlockActivity$7 implements DialogInterface.OnShowListener {
-				// $FF: synthetic field
-				final LogicBlockActivity this$0;
-				// $FF: synthetic field
-				final EditText val$edInput;
-				// $FF: synthetic field
-				final RadioGroup val$rgType;
-				// $FF: synthetic field
-				final VariableNameValidator val$varNameValidator;
-				
-				LogicBlockActivity$7(LogicBlockActivity var1, RadioGroup var2, EditText var3, VariableNameValidator var4) {
-						this.this$0 = var1;
-						this.val$rgType = var2;
-						this.val$edInput = var3;
-						this.val$varNameValidator = var4;
-				}
-				
-				public void onShow(DialogInterface var1) {
-						LogicBlockActivity.access$800(this.this$0).getButton(-1).setOnClickListener(new LogicBlockActivity$7$1(this));
-				}
-		}
-		
-		
-		class LogicBlockActivity$7$1 implements OnClickListener {
-				// $FF: synthetic field
-				final LogicBlockActivity$7 this$1;
-				
-				LogicBlockActivity$7$1(LogicBlockActivity$7 var1) {
-						this.this$1 = var1;
-				}
-				
-				public void onClick(View var1) {
-						byte var2 = 1;
-						if(this.this$1.val$rgType.getCheckedRadioButtonId() == R.id.rb_boolean) {
-								var2 = 0;
-						} else if(this.this$1.val$rgType.getCheckedRadioButtonId() == R.id.rb_int) {
-								var2 = 1;
-						} else if(this.this$1.val$rgType.getCheckedRadioButtonId() == R.id.rb_string) {
-								var2 = 2;
-						}
-						
-						String var3 = this.this$1.val$edInput.getText().toString();
-						if(this.this$1.val$varNameValidator.isValid()) {
-								DesignDataManager.addVariable(LogicBlockActivity.filename, var2, var3);
-								this.this$1.this$0.onBlockCategorySelect(0, -1147626);
-								LogicBlockActivity.access$800(this.this$1.this$0).dismiss();
-						}
-				}
-		}
-		
-		
-		
-		
+	
+	
 		
 		private void showIconDelete(boolean z) {
 				if (!this.bInitIconDeleteAnimation) {

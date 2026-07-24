@@ -623,7 +623,7 @@ public final class UniversalM3Dialog {
 
                 if ("string".equals(row.type)) {
                     com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
-                    til.setHint("String (e.g. Saqib)");
+                    til.setHint("String (e.g. DragWeb)");
                     til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
                     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
                     lp.setMargins(dp(2), dp(2), dp(2), dp(2));
@@ -637,7 +637,7 @@ public final class UniversalM3Dialog {
                     row.etValue = etInput;
                 } else if ("number".equals(row.type)) {
                     com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
-                    til.setHint("Number (e.g. 20)");
+                    til.setHint("Number (e.g. 79)");
                     til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
                     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
                     lp.setMargins(dp(2), dp(2), dp(2), dp(2));
@@ -651,20 +651,33 @@ public final class UniversalM3Dialog {
                     rowLayout.addView(til);
                     row.etValue = etInput;
                 } else if ("boolean".equals(row.type)) {
-                    com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
-                    til.setHint("Boolean");
-                    til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+                    com.google.android.material.button.MaterialButtonToggleGroup toggleGroup = new com.google.android.material.button.MaterialButtonToggleGroup(context, null, com.google.android.material.R.attr.materialButtonToggleGroupStyle);
+                    toggleGroup.setSingleSelection(true);
+                    toggleGroup.setSelectionRequired(true);
                     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
                     lp.setMargins(dp(2), dp(2), dp(2), dp(2));
-                    til.setLayoutParams(lp);
+                    toggleGroup.setLayoutParams(lp);
 
-                    com.google.android.material.textfield.MaterialAutoCompleteTextView actv = new com.google.android.material.textfield.MaterialAutoCompleteTextView(til.getContext());
-                    actv.setTextSize(13);
-                    actv.setSimpleItems(new String[]{"true", "false"});
-                    actv.setText("true", false);
-                    til.addView(actv);
-                    rowLayout.addView(til);
-                    row.spBoolView = actv;
+                    boolean initialBool = true;
+                    if (row.etValue != null && row.etValue.getText() != null) {
+                        initialBool = "true".equals(row.etValue.getText().toString().trim());
+                    }
+                    com.google.android.material.button.MaterialButton btnTrue = new com.google.android.material.button.MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+                    btnTrue.setText("true");
+                    btnTrue.setTextSize(13);
+                    btnTrue.setId(View.generateViewId());
+                    btnTrue.setChecked(initialBool);
+                    toggleGroup.addView(btnTrue);
+
+                    com.google.android.material.button.MaterialButton btnFalse = new com.google.android.material.button.MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+                    btnFalse.setText("false");
+                    btnFalse.setTextSize(13);
+                    btnFalse.setId(View.generateViewId());
+                    btnFalse.setChecked(!initialBool);
+                    toggleGroup.addView(btnFalse);
+
+                    rowLayout.addView(toggleGroup);
+                    row.spBoolView = toggleGroup;
                 } else if ("object".equals(row.type)) {
                     final TextView tvObj = new TextView(context);
                     tvObj.setTextSize(13);
@@ -676,7 +689,7 @@ public final class UniversalM3Dialog {
                     tvObj.setTypeface(null, android.graphics.Typeface.BOLD);
 
                     String curVal = (row.etValue != null && row.etValue.getText() != null && !row.etValue.getText().toString().isEmpty()) 
-                                    ? row.etValue.getText().toString() : "{ name: \"Ali\", age: 20 }";
+                                    ? row.etValue.getText().toString() : "{ name: \"DragWeb\", number: 79 }";
                     tvObj.setText(curVal);
                     if (row.etValue == null) {
                         row.etValue = new EditText(context);
@@ -746,6 +759,8 @@ public final class UniversalM3Dialog {
                         row.etValue.setText(p.replaceAll("^[\"']|[\"']$", ""));
                     } else if ("true".equals(p) || "false".equals(p)) {
                         row.type = "boolean";
+                        row.etValue = new EditText(context);
+                        row.etValue.setText(p);
                     } else {
                         row.type = "number";
                         row.etValue = new EditText(context);
@@ -782,13 +797,20 @@ public final class UniversalM3Dialog {
                         String txt = r.etValue != null ? r.etValue.getText().toString() : "0";
                         sb.append(txt.isEmpty() ? "0" : txt);
                     } else if ("boolean".equals(r.type)) {
-                        String txt = "true";
-                        if (r.spBoolView instanceof android.widget.AutoCompleteTextView) {
-                            txt = ((android.widget.AutoCompleteTextView) r.spBoolView).getText().toString();
-                        } else if (r.spBool != null) {
-                            txt = r.spBool.getSelectedItem().toString();
+                    String txt = "true";
+                    if (r.spBoolView instanceof com.google.android.material.button.MaterialButtonToggleGroup) {
+                        com.google.android.material.button.MaterialButtonToggleGroup tg = (com.google.android.material.button.MaterialButtonToggleGroup) r.spBoolView;
+                        int checkedId = tg.getCheckedButtonId();
+                        if (checkedId != View.NO_ID) {
+                            com.google.android.material.button.MaterialButton btn = tg.findViewById(checkedId);
+                            txt = btn != null ? btn.getText().toString() : "true";
                         }
-                        sb.append(txt.isEmpty() ? "true" : txt);
+                    } else if (r.spBoolView instanceof android.widget.AutoCompleteTextView) {
+                        txt = ((android.widget.AutoCompleteTextView) r.spBoolView).getText().toString();
+                    } else if (r.spBool != null) {
+                        txt = r.spBool.getSelectedItem().toString();
+                    }
+                    sb.append(txt.isEmpty() ? "true" : txt);
                     } else if ("object".equals(r.type)) {
                         String txt = r.etValue != null ? r.etValue.getText().toString() : "{}";
                         sb.append(txt.isEmpty() ? "{}" : txt);

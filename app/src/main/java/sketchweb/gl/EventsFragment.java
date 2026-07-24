@@ -148,31 +148,88 @@ public class EventsFragment extends Fragment {
         }
 
         btnResetLogic.setOnClickListener(v -> {
-            List<String> files = getProjectFiles();
-            String[] items = files.toArray(new String[0]);
-            new MaterialAlertDialogBuilder(getContext())
-                .setTitle("Select stylesheet/script to reset")
-                .setItems(items, (dialog, which) -> {
-                    String selected = items[which];
-                    new MaterialAlertDialogBuilder(getContext())
-                        .setTitle("Reset Logic")
-                        .setMessage("Are you sure you want to delete all logic blocks for '" + selected + "'? This cannot be undone.")
-                        .setPositiveButton("Reset", (d, w) -> {
-                            String cleanName = DesignDataManager.getCleanPageName(selected);
-                            File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
-                                ".dragweb/projects/" + projectId + "/" + cleanName + "_logic.json");
-                            if (logicFile.exists()) {
-                                logicFile.delete();
-                            }
-                            DesignDataManager.mapBlocks.remove(cleanName);
-                            refreshLogicList();
-                            Toast.makeText(getContext(), "Logic reset successfully", Toast.LENGTH_SHORT).show();
-                        })
-                        .setNegativeButton("Cancel", null)
-                        .show();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+            if (currentTab == 3) {
+                final ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(projectId);
+                if (funcs == null || funcs.isEmpty()) {
+                    Toast.makeText(getContext(), "No functions to reset", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] funcNames = new String[funcs.size()];
+                for (int i = 0; i < funcs.size(); i++) {
+                    funcNames[i] = funcs.get(i).name != null ? funcs.get(i).name : funcs.get(i).spec;
+                }
+                new MaterialAlertDialogBuilder(getContext())
+                    .setTitle("Select function to reset")
+                    .setItems(funcNames, (dialog, which) -> {
+                        final DesignDataManager.MoreBlockData selectedMb = funcs.get(which);
+                        final String selectedName = selectedMb.name != null ? selectedMb.name : selectedMb.spec;
+                        new MaterialAlertDialogBuilder(getContext())
+                            .setTitle("Reset Function")
+                            .setMessage("Are you sure you want to delete all logic blocks for function '" + selectedName + "'?")
+                            .setPositiveButton("Reset", (d, w) -> {
+                                String linkedFile = selectedMb.linkedFile != null ? selectedMb.linkedFile : "js/script.js";
+                                String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
+                                File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+                                    ".dragweb/projects/" + projectId + "/" + cleanPage + "_logic.json");
+                                if (logicFile.exists()) {
+                                    try {
+                                        String json = FileUtil.readFile(logicFile.getAbsolutePath());
+                                        if (json != null && !json.trim().isEmpty()) {
+                                            DesignDataManager.PageLogicData data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
+                                            if (data != null && data.blocks != null) {
+                                                data.blocks.remove("func_" + selectedName);
+                                                data.blocks.remove(selectedName + "_moreBlock");
+                                                String updatedJson = new GsonBuilder().setPrettyPrinting().create().toJson(data);
+                                                FileUtil.writeFile(logicFile.getAbsolutePath(), updatedJson);
+                                            }
+                                        }
+                                    } catch (Exception e) {
+                                        Log.e("EventsFragment", "Error updating logic file", e);
+                                    }
+                                }
+                                if (DesignDataManager.mapBlocks != null) {
+                                    for (HashMap<String, ArrayList<BlockBean>> pageBlocks : DesignDataManager.mapBlocks.values()) {
+                                        if (pageBlocks != null) {
+                                            pageBlocks.remove("func_" + selectedName);
+                                            pageBlocks.remove(selectedName + "_moreBlock");
+                                        }
+                                    }
+                                }
+                                refreshLogicList();
+                                Toast.makeText(getContext(), "Function logic reset successfully", Toast.LENGTH_SHORT).show();
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            } else {
+                List<String> files = getProjectFiles();
+                String[] items = files.toArray(new String[0]);
+                new MaterialAlertDialogBuilder(getContext())
+                    .setTitle("Select stylesheet/script to reset")
+                    .setItems(items, (dialog, which) -> {
+                        String selected = items[which];
+                        new MaterialAlertDialogBuilder(getContext())
+                            .setTitle("Reset Logic")
+                            .setMessage("Are you sure you want to delete all logic blocks for '" + selected + "'? This cannot be undone.")
+                            .setPositiveButton("Reset", (d, w) -> {
+                                String cleanName = DesignDataManager.getCleanPageName(selected);
+                                File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+                                    ".dragweb/projects/" + projectId + "/" + cleanName + "_logic.json");
+                                if (logicFile.exists()) {
+                                    logicFile.delete();
+                                }
+                                DesignDataManager.mapBlocks.remove(cleanName);
+                                refreshLogicList();
+                                Toast.makeText(getContext(), "Logic reset successfully", Toast.LENGTH_SHORT).show();
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            }
         });
 
         if (btnImportCss != null) {
@@ -379,6 +436,32 @@ public class EventsFragment extends Fragment {
 
     private void showImportCodeDialog() {
         if (getContext() == null) return;
+
+        if (currentTab == 3) {
+            UniversalDialog.multilineInput(getContext(), "Import JS as MoreBlock", "Paste JS code here", "", codeText -> {
+                if (codeText.trim().isEmpty()) return;
+                HtmlCssImporter importer = new HtmlCssImporter(getContext());
+                ArrayList<BlockBean> importedBeans = importer.importJsToBeans(codeText);
+                if (importedBeans == null || importedBeans.isEmpty()) {
+                    Toast.makeText(getContext(), "No JS blocks could be parsed.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(projectId);
+                if (funcs == null || funcs.isEmpty()) {
+                    Toast.makeText(getContext(), "No existing functions to import into", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] names = new String[funcs.size()];
+                for (int i = 0; i < funcs.size(); i++) {
+                    names[i] = funcs.get(i).name != null ? funcs.get(i).name : funcs.get(i).spec;
+                }
+                UniversalDialog.singleChoice(getContext(), "Select Function", names, (idx3, selectedName) -> {
+                    saveImportedBlocksAsFunction(selectedName, importedBeans);
+                });
+            });
+            return;
+        }
+
         List<String> files = getProjectFiles();
         if (files.isEmpty()) return;
 
@@ -496,6 +579,79 @@ public class EventsFragment extends Fragment {
                 Toast.makeText(getContext(), "Successfully imported " + importedBeans.size() + " " + codeType + " blocks into " + target, Toast.LENGTH_LONG).show();
             });
         });
+    }
+
+    private void saveImportedBlocksAsFunction(String funcName, ArrayList<BlockBean> importedBeans) {
+        String funcKey = "func_" + funcName;
+        String linkedFile = "js/script.js";
+        String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
+        File extDir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+        if (!extDir.exists()) extDir.mkdirs();
+        File logicFile = new File(extDir, cleanPage + "_logic.json");
+
+        DesignDataManager.PageLogicData data = null;
+        if (logicFile.exists()) {
+            try {
+                String json = FileUtil.readFile(logicFile.getAbsolutePath());
+                if (json != null && !json.trim().isEmpty()) {
+                    data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
+                }
+            } catch (Exception e) {
+                Log.e("EventsFragment", "Error reading logic file", e);
+            }
+        }
+        if (data == null) {
+            data = new DesignDataManager.PageLogicData();
+        }
+
+        Map<Integer, Integer> idMapping = new HashMap<>();
+        int maxId = 0;
+        ArrayList<BlockBean> existing = data.blocks.get(funcKey);
+        if (existing != null) {
+            for (BlockBean b : existing) {
+                try { int idNum = Integer.parseInt(b.id); if (idNum > maxId) maxId = idNum; } catch (Exception ignored) {}
+            }
+        }
+        for (BlockBean bean : importedBeans) {
+            try {
+                int oldId = Integer.parseInt(bean.id);
+                maxId++;
+                idMapping.put(oldId, maxId);
+                bean.id = String.valueOf(maxId);
+            } catch (Exception e) {
+                maxId++;
+                bean.id = String.valueOf(maxId);
+            }
+        }
+        for (BlockBean bean : importedBeans) {
+            if (bean.subStack1 >= 0 && idMapping.containsKey(bean.subStack1)) bean.subStack1 = idMapping.get(bean.subStack1);
+            else if (bean.subStack1 >= 0 && !idMapping.containsValue(bean.subStack1)) bean.subStack1 = -1;
+            if (bean.subStack2 >= 0 && idMapping.containsKey(bean.subStack2)) bean.subStack2 = idMapping.get(bean.subStack2);
+            else if (bean.subStack2 >= 0 && !idMapping.containsValue(bean.subStack2)) bean.subStack2 = -1;
+            if (bean.nextBlock >= 0 && idMapping.containsKey(bean.nextBlock)) bean.nextBlock = idMapping.get(bean.nextBlock);
+            else if (bean.nextBlock >= 0 && !idMapping.containsValue(bean.nextBlock)) bean.nextBlock = -1;
+        }
+
+        ArrayList<BlockBean> funcBlocks = new ArrayList<>();
+        int si = 0;
+        for (BlockBean bean : importedBeans) {
+            bean.stackIndex = si++;
+            funcBlocks.add(bean);
+        }
+        data.blocks.put(funcKey, funcBlocks);
+
+        String updatedJson = new GsonBuilder().setPrettyPrinting().create().toJson(data);
+        FileUtil.writeFile(logicFile.getAbsolutePath(), updatedJson);
+
+        HashMap<String, ArrayList<BlockBean>> pageBlocks = DesignDataManager.mapBlocks.get(cleanPage);
+        if (pageBlocks == null) {
+            pageBlocks = new HashMap<>();
+            DesignDataManager.mapBlocks.put(cleanPage, pageBlocks);
+        }
+        pageBlocks.put(funcKey, funcBlocks);
+
+        refreshLogicList();
+        Toast.makeText(getContext(), "Imported " + importedBeans.size() + " blocks into function: " + funcName, Toast.LENGTH_LONG).show();
     }
 
     class CssFilesAdapter extends RecyclerView.Adapter<CssFilesAdapter.ViewHolder> {
