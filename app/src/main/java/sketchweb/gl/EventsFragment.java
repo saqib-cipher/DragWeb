@@ -10,6 +10,8 @@ import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
+import androidx.viewpager2.widget.ViewPager2;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,6 +19,9 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.cardview.widget.CardView;
+import com.google.android.material.listitem.ListItemCardView;
+import com.google.android.material.listitem.ListItemViewHolder;
 import androidx.fragment.app.Fragment;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -204,7 +209,7 @@ public class EventsFragment extends Fragment {
                 item.tag = "FUNC";
                 item.targetPath = f.linkedFile;
                 item.funcName = f.name;
-                item.blockCount = getBlockCountForCss(f.linkedFile);
+                item.blockCount = getBlockCountForMoreBlock(f.linkedFile, f.name);
                 items.add(item);
             }
         } else {
@@ -306,22 +311,43 @@ public class EventsFragment extends Fragment {
 
     private int getBlockCountForMoreBlock(String linkedFile, String funcName) {
         if (getContext() == null || funcName == null || funcName.isEmpty()) return 0;
-        String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
-        File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
-            ".dragweb/projects/" + projectId + "/" + cleanPage + "_logic.json");
-        if (logicFile.exists()) {
-            try {
-                String json = FileUtil.readFile(logicFile.getAbsolutePath());
-                if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
-                    DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(json, linkedFile);
-                    if (data != null && data.blocks != null) {
-                        String funcKey = "func_" + funcName;
-                        if (data.blocks.containsKey(funcKey) && data.blocks.get(funcKey) != null) {
-                            return data.blocks.get(funcKey).size();
-                        }
+        
+        String funcKey1 = "func_" + funcName;
+        String funcKey2 = funcName + "_moreBlock";
+        
+        if (DesignDataManager.mapBlocks != null) {
+            for (HashMap<String, ArrayList<BlockBean>> map : DesignDataManager.mapBlocks.values()) {
+                if (map != null) {
+                    if (map.containsKey(funcKey1) && map.get(funcKey1) != null) {
+                        return map.get(funcKey1).size();
+                    } else if (map.containsKey(funcKey2) && map.get(funcKey2) != null) {
+                        return map.get(funcKey2).size();
                     }
                 }
-            } catch (Exception ignored) {}
+            }
+        }
+
+        String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
+        String[] pagesToCheck = new String[]{cleanPage, "script", "js_script", "index"};
+        for (String pKey : pagesToCheck) {
+            File logicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+                ".dragweb/projects/" + projectId + "/" + pKey + "_logic.json");
+            if (logicFile.exists()) {
+                try {
+                    String json = FileUtil.readFile(logicFile.getAbsolutePath());
+                    if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
+                        DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(json, pKey);
+                        if (data != null && data.blocks != null) {
+                            if (data.blocks.containsKey(funcKey1) && data.blocks.get(funcKey1) != null) {
+                                return data.blocks.get(funcKey1).size();
+                            }
+                            if (data.blocks.containsKey(funcKey2) && data.blocks.get(funcKey2) != null) {
+                                return data.blocks.get(funcKey2).size();
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
         }
         return 0;
     }
@@ -479,10 +505,11 @@ public class EventsFragment extends Fragment {
             this.items = items;
         }
 
-        class ViewHolder extends RecyclerView.ViewHolder {
+        class ViewHolder extends ListItemViewHolder {
             TextView tvPageName, tvLinkedStyleName, tvPreview, tvBlocksCount;
-            View cardView, actionContainer;
-            View btnEditItem, btnDeleteItem;
+            View actionContainer;
+            ListItemCardView cardView;
+            Button btnDeleteItem;
 
             ViewHolder(View view) {
                 super(view);
@@ -492,7 +519,6 @@ public class EventsFragment extends Fragment {
                 tvBlocksCount = view.findViewById(R.id.blockscount);
                 cardView = view.findViewById(R.id.cardView);
                 actionContainer = view.findViewById(R.id.action_container);
-                btnEditItem = view.findViewById(R.id.btn_edit_item);
                 btnDeleteItem = view.findViewById(R.id.btn_delete_item);
             }
         }
@@ -507,6 +533,7 @@ public class EventsFragment extends Fragment {
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             EventListItem item = items.get(position);
+            holder.bind(position, items.size());
             holder.tvPageName.setText(item.title);
             holder.tvLinkedStyleName.setText(item.subtitle);
 
@@ -528,44 +555,59 @@ public class EventsFragment extends Fragment {
                 holder.tvPreview.setText(item.tag);
             }
 
-            if (holder.cardView != null) {
-                if (holder.cardView instanceof com.google.android.material.card.MaterialCardView) {
-                    com.google.android.material.card.MaterialCardView mcv = (com.google.android.material.card.MaterialCardView) holder.cardView;
-                    mcv.setStrokeWidth(0);
-                    mcv.setCardElevation(0);
-                }
-            }
-
             ViewGroup.LayoutParams layoutParams = holder.itemView.getLayoutParams();
             if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
                 ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) layoutParams;
                 int marginHorizontal = dp(16);
-                int marginTop = (position == 0) ? dp(12) : dp(6);
-                int marginBottom = (position == items.size() - 1) ? dp(12) : dp(6);
+                int marginTop = (position == 0) ? dp(8) : dp(1);
+                int marginBottom = (position == items.size() - 1) ? dp(8) : dp(1);
                 lp.setMargins(marginHorizontal, marginTop, marginHorizontal, marginBottom);
                 holder.itemView.setLayoutParams(lp);
             }
 
-            holder.itemView.setOnClickListener(v -> openLogicEditor(item));
+            View.OnTouchListener swipeTouchListener = (v, event) -> {
+                int action = event.getAction();
+                if (action == android.view.MotionEvent.ACTION_DOWN || action == android.view.MotionEvent.ACTION_MOVE) {
+                    disallowAllParentsIntercept(v, true);
+                } else if (action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) {
+                    disallowAllParentsIntercept(v, false);
+                }
+                return false;
+            };
 
-            if (holder.btnEditItem != null) {
-                holder.btnEditItem.setOnClickListener(v -> openLogicEditor(item));
+            holder.itemView.setOnTouchListener(swipeTouchListener);
+            if (holder.cardView != null) {
+                holder.cardView.setOnTouchListener(swipeTouchListener);
+            }
+
+            android.view.View.OnClickListener clickListener = v -> openLogicEditor(item);
+            holder.itemView.setOnClickListener(clickListener);
+            if (holder.cardView != null) {
+                holder.cardView.setOnClickListener(clickListener);
             }
 
             if (holder.btnDeleteItem != null) {
                 holder.btnDeleteItem.setOnClickListener(v -> {
                     if (item.isFunction) {
-                        new MaterialAlertDialogBuilder(getContext())
-                            .setTitle("Delete MoreBlock")
-                            .setMessage("Are you sure you want to delete MoreBlock '" + item.title + "'?")
-                            .setPositiveButton("Delete", (d, w) -> {
-                                String targetFunc = item.funcName != null ? item.funcName : item.title;
-                                DesignDataManager.deleteProjectMoreBlock(projectId, targetFunc, item.targetPath);
-                                refreshLogicList();
-                                Toast.makeText(getContext(), "Deleted MoreBlock: " + item.title, Toast.LENGTH_SHORT).show();
-                            })
-                            .setNegativeButton("Cancel", null)
-                            .show();
+                        String targetFunc = item.funcName != null ? item.funcName : item.title;
+                        if (DesignDataManager.isMoreBlockUsedInProject(targetFunc, targetFunc)) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                .setTitle("Cannot Delete")
+                                .setMessage("MoreBlock '" + item.title + "' is already in use by one or more JS events. Remove all references before deleting.")
+                                .setPositiveButton("OK", null)
+                                .show();
+                        } else {
+                            new MaterialAlertDialogBuilder(getContext())
+                                .setTitle("Delete MoreBlock")
+                                .setMessage("Are you sure you want to delete MoreBlock '" + item.title + "'?")
+                                .setPositiveButton("Delete", (d, w) -> {
+                                    DesignDataManager.deleteProjectMoreBlock(projectId, targetFunc, item.targetPath);
+                                    refreshLogicList();
+                                    Toast.makeText(getContext(), "Deleted MoreBlock: " + item.title, Toast.LENGTH_SHORT).show();
+                                })
+                                .setNegativeButton("Cancel", null)
+                                .show();
+                        }
                     } else {
                         new MaterialAlertDialogBuilder(getContext())
                             .setTitle("Reset Logic")
@@ -609,6 +651,23 @@ public class EventsFragment extends Fragment {
         @Override
         public int getItemCount() {
             return items.size();
+        }
+    }
+
+    private void disallowAllParentsIntercept(View v, boolean disallow) {
+        if (v == null) return;
+        ViewParent p = v.getParent();
+        while (p != null) {
+            if (!(p instanceof com.google.android.material.listitem.ListItemLayout)) {
+                p.requestDisallowInterceptTouchEvent(disallow);
+            }
+            p = p.getParent();
+        }
+        if (getActivity() instanceof MainActivity) {
+            ViewPager2 vp = ((MainActivity) getActivity()).getViewPager();
+            if (vp != null) {
+                vp.setUserInputEnabled(!disallow);
+            }
         }
     }
 

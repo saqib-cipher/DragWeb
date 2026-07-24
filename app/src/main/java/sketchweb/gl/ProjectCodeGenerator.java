@@ -70,11 +70,206 @@ public class ProjectCodeGenerator {
         }
     }
 
+    public static String getMoreBlockCode(String funcName, String spec, String innerCode) {
+        ArrayList<String> paramNames = new ArrayList<>();
+        if (spec != null && !spec.isEmpty()) {
+            ArrayList<String> tokens = StringUtil.tokenize(spec);
+            for (String tok : tokens) {
+                if (tok.startsWith("%")) {
+                    String pName = tok;
+                    if (tok.startsWith("%b.") || tok.startsWith("%d.") || tok.startsWith("%s.")) {
+                        pName = tok.substring(3);
+                    } else if (tok.startsWith("%m.list.") || tok.startsWith("%m.selector.")) {
+                        pName = tok.substring(tok.lastIndexOf('.') + 1);
+                    } else if (tok.length() > 2) {
+                        pName = tok.substring(2);
+                    } else if (tok.length() > 1) {
+                        pName = tok.substring(1);
+                    }
+                    if (pName.contains(".")) {
+                        pName = pName.substring(0, pName.indexOf('.'));
+                    }
+                    pName = pName.trim();
+                    if (pName.isEmpty() || pName.equals("s") || pName.equals("b") || pName.equals("d")) {
+                        pName = "param" + (paramNames.size() + 1);
+                    }
+                    paramNames.add(pName);
+                }
+            }
+        }
+
+        StringBuilder paramsSb = new StringBuilder();
+        for (int i = 0; i < paramNames.size(); i++) {
+            if (i > 0) paramsSb.append(", ");
+            paramsSb.append(paramNames.get(i));
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("function ").append(funcName).append("(").append(paramsSb.toString()).append(") {\n");
+        if (innerCode != null && !innerCode.trim().isEmpty()) {
+            for (String line : innerCode.split("\n")) {
+                if (!line.trim().isEmpty()) {
+                    sb.append("  ").append(line).append("\n");
+                }
+            }
+        }
+        sb.append("}\n\n");
+        return sb.toString();
+    }
+
+    private static ArrayList<BlockBean> getMoreBlockBeans(String projectId, String funcName) {
+        String funcKey1 = "func_" + funcName;
+        String funcKey2 = funcName + "_moreBlock";
+        if (DesignDataManager.mapBlocks != null) {
+            for (HashMap<String, ArrayList<BlockBean>> map : DesignDataManager.mapBlocks.values()) {
+                if (map != null) {
+                    if (map.containsKey(funcKey1) && map.get(funcKey1) != null && !map.get(funcKey1).isEmpty()) {
+                        return map.get(funcKey1);
+                    } else if (map.containsKey(funcKey2) && map.get(funcKey2) != null && !map.get(funcKey2).isEmpty()) {
+                        return map.get(funcKey2);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean isOrContainsDefinedFunc(ArrayList<BlockBean> blocks) {
+        if (blocks == null || blocks.isEmpty()) return false;
+        for (BlockBean b : blocks) {
+            if (b != null && "definedFunc".equals(b.opCode)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static ArrayList<String> addMoreBlockCodes(Context context, String projectId, BlockCodeCompiler compiler) {
+        ArrayList<String> moreBlocks = new ArrayList<>();
+        java.util.Set<String> compiledFuncs = new java.util.HashSet<>();
+
+        ArrayList<DesignDataManager.MoreBlockData> allFuncs = DesignDataManager.getProjectMoreBlocks(projectId);
+        if (allFuncs != null) {
+            for (DesignDataManager.MoreBlockData mb : allFuncs) {
+                if (mb == null || mb.name == null || mb.name.isEmpty() || compiledFuncs.contains(mb.name)) continue;
+                compiledFuncs.add(mb.name);
+
+                ArrayList<BlockBean> funcBlocks = getMoreBlockBeans(projectId, mb.name);
+                ArrayList<BlockBean> bodyBlocks = new ArrayList<>();
+                if (funcBlocks != null) {
+                    for (BlockBean b : funcBlocks) {
+                        if (b != null && !"definedFunc".equals(b.opCode)) {
+                            bodyBlocks.add(b);
+                        }
+                    }
+                }
+                String innerCode = bodyBlocks.isEmpty() ? "" : compiler.getSource(0, bodyBlocks);
+                moreBlocks.add(getMoreBlockCode(mb.name, mb.spec != null ? mb.spec : mb.name, innerCode));
+            }
+        }
+
+        if (DesignDataManager.mapBlocks != null) {
+            for (HashMap<String, ArrayList<BlockBean>> map : DesignDataManager.mapBlocks.values()) {
+                if (map != null) {
+                    for (Map.Entry<String, ArrayList<BlockBean>> entry : map.entrySet()) {
+                        String key = entry.getKey();
+                        ArrayList<BlockBean> list = entry.getValue();
+                        String fName = null;
+                        String spec = null;
+
+                        if (key != null && key.startsWith("func_")) {
+                            fName = key.substring(5);
+                        } else if (key != null && key.endsWith("_moreBlock")) {
+                            fName = key.substring(0, key.indexOf("_moreBlock"));
+                        }
+
+                        if (list != null) {
+                            for (BlockBean b : list) {
+                                if (b != null && "definedFunc".equals(b.opCode)) {
+                                    spec = b.spec != null ? b.spec : b.opCode;
+                                    if (fName == null || fName.isEmpty()) {
+                                        fName = spec;
+                                        if (spec != null && spec.contains(" ")) {
+                                            fName = spec.substring(0, spec.indexOf(' '));
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (fName != null) {
+                            fName = fName.trim();
+                        }
+                        if (fName != null && !fName.isEmpty() && !compiledFuncs.contains(fName)) {
+                            compiledFuncs.add(fName);
+                            ArrayList<BlockBean> bodyBlocks = new ArrayList<>();
+                            if (list != null) {
+                                for (BlockBean b : list) {
+                                    if (b != null && !"definedFunc".equals(b.opCode)) {
+                                        bodyBlocks.add(b);
+                                    }
+                                }
+                            }
+                            String innerCode = bodyBlocks.isEmpty() ? "" : compiler.getSource(0, bodyBlocks);
+                            moreBlocks.add(getMoreBlockCode(fName, spec != null ? spec : fName, innerCode));
+                        }
+                    }
+                }
+            }
+        }
+
+        return moreBlocks;
+    }
+
+    private static void emitFunctionDefinition(StringBuilder sb, java.util.Set<String> compiledFuncs, BlockCodeCompiler compiler, String funcName, String spec) {
+        if (funcName == null || funcName.trim().isEmpty() || compiledFuncs.contains(funcName)) return;
+        ArrayList<BlockBean> funcBlocks = getMoreBlockBeans(null, funcName);
+        ArrayList<BlockBean> bodyBlocks = new ArrayList<>();
+        if (funcBlocks != null) {
+            for (BlockBean b : funcBlocks) {
+                if (b != null && !"definedFunc".equals(b.opCode)) {
+                    bodyBlocks.add(b);
+                }
+            }
+        }
+        String innerCode = bodyBlocks.isEmpty() ? "" : compiler.getSource(0, bodyBlocks);
+        sb.append(getMoreBlockCode(funcName, spec, innerCode));
+        compiledFuncs.add(funcName);
+    }
+
     public static String compileJsForFile(Context context, String projectId, String cleanPage) {
         BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
         StringBuilder sb = new StringBuilder();
 
-        // Collect blocks from the current page AND the global JS script page
+        // Load all logic files in the project directory so mapBlocks is fully populated
+        File projDir = new File(Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+        if (projDir.exists() && projDir.isDirectory()) {
+            File[] files = projDir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.getName().endsWith("_logic.json")) {
+                        String pageKey = f.getName().replace("_logic.json", "");
+                        DesignDataManager.loadSavedLogic(context, projectId, pageKey);
+                    }
+                }
+            }
+        }
+        DesignDataManager.loadSavedLogic(context, projectId, cleanPage);
+        DesignDataManager.loadSavedLogic(context, projectId, "script");
+        DesignDataManager.loadSavedLogic(context, projectId, "index");
+
+        java.util.Set<String> compiledFuncs = new java.util.HashSet<>();
+
+        // 1. Emit all registered MoreBlock functions
+        ArrayList<String> mbCodes = addMoreBlockCodes(context, projectId, compiler);
+        for (String mbCode : mbCodes) {
+            if (mbCode != null && !mbCode.trim().isEmpty()) {
+                sb.append(mbCode);
+            }
+        }
+
+        // 2. Collect event blocks from current page AND global JS script page
         String jsPage = DesignDataManager.getCleanPageName("js/script.js");
         String[] pagesToCompile = (jsPage.equals(cleanPage)) 
             ? new String[]{cleanPage} 
@@ -85,73 +280,14 @@ public class ProjectCodeGenerator {
             HashMap<String, ArrayList<BlockBean>> blocksMap = DesignDataManager.mapBlocks.get(pageKey);
             if (blocksMap == null || blocksMap.isEmpty()) continue;
 
-            // 1. Compile MoreBlock function definitions
             for (Map.Entry<String, ArrayList<BlockBean>> entry : blocksMap.entrySet()) {
                 String key = entry.getKey();
-                if (key.startsWith("func_") || key.contains("moreBlock")) {
-                    String funcName = key;
-                    if (key.endsWith("_moreBlock")) {
-                        funcName = key.substring(0, key.indexOf("_moreBlock"));
-                    } else if (key.startsWith("func_")) {
-                        funcName = key.substring(5);
-                    }
+                if (key.startsWith("func_") || key.contains("moreBlock")) continue;
+                if (isOrContainsDefinedFunc(entry.getValue())) continue;
 
-                    String spec = "Define " + funcName;
-                    ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(projectId);
-                    if (funcs != null) {
-                        for (DesignDataManager.MoreBlockData mb : funcs) {
-                            if (mb.name.equals(funcName)) {
-                                spec = mb.spec != null ? mb.spec : mb.name;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    ArrayList<String> paramNames = new ArrayList<>();
-                    ArrayList<String> tokens = StringUtil.tokenize(spec);
-                    for (String tok : tokens) {
-                        if (tok.startsWith("%")) {
-                            String pName = tok;
-                            if (tok.startsWith("%b.") || tok.startsWith("%d.") || tok.startsWith("%s.")) {
-                                pName = tok.substring(3);
-                            } else if (tok.length() > 2) {
-                                pName = tok.substring(2);
-                            }
-                            if (pName.contains(".")) {
-                                pName = pName.substring(0, pName.indexOf('.'));
-                            }
-                            paramNames.add(pName);
-                        }
-                    }
-                    StringBuilder paramsSb = new StringBuilder();
-                    for (int i = 0; i < paramNames.size(); i++) {
-                        if (i > 0) paramsSb.append(", ");
-                        paramsSb.append(paramNames.get(i));
-                    }
-
-                    String bodyCode = compiler.getSource(0, entry.getValue());
-                    if (bodyCode != null && !bodyCode.trim().isEmpty()) {
-                        if (bodyCode.startsWith("function ")) {
-                            sb.append(bodyCode).append("\n\n");
-                        } else {
-                            sb.append("function ").append(funcName).append("(").append(paramsSb.toString()).append(") {\n");
-                            for (String line : bodyCode.split("\n")) {
-                                sb.append("  ").append(line).append("\n");
-                            }
-                            sb.append("}\n\n");
-                        }
-                    }
-                }
-            }
-
-            // 2. Compile event statement blocks
-            for (Map.Entry<String, ArrayList<BlockBean>> entry : blocksMap.entrySet()) {
-                String key = entry.getKey();
-                if (!key.startsWith("func_") && !key.contains("moreBlock")) {
-                    String code = compiler.getSource(0, entry.getValue());
-                    if (code != null && !code.trim().isEmpty()) {
-                        sb.append(code).append("\n\n");
-                    }
+                String code = compiler.getSource(0, entry.getValue());
+                if (code != null && !code.trim().isEmpty()) {
+                    sb.append(code).append("\n\n");
                 }
             }
         }

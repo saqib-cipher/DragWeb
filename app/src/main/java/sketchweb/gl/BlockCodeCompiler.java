@@ -40,7 +40,10 @@ public class BlockCodeCompiler {
         }
 
         StringBuilder sb = new StringBuilder();
-        if (definedFuncBlock != null) {
+        // Only compile as a function definition if type == 1 (Function Definition Mode)
+        // Otherwise (type == 0, Event/Main JS mode), MoreBlock calls generate function call statements.
+        boolean isFuncDef = (type == 1) && definedFuncBlock != null;
+        if (isFuncDef) {
             // Compile as a function definition!
             String spec = definedFuncBlock.spec != null ? definedFuncBlock.spec : "";
             ArrayList<String> paramNames = new ArrayList<>();
@@ -74,13 +77,26 @@ public class BlockCodeCompiler {
             
             sb.append("function ").append(funcName).append("(").append(paramsSb.toString()).append(") {\n");
             
-            // Compile the body (which is the nextBlock of definedFuncBlock)
-            if (definedFuncBlock.nextBlock >= 0) {
-                BlockBean bodyStart = findBlockById(String.valueOf(definedFuncBlock.nextBlock), blocks);
+            // Compile the body (attached via subStack1 or nextBlock, or remaining root blocks)
+            int bodyId = definedFuncBlock.subStack1 >= 0 ? definedFuncBlock.subStack1 : definedFuncBlock.nextBlock;
+            boolean compiledBody = false;
+            if (bodyId >= 0) {
+                BlockBean bodyStart = findBlockById(String.valueOf(bodyId), blocks);
                 if (bodyStart != null) {
                     String bodyCode = compileBlockAndNext(bodyStart, blocks, 1);
                     if (!bodyCode.trim().isEmpty()) {
                         sb.append(bodyCode).append("\n");
+                        compiledBody = true;
+                    }
+                }
+            }
+            if (!compiledBody) {
+                for (BlockBean root : rootBlocks) {
+                    if (root != definedFuncBlock) {
+                        String bodyCode = compileBlockAndNext(root, blocks, 1);
+                        if (!bodyCode.trim().isEmpty()) {
+                            sb.append(bodyCode).append("\n");
+                        }
                     }
                 }
             }
@@ -221,19 +237,26 @@ public class BlockCodeCompiler {
                 String varName = (block.parameters != null && !block.parameters.isEmpty()) ? block.parameters.get(0) : "";
                 if (varName != null && !varName.trim().isEmpty()) {
                     String cleanVar = varName.trim();
-                    if (!declaredVars.contains(cleanVar)) {
-                        declaredVars.add(cleanVar);
-                        boolean isConst = false;
-                        ArrayList<android.util.Pair<Integer, String>> vars = DesignDataManager.getVariables(LogicBlockActivity.filename);
+                    boolean isConst = false;
+                    ArrayList<android.util.Pair<Integer, String>> vars = DesignDataManager.getVariables(LogicBlockActivity.filename);
+                    if (vars != null) {
                         for (android.util.Pair<Integer, String> p : vars) {
-                            if (p.second.equals(cleanVar) && p.first >= 4) {
+                            if (p != null && cleanVar.equals(p.second) && p.first != null && p.first >= 4) {
                                 isConst = true;
                                 break;
                             }
                         }
+                    }
+
+                    if (!declaredVars.contains(cleanVar)) {
+                        declaredVars.add(cleanVar);
                         codeTemplate = isConst ? "const %1$s = %2$s;\n" : "let %1$s = %2$s;\n";
                     } else {
-                        codeTemplate = "%1$s = %2$s;\n";
+                        if (isConst) {
+                            codeTemplate = "/* const %1$s is read-only */ %1$s = %2$s;\n";
+                        } else {
+                            codeTemplate = "%1$s = %2$s;\n";
+                        }
                     }
                 } else {
                     codeTemplate = "%1$s = %2$s;\n";
@@ -243,11 +266,7 @@ public class BlockCodeCompiler {
             } else if (block.opCode != null && block.opCode.equals("decreaseInt")) {
                 codeTemplate = "%1$s -= %2$s;\n";
             } else if ("definedFunc".equals(block.opCode) || (block.spec != null && !block.spec.trim().isEmpty() && !block.opCode.startsWith("get") && !block.opCode.startsWith("set"))) {
-                if (!isChildOfAny(block, allBlocks)) {
-                    return "";
-                } else {
-                    return compileMoreBlockCall(block, allBlocks, indentLevel);
-                }
+                return compileMoreBlockCall(block, allBlocks, indentLevel);
             } else {
                 return "";
             }
@@ -272,6 +291,23 @@ public class BlockCodeCompiler {
                 }
             } else {
                 compiledParams.add(param);
+            }
+        }
+
+        // If parameter 1 (the value socket) is empty for a setVar block, supply a clean default value
+        if (block.opCode != null && (block.opCode.equals("setVarBoolean") || block.opCode.equals("setVarInt") || block.opCode.equals("setVarString") || block.opCode.startsWith("setVar"))) {
+            String val = (compiledParams.size() > 1 && compiledParams.get(1) != null) ? compiledParams.get(1).toString().trim() : "";
+            if (val.isEmpty()) {
+                String defaultVal = "0";
+                if (block.opCode.equals("setVarBoolean")) defaultVal = "false";
+                else if (block.opCode.equals("setVarString")) defaultVal = "\"\"";
+                else if (block.opCode.equals("setVarInt")) defaultVal = "0";
+
+                if (compiledParams.size() < 2) {
+                    compiledParams.add(defaultVal);
+                } else {
+                    compiledParams.set(1, defaultVal);
+                }
             }
         }
 

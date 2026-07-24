@@ -74,6 +74,11 @@ public class ExportManager {
             BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
+                String key = entry.getKey();
+                // Skip function definition entries — they are emitted by addMoreBlockCodes
+                if (categoryPrefix == null && (key != null && (key.startsWith("func_") || key.contains("moreBlock")))) {
+                    continue;
+                }
                 ArrayList<BlockBean> filtered = entry.getValue();
                 if (categoryPrefix != null) {
                     filtered = new ArrayList<>();
@@ -139,6 +144,20 @@ public class ExportManager {
             allPages.add("index");
         }
         String currentPageName = pageManager.getCurrentPage();
+
+        // Load all project logic files into mapBlocks so addMoreBlockCodes can find function definitions
+        File projDir = new File(Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
+        if (projDir.exists() && projDir.isDirectory()) {
+            File[] files = projDir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.getName().endsWith("_logic.json")) {
+                        String pageKey = f.getName().replace("_logic.json", "");
+                        DesignDataManager.loadSavedLogic(context, projectId, pageKey);
+                    }
+                }
+            }
+        }
 
         Map<String, String> pageHtmlMap = new HashMap<>();
         StringBuilder accumulatedCssBuffer = new StringBuilder();
@@ -262,6 +281,21 @@ public class ExportManager {
                 if (asdJs != null && !asdJs.trim().isEmpty()) {
                     accumulatedJsBuffer.append(asdJs).append("\n");
                 }
+            }
+        }
+
+        // MoreBlock function definitions (from ALL project pages, not just current)
+        {
+            BlockCodeCompiler funcCompiler = new BlockCodeCompiler(context, projectId);
+            ArrayList<String> funcDefs = ProjectCodeGenerator.addMoreBlockCodes(context, projectId, funcCompiler);
+            StringBuilder funcSb = new StringBuilder();
+            for (String def : funcDefs) {
+                if (def != null && !def.trim().isEmpty()) {
+                    funcSb.append(def).append("\n");
+                }
+            }
+            if (funcSb.length() > 0) {
+                accumulatedJsBuffer.insert(0, funcSb.toString() + "\n");
             }
         }
 

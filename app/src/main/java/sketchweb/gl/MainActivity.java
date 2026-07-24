@@ -140,6 +140,10 @@ public class MainActivity extends AppCompatActivity {
 		return mainEditorFragment;
 	}
 
+	public ViewPager2 getViewPager() {
+		return viewPager;
+	}
+
 	public void useFileAsImageSource(File file) {
 		if (mainEditorFragment != null) {
 			mainEditorFragment.useFileAsImageSource(file);

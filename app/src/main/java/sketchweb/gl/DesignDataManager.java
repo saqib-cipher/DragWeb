@@ -97,6 +97,37 @@ public class DesignDataManager {
         saveSavedLogic(null, projectId, data.linkedFile);
     }
 
+    public static boolean isMoreBlockUsedInProject(String funcName, String spec) {
+        if (funcName == null || funcName.trim().isEmpty()) return false;
+        String targetName = funcName.trim();
+        String targetSpec = spec != null ? spec.trim() : targetName;
+
+        if (mapBlocks != null) {
+            for (HashMap<String, ArrayList<BlockBean>> pageBlocks : mapBlocks.values()) {
+                if (pageBlocks != null) {
+                    for (Map.Entry<String, ArrayList<BlockBean>> entry : pageBlocks.entrySet()) {
+                        String k = entry.getKey();
+                        if (k.equals("func_" + targetName) || k.equals(targetName + "_moreBlock") || k.endsWith("_" + targetName)) {
+                            continue;
+                        }
+                        ArrayList<BlockBean> list = entry.getValue();
+                        if (list != null) {
+                            for (BlockBean bean : list) {
+                                if (bean != null && "definedFunc".equals(bean.opCode)) {
+                                    String bSpec = bean.spec != null ? bean.spec.trim() : "";
+                                    if (targetName.equals(bSpec) || targetSpec.equals(bSpec) || bSpec.startsWith(targetName + " ")) {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     public static void deleteProjectMoreBlock(String projectId, String funcName, String linkedFile) {
         if (projectId == null || projectId.isEmpty()) return;
         ArrayList<MoreBlockData> list = getProjectMoreBlocks(projectId);
@@ -137,6 +168,17 @@ public class DesignDataManager {
                 }
             }
         }
+
+        if (mapBlocks != null) {
+            for (HashMap<String, ArrayList<BlockBean>> pageBlocks : mapBlocks.values()) {
+                if (pageBlocks != null) {
+                    pageBlocks.remove("func_" + funcKey);
+                    pageBlocks.remove(funcKey + "_moreBlock");
+                }
+            }
+        }
+
+        saveSavedLogic(null, projectId, linkedFile);
     }
 
     public static class ProjectListData {

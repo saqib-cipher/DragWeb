@@ -177,6 +177,18 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 		
 		private void addFunctions() {
+				LinearLayout builder = (LinearLayout) this.paletteBlock.findViewById(R.id.block_builder);
+				if (builder != null) {
+						for (int i = builder.getChildCount() - 1; i >= 0; i--) {
+								View child = builder.getChildAt(i);
+								if (child instanceof Block) {
+										Block b = (Block) child;
+										if ("definedFunc".equals(b.mOpCode)) {
+												builder.removeViewAt(i);
+										}
+								}
+						}
+				}
 				ArrayList<DesignDataManager.MoreBlockData> storedBlocks = DesignDataManager.getProjectMoreBlocks(this.projectId);
 				if (storedBlocks != null && !storedBlocks.isEmpty()) {
 						for (DesignDataManager.MoreBlockData mb : storedBlocks) {
@@ -1812,7 +1824,6 @@ startActivityForResult(intent, 209);
 						addLists(selectedCat.color);
 				} else if (selectedCat.type == 4) {
 						addButtonToPalette(getString(R.string.logic_btn_make_block), "blockAdd");
-						addButtonToPalette("Remove Block", "blockRemove");
 						addFunctions();
 				} else if (selectedCat.type == 2) {
 						for (BlockDef def : BlockDef.getDefinitions(this.context)) {
@@ -2032,7 +2043,9 @@ startActivityForResult(intent, 209);
 						for (int i = 0; i < this.pane.getChildCount(); i++) {
 								View child = this.pane.getChildAt(i);
 								if (child instanceof Block) {
-										if (isBlockUsingFunction((Block) child, targetName, targetSpec)) {
+										Block b = (Block) child;
+										if (b == this.pane.getRoot()) continue;
+										if (isBlockUsingFunction(b, targetName, targetSpec)) {
 												return true;
 										}
 								}
@@ -2043,14 +2056,16 @@ startActivityForResult(intent, 209);
 						for (HashMap<String, ArrayList<BlockBean>> pageBlocks : DesignDataManager.mapBlocks.values()) {
 								if (pageBlocks != null) {
 										for (Map.Entry<String, ArrayList<BlockBean>> entry : pageBlocks.entrySet()) {
-												if (entry.getKey().equals("func_" + targetName)) {
+												String k = entry.getKey();
+												if (k.equals("func_" + targetName) || k.equals(targetName + "_moreBlock") || k.endsWith("_" + targetName)) {
 														continue;
 												}
 												ArrayList<BlockBean> list = entry.getValue();
 												if (list != null) {
 														for (BlockBean bean : list) {
 																if (bean != null && "definedFunc".equals(bean.opCode)) {
-																		if (targetName.equals(bean.spec) || targetSpec.equals(bean.spec)) {
+																		String bSpec = bean.spec != null ? bean.spec.trim() : "";
+																		if (targetName.equals(bSpec) || targetSpec.equals(bSpec) || bSpec.startsWith(targetName + " ")) {
 																				return true;
 																		}
 																}
@@ -2161,7 +2176,8 @@ startActivityForResult(intent, 209);
 														return;
 												}
 
-												DesignDataManager.deleteProjectMoreBlock(targetPid, funcName, filename);
+												String deleteLinkedFile = mb.linkedFile != null ? mb.linkedFile : filename;
+												DesignDataManager.deleteProjectMoreBlock(targetPid, funcName, deleteLinkedFile);
 												addFunctions();
 												filterPalette("");
 												Toast.makeText(getApplicationContext(), "Removed MoreBlock: " + funcName, Toast.LENGTH_SHORT).show();
@@ -2481,7 +2497,36 @@ startActivityForResult(intent, 209);
 		
 		private void showSourceCode() {
 				BlockCodeCompiler jsm = new BlockCodeCompiler(this, this.projectId);
-				String result = jsm.getSource(0, pane.getBlocks());
+				boolean isFunc = (this.id != null && (this.id.equals("func") || (this.eventName != null && this.eventName.startsWith("func_"))));
+				int mode = isFunc ? 1 : 0;
+				ArrayList<BlockBean> blocks = pane.getBlocks();
+				if (isFunc && pane.getRoot() != null) {
+						BlockBean rootBean = pane.getRoot().getBean();
+						if (rootBean != null) {
+								boolean hasDef = false;
+								for (BlockBean b : blocks) {
+										if (b != null && "definedFunc".equals(b.opCode)) {
+												hasDef = true;
+												break;
+										}
+								}
+								if (!hasDef) {
+										ArrayList<BlockBean> fullBlocks = new ArrayList<>();
+										if (!blocks.isEmpty()) {
+												rootBean.subStack1 = -1;
+												rootBean.nextBlock = Integer.parseInt(blocks.get(0).id);
+										}
+										fullBlocks.add(rootBean);
+										for (BlockBean b : blocks) {
+												if (b != rootBean) {
+														fullBlocks.add(b);
+												}
+										}
+										blocks = fullBlocks;
+								}
+						}
+				}
+				String result = jsm.getSource(mode, blocks);
 				
 				final String finalResult = (result == null || result.trim().isEmpty()) ? "/* No code generated */" : result;
 

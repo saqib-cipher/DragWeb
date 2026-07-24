@@ -733,6 +733,7 @@ public class MainEditorFragment extends Fragment {
 		buildDesignList();
 		saveUndoState();
 		refreshHierarchy();
+		updateWidgetSpinnerFromTree();
 	}
 
 	// ---- Add Logic Block with target selector ----
@@ -2108,6 +2109,10 @@ public class MainEditorFragment extends Fragment {
 			}
 			tvSelectedWidgetName.setText(name.toString());
 
+			// Show style list
+			if (recyclerview3 != null) recyclerview3.setVisibility(View.VISIBLE);
+			if (chipGroupBottom != null) chipGroupBottom.setVisibility(View.VISIBLE);
+
 			// Show Lock & Hide buttons
 			if (btnBottomLock != null) {
 				btnBottomLock.setVisibility(View.VISIBLE);
@@ -2149,6 +2154,8 @@ public class MainEditorFragment extends Fragment {
 			tvSelectedWidgetName.setText("body (screen)");
 			if (btnBottomLock != null) btnBottomLock.setVisibility(View.GONE);
 			if (btnBottomHide != null) btnBottomHide.setVisibility(View.GONE);
+			if (recyclerview3 != null) recyclerview3.setVisibility(View.GONE);
+			if (chipGroupBottom != null) chipGroupBottom.setVisibility(View.GONE);
 		}
 
 		if (btnWidgetDropdown != null) {
