@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import androidx.viewpager2.widget.ViewPager2;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
@@ -55,6 +56,8 @@ public class EventsFragment extends Fragment {
     private RecyclerView rvEvents;
     private Button btnResetLogic;
     private Button btnImportCss;
+    private ImageView clear;
+    private CardView suggestCard;
 
     private int currentTab = 0; // 0: CSS, 1: JS, 2: HTML, 3: Functions (MoreBlocks)
 
@@ -122,6 +125,10 @@ public class EventsFragment extends Fragment {
         rvEvents = view.findViewById(R.id.rv_events);
         btnResetLogic = view.findViewById(R.id.btnResetLogic);
         btnImportCss = view.findViewById(R.id.btnImportCss);
+        clear = view.findViewById(R.id.clear);
+        suggestCard = view.findViewById(R.id.suggestCard);
+
+        clear.setOnClickListener(v -> suggestCard.setVisibility(View.GONE));
 
         pageManager = new PageManager(getContext(), projectId);
         rvEvents.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -187,6 +194,14 @@ public class EventsFragment extends Fragment {
                                         Log.e("EventsFragment", "Error updating logic file", e);
                                     }
                                 }
+
+                                // Delete function's own separate logic file if exists
+                                File funcLogicFile = new File(android.os.Environment.getExternalStorageDirectory(),
+                                    ".dragweb/projects/" + projectId + "/" + cleanPage + "_func_" + selectedName + "_logic.json");
+                                if (funcLogicFile.exists()) {
+                                    funcLogicFile.delete();
+                                }
+                                
                                 if (DesignDataManager.mapBlocks != null) {
                                     for (HashMap<String, ArrayList<BlockBean>> pageBlocks : DesignDataManager.mapBlocks.values()) {
                                         if (pageBlocks != null) {
@@ -366,6 +381,17 @@ public class EventsFragment extends Fragment {
         return result;
     }
 
+    private int countBlocksExcludingDefine(ArrayList<BlockBean> list) {
+        if (list == null) return 0;
+        int count = 0;
+        for (BlockBean b : list) {
+            if (b != null && !"definedFunc".equals(b.opCode)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private int getBlockCountForMoreBlock(String linkedFile, String funcName) {
         if (getContext() == null || funcName == null || funcName.isEmpty()) return 0;
         
@@ -376,9 +402,9 @@ public class EventsFragment extends Fragment {
             for (HashMap<String, ArrayList<BlockBean>> map : DesignDataManager.mapBlocks.values()) {
                 if (map != null) {
                     if (map.containsKey(funcKey1) && map.get(funcKey1) != null) {
-                        return map.get(funcKey1).size();
+                        return countBlocksExcludingDefine(map.get(funcKey1));
                     } else if (map.containsKey(funcKey2) && map.get(funcKey2) != null) {
-                        return map.get(funcKey2).size();
+                        return countBlocksExcludingDefine(map.get(funcKey2));
                     }
                 }
             }
@@ -396,10 +422,10 @@ public class EventsFragment extends Fragment {
                         DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(json, pKey);
                         if (data != null && data.blocks != null) {
                             if (data.blocks.containsKey(funcKey1) && data.blocks.get(funcKey1) != null) {
-                                return data.blocks.get(funcKey1).size();
+                                return countBlocksExcludingDefine(data.blocks.get(funcKey1));
                             }
                             if (data.blocks.containsKey(funcKey2) && data.blocks.get(funcKey2) != null) {
-                                return data.blocks.get(funcKey2).size();
+                                return countBlocksExcludingDefine(data.blocks.get(funcKey2));
                             }
                         }
                     }
@@ -559,6 +585,64 @@ public class EventsFragment extends Fragment {
                     }
                 }
 
+                // Link the imported blocks chain to the bottom of the existing block chain in workspace
+                BlockBean importedRootBlock = null;
+                if (!importedBeans.isEmpty()) {
+                    java.util.Set<String> childIds = new java.util.HashSet<>();
+                    for (BlockBean b : importedBeans) {
+                        if (b.nextBlock >= 0) childIds.add(String.valueOf(b.nextBlock));
+                        if (b.subStack1 >= 0) childIds.add(String.valueOf(b.subStack1));
+                        if (b.subStack2 >= 0) childIds.add(String.valueOf(b.subStack2));
+                    }
+                    for (BlockBean b : importedBeans) {
+                        if (!childIds.contains(b.id)) {
+                            importedRootBlock = b;
+                            break;
+                        }
+                    }
+                    if (importedRootBlock == null) {
+                        importedRootBlock = importedBeans.get(0);
+                    }
+                }
+
+                BlockBean currentRootBlock = null;
+                if (!currentBlocks.isEmpty()) {
+                    java.util.Set<String> childIds = new java.util.HashSet<>();
+                    for (BlockBean b : currentBlocks) {
+                        if (b.nextBlock >= 0) childIds.add(String.valueOf(b.nextBlock));
+                        if (b.subStack1 >= 0) childIds.add(String.valueOf(b.subStack1));
+                        if (b.subStack2 >= 0) childIds.add(String.valueOf(b.subStack2));
+                    }
+                    for (BlockBean b : currentBlocks) {
+                        if (!childIds.contains(b.id)) {
+                            currentRootBlock = b;
+                            break;
+                        }
+                    }
+                    if (currentRootBlock == null) {
+                        currentRootBlock = currentBlocks.get(0);
+                    }
+                }
+
+                BlockBean currentBottomBlock = currentRootBlock;
+                if (currentBottomBlock != null) {
+                    while (currentBottomBlock.nextBlock >= 0) {
+                        BlockBean next = null;
+                        for (BlockBean b : currentBlocks) {
+                            if (b.id.equals(String.valueOf(currentBottomBlock.nextBlock))) {
+                                next = b;
+                                break;
+                            }
+                        }
+                        if (next == null) break;
+                        currentBottomBlock = next;
+                    }
+                }
+
+                if (currentBottomBlock != null && importedRootBlock != null) {
+                    currentBottomBlock.nextBlock = Integer.parseInt(importedRootBlock.id);
+                }
+
                 int maxStackIndex = currentBlocks.size();
                 for (BlockBean bean : importedBeans) {
                     bean.stackIndex = maxStackIndex++;
@@ -632,11 +716,97 @@ public class EventsFragment extends Fragment {
             else if (bean.nextBlock >= 0 && !idMapping.containsValue(bean.nextBlock)) bean.nextBlock = -1;
         }
 
-        ArrayList<BlockBean> funcBlocks = new ArrayList<>();
-        int si = 0;
-        for (BlockBean bean : importedBeans) {
-            bean.stackIndex = si++;
-            funcBlocks.add(bean);
+        // Find root of imported blocks
+        BlockBean importedRootBlock = null;
+        if (!importedBeans.isEmpty()) {
+            java.util.Set<String> childIds = new java.util.HashSet<>();
+            for (BlockBean b : importedBeans) {
+                if (b.nextBlock >= 0) childIds.add(String.valueOf(b.nextBlock));
+                if (b.subStack1 >= 0) childIds.add(String.valueOf(b.subStack1));
+                if (b.subStack2 >= 0) childIds.add(String.valueOf(b.subStack2));
+            }
+            for (BlockBean b : importedBeans) {
+                if (!childIds.contains(b.id)) {
+                    importedRootBlock = b;
+                    break;
+                }
+            }
+            if (importedRootBlock == null) {
+                importedRootBlock = importedBeans.get(0);
+            }
+        }
+
+        ArrayList<BlockBean> funcBlocks;
+        if (existing != null && !existing.isEmpty()) {
+            funcBlocks = existing;
+            
+            // Find root of existing blocks
+            BlockBean currentRootBlock = null;
+            java.util.Set<String> childIds = new java.util.HashSet<>();
+            for (BlockBean b : funcBlocks) {
+                if (b.nextBlock >= 0) childIds.add(String.valueOf(b.nextBlock));
+                if (b.subStack1 >= 0) childIds.add(String.valueOf(b.subStack1));
+                if (b.subStack2 >= 0) childIds.add(String.valueOf(b.subStack2));
+            }
+            for (BlockBean b : funcBlocks) {
+                if (!childIds.contains(b.id)) {
+                    currentRootBlock = b;
+                    break;
+                }
+            }
+            if (currentRootBlock == null) {
+                currentRootBlock = funcBlocks.get(0);
+            }
+
+            BlockBean currentBottomBlock = currentRootBlock;
+            if (currentBottomBlock != null) {
+                while (currentBottomBlock.nextBlock >= 0) {
+                    BlockBean next = null;
+                    for (BlockBean b : funcBlocks) {
+                        if (b.id.equals(String.valueOf(currentBottomBlock.nextBlock))) {
+                            next = b;
+                            break;
+                        }
+                    }
+                    if (next == null) break;
+                    currentBottomBlock = next;
+                }
+            }
+
+            if (currentBottomBlock != null && importedRootBlock != null) {
+                currentBottomBlock.nextBlock = Integer.parseInt(importedRootBlock.id);
+            }
+
+            int maxStackIndex = funcBlocks.size();
+            for (BlockBean bean : importedBeans) {
+                bean.stackIndex = maxStackIndex++;
+                funcBlocks.add(bean);
+            }
+        } else {
+            funcBlocks = new ArrayList<>();
+            
+            // Create definedFunc block at the start
+            BlockBean defBlock = new BlockBean();
+            maxId++;
+            defBlock.id = String.valueOf(maxId);
+            defBlock.opCode = "definedFunc";
+            defBlock.spec = funcName;
+            defBlock.type = " ";
+            defBlock.category = "";
+            defBlock.nextBlock = -1;
+            
+            if (importedRootBlock != null) {
+                defBlock.nextBlock = Integer.parseInt(importedRootBlock.id);
+            }
+            
+            defBlock.stackIndex = 0;
+            funcBlocks.add(defBlock);
+
+            int si = 1;
+            for (BlockBean bean : importedBeans) {
+                bean.stackIndex = si++;
+                funcBlocks.add(bean);
+            }
         }
         data.blocks.put(funcKey, funcBlocks);
 
@@ -709,31 +879,6 @@ public class EventsFragment extends Fragment {
 
             if (holder.tvPreview != null) {
                 holder.tvPreview.setText(item.tag);
-            }
-
-            ViewGroup.LayoutParams layoutParams = holder.itemView.getLayoutParams();
-            if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
-                ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) layoutParams;
-                int marginHorizontal = dp(16);
-                int marginTop = (position == 0) ? dp(8) : dp(1);
-                int marginBottom = (position == items.size() - 1) ? dp(8) : dp(1);
-                lp.setMargins(marginHorizontal, marginTop, marginHorizontal, marginBottom);
-                holder.itemView.setLayoutParams(lp);
-            }
-
-            View.OnTouchListener swipeTouchListener = (v, event) -> {
-                int action = event.getAction();
-                if (action == android.view.MotionEvent.ACTION_DOWN || action == android.view.MotionEvent.ACTION_MOVE) {
-                    disallowAllParentsIntercept(v, true);
-                } else if (action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) {
-                    disallowAllParentsIntercept(v, false);
-                }
-                return false;
-            };
-
-            holder.itemView.setOnTouchListener(swipeTouchListener);
-            if (holder.cardView != null) {
-                holder.cardView.setOnTouchListener(swipeTouchListener);
             }
 
             android.view.View.OnClickListener clickListener = v -> openLogicEditor(item);

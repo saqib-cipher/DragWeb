@@ -3,8 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
+    android:animateLayoutChanges="true"
     android:background="?attr/colorSurface">
 
     <LinearLayout
@@ -30,6 +30,7 @@
             android:id="@+id/btnImportCss"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:enabled="false"
             android:text="Import Code"
             style="@style/Widget.Material3.Button.TextButton"
             app:icon="@drawable/code_plus"
@@ -43,6 +44,50 @@
             style="@style/Widget.Material3.Button.TextButton"
             app:icon="@drawable/trash" />
     </LinearLayout>
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/suggestCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="@style/Widget.Material3.CardView.Outlined"
+        app:cardCornerRadius="12dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:strokeColor="?attr/colorError"
+        app:cardElevation="1dp"
+        android:padding="16dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginRight="8dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="8dp">
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/emphasis"
+                android:tint="?attr/colorOnErrorContainer"/>
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="11sp"
+                android:layout_marginStart="8dp"
+                android:textColor="?attr/colorOnErrorContainer"
+                android:text="Import code is very unstable now so it disabled, reset button will not works sometimes, if want to delete a new html/css/js file (except project file) delete from assest manager." />
+            <ImageView
+                android:id="@+id/clear"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/x"
+                android:tint="?attr/colorOnErrorContainer"/>
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
 
 
     <LinearLayout

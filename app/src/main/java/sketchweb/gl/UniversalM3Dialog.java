@@ -666,15 +666,15 @@ public final class UniversalM3Dialog {
                     btnTrue.setText("true");
                     btnTrue.setTextSize(13);
                     btnTrue.setId(View.generateViewId());
-                    btnTrue.setChecked(initialBool);
                     toggleGroup.addView(btnTrue);
 
                     com.google.android.material.button.MaterialButton btnFalse = new com.google.android.material.button.MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
                     btnFalse.setText("false");
                     btnFalse.setTextSize(13);
                     btnFalse.setId(View.generateViewId());
-                    btnFalse.setChecked(!initialBool);
                     toggleGroup.addView(btnFalse);
+
+                    toggleGroup.check(initialBool ? btnTrue.getId() : btnFalse.getId());
 
                     rowLayout.addView(toggleGroup);
                     row.spBoolView = toggleGroup;
