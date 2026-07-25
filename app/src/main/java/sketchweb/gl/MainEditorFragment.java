@@ -2744,24 +2744,13 @@ public class MainEditorFragment extends Fragment {
 
 
 	private void importProjectBackup(android.net.Uri uri) {
-		try {
-			File tempZip = new File(requireContext().getCacheDir(), "import.zip");
-			InputStream is = requireActivity().getContentResolver().openInputStream(uri);
-			FileOutputStream fos = new FileOutputStream(tempZip);
-			byte[] buffer = new byte[8192];
-			int len;
-			while ((len = is.read(buffer)) > 0) fos.write(buffer, 0, len);
-			is.close();
-			fos.close();
-
-			if (exportManager.restoreProjectFromZip(tempZip)) {
-				Toast.makeText(requireContext(), "Project restored! Please reopen the project.", Toast.LENGTH_LONG).show();
-			} else {
-				Toast.makeText(requireContext(), "Restore failed. Check ZIP structure.", Toast.LENGTH_SHORT).show();
-			}
-			tempZip.delete();
-		} catch (Exception e) {
-			Toast.makeText(requireContext(), "Import failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+		ProjectDataManager pdm = new ProjectDataManager(requireContext());
+		ProjectDataManager.ImportResult result = pdm.importProjectsFromZip(uri);
+		if (result.success) {
+			String msg = "Imported " + result.importedProjectIds.size() + " project(s). Please reopen.";
+			Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show();
+		} else {
+			Toast.makeText(requireContext(), "Restore failed: " + result.message, Toast.LENGTH_SHORT).show();
 		}
 	}
 

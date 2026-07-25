@@ -282,6 +282,16 @@ public class WidgetBuilderEngine {
         }
     }
 
+    public ViewGroup.LayoutParams generateLayoutParams(View view) {
+        ViewGroup.LayoutParams params = view.getLayoutParams();
+        if (params == null) {
+            params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+        return params;
+    }
+
     private void applyStyles(View view, Map<String, Object> style) {
         // Create a copy of style map with !important stripped from values to prevent Android view parse exceptions
         Map<String, Object> cleanStyle = new HashMap<>();
