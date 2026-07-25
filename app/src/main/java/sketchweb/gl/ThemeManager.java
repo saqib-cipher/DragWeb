@@ -192,6 +192,9 @@ public class ThemeManager {
     }
 
     public String generateGlobalCss() {
+        if (disableAllStyling) {
+            return "";
+        }
         if (disableDefaultStyles) {
             return "    .hidden { display: none !important; }\n";
         }
@@ -223,6 +226,7 @@ public class ThemeManager {
 
     private boolean useInlineStyles = true;
     private boolean disableDefaultStyles = false;
+    private boolean disableAllStyling = false;
 
     public boolean isUseInlineStyles() {
         return useInlineStyles;
@@ -240,12 +244,21 @@ public class ThemeManager {
         this.disableDefaultStyles = disableDefaultStyles;
     }
 
+    public boolean isDisableAllStyling() {
+        return disableAllStyling;
+    }
+
+    public void setDisableAllStyling(boolean disableAllStyling) {
+        this.disableAllStyling = disableAllStyling;
+    }
+
     public void resetToDefaults() {
         initLightDefaults();
         initDarkDefaults();
         customCssVars.clear();
         useInlineStyles = true;
         disableDefaultStyles = false;
+        disableAllStyling = false;
         currentTheme = THEME_LIGHT;
     }
 
@@ -257,6 +270,7 @@ public class ThemeManager {
         data.put("customVars", customCssVars);
         data.put("useInlineStyles", useInlineStyles);
         data.put("disableDefaultStyles", disableDefaultStyles);
+        data.put("disableAllStyling", disableAllStyling);
         // Backwards compat: also write "styles" as active theme
         data.put("styles", getActiveStyles());
         return new Gson().toJson(data);
@@ -291,6 +305,18 @@ public class ThemeManager {
                 }
             } else {
                 useInlineStyles = true;
+            }
+            if (data.containsKey("disableAllStyling")) {
+                Object val = data.get("disableAllStyling");
+                if (val instanceof Boolean) {
+                    disableAllStyling = (Boolean) val;
+                } else if (val instanceof String) {
+                    disableAllStyling = Boolean.parseBoolean((String) val);
+                } else if (val instanceof Number) {
+                    disableAllStyling = ((Number) val).intValue() != 0;
+                }
+            } else {
+                disableAllStyling = false;
             }
             // Load separate light/dark styles if available
             if (data.containsKey("lightStyles")) {

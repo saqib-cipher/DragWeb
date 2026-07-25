@@ -2275,22 +2275,68 @@ startActivityForResult(intent, 209);
 				if (json == null || this.pane == null) return;
 				this.isUndoRedoAction = true;
 				try {
-						ArrayList<Block> allBlocks = new ArrayList<>();
-						for (int i = 0; i < this.pane.getChildCount(); i++) {
+						for (int i = this.pane.getChildCount() - 1; i >= 0; i--) {
 								View child = this.pane.getChildAt(i);
 								if (child instanceof Block && child != this.pane.getRoot()) {
-										allBlocks.add((Block) child);
+										this.pane.removeBlock((Block) child);
 								}
-						}
-						for (Block b : allBlocks) {
-								this.pane.removeBlock(b);
 						}
 
 						java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<ArrayList<BlockBean>>(){}.getType();
 						ArrayList<BlockBean> blockBeans = new com.google.gson.Gson().fromJson(json, type);
-						if (blockBeans != null && !blockBeans.isEmpty()) {
-								unpackCollectionBlocks(blockBeans, 20, 20);
+						if (blockBeans == null || blockBeans.isEmpty()) return;
+
+						java.util.Map<Integer, Block> blockMap = new java.util.HashMap<>();
+						java.util.Collections.sort(blockBeans, (b1, b2) -> Integer.compare(b1.stackIndex, b2.stackIndex));
+
+						boolean first = true;
+						for (BlockBean bean : blockBeans) {
+								Block block = makeBlockFromBean(bean);
+								int bId = ((Integer) block.getTag()).intValue();
+								blockMap.put(bId, block);
+								this.pane.blockId = Math.max(this.pane.blockId, bId + 1);
+								this.pane.addBlock(block, 0, 0);
+								block.setOnTouchListener(this);
+								if (first) {
+										this.pane.getRoot().insertBlock(block);
+										first = false;
+								}
 						}
+
+						for (BlockBean bean : blockBeans) {
+								int bId = safeParseInt(bean.id);
+								Block block = blockMap.get(bId);
+								if (block == null) continue;
+
+								if (bean.subStack1 >= 0 && blockMap.containsKey(bean.subStack1)) {
+										block.insertBlockSub1(blockMap.get(bean.subStack1));
+								}
+								if (bean.subStack2 >= 0 && blockMap.containsKey(bean.subStack2)) {
+										block.insertBlockSub2(blockMap.get(bean.subStack2));
+								}
+								if (bean.nextBlock >= 0 && blockMap.containsKey(bean.nextBlock)) {
+										block.insertBlock(blockMap.get(bean.nextBlock));
+								}
+								if (bean.parameters != null) {
+										for (int p = 0; p < bean.parameters.size(); p++) {
+												String paramVal = bean.parameters.get(p);
+												if (paramVal != null && !paramVal.isEmpty()) {
+														if (paramVal.startsWith("@")) {
+																int refId = safeParseInt(paramVal.substring(1));
+																if (blockMap.containsKey(refId) && p < block.args.size()) {
+																		block.replaceArgWithBlock((BlockBase) block.args.get(p), blockMap.get(refId));
+																}
+														} else if (p < block.args.size() && block.args.get(p) instanceof BlockArg) {
+																((BlockArg) block.args.get(p)).setArgValue(paramVal);
+																block.recalcWidthToParent();
+														}
+												}
+										}
+								}
+						}
+
+						this.pane.getRoot().fixLayout();
+						this.pane.calculateWidthHeight();
 				} catch (Exception e) {
 						e.printStackTrace();
 				} finally {

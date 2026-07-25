@@ -27,4 +27,6 @@ public class ChipInput {
     public String paramType;
     /** Optional placeholder shown when the value is empty. */
     public String placeholder;
+    /** When true, the typed value is used as-is without wrapping in quotes. */
+    public boolean inputOnly;
 }

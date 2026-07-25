@@ -278,8 +278,10 @@ public class BlockCodeCompiler {
             indent.append("  ");
         }
 
-        // Compile parameters/arguments
+        List<ChipInput> resolvedInputs = def != null ? def.resolvedInputs() : new ArrayList<>();
+
         ArrayList<Object> compiledParams = new ArrayList<>();
+        int paramIdx = 0;
         for (String param : block.parameters) {
             if (param.startsWith("@")) {
                 String childId = param.substring(1);
@@ -290,8 +292,17 @@ public class BlockCodeCompiler {
                     compiledParams.add("");
                 }
             } else {
-                compiledParams.add(param);
+                ChipInput chipInput = paramIdx < resolvedInputs.size() ? resolvedInputs.get(paramIdx) : null;
+                boolean isStringType = chipInput != null
+                    && "text".equals(chipInput.type);
+                if (isStringType && !chipInput.inputOnly) {
+                    String escaped = param.replace("\\", "\\\\").replace("\"", "\\\"");
+                    compiledParams.add("\"" + escaped + "\"");
+                } else {
+                    compiledParams.add(param);
+                }
             }
+            paramIdx++;
         }
 
         // If parameter 1 (the value socket) is empty for a setVar block, supply a clean default value

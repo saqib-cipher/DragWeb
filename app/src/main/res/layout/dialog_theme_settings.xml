@@ -186,13 +186,47 @@
 			android:layout_marginTop="8dp"
 			style="?attr/materialButtonOutlinedStyle" />
 
-		<!-- Inline Styles Toggle -->
+		<!-- Disable All Styling Toggle -->
 		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:orientation="horizontal"
 			android:gravity="center_vertical"
 			android:layout_marginTop="16dp"
+			android:layout_marginBottom="4dp">
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:orientation="vertical">
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Disable All Styling"
+					android:textSize="14sp"
+					android:textStyle="bold"
+					android:textColor="?attr/colorOnSurface" />
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Completely disable all style generation (no HTML inline styles, no external CSS)"
+					android:textSize="12sp"
+					android:textColor="?attr/colorOnSurfaceVariant" />
+			</LinearLayout>
+			<com.google.android.material.materialswitch.MaterialSwitch
+				android:id="@+id/switchDisableAllStyling"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:checked="false"
+				app:thumbIcon="@drawable/ic_thumb_selector"/>
+		</LinearLayout>
+
+		<!-- Inline Styles Toggle -->
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:gravity="center_vertical"
 			android:layout_marginBottom="8dp">
 			<LinearLayout
 				android:layout_width="0dp"

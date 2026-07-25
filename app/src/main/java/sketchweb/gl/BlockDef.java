@@ -179,6 +179,32 @@ public class BlockDef {
             derivedInputs.addAll(inputs);
         }
 
+        // Parse spec field to determine which chip inputs should be inputOnly.
+        // Tokenize spec by splitting on spaces, count chip tokens (starting with %),
+        // and mark inputOnly=true for any chip that is NOT a plain %s token.
+        if (spec != null && !spec.isEmpty() && !derivedInputs.isEmpty()) {
+            String[] specTokens = spec.split("\\s+");
+            int specIdx = 0;
+            for (String token : specTokens) {
+                if (!token.startsWith("%")) continue;
+                boolean isPlainS = token.equals("%s");
+                if (!isPlainS) {
+                    if (specIdx < derivedInputs.size()) {
+                        derivedInputs.get(specIdx).inputOnly = true;
+                    }
+                }
+                // Count this as a chip parameter (unless it's a compound token like %s.something)
+                if (token.equals("%s") || token.equals("%s.inputOnly") || token.equals("%d") || token.equals("%n") || token.equals("%b")) {
+                    specIdx++;
+                } else if (token.matches("%m\\.[a-zA-Z_\\.]+") || token.equals("%selector") || token.startsWith("%var")) {
+                    specIdx++;
+                } else if (token.startsWith("%") && token.contains(".")) {
+                    // Compound tokens like %s.setupList - still count as a chip
+                    specIdx++;
+                }
+            }
+        }
+
         return derivedInputs;
     }
 

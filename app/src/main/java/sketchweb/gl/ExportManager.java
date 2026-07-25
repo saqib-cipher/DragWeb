@@ -500,10 +500,11 @@ public class ExportManager {
         html.append(indentStr).append("<").append(tag);
 
         boolean useInline = (themeManager == null || themeManager.isUseInlineStyles());
+        boolean noStyles = (themeManager != null && themeManager.isDisableAllStyling());
         String generatedClass = "";
         StringBuilder classAttr = new StringBuilder();
 
-        if (useInline) {
+        if (useInline && !noStyles) {
             String userClass = function.containsKey("class") ? String.valueOf(function.get("class")).trim() : "";
             if (!userClass.isEmpty()) {
                 String[] classes = userClass.split("\\s+");
@@ -540,7 +541,7 @@ public class ExportManager {
             }
         }
 
-        if (useInline) {
+        if (useInline && !noStyles) {
             Map<String, Object> style = (Map<String, Object>) function.get("style");
             if (style != null && !style.isEmpty()) {
                 String selectorPrefix = (function.containsKey("class") && !String.valueOf(function.get("class")).trim().isEmpty()) ? "." : "";
@@ -783,10 +784,11 @@ public class ExportManager {
 
         // Generated class name and user class check.
         boolean useInline = (themeManager == null || themeManager.isUseInlineStyles());
+        boolean noStyles = (themeManager != null && themeManager.isDisableAllStyling());
         String generatedClass = "";
         StringBuilder classAttr = new StringBuilder();
 
-        if (useInline) {
+        if (useInline && !noStyles) {
             String userClass = function.containsKey("class") ? String.valueOf(function.get("class")).trim() : "";
             if (!userClass.isEmpty()) {
                 String[] classes = userClass.split("\\s+");
@@ -839,7 +841,7 @@ public class ExportManager {
         }
 
         // Output inline style attribute if useInline is true
-        if (useInline) {
+        if (useInline && !noStyles) {
             Map<String, Object> style = (Map<String, Object>) function.get("style");
             if (style != null && !style.isEmpty()) {
                 StringBuilder styleSb = new StringBuilder();
@@ -851,7 +853,7 @@ public class ExportManager {
         }
 
         // Output element styles to CSS only if inline styles are disabled
-        if (!useInline) {
+        if (!useInline && !noStyles) {
             Map<String, Object> style = (Map<String, Object>) function.get("style");
             if (style != null && !style.isEmpty()) {
                 String selector = "";

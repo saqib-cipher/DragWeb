@@ -3015,6 +3015,7 @@ public class MainEditorFragment extends Fragment {
 		LinearLayout customVarsContainer = dialogView.findViewById(R.id.customVarsContainer);
 		Button btnAddCssVar = dialogView.findViewById(R.id.btnAddCssVar);
 		com.google.android.material.materialswitch.MaterialSwitch switchInlineStyles = dialogView.findViewById(R.id.switchInlineStyles);
+		com.google.android.material.materialswitch.MaterialSwitch switchDisableAll = dialogView.findViewById(R.id.switchDisableAllStyling);
 		Button btnResetTheme = dialogView.findViewById(R.id.btnResetTheme);
 
 		// Local custom variables buffer map: key -> {lightVal, darkVal}
@@ -3035,8 +3036,27 @@ public class MainEditorFragment extends Fragment {
 			dialogCustomVars.put(key, new String[]{lightVal, darkVal});
 		}
 
-		if (switchInlineStyles != null) {
-			switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
+				if (switchInlineStyles != null) {
+					switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
+					switchInlineStyles.setEnabled(true);
+				}
+				if (switchDisableAll != null) {
+					switchDisableAll.setChecked(themeManager.isDisableAllStyling());
+				}
+		if (switchDisableAll != null) {
+			switchDisableAll.setChecked(themeManager.isDisableAllStyling());
+			switchDisableAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
+				if (switchInlineStyles != null) {
+					switchInlineStyles.setEnabled(!isChecked);
+					if (isChecked) {
+						switchInlineStyles.setChecked(false);
+					}
+				}
+			});
+		}
+		if (switchDisableAll != null && switchDisableAll.isChecked() && switchInlineStyles != null) {
+			switchInlineStyles.setEnabled(false);
+			switchInlineStyles.setChecked(false);
 		}
 
 		// Track which theme is being edited in dialog
@@ -3191,6 +3211,9 @@ public class MainEditorFragment extends Fragment {
 
 				if (switchInlineStyles != null) {
 					themeManager.setUseInlineStyles(switchInlineStyles.isChecked());
+				}
+				if (switchDisableAll != null) {
+					themeManager.setDisableAllStyling(switchDisableAll.isChecked());
 				}
 
 				Map<String, String> newVars = new LinkedHashMap<>();
