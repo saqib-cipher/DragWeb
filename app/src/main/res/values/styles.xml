@@ -42,8 +42,5 @@
 	</style>
 	<style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.Material3" />
 	<style name="AppTheme.PopupOverlay" parent="ThemeOverlay.Material3" />
-	<style name="AppTheme.DebugActivity" parent="AppTheme">
-		<item name="windowActionBar">true</item>
-		<item name="windowNoTitle">false</item>
-	</style>
+	<style name="AppTheme.DebugActivity" parent="AppTheme" />
 </resources>

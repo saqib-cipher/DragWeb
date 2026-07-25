@@ -1,68 +1,126 @@
 package sketchweb.gl;
 
-import android.app.Activity;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
-import android.text.SpannableStringBuilder;
-import android.widget.HorizontalScrollView;
-import android.widget.ScrollView;
-import android.widget.TextView;
+import android.os.Process;
+import android.widget.Toast;
 
-import java.util.HashMap;
-import java.util.Map;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
-public class DebugActivity extends Activity {
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textview.MaterialTextView;
 
-    private static final Map<String, String> exceptionMap = new HashMap<String, String>() {{
-        put("StringIndexOutOfBoundsException", "Invalid string operation\n");
-        put("IndexOutOfBoundsException", "Invalid list operation\n");
-        put("ArithmeticException", "Invalid arithmetical operation\n");
-        put("NumberFormatException", "Invalid toNumber block operation\n");
-        put("ActivityNotFoundException", "Invalid intent operation\n");
-    }};
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+public class DebugActivity extends AppCompatActivity {
+
+    private String crashLogPath;
+    private String errorDetail;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_debug);
 
-        SpannableStringBuilder formattedMessage = new SpannableStringBuilder();
-        Intent intent = getIntent();
-        String errorMessage = "";
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root_layout), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
 
-        if (intent != null) {
-            errorMessage = intent.getStringExtra("error");
+        String error = getIntent() != null ? getIntent().getStringExtra("error") : "";
+        if (error == null) error = "";
+
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+        File logsDir = new File(getFilesDir(), "logs");
+        logsDir.mkdirs();
+        File crashFile = new File(logsDir, "crash_" + timestamp + ".txt");
+        try {
+            FileOutputStream fos = new FileOutputStream(crashFile);
+            OutputStreamWriter writer = new OutputStreamWriter(fos);
+            writer.write(error);
+            writer.close();
+            crashLogPath = crashFile.getAbsolutePath();
+        } catch (Exception e) {
+            crashLogPath = null;
         }
 
-        if (!errorMessage.isEmpty()) {
-            String[] split = errorMessage.split("\n");
+        MaterialTextView errorSummary = findViewById(R.id.error_summary);
+        MaterialTextView errorDetailView = findViewById(R.id.error_detail);
 
-            String exceptionType = split[0];
-            String message = exceptionMap.containsKey(exceptionType) ? exceptionMap.get(exceptionType) : "";
-
-            if (!message.isEmpty()) {
-                formattedMessage.append(message);
-            }
-
-            for (int i = 1; i < split.length; i++) {
-                formattedMessage.append(split[i]);
-                formattedMessage.append("\n");
-            }
+        if (!error.isEmpty()) {
+            String[] lines = error.split("\n");
+            String firstLine = lines.length > 0 ? lines[0] : "Unknown error";
+            errorSummary.setText(firstLine);
+            errorDetailView.setText(error);
+            errorDetail = error;
         } else {
-            formattedMessage.append("No error message available.");
+            errorSummary.setText("No error message available");
+            errorDetailView.setText("");
+            errorDetail = "";
         }
 
-        setTitle(getTitle() + " Crashed");
+        MaterialButton btnRestart = findViewById(R.id.btn_restart);
+        MaterialButton btnSend = findViewById(R.id.btn_send_report);
 
-        TextView errorView = new TextView(this);
-        errorView.setText(formattedMessage);
-        errorView.setTextIsSelectable(true);
+        btnRestart.setOnClickListener(v -> {
+            Intent intent = new Intent(this, SplashActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            Process.killProcess(Process.myPid());
+            finish();
+        });
 
-        HorizontalScrollView hscroll = new HorizontalScrollView(this);
-        ScrollView vscroll = new ScrollView(this);
+        btnSend.setOnClickListener(v -> shareToTelegram());
+    }
 
-        hscroll.addView(vscroll);
-        vscroll.addView(errorView);
+    private void shareToTelegram() {
+        if (crashLogPath == null) {
+            Toast.makeText(this, "No crash log file available", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        setContentView(hscroll);
+        File crashFile = new File(crashLogPath);
+        if (!crashFile.exists()) {
+            Toast.makeText(this, "Crash log file not found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String caption = buildCaption();
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_STREAM, FileProvider.getUriForFile(this,
+            getPackageName() + ".fileprovider", crashFile));
+        intent.putExtra(Intent.EXTRA_TEXT, caption);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.setPackage("org.telegram.messenger");
+
+        try {
+            startActivity(intent);
+        } catch (Exception e) {
+            intent.setPackage(null);
+            try {
+                startActivity(Intent.createChooser(intent, "Share crash report"));
+            } catch (Exception e2) {
+                Toast.makeText(this, "No app available to share", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private String buildCaption() {
+        return "**Crash Report**"
+            + "\n**Device:** " + Build.MANUFACTURER + " " + Build.MODEL
+            + "\n**Android:** " + Build.VERSION.RELEASE
+            + "\n**Time:** " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
     }
 }
