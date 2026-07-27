@@ -324,12 +324,12 @@ public class EventsFragment extends Fragment {
         files.add("js/script.js");
         files.add("index.html");
 
-        if (pageManager != null) {
-            for (String page : pageManager.getPages()) {
-                String htmlName = page.endsWith(".html") ? page : page + ".html";
-                if (!files.contains(htmlName)) {
-                    files.add(htmlName);
-                }
+        // Always read from storage — recreate PageManager to avoid stale cache
+        PageManager pm = new PageManager(getContext(), projectId);
+        for (String page : pm.getPages()) {
+            String htmlName = page.endsWith(".html") ? page : page + ".html";
+            if (!files.contains(htmlName)) {
+                files.add(htmlName);
             }
         }
 

@@ -319,6 +319,7 @@ public class MainEditorFragment extends Fragment {
 							pageManager.removePage(deletedPage);
 							if (deletedPage.equals(pageManager.getCurrentPage())) {
 								pageManager.setCurrentPage("index");
+								codeGenerator.setCurrentPageName("index");
 								loadCurrentPageLayout();
 								
 								DesignDataManager.initialize(requireContext(), projectId, "index");
@@ -335,6 +336,7 @@ public class MainEditorFragment extends Fragment {
 							}
 							if (oldName.equals(pageManager.getCurrentPage())) {
 								pageManager.setCurrentPage(newName);
+								codeGenerator.setCurrentPageName(newName);
 								loadCurrentPageLayout();
 								
 								DesignDataManager.initialize(requireContext(), projectId, newName);
@@ -618,6 +620,8 @@ public class MainEditorFragment extends Fragment {
 		widgetUpdater = new WidgetUpdater(requireContext(), engine);
 		codeGenerator = new PageCodeGenerator();
 		codeGenerator.setProjectInfo(projectName, null);
+		codeGenerator.setProjectId(projectId);
+		codeGenerator.setContext(requireContext());
 		projectDataManager = new ProjectDataManager(requireContext());
 		themeManager = new ThemeManager();
 		ProjectAssetManager.getInstance().setThemeManager(themeManager);
@@ -639,6 +643,7 @@ public class MainEditorFragment extends Fragment {
 
 		// Initialize DesignDataManager for initial page
 		String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+		codeGenerator.setCurrentPageName(pageName);
 		DesignDataManager.initialize(requireContext(), projectId, pageName);
 
 		// Undo/Redo
@@ -1062,6 +1067,7 @@ public class MainEditorFragment extends Fragment {
 
 		// Switch to new page
 		pageManager.setCurrentPage(selectedPage);
+		codeGenerator.setCurrentPageName(selectedPage);
 		DesignDataManager.initialize(requireContext(), projectId, selectedPage);
 
 		// Load the new page layout
@@ -1905,6 +1911,7 @@ public class MainEditorFragment extends Fragment {
 
 				// Switch to new page
 				pageManager.setCurrentPage(pageName);
+				codeGenerator.setCurrentPageName(pageName);
 				DesignDataManager.initialize(requireContext(), projectId, pageName);
 
 				// Load current page layout

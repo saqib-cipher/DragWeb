@@ -60,6 +60,10 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		public static boolean isCssEvent() {
 				return filename != null && (filename.toLowerCase().endsWith(".css") || filename.toLowerCase().contains("css"));
 		}
+
+		public static boolean isHtmlEvent() {
+				return filename != null && (filename.toLowerCase().endsWith(".html") || filename.toLowerCase().endsWith(".htm"));
+		}
 		
 		private Context context;
 		
@@ -164,6 +168,31 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 		
 		private void addBlockToPalette(String str, String str2, String str3, int i, Object... objArr) {
+				// "h" type = non-draggable label/header separator (rounded-rect card)
+				if ("h".equals(str2)) {
+						if (this.paletteBlock != null && this.paletteBlock.blockBuilder != null) {
+								android.widget.TextView labelView = new android.widget.TextView(this);
+								float dip = getResources().getDisplayMetrics().density;
+								int dp32 = (int) (32.0f * dip);
+								android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(-1, dp32);
+								lp.setMargins(0, (int) (12.0f * dip), (int) (8.0f * dip), (int) (4.0f * dip));
+								labelView.setLayoutParams(lp);
+								labelView.setText(str);
+								labelView.setTextSize(11.0f);
+								labelView.setTypeface(null, android.graphics.Typeface.BOLD);
+								labelView.setGravity(android.view.Gravity.CENTER);
+								labelView.setTextColor(0xFFFFFFFF);
+								android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+								gd.setColor(i);
+								gd.setCornerRadius(8.0f * dip);
+								labelView.setBackground(gd);
+								labelView.setTag("label_" + str3);
+								labelView.setSoundEffectsEnabled(true);
+								labelView.setOnClickListener(this);
+								this.paletteBlock.blockBuilder.addView(labelView);
+						}
+						return;
+				}
 				BlockBase addBlock = this.paletteBlock.addBlock(str, str2, str3, i, objArr);
 				addBlock.setClickable(true);
 				addBlock.setOnTouchListener(this);

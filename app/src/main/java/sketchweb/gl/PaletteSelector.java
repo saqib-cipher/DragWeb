@@ -65,8 +65,9 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
 
         int index = 0;
         boolean isCss = LogicBlockActivity.isCssEvent();
+        boolean isHtml = LogicBlockActivity.isHtmlEvent();
         
-        if (!isCss) {
+        if (!isCss && !isHtml) {
             // 1. Variables
             CategoryItem varCat = new CategoryItem(index, getResources().getString(R.string.title_bl_cate_var), -1147626, 0);
             categoriesList.add(varCat);
@@ -84,6 +85,8 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
             String catType = catDef.type != null ? catDef.type.toLowerCase() : "common";
             if (isCss) {
                 if (!catType.equals("css") && !catType.equals("common")) continue;
+            } else if (isHtml) {
+                if (!catType.equals("html") && !catType.equals("common")) continue;
             } else {
                 if (!catType.equals("js") && !catType.equals("common")) continue;
             }
@@ -104,7 +107,7 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
         categoriesList.add(colCat);
         addCategoryItem(index++, colCat.name, colCat.color);
 
-        if (!isCss) {
+        if (!isCss && !isHtml) {
             // 5. More Blocks (custom blocks)
             CategoryItem moreCat = new CategoryItem(index, getResources().getString(R.string.title_bl_cate_moreblock), -7711273, 4);
             categoriesList.add(moreCat);

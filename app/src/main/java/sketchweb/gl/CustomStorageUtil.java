@@ -39,16 +39,7 @@ public class CustomStorageUtil {
 
     public static boolean isStorageOutdatedOrMissing(Context context, String filename, File storageFile) {
         if (storageFile == null) storageFile = new File(getCustomDir(context), filename);
-        if (!storageFile.exists() || storageFile.length() == 0) return true;
-        try {
-            try (InputStream is = context.getAssets().open(filename)) {
-                int assetLen = is.available();
-                if (assetLen > 0 && assetLen != storageFile.length()) {
-                    return true;
-                }
-            }
-        } catch (Exception ignored) {}
-        return false;
+        return !storageFile.exists() || storageFile.length() == 0;
     }
 
     public static boolean needsSync(Context context) {

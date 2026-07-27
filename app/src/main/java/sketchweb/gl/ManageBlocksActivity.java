@@ -15,7 +15,6 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.HorizontalScrollView;
 import android.widget.RelativeLayout;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -36,6 +35,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -357,6 +357,7 @@ public class ManageBlocksActivity extends AppCompatActivity {
         final TextInputEditText etCode = dialogView.findViewById(R.id.et_block_code);
         final ViewGroup previewContainer = dialogView.findViewById(R.id.block_preview_container);
         final com.google.android.material.textfield.TextInputLayout tilSpec2 = dialogView.findViewById(R.id.til_block_spec2);
+        final com.google.android.material.textfield.TextInputLayout codeTil = dialogView.findViewById(R.id.til_code);
 
         List<CategoryDef> catDefs = CategoryDef.getCategories(this);
         List<String> catIds = new ArrayList<>();
@@ -368,8 +369,9 @@ public class ManageBlocksActivity extends AppCompatActivity {
             if (!catIds.isEmpty()) etCategory.setText(catIds.get(0), false);
         }
 
-        String[] types = new String[]{"normal", "c", "e", "b", "d", "s", "h"};
-        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, types);
+        String[] typeLabels = new String[]{"normal (command/stack)", "c (container/loop)", "e (if/else)", "b (boolean)", "d (number)", "s (string)", "h (label/header, non-draggable)", "f (terminal/stop)", "v / list (variable ref, string shape)"};
+        String[] typeValues = new String[]{"normal", "c", "e", "b", "d", "s", "h", "f", "v"};
+        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, typeLabels);
         Runnable updateBlockPreview = () -> {
             try {
                 previewContainer.removeAllViews();
@@ -382,10 +384,42 @@ public class ManageBlocksActivity extends AppCompatActivity {
                 try { blockColor = Color.parseColor(hex); } catch (Exception e) { blockColor = Color.parseColor("#2196F3"); }
 
                 previewContainer.setVisibility(View.VISIBLE);
-                // Normalize type for BlockBase's hash-switch (expects " " for normal, not "normal")
+
+                // Map display label to actual type code
                 String blockType = type;
+                for (int ti = 0; ti < typeLabels.length; ti++) {
+                    if (typeLabels[ti].equals(type)) {
+                        blockType = typeValues[ti];
+                        break;
+                    }
+                }
+
+                // "h" type = non-draggable rounded-rect label/header
+                if ("h".equals(blockType)) {
+                    android.widget.TextView labelView = new android.widget.TextView(ManageBlocksActivity.this);
+                    int dp8 = (int) (8 * getResources().getDisplayMetrics().density);
+                    int dp12 = (int) (12 * getResources().getDisplayMetrics().density);
+                    int dp32 = (int) (32 * getResources().getDisplayMetrics().density);
+                    android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT, dp32);
+                    lp.setMargins(0, dp8, 0, 0);
+                    labelView.setLayoutParams(lp);
+                    labelView.setText(spec.isEmpty() ? "Header Label" : spec);
+                    labelView.setTextSize(11);
+                    labelView.setTypeface(null, android.graphics.Typeface.BOLD);
+                    labelView.setGravity(android.view.Gravity.CENTER);
+                    labelView.setTextColor(0xFFFFFFFF);
+                    android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+                    gd.setColor(blockColor);
+                    gd.setCornerRadius(dp8);
+                    labelView.setBackground(gd);
+                    previewContainer.addView(labelView);
+                    return;
+                }
+
                 if ("normal".equals(blockType)) blockType = " ";
-                if ("v".equals(blockType)) blockType = " ";
+                // v / list blocks render as string shape (like "s")
+                if ("v".equals(blockType)) blockType = "s";
                 Block blockView = new Block(ManageBlocksActivity.this, 0, spec, blockType, "preview", new Object[]{blockColor});
                 if ("e".equals(blockType)) {
                     blockView.mSpec2 = spec2;
@@ -397,11 +431,15 @@ public class ManageBlocksActivity extends AppCompatActivity {
 
         if (etType != null) {
             etType.setAdapter(typeAdapter);
-            etType.setText(types[0], false);
+            etType.setText(typeLabels[0], false);
             etType.setOnItemClickListener((parent, view, position, id) -> {
-                String selectedType = types[position];
+                String selectedType = position >= 0 && position < typeValues.length ? typeValues[position] : " ";
                 boolean isEvent = "e".equals(selectedType);
                 tilSpec2.setVisibility(isEvent ? View.VISIBLE : View.GONE);
+                boolean isHat = "h".equals(selectedType);
+                if (codeTil != null) {
+                    codeTil.setVisibility(isHat ? View.GONE : View.VISIBLE);
+                }
                 previewContainer.setVisibility(View.VISIBLE);
                 updateBlockPreview.run();
             });
@@ -488,7 +526,14 @@ public class ManageBlocksActivity extends AppCompatActivity {
             }
             String currentType = existing.getType();
             if (currentType != null && etType != null) {
-                etType.setText(currentType, false);
+                String displayLabel = currentType;
+                for (int ti = 0; ti < typeValues.length; ti++) {
+                    if (typeValues[ti].equals(currentType)) {
+                        displayLabel = typeLabels[ti];
+                        break;
+                    }
+                }
+                etType.setText(displayLabel, false);
             }
             etColor.setText(existing.color != null ? existing.color : "#2196F3");
             etSpec.setText(existing.getSpec());
@@ -496,11 +541,18 @@ public class ManageBlocksActivity extends AppCompatActivity {
             etSpec2.setText(spec2Val);
             etCode.setText(existing.code != null ? existing.code : "");
             boolean isEvent = "e".equals(currentType);
-            tilSpec2.setVisibility(isEvent ? View.VISIBLE : View.GONE);
-            if (isEvent) previewContainer.setVisibility(View.VISIBLE);
+            boolean isLabel = "h".equals(currentType);
+            codeTil.setVisibility(isEvent ? View.VISIBLE : View.GONE);
+            // Hide code for label/header blocks
+            TextInputLayout tilCode = etCode.getParent() instanceof TextInputLayout ? (TextInputLayout) etCode.getParent() : null;
+            if (tilCode != null) {
+                tilCode.setVisibility(isLabel ? View.GONE : View.VISIBLE);
+                if (isLabel) tilCode.setError(null);
+            }
+            previewContainer.setVisibility(View.VISIBLE);
         } else {
             etColor.setText("#2196F3");
-            tilSpec2.setVisibility(View.GONE);
+            codeTil.setVisibility(View.GONE);
             previewContainer.setVisibility(View.GONE);
         }
         updatePreview.run();
@@ -518,7 +570,16 @@ public class ManageBlocksActivity extends AppCompatActivity {
             saveBtn.setOnClickListener(v -> {
                 String id = etId.getText().toString().trim();
                 String cat = etCategory != null ? etCategory.getText().toString().trim() : "";
-                String type = etType != null ? etType.getText().toString().trim() : "";
+                String typeDisplay = etType != null ? etType.getText().toString().trim() : "";
+                // Map display label to actual type code
+                String type = " ";
+                for (int ti = 0; ti < typeLabels.length; ti++) {
+                    if (typeLabels[ti].equals(typeDisplay)) {
+                        type = typeValues[ti];
+                        break;
+                    }
+                }
+                if (typeDisplay.isEmpty()) type = " ";
                 String color = etColor.getText().toString().trim();
                 if (!color.startsWith("#") && !color.isEmpty()) color = "#" + color;
                 String spec = etSpec.getText().toString().trim();
@@ -552,7 +613,7 @@ public class ManageBlocksActivity extends AppCompatActivity {
                 target.spec = spec;
                 target.label = spec;
                 target.spec2 = spec2;
-                target.code = code;
+                target.code = "h".equals(type) ? "" : code;
 
                 if (existing == null) {
                     allBlockDefs.add(target);
@@ -622,7 +683,8 @@ public class ManageBlocksActivity extends AppCompatActivity {
         public void onBindViewHolder(ViewHolder holder, int position) {
             final BlockDef def = filteredBlockDefs.get(position);
             holder.tvId.setText(def.id);
-            holder.tvCategory.setText("Cat: " + def.category + " | Type: " + def.getType());
+            String typeStr = def.getType();
+            holder.tvCategory.setText("Cat: " + def.category + " | Type: " + typeStr);
             holder.tvCode.setText("Code: " + (def.code != null ? def.code : "N/A"));
 
             holder.containerShape.removeAllViews();
@@ -633,14 +695,42 @@ public class ManageBlocksActivity extends AppCompatActivity {
                 } catch (Exception ex) {
                     blockColor = Color.parseColor("#2196F3");
                 }
-                Block blockView = new Block(ManageBlocksActivity.this, 0, def.getSpec(), def.getType(), def.getOpCode(), new Object[]{Integer.valueOf(blockColor)});
-                holder.containerShape.addView(blockView);
+
+                // "h" type = rounded-rect label in list
+                if ("h".equals(typeStr)) {
+                    TextView labelView = new TextView(ManageBlocksActivity.this);
+                    int dp8 = (int) (8 * getResources().getDisplayMetrics().density);
+                    int dp32 = (int) (32 * getResources().getDisplayMetrics().density);
+                    android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT, dp32);
+                    lp.setMargins(0, dp8, 0, dp8);
+                    labelView.setLayoutParams(lp);
+                    labelView.setText(def.getSpec());
+                    labelView.setTextSize(11);
+                    labelView.setTypeface(null, android.graphics.Typeface.BOLD);
+                    labelView.setGravity(android.view.Gravity.CENTER);
+                    labelView.setTextColor(0xFFFFFFFF);
+                    android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+                    gd.setColor(blockColor);
+                    gd.setCornerRadius(dp8);
+                    labelView.setBackground(gd);
+                    holder.containerShape.addView(labelView);
+                } else {
+                    Block blockView = new Block(ManageBlocksActivity.this, 0, def.getSpec(), typeStr, def.getOpCode(), new Object[]{Integer.valueOf(blockColor)});
+                    holder.containerShape.addView(blockView);
+                }
             } catch (Exception e) {
+                int fallbackColor;
+                try {
+                    fallbackColor = Color.parseColor(def.color != null ? def.color : "#2196F3");
+                } catch (Exception ex) {
+                    fallbackColor = Color.parseColor("#2196F3");
+                }
                 TextView fallback = new TextView(ManageBlocksActivity.this);
                 fallback.setText(def.getSpec());
                 fallback.setTextColor(Color.WHITE);
                 fallback.setPadding(16, 8, 16, 8);
-                fallback.setBackgroundColor(Color.parseColor(def.color != null ? def.color : "#2196F3"));
+                fallback.setBackgroundColor(fallbackColor);
                 holder.containerShape.addView(fallback);
             }
 

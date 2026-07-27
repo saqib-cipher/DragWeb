@@ -234,16 +234,12 @@ public class BlockDef {
         }
     }
 
-    private static List<BlockDef> cacheDefs;
-
     public static void clearCache() {
-        cacheDefs = null;
+        // no-op: cache removed; always reads fresh from file
     }
 
     public static List<BlockDef> getDefinitions(android.content.Context context) {
-        if (cacheDefs != null && !cacheDefs.isEmpty()) return cacheDefs;
-        cacheDefs = new ArrayList<>();
-        if (context == null) return cacheDefs;
+        if (context == null) return new ArrayList<>();
 
         String json = null;
         java.io.File customFile = new java.io.File(CustomStorageUtil.getCustomDir(context), "blocks.json");
@@ -261,12 +257,12 @@ public class BlockDef {
             try {
                 List<BlockDef> loaded = new com.google.gson.Gson().fromJson(json,
                     new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
-                if (loaded != null) cacheDefs = loaded;
+                if (loaded != null) return loaded;
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
-        return cacheDefs;
+        return new ArrayList<>();
     }
 }
 

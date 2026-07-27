@@ -98,6 +98,7 @@ public class BlockParamTypeManager {
         d.put("alignItems", Arrays.asList("stretch", "flex-start", "flex-end", "center", "baseline"));
         d.put("selector", Arrays.asList("body", "h1", "p", ".active", "#main", "div"));
         d.put("unit", Arrays.asList("px", "%", "em", "rem", "vh", "vw"));
+        d.put("formMethod", Arrays.asList("GET", "POST", "dialog"));
         return d;
     }
 

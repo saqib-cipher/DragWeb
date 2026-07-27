@@ -369,7 +369,7 @@ public class ManageBlocksWidgets {
     }
 
     private File libraryFile() {
-        return CustomStorageUtil.getCustomFile(context, "blocks.json");
+        return new File(CustomStorageUtil.getCustomDir(context), "blocks.json");
     }
 
     // -------------------------------------------------------------------------

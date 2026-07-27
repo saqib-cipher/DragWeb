@@ -81,6 +81,26 @@ public class PageManager {
         if (extLogicFile.exists()) {
             extLogicFile.delete();
         }
+        // Remove page from fontimports.json selectedPages if present
+        File fontFile = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId + "/fontimports.json");
+        if (fontFile.exists()) {
+            try {
+                String body = FileUtil.readFile(fontFile.getAbsolutePath());
+                if (body != null && !body.isEmpty()) {
+                    Map<String, Object> map = new Gson().fromJson(body, new TypeToken<Map<String, Object>>(){}.getType());
+                    if (map != null && map.containsKey("selectedPages")) {
+                        List<String> list = (List<String>) map.get("selectedPages");
+                        if (list != null && list.remove(pageName)) {
+                            FileUtil.writeFile(fontFile.getAbsolutePath(), new Gson().toJson(map));
+                        }
+                    }
+                }
+            } catch (Exception e) { e.printStackTrace(); }
+        }
+        // Delete generated HTML file from assets directory (left by export sync)
+        File generatedHtml = new File(android.os.Environment.getExternalStorageDirectory(),
+            ".dragweb/projects/" + projectId + "/assets/" + pageName + ".html");
+        if (generatedHtml.exists()) generatedHtml.delete();
     }
 
     public void renamePage(String oldName, String newName) {

@@ -14,31 +14,33 @@ public class CategoryDef {
     public String catColor;
     public String type; // css | js | common
 
-    private static List<CategoryDef> cachedCategories;
-
     public static void clearCache() {
-        cachedCategories = null;
+        // no-op: cache removed; always reads fresh from file
     }
 
     public static List<CategoryDef> getCategories(Context context) {
-        if (cachedCategories != null && !cachedCategories.isEmpty()) {
-            return cachedCategories;
-        }
-        cachedCategories = new ArrayList<>();
-        if (context == null) return cachedCategories;
+        if (context == null) return new ArrayList<>();
 
         try {
-            java.io.File file = CustomStorageUtil.getCustomFile(context, "categories.json");
-            String json = FileUtil.readFile(file.getAbsolutePath());
+            java.io.File file = new java.io.File(CustomStorageUtil.getCustomDir(context), "categories.json");
+            String json = null;
+            if (file.exists() && file.length() > 0) {
+                json = FileUtil.readFile(file.getAbsolutePath());
+            }
+            // Fall back to asset if custom file is missing/empty
+            if (json == null || json.trim().isEmpty()) {
+                try (java.io.InputStream is = context.getAssets().open("categories.json")) {
+                    java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+                    json = s.hasNext() ? s.next() : "";
+                } catch (Exception ignored) {}
+            }
             if (json != null && !json.trim().isEmpty()) {
                 List<CategoryDef> loaded = new Gson().fromJson(json, new TypeToken<List<CategoryDef>>(){}.getType());
-                if (loaded != null) {
-                    cachedCategories = loaded;
-                }
+                if (loaded != null) return loaded;
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return cachedCategories;
+        return new ArrayList<>();
     }
 }

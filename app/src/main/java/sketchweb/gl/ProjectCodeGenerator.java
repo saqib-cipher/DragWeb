@@ -280,7 +280,16 @@ public class ProjectCodeGenerator {
                 if (key.startsWith("func_") || key.contains("moreBlock")) continue;
                 if (isOrContainsDefinedFunc(entry.getValue())) continue;
 
-                String code = compiler.getSource(0, entry.getValue());
+                // Filter out HTML blocks — they go into the body, not JS
+                ArrayList<BlockBean> jsBlocks = new ArrayList<>();
+                for (BlockBean b : entry.getValue()) {
+                    if (b != null && !"html".equals(b.category)) {
+                        jsBlocks.add(b);
+                    }
+                }
+                if (jsBlocks.isEmpty()) continue;
+
+                String code = compiler.getSource(0, jsBlocks);
                 if (code != null && !code.trim().isEmpty()) {
                     sb.append(code).append("\n\n");
                 }

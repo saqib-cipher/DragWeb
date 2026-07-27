@@ -68,6 +68,10 @@ public class ExportManager {
     }
 
     private String compileBlocksFromLogicFile(String cleanPage, String categoryPrefix) {
+        return compileBlocksFromLogicFile(cleanPage, categoryPrefix, null);
+    }
+
+    private String compileBlocksFromLogicFile(String cleanPage, String categoryPrefix, String excludePrefix) {
         File logicFile = new File(Environment.getExternalStorageDirectory(),
             ".dragweb/projects/" + projectId + "/" + cleanPage + "_logic.json");
         if (!logicFile.exists()) return "";
@@ -80,10 +84,6 @@ public class ExportManager {
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
                 String key = entry.getKey();
-                // Skip function definition entries — they are emitted by addMoreBlockCodes
-                if (categoryPrefix == null && (key != null && (key.startsWith("func_") || key.contains("moreBlock")))) {
-                    continue;
-                }
                 ArrayList<BlockBean> filtered = entry.getValue();
                 if (categoryPrefix != null) {
                     filtered = new ArrayList<>();
@@ -92,6 +92,25 @@ public class ExportManager {
                             filtered.add(b);
                         }
                     }
+                    if (filtered.isEmpty()) continue;
+                } else {
+                    // No prefix filter — include blocks but skip special entries
+                    filtered = new ArrayList<>();
+                    for (BlockBean b : entry.getValue()) {
+                        if (b == null) continue;
+                        // Skip function definition entries — emitted by addMoreBlockCodes
+                        if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
+                        filtered.add(b);
+                    }
+                }
+                if (excludePrefix != null) {
+                    ArrayList<BlockBean> temp = new ArrayList<>();
+                    for (BlockBean b : filtered) {
+                        if (b.category == null || !b.category.startsWith(excludePrefix)) {
+                            temp.add(b);
+                        }
+                    }
+                    filtered = temp;
                     if (filtered.isEmpty()) continue;
                 }
                 String code = compiler.getSource(0, filtered);
@@ -204,7 +223,7 @@ public class ExportManager {
 
         // Load default global JS script blocks and append (BlockCodeCompiler)
         String globalJsClean = DesignDataManager.getCleanPageName("js/script.js");
-        String jsBlockCode = compileBlocksFromLogicFile(globalJsClean);
+        String jsBlockCode = compileBlocksFromLogicFile(globalJsClean, null, "html");
         if (!jsBlockCode.isEmpty()) {
             accumulatedJsBuffer.append(jsBlockCode).append("\n");
         }
@@ -260,6 +279,16 @@ public class ExportManager {
             // Clean assets reference in HTML: replace "assets/" with ""
             htmlContent = htmlContent.replace("assets/", "");
 
+            // Compile HTML blocks (category "html") and inject into body
+            if (pageLogic != null) {
+                String cleanName = DesignDataManager.getCleanPageName(pageName);
+                String pageHtmlBlocks = compileBlocksFromLogicFile(cleanName, "html");
+                if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
+                    htmlContent = htmlContent.replace("</body>",
+                        "\n  <!-- HTML Blocks -->\n  " + pageHtmlBlocks.replace("\n", "\n  ") + "\n</body>");
+                }
+            }
+
             pageHtmlMap.put(pageName, htmlContent);
 
             // Accumulate page-specific CSS rules
@@ -277,8 +306,8 @@ public class ExportManager {
                     accumulatedCssBuffer.append(asdCss).append("\n");
                 }
 
-                // Accumulate page-specific JS rules
-                String pageJsBlocks = compileBlocksFromLogicFile(DesignDataManager.getCleanPageName(pageName));
+                // Accumulate page-specific JS rules (exclude HTML blocks — they go into the body)
+                String pageJsBlocks = compileBlocksFromLogicFile(DesignDataManager.getCleanPageName(pageName), null, "html");
                 if (!pageJsBlocks.isEmpty()) {
                     accumulatedJsBuffer.append(pageJsBlocks).append("\n");
                 }

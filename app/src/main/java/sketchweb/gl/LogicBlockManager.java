@@ -598,10 +598,10 @@ public class LogicBlockManager {
             // Skip blocks that are emitted as static CSS rules (changeStyle on
             // page-load / immediate). Those are output by generateBaseCssRules().
             if (isStaticCssBlock(block)) continue;
-            // Skip new-schema CSS/animation/meta/asd blocks – the template
+            // Skip new-schema CSS/animation/meta/asd/html blocks – the template
             // codegen handled them already.
             if ("css".equals(block.category) || "animation".equals(block.category)
-                || "meta".equals(block.category) || "asd".equals(block.category)) continue;
+                || "meta".equals(block.category) || "asd".equals(block.category) || "html".equals(block.category)) continue;
             if ("groupBlock".equals(block.action) || "commentBlock".equals(block.action)) continue;
             // Skip nested children – they're emitted by their parent container.
             if (block.parentBlockId != null && !block.parentBlockId.isEmpty()) continue;

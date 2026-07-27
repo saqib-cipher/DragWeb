@@ -1,5 +1,6 @@
 package sketchweb.gl;
 
+import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 import java.util.ArrayList;
@@ -13,6 +14,8 @@ public class PageCodeGenerator {
     // Project info for default header
     private String projectName = "";
     private String projectLogoPath = "";
+    private String projectId = "";
+    private Context context;
     private IconLibraryManager iconLibraryManager;
     private AnimationLibraryManager animationLibraryManager;
     private GoogleFontsManager googleFontsManager;
@@ -24,6 +27,14 @@ public class PageCodeGenerator {
     public void setProjectInfo(String name, String logoPath) {
         this.projectName = name != null ? name : "";
         this.projectLogoPath = logoPath != null ? logoPath : "";
+    }
+
+    public void setProjectId(String id) {
+        this.projectId = id;
+    }
+
+    public void setContext(Context ctx) {
+        this.context = ctx;
     }
 
     /** Optional icon library configuration whose CDN tags will be injected. */
@@ -86,6 +97,16 @@ public class PageCodeGenerator {
             }
         }
 
+        // Compile HTML blocks (category "html") into the body
+        if (logicBlockManager != null && currentPageName != null && !currentPageName.isEmpty()) {
+            String pageHtmlBlocks = compileHtmlBlocks(currentPageName);
+            if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
+                bodyBuilder.append("  <!-- HTML Blocks -->\n  ");
+                bodyBuilder.append(pageHtmlBlocks.replace("\n", "\n  "));
+                bodyBuilder.append("\n");
+            }
+        }
+
         StringBuilder htmlBuilder = new StringBuilder();
         appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager);
         htmlBuilder.append(bodyBuilder);
@@ -132,11 +153,56 @@ public class PageCodeGenerator {
             }
         }
 
+        // Compile HTML blocks (category "html") into the body
+        if (logicBlockManager != null && currentPageName != null && !currentPageName.isEmpty()) {
+            String pageHtmlBlocks = compileHtmlBlocks(currentPageName);
+            if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
+                bodyBuilder.append("  <!-- HTML Blocks -->\n  ");
+                bodyBuilder.append(pageHtmlBlocks.replace("\n", "\n  "));
+                bodyBuilder.append("\n");
+            }
+        }
+
         StringBuilder htmlBuilder = new StringBuilder();
         appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager);
         htmlBuilder.append(bodyBuilder);
         appendHtmlFooter(htmlBuilder, themeManager, logicBlockManager, customBlockManager);
         return htmlBuilder.toString();
+    }
+
+    private String compileHtmlBlocks(String pageName) {
+        if (projectId == null || projectId.isEmpty() || context == null) return "";
+        String cleanName = DesignDataManager.getCleanPageName(pageName);
+        java.io.File logicFile = new java.io.File(android.os.Environment.getExternalStorageDirectory(),
+            ".dragweb/projects/" + projectId + "/" + cleanName + "_logic.json");
+        if (!logicFile.exists()) return "";
+        try {
+            String content = sketchweb.gl.FileUtil.readFile(logicFile.getAbsolutePath());
+            if (content == null || content.trim().isEmpty()) return "";
+            DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(content, pageName);
+            if (data == null || data.blocks == null || data.blocks.isEmpty()) return "";
+            BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
+            StringBuilder sb = new StringBuilder();
+            for (java.util.Map.Entry<String, java.util.ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
+                String key = entry.getKey();
+                if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
+                java.util.ArrayList<BlockBean> htmlBlocks = new java.util.ArrayList<>();
+                for (BlockBean b : entry.getValue()) {
+                    if (b != null && "html".equals(b.category)) {
+                        htmlBlocks.add(b);
+                    }
+                }
+                if (htmlBlocks.isEmpty()) continue;
+                String code = compiler.getSource(0, htmlBlocks);
+                if (code != null && !code.trim().isEmpty()) {
+                    sb.append(code).append("\n\n");
+                }
+            }
+            return sb.toString().trim();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
     }
 
     private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager) {

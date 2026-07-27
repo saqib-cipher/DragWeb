@@ -552,43 +552,35 @@
         "code":  "transition: transform 0.2s ease; transform: scale(%1$s);\n"
     },
     {
-        "id":  "asdHtml",
+        "id":  "asdN",
         "category":  "asd",
         "blockType":  "normal",
         "color":  "#455A64",
-        "spec":  "HTML source %s.inputOnly",
+        "spec":  "Add source directly %s.inputOnly",
         "code":  "%1$s\n"
     },
     {
-        "id":  "asdCss",
+        "id":  "asdD",
         "category":  "asd",
-        "blockType":  "normal",
+        "blockType":  "d",
         "color":  "#455A64",
-        "spec":  "CSS source %s.inputOnly",
+        "spec":  "Number source %s.inputOnly",
         "code":  "%1$s\n"
     },
     {
-        "id":  "asdJs",
+        "id":  "asdS",
         "category":  "asd",
         "blockType":  "normal",
         "color":  "#455A64",
-        "spec":  "JS source %s.inputOnly",
+        "spec":  "String source %s.inputOnly",
         "code":  "%1$s\n"
     },
     {
-        "id":  "asdHead",
+        "id":  "asdB",
         "category":  "asd",
         "blockType":  "normal",
         "color":  "#455A64",
-        "spec":  "Head source %s.inputOnly",
-        "code":  "%1$s\n"
-    },
-    {
-        "id":  "asdMeta",
-        "category":  "asd",
-        "blockType":  "normal",
-        "color":  "#455A64",
-        "spec":  "Meta tag %s.inputOnly",
+        "spec":  "Boolean source %s.inputOnly",
         "code":  "%1$s\n"
     },
     {
@@ -1878,24 +1870,48 @@
         "category":  "html",
         "blockType":  "c",
         "color":  "#607D8B",
-        "spec":  "<div> %s.inputOnly",
-        "code":  "<div class=\"%1$s\">\n%2$s\n</div>\n"
+        "spec":  "<div>",
+        "code":  "<div>\n%1$s\n</div>\n"
     },
     {
         "id":  "htmlSpan",
         "category":  "html",
         "blockType":  "c",
         "color":  "#607D8B",
-        "spec":  "<span> %s.inputOnly",
-        "code":  "<span class=\"%1$s\">\n%2$s\n</span>\n"
+        "spec":  "<span>",
+        "code":  "<span>\n%1$s\n</span>\n"
+    },
+    {
+        "id":  "htmlMain",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<main>",
+        "code":  "<main>\n%1$s\n</main>\n"
     },
     {
         "id":  "htmlSection",
         "category":  "html",
         "blockType":  "c",
         "color":  "#607D8B",
-        "spec":  "<section> %s.inputOnly",
-        "code":  "<section class=\"%1$s\">\n%2$s\n</section>\n"
+        "spec":  "<section>",
+        "code":  "<section>\n%1$s\n</section>\n"
+    },
+    {
+        "id":  "htmlArticle",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<article>",
+        "code":  "<article>\n%1$s\n</article>\n"
+    },
+    {
+        "id":  "htmlAside",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<aside>",
+        "code":  "<aside>\n%1$s\n</aside>\n"
     },
     {
         "id":  "htmlHeader",
@@ -1935,15 +1951,15 @@
         "blockType":  "normal",
         "color":  "#607D8B",
         "spec":  "<img src=\" %s.inputOnly \" alt=\" %s.inputOnly \"",
-        "code":  "<img src=\"%1$s\" alt=\"%2$s\">\n"
+        "code":  "<img src=\"%1$s\" alt=\"%2$s\" loading=\"lazy\">\n"
     },
     {
         "id":  "htmlParagraph",
         "category":  "html",
         "blockType":  "c",
         "color":  "#607D8B",
-        "spec":  "<p> %s.inputOnly",
-        "code":  "<p class=\"%1$s\">\n%2$s\n</p>\n"
+        "spec":  "<p>",
+        "code":  "<p>\n%1$s\n</p>\n"
     },
     {
         "id":  "htmlHeading",
@@ -1954,12 +1970,60 @@
         "code":  "<h%1$s>%2$s</h%1$s>\n"
     },
     {
-        "id":  "htmlList",
+        "id":  "htmlStrong",
+        "category":  "html",
+        "blockType":  "normal",
+        "color":  "#607D8B",
+        "spec":  "<strong> %s.inputOnly",
+        "code":  "<strong>%1$s</strong>\n"
+    },
+    {
+        "id":  "htmlEm",
+        "category":  "html",
+        "blockType":  "normal",
+        "color":  "#607D8B",
+        "spec":  "<em> %s.inputOnly",
+        "code":  "<em>%1$s</em>\n"
+    },
+    {
+        "id":  "htmlMark",
+        "category":  "html",
+        "blockType":  "normal",
+        "color":  "#607D8B",
+        "spec":  "<mark> %s.inputOnly",
+        "code":  "<mark>%1$s</mark>\n"
+    },
+    {
+        "id":  "htmlCode",
+        "category":  "html",
+        "blockType":  "normal",
+        "color":  "#607D8B",
+        "spec":  "<code> %s.inputOnly",
+        "code":  "<code>%1$s</code>\n"
+    },
+    {
+        "id":  "htmlSmall",
+        "category":  "html",
+        "blockType":  "normal",
+        "color":  "#607D8B",
+        "spec":  "<small> %s.inputOnly",
+        "code":  "<small>%1$s</small>\n"
+    },
+    {
+        "id":  "htmlUnorderedList",
         "category":  "html",
         "blockType":  "c",
         "color":  "#607D8B",
-        "spec":  "<%m.listType>",
-        "code":  "<%1$s>\n%2$s\n</%1$s>\n"
+        "spec":  "<ul>",
+        "code":  "<ul>\n%1$s\n</ul>\n"
+    },
+    {
+        "id":  "htmlOrderedList",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<ol>",
+        "code":  "<ol>\n%1$s\n</ol>\n"
     },
     {
         "id":  "htmlListItem",
@@ -1974,32 +2038,32 @@
         "category":  "html",
         "blockType":  "c",
         "color":  "#607D8B",
-        "spec":  "<button onclick=\" %s.inputOnly \"",
-        "code":  "<button onclick=\"%1$s\">%2$s</button>\n"
+        "spec":  "<button>",
+        "code":  "<button>\n%1$s\n</button>\n"
     },
     {
         "id":  "htmlInput",
         "category":  "html",
         "blockType":  "normal",
         "color":  "#607D8B",
-        "spec":  "<input type=\" %m.inputType \" name=\" %s.inputOnly \" value=\" %s.inputOnly \"",
-        "code":  "<input type=\"%1$s\" name=\"%2$s\" value=\"%3$s\">\n"
+        "spec":  "<input type=\" %m.inputType \" name=\" %s.inputOnly \" placeholder=\" %s.inputOnly \"",
+        "code":  "<input type=\"%1$s\" name=\"%2$s\" placeholder=\"%3$s\">\n"
     },
     {
         "id":  "htmlForm",
         "category":  "html",
         "blockType":  "c",
         "color":  "#607D8B",
-        "spec":  "<form action=\" %s.inputOnly \">",
-        "code":  "<form action=\"%1$s\">\n%2$s\n</form>\n"
+        "spec":  "<form action=\" %s.inputOnly \" method=\" %m.formMethod \"",
+        "code":  "<form action=\"%1$s\" method=\"%2$s\">\n%3$s\n</form>\n"
     },
     {
         "id":  "htmlTextarea",
         "category":  "html",
         "blockType":  "normal",
         "color":  "#607D8B",
-        "spec":  "<textarea name=\" %s.inputOnly \" rows=\" %d \" cols=\" %d \"",
-        "code":  "<textarea name=\"%1$s\" rows=\"%2$s\" cols=\"%3$s\"></textarea>\n"
+        "spec":  "<textarea name=\" %s.inputOnly \" rows=\" %d \" placeholder=\" %s.inputOnly \"",
+        "code":  "<textarea name=\"%1$s\" rows=\"%2$s\" placeholder=\"%3$s\"></textarea>\n"
     },
     {
         "id":  "htmlSelect",
@@ -2026,36 +2090,84 @@
         "code":  "<label for=\"%1$s\">%2$s</label>\n"
     },
     {
-        "id":  "htmlMetaTag",
-        "category":  "html",
-        "blockType":  "normal",
-        "color":  "#607D8B",
-        "spec":  "<meta name=\" %s.inputOnly \" content=\" %s.inputOnly \"",
-        "code":  "<meta name=\"%1$s\" content=\"%2$s\">\n"
-    },
-    {
-        "id":  "htmlLinkTag",
-        "category":  "html",
-        "blockType":  "normal",
-        "color":  "#607D8B",
-        "spec":  "<link rel=\" %s.inputOnly \" href=\" %s.inputOnly \"",
-        "code":  "<link rel=\"%1$s\" href=\"%2$s\">\n"
-    },
-    {
-        "id":  "htmlScriptTag",
-        "category":  "html",
-        "blockType":  "normal",
-        "color":  "#607D8B",
-        "spec":  "<script src=\" %s.inputOnly \"",
-        "code":  "<script src=\"%1$s\"></script>\n"
-    },
-    {
-        "id":  "htmlStyleBlock",
+        "id":  "htmlFieldset",
         "category":  "html",
         "blockType":  "c",
         "color":  "#607D8B",
-        "spec":  "<style>",
-        "code":  "<style>\n%1$s\n</style>\n"
+        "spec":  "<fieldset>",
+        "code":  "<fieldset>\n%1$s\n</fieldset>\n"
+    },
+    {
+        "id":  "htmlLegend",
+        "category":  "html",
+        "blockType":  "normal",
+        "color":  "#607D8B",
+        "spec":  "<legend> %s.inputOnly",
+        "code":  "<legend>%1$s</legend>\n"
+    },
+    {
+        "id":  "htmlFigure",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<figure>",
+        "code":  "<figure>\n%1$s\n</figure>\n"
+    },
+    {
+        "id":  "htmlFigCaption",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<figcaption>",
+        "code":  "<figcaption>\n%1$s\n</figcaption>\n"
+    },
+    {
+        "id":  "htmlDetails",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<details>",
+        "code":  "<details>\n%1$s\n</details>\n"
+    },
+    {
+        "id":  "htmlSummary",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<summary>",
+        "code":  "<summary>\n%1$s\n</summary>\n"
+    },
+    {
+        "id":  "htmlVideo",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<video src=\" %s.inputOnly \" controls",
+        "code":  "<video src=\"%1$s\" controls>\n%2$s\n</video>\n"
+    },
+    {
+        "id":  "htmlAudio",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<audio src=\" %s.inputOnly \" controls",
+        "code":  "<audio src=\"%1$s\" controls>\n%2$s\n</audio>\n"
+    },
+    {
+        "id":  "htmlPicture",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<picture>",
+        "code":  "<picture>\n%1$s\n</picture>\n"
+    },
+    {
+        "id":  "htmlSource",
+        "category":  "html",
+        "blockType":  "normal",
+        "color":  "#607D8B",
+        "spec":  "<source src=\" %s.inputOnly \" type=\" %s.inputOnly \"",
+        "code":  "<source src=\"%1$s\" type=\"%2$s\">\n"
     },
     {
         "id":  "htmlIframe",
@@ -2063,7 +2175,7 @@
         "blockType":  "normal",
         "color":  "#607D8B",
         "spec":  "<iframe src=\" %s.inputOnly \" width=\" %s.inputOnly \" height=\" %s.inputOnly \"",
-        "code":  "<iframe src=\"%1$s\" width=\"%2$s\" height=\"%3$s\"></iframe>\n"
+        "code":  "<iframe src=\"%1$s\" width=\"%2$s\" height=\"%3$s\" loading=\"lazy\"></iframe>\n"
     },
     {
         "id":  "htmlPre",
@@ -2096,5 +2208,29 @@
         "color":  "#607D8B",
         "spec":  "<br>",
         "code":  "<br>\n"
+    },
+    {
+        "id":  "htmlProgress",
+        "category":  "html",
+        "blockType":  "normal",
+        "color":  "#607D8B",
+        "spec":  "<progress value=\" %d \" max=\" %d \"",
+        "code":  "<progress value=\"%1$s\" max=\"%2$s\"></progress>\n"
+    },
+    {
+        "id":  "htmlCanvas",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<canvas id=\" %s.inputOnly \"",
+        "code":  "<canvas id=\"%1$s\">\n%2$s\n</canvas>\n"
+    },
+    {
+        "id":  "htmlTemplate",
+        "category":  "html",
+        "blockType":  "c",
+        "color":  "#607D8B",
+        "spec":  "<template>",
+        "code":  "<template>\n%1$s\n</template>\n"
     }
 ]

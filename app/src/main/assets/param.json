@@ -24,5 +24,6 @@
   "clear": ["none", "left", "right", "both"],
   "objectFit": ["fill", "contain", "cover", "none", "scale-down"],
   "verticalAlign": ["baseline", "top", "middle", "bottom", "text-top", "text-bottom"],
-  "listStyle": ["none", "disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "lower-alpha", "upper-alpha"]
+  "listStyle": ["none", "disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "lower-alpha", "upper-alpha"],
+  "formMethod": ["GET", "POST", "dialog"]
 }
