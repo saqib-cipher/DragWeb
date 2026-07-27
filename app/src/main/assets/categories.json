@@ -112,5 +112,11 @@
         "name": "Add Source",
         "catColor": "#37474F",
         "type": "common"
+    },
+    {
+        "id": "html",
+        "name": "HTML",
+        "catColor": "#607D8B",
+        "type": "js"
     }
 ]

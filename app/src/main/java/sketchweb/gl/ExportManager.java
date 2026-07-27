@@ -27,6 +27,7 @@ public class ExportManager {
     private ThemeManager themeManager;
     private IconLibraryManager iconLibraryManager;
     private AnimationLibraryManager animationLibraryManager;
+    private GoogleFontsManager googleFontsManager;
     private String projectId;
 
     /**
@@ -47,6 +48,10 @@ public class ExportManager {
 
     public void setAnimationLibraryManager(AnimationLibraryManager m) {
         this.animationLibraryManager = m;
+    }
+
+    public void setGoogleFontsManager(GoogleFontsManager m) {
+        this.googleFontsManager = m;
     }
 
     /**
@@ -445,6 +450,12 @@ public class ExportManager {
             String includes = animationLibraryManager.generateHtmlIncludes();
             if (includes != null && !includes.isEmpty()) html.append(includes);
         }
+
+        if (googleFontsManager != null) {
+            String fonts = googleFontsManager.generateGoogleFontsLinkTag(pageName);
+            if (fonts != null && !fonts.isEmpty()) html.append("  ").append(fonts);
+        }
+
         html.append(getStylesheetLink(pageName));
 
         if (logicBlockManager != null) {
@@ -547,9 +558,11 @@ public class ExportManager {
                 String selectorPrefix = (function.containsKey("class") && !String.valueOf(function.get("class")).trim().isEmpty()) ? "." : "";
                 elementCssBuffer.append(selectorPrefix).append(generatedClass).append(" {\n");
                 for (Map.Entry<String, Object> entry : style.entrySet()) {
+                    String val = entry.getValue() != null ? entry.getValue().toString().trim() : "";
+                    if (val.isEmpty()) continue;
                     String cssKey = camelToKebab(entry.getKey());
                     elementCssBuffer.append("  ").append(cssKey).append(": ")
-                        .append(entry.getValue()).append(";\n");
+                        .append(val).append(";\n");
                 }
                 elementCssBuffer.append("}\n");
             }
@@ -720,6 +733,12 @@ public class ExportManager {
             String includes = animationLibraryManager.generateHtmlIncludes();
             if (includes != null && !includes.isEmpty()) html.append(includes);
         }
+
+        if (googleFontsManager != null) {
+            String fonts = googleFontsManager.generateGoogleFontsLinkTag(pageName);
+            if (fonts != null && !fonts.isEmpty()) html.append("  ").append(fonts);
+        }
+
         html.append(getStylesheetLink(pageName));
 
         // ASD <head> source (e.g. extra <link> or <script src> tags) goes last
@@ -846,7 +865,9 @@ public class ExportManager {
             if (style != null && !style.isEmpty()) {
                 StringBuilder styleSb = new StringBuilder();
                 for (Map.Entry<String, Object> entry : style.entrySet()) {
-                    styleSb.append(camelToKebab(entry.getKey())).append(": ").append(entry.getValue()).append("; ");
+                    String val = entry.getValue() != null ? entry.getValue().toString().trim() : "";
+                    if (val.isEmpty()) continue;
+                    styleSb.append(camelToKebab(entry.getKey())).append(": ").append(val).append("; ");
                 }
                 html.append(" style=\"").append(escapeHtml(styleSb.toString().trim())).append("\"");
             }
@@ -867,9 +888,11 @@ public class ExportManager {
                 
                 elementCssBuffer.append(selector).append(" {\n");
                 for (Map.Entry<String, Object> entry : style.entrySet()) {
+                    String val = entry.getValue() != null ? entry.getValue().toString().trim() : "";
+                    if (val.isEmpty()) continue;
                     String cssKey = camelToKebab(entry.getKey());
                     elementCssBuffer.append("  ").append(cssKey).append(": ")
-                        .append(entry.getValue()).append(";\n");
+                        .append(val).append(";\n");
                 }
                 elementCssBuffer.append("}\n\n");
             }

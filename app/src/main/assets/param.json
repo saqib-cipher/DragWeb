@@ -14,5 +14,15 @@
   "justifyContent": ["flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly"],
   "alignItems": ["stretch", "flex-start", "flex-end", "center", "baseline"],
   "selector": ["body", "h1", "p", ".active", "#main", "div"],
-  "unit": ["px", "%", "em", "rem", "vh", "vw"]
+  "unit": ["px", "%", "em", "rem", "vh", "vw"],
+  "inputType": ["text", "password", "email", "number", "tel", "url", "search", "date", "time", "color", "file", "checkbox", "radio", "range", "hidden", "submit", "reset", "button"],
+  "listType": ["ul", "ol"],
+  "visibility": ["visible", "hidden", "collapse"],
+  "whiteSpace": ["normal", "nowrap", "pre", "pre-wrap", "pre-line"],
+  "wordBreak": ["normal", "break-all", "keep-all", "break-word"],
+  "float": ["none", "left", "right"],
+  "clear": ["none", "left", "right", "both"],
+  "objectFit": ["fill", "contain", "cover", "none", "scale-down"],
+  "verticalAlign": ["baseline", "top", "middle", "bottom", "text-top", "text-bottom"],
+  "listStyle": ["none", "disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "lower-alpha", "upper-alpha"]
 }

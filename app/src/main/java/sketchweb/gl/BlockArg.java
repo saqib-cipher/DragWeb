@@ -2,6 +2,7 @@ package sketchweb.gl;
 
 import android.content.Context;
 import android.graphics.Rect;
+import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -324,6 +325,27 @@ public class BlockArg extends BlockBase {
                         }
                     }
                 });
+                return;
+            }
+
+            if ("fontFamily".equalsIgnoreCase(menuName)) {
+                String currentVal = this.argValue != null ? this.argValue.toString() : "";
+                if (getContext() instanceof androidx.fragment.app.FragmentActivity) {
+                    FontPickerDialogFragment dialog = new FontPickerDialogFragment();
+                    Bundle args = new Bundle();
+                    args.putString("initialFonts", currentVal);
+                    args.putString("projectId", LogicBlockActivity.projectId);
+                    dialog.setArguments(args);
+                    dialog.setOnFontsSelectedListener(fonts -> {
+                        setArgValue(fonts);
+                        if (parentBlock != null) {
+                            parentBlock.recalcWidthToParent();
+                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        }
+                    });
+                    dialog.show(((androidx.fragment.app.FragmentActivity) getContext()).getSupportFragmentManager(), "font_family_picker");
+                }
                 return;
             }
 

@@ -1,5 +1,8 @@
 package sketchweb.gl;
 
+
+
+
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipDescription;
@@ -69,6 +72,7 @@ public class MainEditorFragment extends Fragment {
 	private WidgetRegistry widgetRegistry;
 	private LogicBlockManager logicBlockManager;
 	private ManageBlocksWidgets customBlockManager;
+	private GoogleFontsManager googleFontsManager;
 	private HierarchyTreeAdapter hierarchyAdapter;
 	private PageManager pageManager;
 	private ActivityResultLauncher<Intent> logicBlockLauncher;
@@ -508,7 +512,7 @@ public class MainEditorFragment extends Fragment {
 					if (item.getTitle().equals("Themes")) {
 						showThemeDialog();
 					} else if (item.getTitle().equals("Font Settings")) {
-						showFontSettingsDialog();
+						showFontImportDialog();
 					} else if (item.getTitle().equals("Icon Libraries")) {
 						showIconLibrariesDialog();
 					} else if (item.getTitle().equals("Animation Library")) {
@@ -626,6 +630,9 @@ public class MainEditorFragment extends Fragment {
 		AnimationLibraryManager animMgr = new AnimationLibraryManager(requireContext(), projectId);
 		exportManager.setAnimationLibraryManager(animMgr);
 		codeGenerator.setAnimationLibraryManager(animMgr);
+		googleFontsManager = new GoogleFontsManager(requireContext(), projectId);
+		exportManager.setGoogleFontsManager(googleFontsManager);
+		codeGenerator.setGoogleFontsManager(googleFontsManager);
 		logicBlockManager = new LogicBlockManager(requireContext());
 		customBlockManager = new ManageBlocksWidgets(requireContext());
 		pageManager = new PageManager(requireContext(), projectId);
@@ -3234,23 +3241,37 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void showFontSettingsDialog() {
-		String currentFont = themeManager.getStyleForTheme(themeManager.getCurrentTheme(), "fontFamily");
-		if (currentFont == null || currentFont.isEmpty()) {
-			currentFont = "sans-serif";
-		}
-
-		java.util.List<String> fontSuggestions = java.util.Arrays.asList(
-			"sans-serif", "serif", "monospace", "system-ui",
-			"Inter", "Outfit", "Roboto", "Poppins", "Montserrat", "Playfair Display"
-		);
-
-		UniversalDialog.autocompleteInput(requireContext(), "Font Settings", "Font Family", currentFont, fontSuggestions, font -> {
-			if (!font.isEmpty()) {
-				themeManager.setStyleForTheme(ThemeManager.THEME_LIGHT, "fontFamily", font);
-				themeManager.setStyleForTheme(ThemeManager.THEME_DARK, "fontFamily", font);
+		showFontPickerDialog(null, fonts -> {
+			if (fonts != null && !fonts.isEmpty()) {
+				String joined = String.join(", ", fonts);
+				themeManager.setStyleForTheme(ThemeManager.THEME_LIGHT, "fontFamily", joined);
+				themeManager.setStyleForTheme(ThemeManager.THEME_DARK, "fontFamily", joined);
 				Toast.makeText(requireContext(), "Font family updated", Toast.LENGTH_SHORT).show();
 			}
 		});
+	}
+
+	private void showFontPickerDialog(String currentFonts, FontPickerDialogFragment.OnFontsSelectedListener callback) {
+		FontPickerDialogFragment dialog = new FontPickerDialogFragment();
+		Bundle args = new Bundle();
+		args.putString("initialFonts", currentFonts != null ? currentFonts : "");
+		args.putString("projectId", projectId);
+		dialog.setArguments(args);
+		dialog.setOnFontsSelectedListener(callback);
+		dialog.show(getChildFragmentManager(), "font_picker");
+	}
+
+	private void showFontImportDialog() {
+		FontImportDialogFragment dialog = new FontImportDialogFragment();
+		Bundle args = new Bundle();
+		args.putString("projectId", projectId);
+		dialog.setArguments(args);
+		dialog.setOnFontImportAppliedListener(() -> {
+			googleFontsManager = new GoogleFontsManager(requireContext(), projectId);
+			exportManager.setGoogleFontsManager(googleFontsManager);
+			codeGenerator.setGoogleFontsManager(googleFontsManager);
+		});
+		dialog.show(getChildFragmentManager(), "font_import");
 	}
 
 	private void setupColorInputField(TextInputEditText et) {
@@ -3811,6 +3832,9 @@ public class MainEditorFragment extends Fragment {
 			case "Overflow": return "overflow";
 			case "BoxShadow": return "boxShadow";
 			case "TextDecor": return "textDecoration";
+			case "FontFamily": return "fontFamily";
+			case "FontWeight": return "fontWeight";
+			case "TextTransform": return "textTransform";
 			case "LineHeight": return "lineHeight";
 			case "LetterSpace": return "letterSpacing";
 			case "ZIndex": return "zIndex";
@@ -4367,9 +4391,13 @@ public class MainEditorFragment extends Fragment {
 						refreshActiveDesignList();
 					});
 				} else if (editType.equals("FontFamily")) {
-					dialog.setOptions(new String[]{"sans-serif", "serif", "monospace", "cursive", "fantasy", "Inter", "Roboto", "Outfit"}).showChoiceInput(value -> {
+					showFontPickerDialog(initialValue, fonts -> {
 						Map<String, Object> style = new HashMap<>();
-						style.put(cssKey, value);
+						if (fonts.isEmpty()) {
+							style.put(cssKey, "");
+						} else {
+							style.put(cssKey, String.join(", ", fonts));
+						}
 						widgetUpdater.updateWidget(selected, "", style);
 						saveUndoState();
 						refreshActiveDesignList();

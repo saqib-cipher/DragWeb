@@ -101,6 +101,10 @@ public class ColorViewModel extends AndroidViewModel {
         return colorMap.getOrDefault(category, Collections.emptyList());
     }
 
+    public Set<String> getColorCategories() {
+        return colorMap.keySet();
+    }
+
     public void selectCategory(String category) {
         selectedCategory.setValue(category);
 

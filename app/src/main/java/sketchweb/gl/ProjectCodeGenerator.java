@@ -146,75 +146,70 @@ public class ProjectCodeGenerator {
 
     public static ArrayList<String> addMoreBlockCodes(Context context, String projectId, BlockCodeCompiler compiler) {
         ArrayList<String> moreBlocks = new ArrayList<>();
-        java.util.Set<String> compiledFuncs = new java.util.HashSet<>();
+        java.util.Set<String> compiledFuncsLower = new java.util.HashSet<>();
 
+        // Phase 1: Compile from registered MoreBlock definitions (moreblocks.json)
         ArrayList<DesignDataManager.MoreBlockData> allFuncs = DesignDataManager.getProjectMoreBlocks(projectId);
         if (allFuncs != null) {
             for (DesignDataManager.MoreBlockData mb : allFuncs) {
-                if (mb == null || mb.name == null || mb.name.isEmpty() || compiledFuncs.contains(mb.name)) continue;
-                compiledFuncs.add(mb.name);
+                if (mb == null || mb.name == null || mb.name.trim().isEmpty()) continue;
+                String cleanName = mb.name.trim();
+                String lowerName = cleanName.toLowerCase();
+                if (compiledFuncsLower.contains(lowerName)) continue;
 
-                ArrayList<BlockBean> funcBlocks = getMoreBlockBeans(projectId, mb.name);
+                ArrayList<BlockBean> funcBlocks = getMoreBlockBeans(projectId, cleanName);
+                if (funcBlocks == null || funcBlocks.isEmpty()) continue;
+                compiledFuncsLower.add(lowerName);
+
                 ArrayList<BlockBean> bodyBlocks = new ArrayList<>();
-                if (funcBlocks != null) {
-                    for (BlockBean b : funcBlocks) {
+                for (BlockBean b : funcBlocks) {
+                    if (b != null && !"definedFunc".equals(b.opCode)) {
+                        bodyBlocks.add(b);
+                    }
+                }
+                String innerCode = bodyBlocks.isEmpty() ? "" : compiler.getSource(0, bodyBlocks);
+                moreBlocks.add(getMoreBlockCode(cleanName, mb.spec != null ? mb.spec.trim() : cleanName, innerCode));
+            }
+        }
+
+        // Phase 2: Scan mapBlocks for any leftover func_ / _moreBlock keys not yet compiled
+        if (DesignDataManager.mapBlocks != null) {
+            for (HashMap<String, ArrayList<BlockBean>> map : DesignDataManager.mapBlocks.values()) {
+                if (map == null) continue;
+                for (Map.Entry<String, ArrayList<BlockBean>> entry : map.entrySet()) {
+                    String key = entry.getKey();
+                    ArrayList<BlockBean> list = entry.getValue();
+                    if (key == null || list == null || list.isEmpty()) continue;
+
+                    String fName = null;
+                    String spec = null;
+
+                    if (key.startsWith("func_")) {
+                        fName = key.substring(5).trim();
+                    } else if (key.endsWith("_moreBlock")) {
+                        fName = key.substring(0, key.indexOf("_moreBlock")).trim();
+                    }
+
+                    if (fName == null || fName.isEmpty()) continue;
+                    if (compiledFuncsLower.contains(fName.toLowerCase())) continue;
+
+                    for (BlockBean b : list) {
+                        if (b != null && "definedFunc".equals(b.opCode)) {
+                            spec = b.spec != null ? b.spec.trim() : b.opCode;
+                            break;
+                        }
+                    }
+
+                    compiledFuncsLower.add(fName.toLowerCase());
+
+                    ArrayList<BlockBean> bodyBlocks = new ArrayList<>();
+                    for (BlockBean b : list) {
                         if (b != null && !"definedFunc".equals(b.opCode)) {
                             bodyBlocks.add(b);
                         }
                     }
-                }
-                String innerCode = bodyBlocks.isEmpty() ? "" : compiler.getSource(0, bodyBlocks);
-                moreBlocks.add(getMoreBlockCode(mb.name, mb.spec != null ? mb.spec : mb.name, innerCode));
-            }
-        }
-
-        if (DesignDataManager.mapBlocks != null) {
-            for (HashMap<String, ArrayList<BlockBean>> map : DesignDataManager.mapBlocks.values()) {
-                if (map != null) {
-                    for (Map.Entry<String, ArrayList<BlockBean>> entry : map.entrySet()) {
-                        String key = entry.getKey();
-                        ArrayList<BlockBean> list = entry.getValue();
-                        String fName = null;
-                        String spec = null;
-
-                        if (key != null && key.startsWith("func_")) {
-                            fName = key.substring(5);
-                        } else if (key != null && key.endsWith("_moreBlock")) {
-                            fName = key.substring(0, key.indexOf("_moreBlock"));
-                        }
-
-                        if (list != null) {
-                            for (BlockBean b : list) {
-                                if (b != null && "definedFunc".equals(b.opCode)) {
-                                    spec = b.spec != null ? b.spec : b.opCode;
-                                    if (fName == null || fName.isEmpty()) {
-                                        fName = spec;
-                                        if (spec != null && spec.contains(" ")) {
-                                            fName = spec.substring(0, spec.indexOf(' '));
-                                        }
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (fName != null) {
-                            fName = fName.trim();
-                        }
-                        if (fName != null && !fName.isEmpty() && !compiledFuncs.contains(fName)) {
-                            compiledFuncs.add(fName);
-                            ArrayList<BlockBean> bodyBlocks = new ArrayList<>();
-                            if (list != null) {
-                                for (BlockBean b : list) {
-                                    if (b != null && !"definedFunc".equals(b.opCode)) {
-                                        bodyBlocks.add(b);
-                                    }
-                                }
-                            }
-                            String innerCode = bodyBlocks.isEmpty() ? "" : compiler.getSource(0, bodyBlocks);
-                            moreBlocks.add(getMoreBlockCode(fName, spec != null ? spec : fName, innerCode));
-                        }
-                    }
+                    String innerCode = bodyBlocks.isEmpty() ? "" : compiler.getSource(0, bodyBlocks);
+                    moreBlocks.add(getMoreBlockCode(fName, spec != null ? spec : fName, innerCode));
                 }
             }
         }

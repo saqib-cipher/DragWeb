@@ -37,6 +37,7 @@ import sketchweb.gl.ProjectAssetManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class ColorPickerDialogFragment extends DialogFragment {
 	
@@ -267,6 +268,13 @@ public class ColorPickerDialogFragment extends DialogFragment {
 			public void afterTextChanged(Editable s) {}    
 		});    
 		
+		// Apply initial hex from arguments after all views are initialized
+		Bundle args = getArguments();
+		String initialHex = (args != null) ? args.getString("initialHex", "") : "";
+		if (initialHex != null && !initialHex.isEmpty()) {
+			applyInitialHex(initialHex);
+		}
+
 		Dialog dialog = new MaterialAlertDialogBuilder(context)
 		.setView(view)
 		.create();
@@ -285,6 +293,39 @@ public class ColorPickerDialogFragment extends DialogFragment {
 	
 
 	
+	private void applyInitialHex(String initialHex) {
+		if (initialHex == null || initialHex.isEmpty()) return;
+		String normalized = ColorUtils.normalizeHexColor(initialHex);
+		// Search all categories for the matching color
+		String foundCategory = null;
+		Set<String> categories = viewModel.getColorCategories();
+		if (categories != null) {
+			for (String category : categories) {
+				List<String> colors = viewModel.getColorsForCategory(category);
+				if (colors != null) {
+					for (String c : colors) {
+						String cn = ColorUtils.normalizeHexColor(c);
+						if (cn != null && cn.equalsIgnoreCase(normalized)) {
+							foundCategory = category;
+							break;
+						}
+					}
+				}
+				if (foundCategory != null) break;
+			}
+		}
+		if (foundCategory != null) {
+			viewModel.selectCategory(foundCategory);
+			viewModel.selectColor(normalized);
+		} else {
+			viewModel.selectCategory("custom");
+			viewModel.selectColor(normalized);
+		}
+		if (inputHex != null) {
+			inputHex.setText(normalized);
+		}
+	}
+
 	private int resolveColorHex(String hexOrVar) {
 		if (hexOrVar == null) return Color.TRANSPARENT;
 		String hex = hexOrVar;

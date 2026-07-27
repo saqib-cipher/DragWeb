@@ -574,7 +574,8 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 										if (blockBean.nextBlock >= 0) {
 												block2 = (Block) hashMap.get(Integer.valueOf(blockBean.nextBlock));
 												if (block2 != null) {
-														block.insertBlock(block2);
+														block.nextBlock = ((Integer) block2.getTag()).intValue();
+														block2.parentBlock = block;
 												}
 										}
 										int size = blockBean.parameters.size();
@@ -754,8 +755,20 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 
 		private void saveLogic() {
-				DesignDataManager.setBlocks(LogicBlockActivity.filename, this.id + LogicBlockActivity.LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
+				DesignDataManager.setBlocks(LogicBlockActivity.filename, this.id + LogicBlockActivity.LOGIC_NAME_SEPARATOR + this.eventName, getBlocksWithoutDefinedFunc());
 				DesignDataManager.saveSavedLogic(getApplicationContext(), this.projectId, LogicBlockActivity.filename);
+		}
+
+		private ArrayList<BlockBean> getBlocksWithoutDefinedFunc() {
+				ArrayList<BlockBean> all = this.pane != null ? this.pane.getBlocks() : new ArrayList();
+				ArrayList<BlockBean> filtered = new ArrayList();
+				for (int i = 0; i < all.size(); i++) {
+						BlockBean b = all.get(i);
+						if (b != null && !"definedFunc".equals(b.opCode)) {
+								filtered.add(b);
+						}
+				}
+				return filtered;
 		}
 		
 		private void showAddBlockPopup() {
@@ -1661,7 +1674,7 @@ startActivityForResult(intent, 209);
 			try {
 					saveLogic();
 					if (this.pane != null) {
-						DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
+						DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, getBlocksWithoutDefinedFunc());
 					}
 					DesignDataManager.saveSavedLogic(this.context != null ? this.context : this, this.projectId, this.pageName);
 					ProjectCodeGenerator.generateAndSaveAssets(this.context != null ? this.context : this, this.projectId, this.pageName);
@@ -1673,14 +1686,15 @@ startActivityForResult(intent, 209);
 
 		@Override
 		protected void onPause() {
-			super.onPause();
-			try {
-					saveLogic();
-					if (this.pane != null) {
-						DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, this.pane.getBlocks());
-					}
-					DesignDataManager.saveSavedLogic(this.context != null ? this.context : this, this.projectId, this.pageName);
-					ProjectCodeGenerator.generateAndSaveAssets(this.context != null ? this.context : this, this.projectId, this.pageName);
+				super.onPause();
+				if (isFinishing()) return; // saveAndFinish() already handled persistence
+				try {
+						saveLogic();
+						if (this.pane != null) {
+								DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, getBlocksWithoutDefinedFunc());
+						}
+						DesignDataManager.saveSavedLogic(this.context != null ? this.context : this, this.projectId, this.pageName);
+						ProjectCodeGenerator.generateAndSaveAssets(this.context != null ? this.context : this, this.projectId, this.pageName);
 			} catch (Exception e) {
 					e.printStackTrace();
 			}

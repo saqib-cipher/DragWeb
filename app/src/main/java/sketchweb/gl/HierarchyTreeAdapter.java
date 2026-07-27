@@ -4,16 +4,18 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.content.res.ColorStateList;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.RotateAnimation;
-import android.view.animation.Animation;
+import android.view.animation.PathInterpolator;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.ImageView;
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.card.MaterialCardView;
@@ -24,6 +26,15 @@ import java.util.Map;
 import java.util.Set;
 
 public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdapter.ViewHolder> {
+
+    private static final int BG = 0xFF1B1C1E;
+    private static final int SURFACE = 0xFF25262D;
+    private static final int SURFACE_VARIANT = 0xFF2F3038;
+    private static final int OUTLINE = 0x14FFFFFF;
+    private static final int PRIMARY = 0xFFC79743;
+    private static final int TEXT_PRIMARY = 0xFFF5F5F5;
+    private static final int TEXT_SECONDARY = 0xFFB0B0B0;
+    private static final int RIPPLE_COLOR = 0x1AF5F5F5;
 
     public interface OnItemClickListener {
         void onItemClick(View widgetView);
@@ -48,10 +59,11 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     private ViewGroup rootScreen;
     private ItemTouchHelper touchHelper;
     private boolean isLoading = false;
+    private float density;
 
-    public void setLoading(boolean isLoading) {
-        this.isLoading = isLoading;
-        if (isLoading) {
+    public void setLoading(boolean loading) {
+        this.isLoading = loading;
+        if (loading) {
             flatList.clear();
             notifyDataSetChanged();
         } else if (rootScreen != null) {
@@ -61,6 +73,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
 
     public HierarchyTreeAdapter(Context context) {
         this.context = context;
+        this.density = context.getResources().getDisplayMetrics().density;
     }
 
     public void setOnItemClickListener(OnItemClickListener listener) {
@@ -76,22 +89,22 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     }
 
     public void setSelectedView(View view) {
+        View prev = this.selectedWidgetView;
         this.selectedWidgetView = view;
-        notifyDataSetChanged();
+        int prevIdx = findNodeIndex(prev);
+        int newIdx = findNodeIndex(view);
+        if (prevIdx >= 0) notifyItemChanged(prevIdx);
+        if (newIdx >= 0 && newIdx != prevIdx) notifyItemChanged(newIdx);
     }
 
     public void setFilter(String query) {
         this.filterQuery = query != null ? query.toLowerCase() : "";
-        if (rootScreen != null) {
-            buildTree(rootScreen);
-        }
+        if (rootScreen != null) buildTree(rootScreen);
     }
 
     public void buildTree(ViewGroup screen) {
         this.rootScreen = screen;
-        if (isLoading) {
-            return;
-        }
+        if (isLoading) return;
         flatList.clear();
         for (int i = 0; i < screen.getChildCount(); i++) {
             addNode(screen.getChildAt(i), 0, null);
@@ -100,6 +113,9 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     }
 
     public void attachToRecyclerView(RecyclerView rv) {
+        rv.setItemAnimator(new MaterialItemAnimator());
+        rv.setBackgroundColor(BG);
+
         touchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) {
 
@@ -110,17 +126,15 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                 int fromPos = viewHolder.getAdapterPosition();
                 int toPos = target.getAdapterPosition();
 
-                if (fromPos == 0 || toPos == 0) return false;
+                if (fromPos <= 0 || toPos <= 0) return false;
                 if (fromPos < 0 || toPos < 0) return false;
                 if (fromPos >= flatList.size() || toPos >= flatList.size()) return false;
 
                 TreeNode fromNode = flatList.get(fromPos);
                 TreeNode toNode = flatList.get(toPos);
 
-                if (fromNode.isLocked) return false;
-                if (fromNode.view == null || !(fromNode.view.getParent() instanceof ViewGroup)) {
-                    return false;
-                }
+                if (fromNode.isLocked || fromNode.view == null) return false;
+                if (!(fromNode.view.getParent() instanceof ViewGroup)) return false;
 
                 ViewGroup fromParent = (ViewGroup) fromNode.view.getParent();
                 ViewGroup targetParent;
@@ -132,57 +146,40 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
                     targetIndex = movingDown ? 0 : targetParent.getChildCount();
                 } else if (toNode.view.getParent() instanceof ViewGroup) {
                     targetParent = (ViewGroup) toNode.view.getParent();
-                    int siblingIdx = targetParent.indexOfChild(toNode.view);
-                    targetIndex = movingDown ? siblingIdx + 1 : siblingIdx;
+                    targetIndex = targetParent.indexOfChild(toNode.view);
+                    if (movingDown) targetIndex++;
                 } else {
                     return false;
                 }
 
-                if (isDescendantOf(targetParent, fromNode.view)) {
-                    return false;
-                }
+                if (isDescendantOf(targetParent, fromNode.view)) return false;
 
-                // Reparent the view.
-                int prevIndexInSameParent = -1;
-                if (fromParent == targetParent) {
-                    prevIndexInSameParent = fromParent.indexOfChild(fromNode.view);
-                }
+                int prevIdx = (fromParent == targetParent) ? fromParent.indexOfChild(fromNode.view) : -1;
                 fromParent.removeView(fromNode.view);
-                if (prevIndexInSameParent != -1 && prevIndexInSameParent < targetIndex) {
-                    targetIndex--;
-                }
+                if (prevIdx >= 0 && prevIdx < targetIndex) targetIndex--;
                 targetIndex = Math.max(0, Math.min(targetIndex, targetParent.getChildCount()));
                 targetParent.addView(fromNode.view, targetIndex);
 
-                if (reorderListener != null) {
-                    reorderListener.onReorder(fromNode.view, targetParent, targetIndex);
-                }
-
-                // Rebuild immediately so depth, child counts, and arrows refresh
-                // in real time during the drag.
-                if (rootScreen != null) {
-                    buildTree(rootScreen);
-                }
                 return true;
             }
 
             @Override
-            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
-                // No swipe
-            }
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {}
 
             @Override
-            public boolean isLongPressDragEnabled() {
-                return true;
-            }
+            public boolean isLongPressDragEnabled() { return true; }
 
             @Override
-            public void clearView(@NonNull RecyclerView recyclerView,
-                                  @NonNull RecyclerView.ViewHolder viewHolder) {
-                super.clearView(recyclerView, viewHolder);
-                if (rootScreen != null) {
-                    buildTree(rootScreen);
+            public void clearView(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
+                super.clearView(rv, vh);
+                if (reorderListener != null && flatList.size() > vh.getAdapterPosition() && vh.getAdapterPosition() >= 0) {
+                    TreeNode node = flatList.get(vh.getAdapterPosition());
+                    if (node.view != null && node.view.getParent() instanceof ViewGroup) {
+                        ViewGroup p = (ViewGroup) node.view.getParent();
+                        reorderListener.onReorder(node.view, p, p.indexOfChild(node.view));
+                    }
                 }
+                if (rootScreen != null) buildTree(rootScreen);
             }
         });
         touchHelper.attachToRecyclerView(rv);
@@ -192,19 +189,13 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         View current = parent;
         while (current != null) {
             if (current == potentialAncestor) return true;
-            if (current.getParent() instanceof View) {
-                current = (View) current.getParent();
-            } else {
-                break;
-            }
+            current = (current.getParent() instanceof View) ? (View) current.getParent() : null;
         }
         return false;
     }
 
     public void startDrag(RecyclerView.ViewHolder holder) {
-        if (touchHelper != null) {
-            touchHelper.startDrag(holder);
-        }
+        if (touchHelper != null) touchHelper.startDrag(holder);
     }
 
     private void addNode(View view, int depth, String forceName) {
@@ -220,35 +211,21 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         if (view.getTag() instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> widgetMap = (Map<String, Object>) view.getTag();
-            if (widgetMap.containsKey("tag")) {
-                tag = widgetMap.get("tag").toString();
-            }
-            if (widgetMap.containsKey("id")) {
-                id = widgetMap.get("id").toString();
-            }
-            if (widgetMap.containsKey("locked")) {
-                isLocked = Boolean.TRUE.equals(widgetMap.get("locked"));
-            }
-            if (widgetMap.containsKey("hidden")) {
-                isHidden = Boolean.TRUE.equals(widgetMap.get("hidden"));
-            }
+            if (widgetMap.containsKey("tag")) tag = widgetMap.get("tag").toString();
+            if (widgetMap.containsKey("id")) id = widgetMap.get("id").toString();
+            if (widgetMap.containsKey("locked")) isLocked = Boolean.TRUE.equals(widgetMap.get("locked"));
+            if (widgetMap.containsKey("hidden")) isHidden = Boolean.TRUE.equals(widgetMap.get("hidden"));
             @SuppressWarnings("unchecked")
             Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
             if (function != null) {
-                if (function.containsKey("id") && id.isEmpty()) {
-                    id = function.get("id").toString();
-                }
-                if (function.containsKey("class")) {
-                    cssClass = function.get("class").toString();
-                }
+                if (function.containsKey("id") && id.isEmpty()) id = function.get("id").toString();
+                if (function.containsKey("class")) cssClass = function.get("class").toString();
                 if (function.containsKey("text")) {
                     textPreview = function.get("text").toString();
                     if (textPreview.length() > 20) textPreview = textPreview.substring(0, 20) + "...";
                 }
             }
-            if (name == null) {
-                name = tag;
-            }
+            if (name == null) name = tag;
         }
 
         if (!filterQuery.isEmpty() && depth > 0) {
@@ -256,9 +233,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
             if (!searchable.contains(filterQuery)) {
                 if (isContainer) {
                     ViewGroup vg = (ViewGroup) view;
-                    for (int i = 0; i < vg.getChildCount(); i++) {
-                        addNode(vg.getChildAt(i), depth, null);
-                    }
+                    for (int i = 0; i < vg.getChildCount(); i++) addNode(vg.getChildAt(i), depth + 1, null);
                 }
                 return;
             }
@@ -277,283 +252,439 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         node.nodeId = System.identityHashCode(view);
         node.isLocked = isLocked;
         node.isHidden = isHidden;
+        node.firstChildIdx = -1;
+        node.treeChildCount = 0;
 
+        int insertPos = flatList.size();
         flatList.add(node);
 
         if (isContainer && !collapsedNodes.contains(node.nodeId)) {
+            node.firstChildIdx = flatList.size();
             ViewGroup vg = (ViewGroup) view;
             for (int i = 0; i < vg.getChildCount(); i++) {
                 addNode(vg.getChildAt(i), depth + 1, null);
             }
+            node.treeChildCount = flatList.size() - node.firstChildIdx;
         }
+    }
+
+    private int findNodeIndex(View view) {
+        if (view == null) return -1;
+        for (int i = 0; i < flatList.size(); i++) {
+            if (flatList.get(i).view == view) return i;
+        }
+        return -1;
+    }
+
+    private void toggleCollapse(int position) {
+        TreeNode node = flatList.get(position);
+        if (!node.isContainer || node.childCount == 0) return;
+
+        boolean isCollapsed = collapsedNodes.contains(node.nodeId);
+        if (isCollapsed) {
+            collapsedNodes.remove(node.nodeId);
+            int insertAt = position + 1;
+            List<TreeNode> children = new ArrayList<>();
+            collectChildren((ViewGroup) node.view, node.depth + 1, children);
+            node.firstChildIdx = insertAt;
+            node.treeChildCount = children.size();
+            flatList.addAll(insertAt, children);
+            notifyItemRangeInserted(insertAt, children.size());
+        } else {
+            collapsedNodes.add(node.nodeId);
+            int count = node.treeChildCount;
+            if (count <= 0) {
+                count = 0;
+                for (int i = position + 1; i < flatList.size() && flatList.get(i).depth > node.depth; i++) count++;
+            }
+            int start = position + 1;
+            int end = start + count;
+            if (end > flatList.size()) end = flatList.size();
+            int actualCount = end - start;
+            if (actualCount > 0) {
+                flatList.subList(start, end).clear();
+                notifyItemRangeRemoved(start, actualCount);
+            }
+        }
+    }
+
+    private void collectChildren(ViewGroup parent, int depth, List<TreeNode> out) {
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            View child = parent.getChildAt(i);
+            int childIdx = out.size();
+            TreeNode node = buildTreeNode(child, depth, null);
+            out.add(node);
+            if (node.isContainer && !collapsedNodes.contains(node.nodeId)) {
+                node.firstChildIdx = childIdx + 1;
+                int before = out.size();
+                collectChildren((ViewGroup) child, depth + 1, out);
+                node.treeChildCount = out.size() - before;
+            }
+        }
+    }
+
+    private TreeNode buildTreeNode(View view, int depth, String forceName) {
+        String tag = "unknown";
+        String name = forceName;
+        String id = "";
+        String cssClass = "";
+        String textPreview = "";
+        boolean isContainer = view instanceof ViewGroup;
+        boolean isLocked = false;
+        boolean isHidden = false;
+
+        if (view.getTag() instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> widgetMap = (Map<String, Object>) view.getTag();
+            if (widgetMap.containsKey("tag")) tag = widgetMap.get("tag").toString();
+            if (widgetMap.containsKey("id")) id = widgetMap.get("id").toString();
+            if (widgetMap.containsKey("locked")) isLocked = Boolean.TRUE.equals(widgetMap.get("locked"));
+            if (widgetMap.containsKey("hidden")) isHidden = Boolean.TRUE.equals(widgetMap.get("hidden"));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
+            if (function != null) {
+                if (function.containsKey("id") && id.isEmpty()) id = function.get("id").toString();
+                if (function.containsKey("class")) cssClass = function.get("class").toString();
+                if (function.containsKey("text")) {
+                    textPreview = function.get("text").toString();
+                    if (textPreview.length() > 20) textPreview = textPreview.substring(0, 20) + "...";
+                }
+            }
+            if (name == null) name = tag;
+        }
+
+        TreeNode node = new TreeNode();
+        node.view = view;
+        node.depth = depth;
+        node.tag = tag;
+        node.name = name != null ? name : tag;
+        node.id = id;
+        node.cssClass = cssClass;
+        node.textPreview = textPreview;
+        node.isContainer = isContainer;
+        node.childCount = isContainer ? ((ViewGroup) view).getChildCount() : 0;
+        node.nodeId = System.identityHashCode(view);
+        node.isLocked = isLocked;
+        node.isHidden = isHidden;
+        return node;
     }
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        // Wrapper LinearLayout so we can indent the M3 card via margins.
-        LinearLayout wrapper = new LinearLayout(context);
-        wrapper.setOrientation(LinearLayout.HORIZONTAL);
-        wrapper.setLayoutParams(new RecyclerView.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
         MaterialCardView card = new MaterialCardView(context);
-        card.setRadius(20);
+        card.setMinimumWidth((int)(280 * density));
+        card.setLayoutParams(new RecyclerView.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        float r12 = 12 * density;
+        card.setRadius(r12);
         card.setCardElevation(0);
-        card.setStrokeWidth(1);
+        card.setStrokeWidth((int)(1 * density));
+        card.setStrokeColor(ColorStateList.valueOf(OUTLINE));
+        card.setCardBackgroundColor(SURFACE_VARIANT);
         card.setUseCompatPadding(false);
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardParams.setMargins(8, 4, 8, 4);
-        card.setLayoutParams(cardParams);
+        card.setContentPadding(0, 0, 0, 0);
+        card.setMinimumHeight((int)(48 * density));
+        card.setClickable(true);
+        card.setFocusable(true);
+
+        GradientDrawable mask = new GradientDrawable();
+        mask.setCornerRadius(r12);
+        mask.setColor(Color.WHITE);
+        RippleDrawable ripple = new RippleDrawable(
+            ColorStateList.valueOf(RIPPLE_COLOR), null, mask);
+        card.setForeground(ripple);
+
+        // Accent bar for containers (inserted at index 0 so row draws on top)
+        View accentBar = new View(context);
+        int abW = (int)(3 * density);
+        FrameLayout.LayoutParams ablp = new FrameLayout.LayoutParams(
+            abW, ViewGroup.LayoutParams.MATCH_PARENT);
+        ablp.gravity = Gravity.LEFT;
+        accentBar.setLayoutParams(ablp);
+        accentBar.setBackgroundColor(PRIMARY);
+        accentBar.setVisibility(View.GONE);
+        card.addView(accentBar, 0);
 
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(12, 10, 12, 10);
         row.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        row.setPadding((int)(10 * density), 0, (int)(10 * density), 0);
         card.addView(row);
-        wrapper.addView(card);
 
-        ViewHolder vh = new ViewHolder(wrapper);
-        vh.card = card;
-        vh.row = row;
-        return vh;
+        // Chevron
+        ImageView chevron = new ImageView(context);
+        chevron.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+            (int)(20 * density), (int)(20 * density));
+        cp.setMargins(0, 0, (int)(6 * density), 0);
+        chevron.setLayoutParams(cp);
+        chevron.setImageResource(R.drawable.rounded_arrow_drop_down_24);
+        chevron.setColorFilter(TEXT_PRIMARY);
+        row.addView(chevron);
+
+        // Chevron spacer
+        View chevronSpacer = new View(context);
+        chevronSpacer.setLayoutParams(new LinearLayout.LayoutParams(
+            (int)(26 * density), 1));
+        chevronSpacer.setVisibility(View.GONE);
+        row.addView(chevronSpacer);
+
+        // Icon badge
+        TextView iconBadge = new TextView(context);
+        int iconSize = (int)(22 * density);
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(iconSize, iconSize);
+        ip.setMargins(0, 0, (int)(8 * density), 0);
+        iconBadge.setLayoutParams(ip);
+        iconBadge.setGravity(Gravity.CENTER);
+        iconBadge.setTextSize(10);
+        iconBadge.setTypeface(null, Typeface.BOLD);
+        iconBadge.setTextColor(Color.WHITE);
+        GradientDrawable iconBg = new GradientDrawable();
+        iconBg.setShape(GradientDrawable.OVAL);
+        iconBg.setSize(iconSize, iconSize);
+        iconBadge.setBackground(iconBg);
+        row.addView(iconBadge);
+
+        // Content column
+        LinearLayout contentCol = new LinearLayout(context);
+        contentCol.setOrientation(LinearLayout.VERTICAL);
+        contentCol.setLayoutParams(new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(contentCol);
+
+        // Name row
+        LinearLayout nameRow = new LinearLayout(context);
+        nameRow.setOrientation(LinearLayout.HORIZONTAL);
+        nameRow.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        contentCol.addView(nameRow);
+
+        TextView nameText = new TextView(context);
+        nameText.setLayoutParams(new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        nameText.setTextSize(15);
+        nameText.setTypeface(null, Typeface.NORMAL);
+        nameText.setSingleLine(true);
+        nameText.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        nameText.setTextColor(TEXT_PRIMARY);
+        nameRow.addView(nameText);
+
+        // Info suffix
+        TextView infoSuffix = new TextView(context);
+        infoSuffix.setTextSize(13);
+        infoSuffix.setTypeface(null, Typeface.NORMAL);
+        infoSuffix.setTextColor(TEXT_SECONDARY);
+        infoSuffix.setPadding((int)(4 * density), 0, 0, 0);
+        nameRow.addView(infoSuffix);
+
+        // Secondary info line
+        TextView infoText = new TextView(context);
+        infoText.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        infoText.setTextSize(11);
+        infoText.setSingleLine(true);
+        infoText.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        infoText.setTextColor(TEXT_SECONDARY);
+        infoText.setVisibility(View.GONE);
+        contentCol.addView(infoText);
+
+        // Status icons container
+        LinearLayout statusCol = new LinearLayout(context);
+        statusCol.setOrientation(LinearLayout.HORIZONTAL);
+        statusCol.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams scp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        scp.setMargins(0, 0, (int)(4 * density), 0);
+        statusCol.setLayoutParams(scp);
+        row.addView(statusCol);
+
+        // Lock icon
+        ImageView lockIcon = new ImageView(context);
+        int si = (int)(16 * density);
+        LinearLayout.LayoutParams sip = new LinearLayout.LayoutParams(si, si);
+        sip.setMargins(0, 0, (int)(4 * density), 0);
+        lockIcon.setLayoutParams(sip);
+        lockIcon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        lockIcon.setImageResource(R.drawable.lock);
+        lockIcon.setColorFilter(TEXT_SECONDARY);
+        lockIcon.setVisibility(View.GONE);
+        statusCol.addView(lockIcon);
+
+        // Hide icon
+        ImageView hideIcon = new ImageView(context);
+        hideIcon.setLayoutParams(new LinearLayout.LayoutParams(si, si));
+        hideIcon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        hideIcon.setImageResource(R.drawable.eye_closed);
+        hideIcon.setColorFilter(TEXT_SECONDARY);
+        hideIcon.setVisibility(View.GONE);
+        statusCol.addView(hideIcon);
+
+        // More button
+        ImageView moreBtn = new ImageView(context);
+        int mbSize = (int)(28 * density);
+        LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(mbSize, mbSize);
+        mp.setMargins((int)(4 * density), 0, 0, 0);
+        moreBtn.setLayoutParams(mp);
+        moreBtn.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        moreBtn.setImageResource(R.drawable.dots_vertical);
+        moreBtn.setColorFilter(TEXT_SECONDARY);
+        moreBtn.setPadding((int)(4 * density), (int)(4 * density), (int)(4 * density), (int)(4 * density));
+        GradientDrawable moreBg = new GradientDrawable();
+        moreBg.setCornerRadius((int)(8 * density));
+        moreBg.setColor(SURFACE);
+        moreBtn.setBackground(moreBg);
+        row.addView(moreBtn);
+
+        return new ViewHolder(card, row, accentBar, chevron, chevronSpacer, iconBadge, iconBg,
+            nameText, infoSuffix, infoText, statusCol, lockIcon, hideIcon, moreBtn);
     }
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
-        LinearLayout row = holder.row;
-        MaterialCardView card = holder.card;
-        row.removeAllViews();
-
-        float density = context.getResources().getDisplayMetrics().density;
-
-        if (isLoading) {
-            int dp16 = (int) (16 * density);
-            int dp8 = (int) (8 * density);
-            int dp12 = (int) (12 * density);
-
-            ((LinearLayout.LayoutParams) card.getLayoutParams()).setMargins(dp8, dp8, dp8, dp8);
-
-            card.setCardBackgroundColor(Color.parseColor("#1437474F"));
-            card.setStrokeColor(Color.parseColor("#33FFFFFF"));
-            card.setClickable(false);
-            card.setFocusable(false);
-
-            TextView tv = new TextView(context);
-            tv.setText("Loading layout hierarchy...");
-            tv.setTextColor(Color.parseColor("#A8A4AE"));
-            tv.setTextSize(14);
-            tv.setTypeface(null, Typeface.ITALIC);
-            row.addView(tv);
-            return;
-        }
-
-        if (position < 0 || position >= flatList.size()) return;
+        if (isLoading || position < 0 || position >= flatList.size()) return;
 
         TreeNode node = flatList.get(position);
+        if (node.view == null) return;
 
         boolean isSelected = node.view == selectedWidgetView;
-        boolean isRoot = false; // body is excluded, so all cards represent editable child views
-        int indentPx = node.depth * 20; // 20dp indentation per level
+        boolean isCollapsed = collapsedNodes.contains(node.nodeId);
+        boolean isContainer = node.isContainer && node.childCount > 0;
 
-        // Keep card width constant to match the hierarchy panel
-        ((LinearLayout.LayoutParams) card.getLayoutParams()).setMargins(8, 4, 8, 4);
-
-        // Apply indentation using row padding instead of card margins
-        row.setPadding(
-            (int)((16 + indentPx) * density), 
-            (int)(14 * density), 
-            (int)(16 * density), 
-            (int)(14 * density)
-        );
-
-        // Material 3 card surface — tonal fill + outline + ripple.
-        int fill, stroke, textColor;
+        // Card styling — containers get PRIMARY accent, leaves get subtle outline
         if (isSelected) {
-            fill = Color.parseColor("#332196F3");
-            stroke = Color.parseColor("#2196F3");
-            textColor = Color.parseColor("#2196F3");
-        } else if (node.isContainer) {
-            fill = Color.parseColor("#1437474F");
-            stroke = Color.parseColor("#49454F");
-            textColor = Color.parseColor("#E6E1E5");
+            holder.card.setCardBackgroundColor(0x33C79743);
+            holder.card.setStrokeColor(ColorStateList.valueOf(PRIMARY));
+            holder.card.setStrokeWidth((int)(1.5f * density));
+        } else if (isContainer) {
+            holder.card.setCardBackgroundColor(SURFACE_VARIANT);
+            holder.card.setStrokeColor(ColorStateList.valueOf(PRIMARY));
+            holder.card.setStrokeWidth((int)(1 * density));
         } else {
-            fill = Color.parseColor("#0C1F1B24");
-            stroke = Color.parseColor("#36343B");
-            textColor = Color.parseColor("#CAC4D0");
+            holder.card.setCardBackgroundColor(SURFACE_VARIANT);
+            holder.card.setStrokeColor(ColorStateList.valueOf(OUTLINE));
+            holder.card.setStrokeWidth((int)(1 * density));
         }
-        card.setCardBackgroundColor(fill);
-        card.setStrokeColor(stroke);
-        card.setRippleColor(ColorStateList.valueOf(Color.parseColor("#332196F3")));
-        card.setClickable(true);
-        card.setFocusable(true);
+        holder.card.setMinimumHeight(isContainer ? (int)(52 * density) : (int)(44 * density));
 
-        // Collapse/expand arrow using the custom vector icon
-        if (node.isContainer && node.childCount > 0) {
-            ImageView arrow = new ImageView(context);
-            arrow.setImageResource(R.drawable.rounded_arrow_drop_down_24);
-            arrow.setImageTintList(ColorStateList.valueOf(textColor));
-            
-            LinearLayout.LayoutParams arrowParams = new LinearLayout.LayoutParams(
-                (int)(24 * density), (int)(24 * density));
-            arrowParams.setMargins(0, 0, (int)(6 * density), 0);
-            arrow.setLayoutParams(arrowParams);
+        // Accent bar — visible only for containers
+        holder.accentBar.setVisibility(isContainer ? View.VISIBLE : View.GONE);
 
-            boolean collapsed = collapsedNodes.contains(node.nodeId);
-            arrow.setRotation(collapsed ? -90f : 0f);
-            row.addView(arrow);
+        // Indentation — extra left offset for leaf items so they sit inside the parent card
+        int indent = (int)(24 * node.depth * density);
+        int leftPad = (int)(12 * density) + indent;
+        if (node.depth > 0) leftPad += (int)(8 * density);
+        int vertPad = isContainer ? (int)(10 * density) : (int)(6 * density);
+        holder.row.setPadding(
+            leftPad,
+            vertPad,
+            (int)(10 * density),
+            vertPad);
+
+        // Chevron
+        boolean showChevron = node.isContainer && node.childCount > 0;
+        holder.chevron.setVisibility(showChevron ? View.VISIBLE : View.GONE);
+        holder.chevronSpacer.setVisibility(showChevron ? View.GONE : View.VISIBLE);
+        if (showChevron) {
+            float rotation = isCollapsed ? -90f : 0f;
+            if (holder.chevron.getRotation() != rotation) {
+                holder.chevron.animate()
+                    .rotation(rotation)
+                    .setDuration(200)
+                    .setInterpolator(new PathInterpolator(0.4f, 0f, 0.2f, 1f))
+                    .start();
+            }
+        }
+
+        // Icon badge
+        int tagColor = getTagColor(node.tag);
+        String firstLetter = node.tag.isEmpty() ? "?" : node.tag.substring(0, 1).toUpperCase();
+        holder.iconBadge.setText(firstLetter);
+        holder.iconBg.setColor(tagColor);
+
+        // Name
+        holder.nameText.setText(node.tag);
+        if (!node.id.isEmpty()) {
+            holder.infoSuffix.setText("#" + node.id);
+            holder.infoSuffix.setVisibility(View.VISIBLE);
         } else {
-            View spacer = new View(context);
-            LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(
-                (int)(24 * density), 1);
-            spacerParams.setMargins(0, 0, (int)(6 * density), 0);
-            spacer.setLayoutParams(spacerParams);
-            row.addView(spacer);
+            holder.infoSuffix.setVisibility(View.GONE);
         }
 
-        // Tag badge
-        TextView tagBadge = new TextView(context);
-        tagBadge.setTextSize(10);
-        tagBadge.setTypeface(null, Typeface.BOLD);
-        tagBadge.setTextColor(Color.WHITE);
-        tagBadge.setGravity(Gravity.CENTER);
-        tagBadge.setPadding(10, 2, 10, 2);
-        GradientDrawable badgeBg = new GradientDrawable();
-        badgeBg.setCornerRadius(12);
-        badgeBg.setColor(getTagColor(node.tag));
-        tagBadge.setBackground(badgeBg);
-        tagBadge.setText(node.tag);
-        LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        badgeParams.setMargins(0, 0, 8, 0);
-        tagBadge.setLayoutParams(badgeParams);
-        row.addView(tagBadge);
-
-        // Name + preview column
-        LinearLayout nameCol = new LinearLayout(context);
-        nameCol.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams nameColParams = new LinearLayout.LayoutParams(
-            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        nameCol.setLayoutParams(nameColParams);
-
-        TextView nameView = new TextView(context);
-        StringBuilder displayName = new StringBuilder();
-        displayName.append("<").append(node.tag).append(">");
-        if (!node.id.isEmpty()) displayName.append(" #").append(node.id);
-        if (!node.cssClass.isEmpty()) {
-            String shortClass = node.cssClass.length() > 15
-                ? node.cssClass.substring(0, 15) + ".." : node.cssClass;
-            displayName.append(" .").append(shortClass);
-        }
+        // Info line
+        StringBuilder info = new StringBuilder();
         if (node.isContainer && node.childCount > 0) {
-            displayName.append("  (").append(node.childCount).append(")");
+            info.append(node.childCount).append(node.childCount == 1 ? " child" : " children");
         }
-        nameView.setText(displayName.toString());
-        nameView.setTextSize(14);
-        nameView.setSingleLine(true);
-        nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        nameView.setTypeface(null, Typeface.BOLD);
-        nameView.setTextColor(textColor);
-        nameCol.addView(nameView);
-
         if (!node.textPreview.isEmpty()) {
-            TextView previewView = new TextView(context);
-            previewView.setText("\"" + node.textPreview + "\"");
-            previewView.setTextSize(11);
-            previewView.setTextColor(Color.parseColor("#938F99"));
-            previewView.setSingleLine(true);
-            previewView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            nameCol.addView(previewView);
+            if (info.length() > 0) info.append("  ");
+            info.append("\"").append(node.textPreview).append("\"");
+        }
+        if (!node.cssClass.isEmpty()) {
+            if (info.length() > 0) info.append("  ");
+            info.append(".").append(node.cssClass);
+        }
+        if (info.length() > 0) {
+            holder.infoText.setText(info.toString());
+            holder.infoText.setVisibility(View.VISIBLE);
+        } else {
+            holder.infoText.setVisibility(View.GONE);
         }
 
-        row.addView(nameCol);
+        // Vertical margin between items
+        ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) holder.card.getLayoutParams();
+        mlp.bottomMargin = (int)(6 * density);
+        mlp.leftMargin = 0;
+        mlp.rightMargin = 0;
 
-        // Lock / Hidden status indicators
-        if (node.isLocked) {
-            ImageView lockIcon = new ImageView(context);
-            lockIcon.setImageResource(R.drawable.lock);
-            lockIcon.setImageTintList(ColorStateList.valueOf(textColor));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                (int)(16 * density), (int)(16 * density));
-            lp.setMarginEnd((int)(8 * density));
-            lockIcon.setLayoutParams(lp);
-            row.addView(lockIcon);
-        }
-        if (node.isHidden) {
-            ImageView eyeIcon = new ImageView(context);
-            eyeIcon.setImageResource(R.drawable.eye_closed);
-            eyeIcon.setImageTintList(ColorStateList.valueOf(textColor));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                (int)(16 * density), (int)(16 * density));
-            lp.setMarginEnd((int)(8 * density));
-            eyeIcon.setLayoutParams(lp);
-            row.addView(eyeIcon);
-        }
+        // Lock icon
+        holder.lockIcon.setVisibility(node.isLocked ? View.VISIBLE : View.GONE);
 
-        // More options
-        TextView moreBtn = new TextView(context);
-        moreBtn.setText("⋮");
-        moreBtn.setTextSize(18);
-        moreBtn.setTextColor(Color.parseColor("#A8A4AE"));
-        moreBtn.setPadding(10, 2, 10, 2);
-        moreBtn.setGravity(Gravity.CENTER);
-        GradientDrawable moreBg = new GradientDrawable();
-        moreBg.setColor(Color.parseColor("#14363A40"));
-        moreBg.setCornerRadius(10);
-        moreBtn.setBackground(moreBg);
-        moreBtn.setOnClickListener(v -> {
+        // Hide icon
+        holder.hideIcon.setVisibility(node.isHidden ? View.VISIBLE : View.GONE);
+
+        // More button
+        holder.moreBtn.setOnClickListener(v -> {
             if (longClickListener != null) longClickListener.onItemLongClick(node.view);
         });
-        row.addView(moreBtn);
 
-        card.setOnClickListener(v -> {
-            if (clickListener != null) {
-                clickListener.onItemClick(node.view);
-            }
+        // Click: select + toggle collapse
+        holder.card.setOnClickListener(v -> {
+            if (clickListener != null) clickListener.onItemClick(node.view);
             if (node.isContainer && node.childCount > 0) {
-                boolean nowCollapsed = !collapsedNodes.contains(node.nodeId);
-                if (nowCollapsed) {
-                    collapsedNodes.add(node.nodeId);
-                } else {
-                    collapsedNodes.remove(node.nodeId);
-                }
-                if (rootScreen != null) {
-                    buildTree(rootScreen);
-                }
+                toggleCollapse(findNodeIndex(node.view));
             }
         });
     }
 
     @Override
     public int getItemCount() {
-        if (isLoading) return 1;
-        return flatList.size();
+        return isLoading ? 1 : flatList.size();
     }
 
     private int getTagColor(String tag) {
         switch (tag) {
-            case "div": case "section": return Color.parseColor("#42A5F5");
-            case "header": case "footer": case "nav": return Color.parseColor("#26A69A");
-            case "main": case "article": case "aside": return Color.parseColor("#5C6BC0");
+            case "div": case "section": return 0xFF42A5F5;
+            case "header": case "footer": case "nav": return 0xFF26A69A;
+            case "main": case "article": case "aside": return 0xFF5C6BC0;
             case "p": case "h1": case "h2": case "h3": case "h4": case "h5": case "h6":
-            case "span": return Color.parseColor("#FFCA28");
-            case "button": return Color.parseColor("#FFA726");
-            case "img": return Color.parseColor("#AB47BC");
-            case "input": case "textarea": case "select": return Color.parseColor("#66BB6A");
-            case "a": return Color.parseColor("#42A5F5");
-            case "form": return Color.parseColor("#26C6DA");
-            case "ul": case "ol": case "li": return Color.parseColor("#78909C");
-            case "video": case "audio": return Color.parseColor("#EF5350");
-            case "table": case "tr": case "td": case "th": return Color.parseColor("#8D6E63");
-            case "label": return Color.parseColor("#FFCA28");
-            case "hr": case "br": return Color.parseColor("#90A4AE");
-            case "iframe": return Color.parseColor("#7E57C2");
-            case "canvas": case "svg": return Color.parseColor("#EC407A");
-            case "pre": case "blockquote": return Color.parseColor("#78909C");
-            case "body": case "unknown": return Color.parseColor("#6750A4");
-            default: return Color.parseColor("#90A4AE");
+            case "span": return 0xFFFFCA28;
+            case "button": return 0xFFFFA726;
+            case "img": return 0xFFAB47BC;
+            case "input": case "textarea": case "select": return 0xFF66BB6A;
+            case "a": return 0xFF42A5F5;
+            case "form": return 0xFF26C6DA;
+            case "ul": case "ol": case "li": return 0xFF78909C;
+            case "video": case "audio": return 0xFFEF5350;
+            case "table": case "tr": case "td": case "th": return 0xFF8D6E63;
+            case "label": return 0xFFFFCA28;
+            case "hr": case "br": return 0xFF90A4AE;
+            case "iframe": return 0xFF7E57C2;
+            case "canvas": case "svg": return 0xFFEC407A;
+            case "pre": case "blockquote": return 0xFF78909C;
+            case "body": case "unknown": return 0xFF6750A4;
+            default: return 0xFF90A4AE;
         }
     }
 
@@ -570,11 +701,42 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
         int nodeId;
         boolean isLocked;
         boolean isHidden;
+        int firstChildIdx = -1;
+        int treeChildCount;
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         MaterialCardView card;
         LinearLayout row;
-        ViewHolder(View v) { super(v); }
+        View accentBar;
+        ImageView chevron;
+        View chevronSpacer;
+        TextView iconBadge;
+        GradientDrawable iconBg;
+        TextView nameText;
+        TextView infoSuffix;
+        TextView infoText;
+        ViewGroup statusCol;
+        ImageView lockIcon;
+        ImageView hideIcon;
+        ImageView moreBtn;
+
+        ViewHolder(MaterialCardView c, LinearLayout r, View ab, ImageView ch, View cs,
+                   TextView ib, GradientDrawable ibg, TextView nt, TextView isuf,
+                   TextView it, ViewGroup sc, ImageView li, ImageView hi, ImageView mb) {
+            super(c);
+            card = c; row = r; accentBar = ab; chevron = ch; chevronSpacer = cs;
+            iconBadge = ib; iconBg = ibg; nameText = nt; infoSuffix = isuf;
+            infoText = it; statusCol = sc; lockIcon = li; hideIcon = hi; moreBtn = mb;
+        }
+    }
+
+    private static class MaterialItemAnimator extends DefaultItemAnimator {
+        MaterialItemAnimator() {
+            setAddDuration(250);
+            setRemoveDuration(250);
+            setMoveDuration(250);
+            setChangeDuration(250);
+        }
     }
 }

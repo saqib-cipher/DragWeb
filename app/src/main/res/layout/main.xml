@@ -36,7 +36,7 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					style="?attr/materialIconButtonFilledStyle"
-					app:icon="@drawable/device_floppy_act" />
+					app:icon="@drawable/device_floppy" />
 
 				<com.google.android.material.progressindicator.CircularProgressIndicator
 					android:id="@+id/progressSave"

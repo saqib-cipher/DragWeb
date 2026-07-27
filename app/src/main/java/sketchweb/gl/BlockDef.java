@@ -245,16 +245,26 @@ public class BlockDef {
         cacheDefs = new ArrayList<>();
         if (context == null) return cacheDefs;
 
-        try {
-            java.io.File file = CustomStorageUtil.getCustomFile(context, "blocks.json");
-            String json = FileUtil.readFile(file.getAbsolutePath());
-            if (json != null && !json.trim().isEmpty()) {
+        String json = null;
+        java.io.File customFile = new java.io.File(CustomStorageUtil.getCustomDir(context), "blocks.json");
+        if (customFile.exists() && customFile.length() > 0) {
+            json = FileUtil.readFile(customFile.getAbsolutePath());
+        }
+        // Fall back to asset if custom file is missing/empty
+        if (json == null || json.trim().isEmpty()) {
+            try (java.io.InputStream is = context.getAssets().open("blocks.json")) {
+                java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+                json = s.hasNext() ? s.next() : "";
+            } catch (Exception ignored) {}
+        }
+        if (json != null && !json.trim().isEmpty()) {
+            try {
                 List<BlockDef> loaded = new com.google.gson.Gson().fromJson(json,
                     new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
                 if (loaded != null) cacheDefs = loaded;
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
         return cacheDefs;
     }

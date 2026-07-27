@@ -118,6 +118,7 @@
 			android:name=".DebugActivity"
 			android:screenOrientation="portrait"
 			android:theme="@style/AppTheme.DebugActivity" />
+
 		<provider
 			android:name="androidx.startup.InitializationProvider"
 			android:authorities="sketchweb.gl.androidx-startup"

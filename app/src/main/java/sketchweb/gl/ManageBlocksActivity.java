@@ -299,7 +299,7 @@ public class ManageBlocksActivity extends AppCompatActivity {
     }
 
     private File getCustomBlocksFile() {
-        return CustomStorageUtil.getCustomFile(this, "blocks.json");
+        return new File(CustomStorageUtil.getCustomDir(this), "blocks.json");
     }
 
     private void loadBlocksFromStorage() {
@@ -337,7 +337,7 @@ public class ManageBlocksActivity extends AppCompatActivity {
     private void saveBlocksToStorage() {
         try {
             String json = new GsonBuilder().setPrettyPrinting().create().toJson(allBlockDefs);
-            File storageFile = CustomStorageUtil.getCustomFile(this, "blocks.json");
+            File storageFile = new File(CustomStorageUtil.getCustomDir(this), "blocks.json");
             FileUtil.writeFile(storageFile.getAbsolutePath(), json);
             BlockDef.clearCache();
         } catch (Exception e) {
@@ -353,7 +353,10 @@ public class ManageBlocksActivity extends AppCompatActivity {
         final MaterialAutoCompleteTextView etType = dialogView.findViewById(R.id.et_block_type);
         final TextInputEditText etColor = dialogView.findViewById(R.id.et_block_color);
         final TextInputEditText etSpec = dialogView.findViewById(R.id.et_block_spec);
+        final TextInputEditText etSpec2 = dialogView.findViewById(R.id.et_block_spec2);
         final TextInputEditText etCode = dialogView.findViewById(R.id.et_block_code);
+        final ViewGroup previewContainer = dialogView.findViewById(R.id.block_preview_container);
+        final com.google.android.material.textfield.TextInputLayout tilSpec2 = dialogView.findViewById(R.id.til_block_spec2);
 
         List<CategoryDef> catDefs = CategoryDef.getCategories(this);
         List<String> catIds = new ArrayList<>();
@@ -367,9 +370,41 @@ public class ManageBlocksActivity extends AppCompatActivity {
 
         String[] types = new String[]{"normal", "c", "e", "b", "d", "s", "h"};
         ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, types);
+        Runnable updateBlockPreview = () -> {
+            try {
+                previewContainer.removeAllViews();
+                String spec = etSpec.getText() != null ? etSpec.getText().toString().trim() : "";
+                String spec2 = etSpec2.getText() != null ? etSpec2.getText().toString().trim() : "";
+                String type = etType.getText() != null ? etType.getText().toString().trim() : " ";
+                String hex = etColor.getText() != null ? etColor.getText().toString().trim() : "#2196F3";
+                if (!hex.startsWith("#")) hex = "#" + hex;
+                int blockColor;
+                try { blockColor = Color.parseColor(hex); } catch (Exception e) { blockColor = Color.parseColor("#2196F3"); }
+
+                previewContainer.setVisibility(View.VISIBLE);
+                // Normalize type for BlockBase's hash-switch (expects " " for normal, not "normal")
+                String blockType = type;
+                if ("normal".equals(blockType)) blockType = " ";
+                if ("v".equals(blockType)) blockType = " ";
+                Block blockView = new Block(ManageBlocksActivity.this, 0, spec, blockType, "preview", new Object[]{blockColor});
+                if ("e".equals(blockType)) {
+                    blockView.mSpec2 = spec2;
+                    blockView.setSpec(spec, new Object[]{blockColor});
+                }
+                previewContainer.addView(blockView);
+            } catch (Exception ignored) {}
+        };
+
         if (etType != null) {
             etType.setAdapter(typeAdapter);
             etType.setText(types[0], false);
+            etType.setOnItemClickListener((parent, view, position, id) -> {
+                String selectedType = types[position];
+                boolean isEvent = "e".equals(selectedType);
+                tilSpec2.setVisibility(isEvent ? View.VISIBLE : View.GONE);
+                previewContainer.setVisibility(View.VISIBLE);
+                updateBlockPreview.run();
+            });
         }
 
         Runnable updatePreview = () -> {
@@ -402,10 +437,22 @@ public class ManageBlocksActivity extends AppCompatActivity {
 
             etColor.addTextChangedListener(new TextWatcher() {
                 @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-                @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updatePreview.run(); }
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updatePreview.run(); updateBlockPreview.run(); }
                 @Override public void afterTextChanged(Editable s) {}
             });
         }
+
+        // Real-time spec/spec2 preview
+        etSpec.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateBlockPreview.run(); }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+        etSpec2.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateBlockPreview.run(); }
+            @Override public void afterTextChanged(Editable s) {}
+        });
 
         // Real-time ID validation
         if (etId != null && tilId != null) {
@@ -445,11 +492,19 @@ public class ManageBlocksActivity extends AppCompatActivity {
             }
             etColor.setText(existing.color != null ? existing.color : "#2196F3");
             etSpec.setText(existing.getSpec());
+            String spec2Val = existing.getSpec2();
+            etSpec2.setText(spec2Val);
             etCode.setText(existing.code != null ? existing.code : "");
+            boolean isEvent = "e".equals(currentType);
+            tilSpec2.setVisibility(isEvent ? View.VISIBLE : View.GONE);
+            if (isEvent) previewContainer.setVisibility(View.VISIBLE);
         } else {
             etColor.setText("#2196F3");
+            tilSpec2.setVisibility(View.GONE);
+            previewContainer.setVisibility(View.GONE);
         }
         updatePreview.run();
+        updateBlockPreview.run();
 
         androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
             .setTitle(existing == null ? "Create Custom Block" : "Edit Custom Block")
@@ -467,6 +522,7 @@ public class ManageBlocksActivity extends AppCompatActivity {
                 String color = etColor.getText().toString().trim();
                 if (!color.startsWith("#") && !color.isEmpty()) color = "#" + color;
                 String spec = etSpec.getText().toString().trim();
+                String spec2 = etSpec2.getText().toString().trim();
                 String code = etCode.getText().toString().trim();
 
                 if (id.isEmpty()) {
@@ -495,6 +551,7 @@ public class ManageBlocksActivity extends AppCompatActivity {
                 target.color = color.isEmpty() ? "#2196F3" : color;
                 target.spec = spec;
                 target.label = spec;
+                target.spec2 = spec2;
                 target.code = code;
 
                 if (existing == null) {

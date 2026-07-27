@@ -441,7 +441,8 @@
 		android:layout_gravity="end"
 		android:clickable="true"
 		android:focusable="true"
-		android:background="?attr/colorSurface"
+		android:background="@drawable/bg_hierarchy_panel"
+		android:elevation="4dp"
 		android:orientation="vertical">
 
 		<!-- Drawer Header -->
@@ -450,16 +451,17 @@
 			android:layout_height="wrap_content"
 			android:orientation="horizontal"
 			android:gravity="center_vertical"
-			android:padding="12dp">
+			android:padding="20dp">
 
 			<TextView
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
 				android:layout_weight="1"
 				android:text="Layout Hierarchy"
-				android:textSize="16sp"
-				android:textStyle="bold"
-				android:textColor="?attr/colorOnSurface" />
+				android:textSize="22sp"
+				android:textStyle="normal"
+				android:letterSpacing="0.02"
+				android:textColor="#F5F5F5" />
 
 			<Button
 				android:id="@+id/btnCloseHierarchy"
@@ -467,33 +469,39 @@
 				android:layout_height="wrap_content"
 				style="?attr/materialIconButtonStyle"
 				app:icon="@drawable/x"
-				app:iconTint="?attr/colorOnSurface" />
+				app:iconTint="#B0B0B0" />
 		</LinearLayout>
 
 		<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
-			android:background="?attr/colorOutlineVariant" />
+			android:background="#14FFFFFF" />
 
 		<!-- Search bar for hierarchy -->
 		<com.google.android.material.textfield.TextInputLayout
 			android:id="@+id/searchHierarchyLayout"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:layout_marginStart="12dp"
-			android:layout_marginEnd="12dp"
-			android:layout_marginTop="8dp"
+			android:layout_marginStart="16dp"
+			android:layout_marginEnd="16dp"
+			android:layout_marginTop="12dp"
 			android:hint="Find widget..."
-			app:boxCornerRadiusTopStart="8dp"
-			app:boxCornerRadiusTopEnd="8dp"
-			app:boxCornerRadiusBottomStart="8dp"
-			app:boxCornerRadiusBottomEnd="8dp"
+			app:boxStrokeColor="#C79743"
+			app:boxStrokeErrorColor="#C79743"
+			app:hintTextColor="#B0B0B0"
+			app:boxBackgroundColor="#2F3038"
+			app:boxCornerRadiusTopStart="10dp"
+			app:boxCornerRadiusTopEnd="10dp"
+			app:boxCornerRadiusBottomStart="10dp"
+			app:boxCornerRadiusBottomEnd="10dp"
 			style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense">
 			<com.google.android.material.textfield.TextInputEditText
 				android:id="@+id/etSearchHierarchy"
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
 				android:textSize="13sp"
+				android:textColor="#F5F5F5"
+				android:textColorHint="#B0B0B0"
 				android:inputType="text"
 				android:maxLines="1" />
 		</com.google.android.material.textfield.TextInputLayout>
@@ -505,13 +513,15 @@
 			android:layout_weight="1"
 			android:layout_marginTop="8dp"
 			android:scrollbars="horizontal">
-			
+
 			<androidx.recyclerview.widget.RecyclerView
 				android:id="@+id/recyclerviewRightPanel"
 				android:layout_width="wrap_content"
 				android:layout_height="match_parent"
-				android:paddingStart="4dp"
-				android:paddingEnd="16dp"
+				android:paddingStart="8dp"
+				android:paddingEnd="8dp"
+				android:paddingTop="4dp"
+				android:paddingBottom="8dp"
 				android:clipToPadding="false" />
 		</HorizontalScrollView>
 

@@ -10,6 +10,15 @@
         android:orientation="vertical"
         android:padding="20dp">
 
+        <RelativeLayout
+            android:id="@+id/block_preview_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone"
+            android:background="@drawable/bg_block_shape_rect"
+            android:padding="8dp" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/til_block_id"
             android:layout_width="match_parent"
@@ -74,6 +83,21 @@
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_block_spec"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/til_block_spec2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Spec 2 (body template, for type E)"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_block_spec2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="text" />

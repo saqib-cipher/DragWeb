@@ -482,7 +482,12 @@ public class EventsFragment extends Fragment {
                     names[i] = funcs.get(i).name != null ? funcs.get(i).name : funcs.get(i).spec;
                 }
                 UniversalDialog.singleChoice(getContext(), "Select Function", names, (idx3, selectedName) -> {
-                    saveImportedBlocksAsFunction(selectedName, importedBeans);
+                    String funcName = (idx3 >= 0 && idx3 < funcs.size() && funcs.get(idx3).name != null) ? funcs.get(idx3).name : selectedName;
+                    String linkedFile = "js/script.js";
+                    if (idx3 >= 0 && idx3 < funcs.size() && funcs.get(idx3).linkedFile != null) {
+                        linkedFile = funcs.get(idx3).linkedFile;
+                    }
+                    saveImportedBlocksAsFunction(funcName, importedBeans, linkedFile);
                 });
             });
             return;
@@ -527,7 +532,7 @@ public class EventsFragment extends Fragment {
                     try {
                         String json = FileUtil.readFile(logicFile.getAbsolutePath());
                         if (json != null && !json.trim().isEmpty()) {
-                            data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
+                            data = DesignDataManager.deserializePageLogicData(json, target);
                         }
                     } catch (Exception e) {
                         Log.e("EventsFragment", "Error reading logic file", e);
@@ -568,19 +573,19 @@ public class EventsFragment extends Fragment {
                 for (BlockBean bean : importedBeans) {
                     if (bean.subStack1 >= 0 && idMapping.containsKey(bean.subStack1)) {
                         bean.subStack1 = idMapping.get(bean.subStack1);
-                    } else if (bean.subStack1 >= 0 && !idMapping.containsValue(bean.subStack1)) {
+                    } else if (bean.subStack1 >= 0) {
                         bean.subStack1 = -1;
                     }
 
                     if (bean.subStack2 >= 0 && idMapping.containsKey(bean.subStack2)) {
                         bean.subStack2 = idMapping.get(bean.subStack2);
-                    } else if (bean.subStack2 >= 0 && !idMapping.containsValue(bean.subStack2)) {
+                    } else if (bean.subStack2 >= 0) {
                         bean.subStack2 = -1;
                     }
 
                     if (bean.nextBlock >= 0 && idMapping.containsKey(bean.nextBlock)) {
                         bean.nextBlock = idMapping.get(bean.nextBlock);
-                    } else if (bean.nextBlock >= 0 && !idMapping.containsValue(bean.nextBlock)) {
+                    } else if (bean.nextBlock >= 0) {
                         bean.nextBlock = -1;
                     }
                 }
@@ -665,9 +670,8 @@ public class EventsFragment extends Fragment {
         });
     }
 
-    private void saveImportedBlocksAsFunction(String funcName, ArrayList<BlockBean> importedBeans) {
+    private void saveImportedBlocksAsFunction(String funcName, ArrayList<BlockBean> importedBeans, String linkedFile) {
         String funcKey = "func_" + funcName;
-        String linkedFile = "js/script.js";
         String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
         File extDir = new File(android.os.Environment.getExternalStorageDirectory(), ".dragweb/projects/" + projectId);
         if (!extDir.exists()) extDir.mkdirs();
@@ -678,7 +682,7 @@ public class EventsFragment extends Fragment {
             try {
                 String json = FileUtil.readFile(logicFile.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty()) {
-                    data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
+                    data = DesignDataManager.deserializePageLogicData(json, linkedFile);
                 }
             } catch (Exception e) {
                 Log.e("EventsFragment", "Error reading logic file", e);
@@ -688,6 +692,7 @@ public class EventsFragment extends Fragment {
             data = new DesignDataManager.PageLogicData();
         }
 
+        // Remap IDs of imported blocks to avoid collision with existing blocks
         Map<Integer, Integer> idMapping = new HashMap<>();
         int maxId = 0;
         ArrayList<BlockBean> existing = data.blocks.get(funcKey);
@@ -707,16 +712,17 @@ public class EventsFragment extends Fragment {
                 bean.id = String.valueOf(maxId);
             }
         }
+        // Update internal references within imported blocks using remapped IDs
         for (BlockBean bean : importedBeans) {
             if (bean.subStack1 >= 0 && idMapping.containsKey(bean.subStack1)) bean.subStack1 = idMapping.get(bean.subStack1);
-            else if (bean.subStack1 >= 0 && !idMapping.containsValue(bean.subStack1)) bean.subStack1 = -1;
+            else if (bean.subStack1 >= 0) bean.subStack1 = -1;
             if (bean.subStack2 >= 0 && idMapping.containsKey(bean.subStack2)) bean.subStack2 = idMapping.get(bean.subStack2);
-            else if (bean.subStack2 >= 0 && !idMapping.containsValue(bean.subStack2)) bean.subStack2 = -1;
+            else if (bean.subStack2 >= 0) bean.subStack2 = -1;
             if (bean.nextBlock >= 0 && idMapping.containsKey(bean.nextBlock)) bean.nextBlock = idMapping.get(bean.nextBlock);
-            else if (bean.nextBlock >= 0 && !idMapping.containsValue(bean.nextBlock)) bean.nextBlock = -1;
+            else if (bean.nextBlock >= 0) bean.nextBlock = -1;
         }
 
-        // Find root of imported blocks
+        // Find root of imported chain
         BlockBean importedRootBlock = null;
         if (!importedBeans.isEmpty()) {
             java.util.Set<String> childIds = new java.util.HashSet<>();
@@ -738,9 +744,14 @@ public class EventsFragment extends Fragment {
 
         ArrayList<BlockBean> funcBlocks;
         if (existing != null && !existing.isEmpty()) {
-            funcBlocks = existing;
-            
-            // Find root of existing blocks
+            // Clone list so we don't mutate the original reference in data.blocks
+            funcBlocks = new ArrayList<>(existing);
+            // Remove any stale definedFunc blocks that may have been saved by an older import
+            for (int i = funcBlocks.size() - 1; i >= 0; i--) {
+                if ("definedFunc".equals(funcBlocks.get(i).opCode)) funcBlocks.remove(i);
+            }
+
+            // Find root of existing body blocks (the one not referenced by other blocks)
             BlockBean currentRootBlock = null;
             java.util.Set<String> childIds = new java.util.HashSet<>();
             for (BlockBean b : funcBlocks) {
@@ -758,6 +769,7 @@ public class EventsFragment extends Fragment {
                 currentRootBlock = funcBlocks.get(0);
             }
 
+            // Walk the chain to find the last block
             BlockBean currentBottomBlock = currentRootBlock;
             if (currentBottomBlock != null) {
                 while (currentBottomBlock.nextBlock >= 0) {
@@ -773,10 +785,17 @@ public class EventsFragment extends Fragment {
                 }
             }
 
+            // Re-assign stackIndex to collapse any gaps from removeIf
+            for (int si = 0; si < funcBlocks.size(); si++) {
+                funcBlocks.get(si).stackIndex = si;
+            }
+
+            // Link imported chain to bottom of existing chain
             if (currentBottomBlock != null && importedRootBlock != null) {
                 currentBottomBlock.nextBlock = Integer.parseInt(importedRootBlock.id);
             }
 
+            // Append imported blocks with proper stackIndex
             int maxStackIndex = funcBlocks.size();
             for (BlockBean bean : importedBeans) {
                 bean.stackIndex = maxStackIndex++;
@@ -784,35 +803,29 @@ public class EventsFragment extends Fragment {
             }
         } else {
             funcBlocks = new ArrayList<>();
-            
-            // Create definedFunc block at the start
-            BlockBean defBlock = new BlockBean();
-            maxId++;
-            defBlock.id = String.valueOf(maxId);
-            defBlock.opCode = "definedFunc";
-            defBlock.spec = funcName;
-            defBlock.type = " ";
-            defBlock.category = "";
-            defBlock.nextBlock = -1;
-            
-            if (importedRootBlock != null) {
-                defBlock.nextBlock = Integer.parseInt(importedRootBlock.id);
-            }
-            
-            defBlock.stackIndex = 0;
-            funcBlocks.add(defBlock);
-
-            int si = 1;
-            for (BlockBean bean : importedBeans) {
-                bean.stackIndex = si++;
-                funcBlocks.add(bean);
+            // No definedFunc block — the logic editor creates the hat block on-the-fly.
+            // Only body blocks are saved here.
+            for (int si = 0; si < importedBeans.size(); si++) {
+                importedBeans.get(si).stackIndex = si;
+                funcBlocks.add(importedBeans.get(si));
             }
         }
         data.blocks.put(funcKey, funcBlocks);
+        // Remove legacy _moreBlock key to prevent duplicate entries from old saves
+        String oldKey = funcName + "_moreBlock";
+        data.blocks.remove(oldKey);
 
         String updatedJson = new GsonBuilder().setPrettyPrinting().create().toJson(data);
         FileUtil.writeFile(logicFile.getAbsolutePath(), updatedJson);
 
+        // Clean up legacy _moreBlock from all pages in mapBlocks
+        if (DesignDataManager.mapBlocks != null) {
+            for (HashMap<String, ArrayList<BlockBean>> pageMap : DesignDataManager.mapBlocks.values()) {
+                if (pageMap != null) {
+                    pageMap.remove(oldKey);
+                }
+            }
+        }
         HashMap<String, ArrayList<BlockBean>> pageBlocks = DesignDataManager.mapBlocks.get(cleanPage);
         if (pageBlocks == null) {
             pageBlocks = new HashMap<>();

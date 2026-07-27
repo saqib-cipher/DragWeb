@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
 import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -221,6 +222,9 @@ public final class UniversalDialog {
         if (ctx instanceof androidx.fragment.app.FragmentActivity) {
             androidx.fragment.app.FragmentActivity activity = (androidx.fragment.app.FragmentActivity) ctx;
             sketchweb.gl.colorpicker.ColorPickerDialogFragment dialog = new sketchweb.gl.colorpicker.ColorPickerDialogFragment();
+            Bundle args = new Bundle();
+            args.putString("initialHex", initialHex != null ? initialHex : "");
+            dialog.setArguments(args);
             dialog.setOnColorSelectedListener(hex -> {
                 if (onResult != null) onResult.onColor(hex);
             });

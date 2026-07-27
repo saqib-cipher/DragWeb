@@ -124,12 +124,10 @@ public class MainActivity extends AppCompatActivity {
 		viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
 			@Override
 			public void onPageSelected(int position) {
-				if (mainEditorFragment != null) {
-					mainEditorFragment.saveProject();
-				}
 				if (position == 1 && eventsFragment != null && mainEditorFragment != null && mainEditorFragment.getPageManager() != null) {
 					eventsFragment.refreshLogicList(mainEditorFragment.getPageManager().getCurrentPage());
 				} else if (position == 2 && assetsFragment != null) {
+					mainEditorFragment.saveProject();
 					assetsFragment.refresh();
 				}
 			}

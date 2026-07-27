@@ -15,6 +15,8 @@ public class PageCodeGenerator {
     private String projectLogoPath = "";
     private IconLibraryManager iconLibraryManager;
     private AnimationLibraryManager animationLibraryManager;
+    private GoogleFontsManager googleFontsManager;
+    private String currentPageName = "";
     private ThemeManager themeManager;
 
     public PageCodeGenerator() {}
@@ -31,6 +33,14 @@ public class PageCodeGenerator {
 
     public void setAnimationLibraryManager(AnimationLibraryManager m) {
         this.animationLibraryManager = m;
+    }
+
+    public void setGoogleFontsManager(GoogleFontsManager m) {
+        this.googleFontsManager = m;
+    }
+
+    public void setCurrentPageName(String name) {
+        this.currentPageName = name != null ? name : "";
     }
 
     public String generateAllCode(View screen) {
@@ -159,6 +169,12 @@ public class PageCodeGenerator {
             if (includes != null && !includes.isEmpty()) htmlBuilder.append(includes);
         }
 
+        // Google Fonts
+        if (googleFontsManager != null) {
+            String fonts = googleFontsManager.generateGoogleFontsLinkTag(currentPageName.isEmpty() ? null : currentPageName);
+            if (fonts != null && !fonts.isEmpty()) htmlBuilder.append("  ").append(fonts);
+        }
+
         // ASD <head> source goes last so it can override anything above.
         if (logicBlockManager != null) {
             String asdHead = logicBlockManager.generateAsdSource("head");
@@ -276,7 +292,9 @@ public class PageCodeGenerator {
         if (style != null && !style.isEmpty() && (themeManager == null || themeManager.isUseInlineStyles())) {
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, Object> entry : style.entrySet()) {
-                sb.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
+                String val = entry.getValue() != null ? entry.getValue().toString().trim() : "";
+                if (val.isEmpty()) continue;
+                sb.append(camelToKebab(entry.getKey())).append(": ").append(val).append("; ");
             }
             html.append(" style=\"").append(escapeAttr(sb.toString().trim())).append("\"");
         }
@@ -390,7 +408,9 @@ public class PageCodeGenerator {
         if (style != null && !style.isEmpty() && (themeManager == null || themeManager.isUseInlineStyles())) {
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, Object> entry : style.entrySet()) {
-                sb.append(camelToKebab(entry.getKey())).append(": ").append(String.valueOf(entry.getValue())).append("; ");
+                String val = entry.getValue() != null ? entry.getValue().toString().trim() : "";
+                if (val.isEmpty()) continue;
+                sb.append(camelToKebab(entry.getKey())).append(": ").append(val).append("; ");
             }
             html.append(" style=\"").append(escapeAttr(sb.toString().trim())).append("\"");
         }
