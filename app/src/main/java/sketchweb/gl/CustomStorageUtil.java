@@ -42,7 +42,14 @@ public class CustomStorageUtil {
         return !storageFile.exists() || storageFile.length() == 0;
     }
 
+    public static final int ASSETS_VERSION = 2; // Incremented to force update of blocks.json and param.json
+
     public static boolean needsSync(Context context) {
+        if (context == null) return false;
+        android.content.SharedPreferences sp = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE);
+        if (sp.getInt("assets_version", 0) < ASSETS_VERSION) {
+            return true;
+        }
         String[] files = new String[]{"blocks.json", "categories.json", "param.json", "widgets.json"};
         for (String file : files) {
             if (isStorageOutdatedOrMissing(context, file, null)) {
@@ -67,6 +74,12 @@ public class CustomStorageUtil {
                 if (listener != null) {
                     listener.onProgress("Synced " + filename, (int) (((i + 1.0f) / total) * 100));
                 }
+            }
+            if (context != null) {
+                context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                       .edit()
+                       .putInt("assets_version", ASSETS_VERSION)
+                       .apply();
             }
             if (listener != null) {
                 listener.onProgress("Assets Initialization Complete", 100);

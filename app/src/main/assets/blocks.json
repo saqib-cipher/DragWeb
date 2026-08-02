@@ -1,4 +1,4 @@
-﻿[
+[
     {
         "id":  "commentBlockCss",
         "category":  "comment",
@@ -22,6 +22,110 @@
         "color":  "#1976D2",
         "spec":  "Widget %selector",
         "code":  "%1$s {\n %2$s\n}\n"
+    },
+    {
+        "id":  "cssSelectorS",
+        "category":  "css",
+        "blockType":  "c",
+        "color":  "#1976D2",
+        "spec":  "Widget %selector : %s.inputOnly",
+        "code":  "%1$s%2$s {\n %3$s\n}\n"
+    },
+    {
+        "id":  "cssControlS",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  "%selector : %s.inputOnly",
+        "code":  " %1$s%2$s"
+    },
+    {
+        "id":  "cssCNot",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  "not: %s.inputOnly",
+        "code":  ":not(%1$s)"
+    },
+    {
+        "id":  "cssCjoin",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  "%s.inputOnly + %s.inputOnly",
+        "code":  "%1$s%2$s"
+    },
+    {
+        "id":  "cssCFirst",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  ":first-child",
+        "code":  ":first-child"
+    },
+    {
+        "id":  "cssClast",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  ":last-child",
+        "code":  ":last-child"
+    },
+    {
+        "id":  "cssCNth",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  ":%s.inputOnly-child",
+        "code":  ":nth-child(%1$s)"
+    },
+    {
+        "id":  "cssCHover",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  ":hover",
+        "code":  ":hover"
+    },
+    {
+        "id":  "cssCFocus",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  ":focus",
+        "code":  ":focus"
+    },
+    {
+        "id":  "cssCBefore",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  ":before",
+        "code":  ":before"
+    },
+    {
+        "id":  "cssCafter",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  ":after",
+        "code":  ":after"
+    },
+    {
+        "id":  "cssCVisited",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  ":visited",
+        "code":  ":visited"
+    },
+    {
+        "id":  "cssCActive",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec":  "Active",
+        "code":  ".active"
     },
     {
         "id":  "cssHover",
@@ -216,6 +320,14 @@
         "code":  "padding: %1$s;\n"
     },
     {
+        "id":  "setPaddingMulti",
+        "category":  "css_layout",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "padding TL %m.unit TR %m.unit BR %m.unit BL %m.unit",
+        "code":  "padding: %1$s %2$s %3$s %4$s;\n"
+    },
+    {
         "id":  "setBorder",
         "category":  "css_background",
         "blockType":  "normal",
@@ -232,12 +344,20 @@
         "code":  "border-radius: %1$s;\n"
     },
     {
+        "id":  "setRadiusMulti",
+        "category":  "css_background",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "border-radius TL %m.unit TR %m.unit BR %m.unit BL %m.unit",
+        "code":  "border-radius: %1$s %2$s %3$s %4$s;\n"
+    },
+    {
         "id":  "setBoxShadow",
         "category":  "css_effects",
         "blockType":  "normal",
         "color":  "#2196F3",
-        "spec":  "box-shadow %d %d %d %m.color",
-        "code":  "box-shadow: %1$spx %2$spx %3$spx %4$s;\n"
+        "spec":  "box-shadow h-offset: %d px v-offset: %d px blur: %d px spread: %d px color: %m.color type: %m.shadowType",
+        "code":  "box-shadow: %1$spx %2$spx %3$spx %4$spx %5$s %6$s;\n"
     },
     {
         "id":  "setFontSize",
@@ -380,8 +500,96 @@
         "category":  "css_effects",
         "blockType":  "normal",
         "color":  "#2196F3",
-        "spec":  "filter %s.inputOnly",
+        "spec":  "filter: custom %s.inputOnly",
         "code":  "filter: %1$s;\n"
+    },
+    {
+        "id":  "filterBlur",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: blur %d px",
+        "code":  "filter: blur(%1$spx);\n"
+    },
+    {
+        "id":  "filterBrightness",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: brightness %d %",
+        "code":  "filter: brightness(%1$s%%);\n"
+    },
+    {
+        "id":  "filterContrast",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: contrast %d %",
+        "code":  "filter: contrast(%1$s%%);\n"
+    },
+    {
+        "id":  "filterGrayscale",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: grayscale %d %",
+        "code":  "filter: grayscale(%1$s%%);\n"
+    },
+    {
+        "id":  "filterHueRotate",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: hue-rotate %d deg",
+        "code":  "filter: hue-rotate(%1$sdeg);\n"
+    },
+    {
+        "id":  "filterInvert",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: invert %d %",
+        "code":  "filter: invert(%1$s%%);\n"
+    },
+    {
+        "id":  "filterOpacity",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: opacity %d %",
+        "code":  "filter: opacity(%1$s%%);\n"
+    },
+    {
+        "id":  "filterSaturate",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: saturate %d %",
+        "code":  "filter: saturate(%1$s%%);\n"
+    },
+    {
+        "id":  "filterSepia",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: sepia %d %",
+        "code":  "filter: sepia(%1$s%%);\n"
+    },
+    {
+        "id":  "filterDropShadow",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: drop-shadow h-offset: %d px v-offset: %d px blur: %d px color: %m.color",
+        "code":  "filter: drop-shadow(%1$spx %2$spx %3$spx %4$s);\n"
+    },
+    {
+        "id":  "filterNone",
+        "category":  "css_effects",
+        "blockType":  "normal",
+        "color":  "#2196F3",
+        "spec":  "filter: none",
+        "code":  "filter: none;\n"
     },
     {
         "id":  "animateFadeIn",
@@ -452,7 +660,7 @@
         "category":  "css_animation",
         "blockType":  "normal",
         "color":  "#9C27B0",
-        "spec":  "transition all %d",
+        "spec":  "transition all %d s",
         "code":  "transition: all %1$ss;\n"
     },
     {
@@ -460,7 +668,7 @@
         "category":  "css_text",
         "blockType":  "normal",
         "color":  "#9C27B0",
-        "spec":  "transition color %d",
+        "spec":  "transition color %d s",
         "code":  "transition: color %1$ss;\n"
     },
     {
@@ -468,7 +676,7 @@
         "category":  "css_transform",
         "blockType":  "normal",
         "color":  "#9C27B0",
-        "spec":  "transition transform %d",
+        "spec":  "transition transform %d s",
         "code":  "transition: transform %1$ss;\n"
     },
     {
@@ -540,8 +748,8 @@
         "category":  "css_animation",
         "blockType":  "normal",
         "color":  "#9C27B0",
-        "spec":  "transition %s.inputOnly %s.inputOnly %s.inputOnly %s.inputOnly",
-        "code":  "transition: %1$s %2$ss %3$s %4$s;\n"
+        "spec":  "transition property %m.transitionProperty duration: %d s timing: %m.timingFunction delay: %d s",
+        "code":  "transition: %1$s %2$ss %3$s %4$ss;\n"
     },
     {
         "id":  "hoverScale",

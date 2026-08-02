@@ -25,5 +25,8 @@
   "objectFit": ["fill", "contain", "cover", "none", "scale-down"],
   "verticalAlign": ["baseline", "top", "middle", "bottom", "text-top", "text-bottom"],
   "listStyle": ["none", "disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "lower-alpha", "upper-alpha"],
-  "formMethod": ["GET", "POST", "dialog"]
+  "formMethod": ["GET", "POST", "dialog"],
+  "transitionProperty": ["all", "color", "background-color", "transform", "opacity", "width", "height", "margin", "padding", "border-radius", "border-color", "box-shadow"],
+  "timingFunction": ["linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end"],
+  "shadowType": ["outline", "inset"]
 }

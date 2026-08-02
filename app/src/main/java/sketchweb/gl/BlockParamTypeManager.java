@@ -99,6 +99,9 @@ public class BlockParamTypeManager {
         d.put("selector", Arrays.asList("body", "h1", "p", ".active", "#main", "div"));
         d.put("unit", Arrays.asList("px", "%", "em", "rem", "vh", "vw"));
         d.put("formMethod", Arrays.asList("GET", "POST", "dialog"));
+        d.put("transitionProperty", Arrays.asList("all", "color", "background-color", "transform", "opacity", "width", "height", "margin", "padding", "border-radius", "border-color", "box-shadow"));
+        d.put("timingFunction", Arrays.asList("linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end"));
+        d.put("shadowType", Arrays.asList("outline", "inset"));
         return d;
     }
 

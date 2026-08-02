@@ -299,7 +299,11 @@ public class BlockCodeCompiler {
                     String escaped = param.replace("\\", "\\\\").replace("\"", "\\\"");
                     compiledParams.add("\"" + escaped + "\"");
                 } else {
-                    compiledParams.add(param);
+                    if ("outline".equals(param)) {
+                        compiledParams.add("");
+                    } else {
+                        compiledParams.add(param);
+                    }
                 }
             }
             paramIdx++;

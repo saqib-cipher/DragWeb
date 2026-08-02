@@ -6,6 +6,12 @@
         "type": "css"
     },
     {
+        "id": "cssControl",
+        "name": "CSS Control",
+        "catColor": "#FF9100",
+        "type": "css"
+    },
+    {
         "id": "responsive",
         "name": "Responsive",
         "catColor": "#1976D2",
