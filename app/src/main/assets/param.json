@@ -14,7 +14,7 @@
   "justifyContent": ["flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly"],
   "alignItems": ["stretch", "flex-start", "flex-end", "center", "baseline"],
   "selector": ["body", "h1", "p", ".active", "#main", "div"],
-  "unit": ["px", "%", "em", "rem", "vh", "vw"],
+  "unit": ["px", "%", "em", "rem", "vh", "vw","deg","rad"],
   "inputType": ["text", "password", "email", "number", "tel", "url", "search", "date", "time", "color", "file", "checkbox", "radio", "range", "hidden", "submit", "reset", "button"],
   "listType": ["ul", "ol"],
   "visibility": ["visible", "hidden", "collapse"],
@@ -28,5 +28,6 @@
   "formMethod": ["GET", "POST", "dialog"],
   "transitionProperty": ["all", "color", "background-color", "transform", "opacity", "width", "height", "margin", "padding", "border-radius", "border-color", "box-shadow"],
   "timingFunction": ["linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end"],
-  "shadowType": ["outline", "inset"]
+  "shadowType": ["outline", "inset"],
+  "filterType": ["blur", "grayscale", "hue-rotate", "invert", "saturate", "sepia"]
 }

@@ -44,6 +44,8 @@ public class PaletteBlock extends LinearLayout {
         this.blockBuilder.addView(view);
         Block block = new Block(this.mContext, -1, str, str2, str3, new Object[]{Integer.valueOf(i), objArr});
         block.setBlockType(1);
+        LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+        block.setLayoutParams(lp);
         this.blockBuilder.addView(block);
         return block;
     }

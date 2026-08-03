@@ -98,7 +98,7 @@ public class TextEditorActivity extends AppCompatActivity {
         // Add save icon to toolbar if file is editable
         if (!isReadOnly) {
             toolbar.getMenu().add(0, 1, 0, "Save")
-                   .setIcon(R.drawable.device_floppy_act)
+                   .setIcon(R.drawable.device_floppy)
                    .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
 
             toolbar.setOnMenuItemClickListener(item -> {

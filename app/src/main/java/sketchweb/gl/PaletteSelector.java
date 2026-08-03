@@ -171,6 +171,20 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
         }
     }
 
+    public void setSelectedCategory(int index) {
+        clearSelection();
+        for (int i = 0; i < getChildCount(); i++) {
+            View childAt = getChildAt(i);
+            if (childAt instanceof PaletteSelectorItem) {
+                PaletteSelectorItem item = (PaletteSelectorItem) childAt;
+                if (item.getId() == index) {
+                    item.setSelected(true);
+                    break;
+                }
+            }
+        }
+    }
+
     public void setOnBlockCategorySelectListener(OnBlockCategorySelectListener onBlockCategorySelectListener) {
         this.mListener = onBlockCategorySelectListener;
     }

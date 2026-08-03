@@ -69,6 +69,10 @@ public class ColorPickerDialogFragment extends DialogFragment {
 	private MaterialButton btnApply;
 	private MaterialButton btnAdd;
 	
+	private com.google.android.material.slider.Slider alphaSlider;
+	private TextView tvAlphaVal;
+	private boolean isUpdatingFromSlider = false;
+	
 	private ChipGroup colorMenu;
 	private Chip chipHex;
 	private Chip chipHexad;
@@ -96,6 +100,52 @@ public class ColorPickerDialogFragment extends DialogFragment {
 		btnClose = view.findViewById(R.id.btn_close);    
 		btnApply = view.findViewById(R.id.btn_apply);
 		
+		alphaSlider = view.findViewById(R.id.alpha_slider);
+		tvAlphaVal = view.findViewById(R.id.tv_alpha_val);
+
+		if (alphaSlider != null) {
+			alphaSlider.addOnChangeListener((slider, value, fromUser) -> {
+				if (!fromUser) return;
+				int a = Math.round(value);
+				if (tvAlphaVal != null) {
+					int pct = Math.round(a * 100f / 255f);
+					tvAlphaVal.setText(pct + "%");
+				}
+
+				String curHex = viewModel.getSelectedColor().getValue();
+				if (curHex == null || curHex.isEmpty()) {
+					curHex = inputHex.getText() != null ? inputHex.getText().toString() : "#FFFFFF";
+				}
+
+				if ("transparent".equalsIgnoreCase(curHex)) {
+					if (a > 0) {
+						curHex = "#000000";
+					} else {
+						return;
+					}
+				}
+
+				int colorInt = resolveColorHex(curHex);
+				int r = Color.red(colorInt);
+				int g = Color.green(colorInt);
+				int b = Color.blue(colorInt);
+
+				isUpdatingFromSlider = true;
+				if (a == 0) {
+					viewModel.selectColor("transparent");
+					if (inputHex != null) inputHex.setText("transparent");
+					previewBox.setBackgroundColor(Color.TRANSPARENT);
+				} else {
+					String argbHex = String.format("#%02X%02X%02X%02X", r, g, b, a);
+					String formatted = ColorUtils.formatColor(argbHex, (currentFormatKey != null) ? currentFormatKey : "hex");
+					viewModel.selectColor(formatted);
+					if (inputHex != null) inputHex.setText(formatted);
+					previewBox.setBackgroundColor(Color.argb(a, r, g, b));
+				}
+				isUpdatingFromSlider = false;
+			});
+		}
+
 		colorMenu = view.findViewById(R.id.color_menu);
 		chipHex = view.findViewById(R.id.chip_hex);
 		chipHexad = view.findViewById(R.id.chip_hexad);
@@ -124,7 +174,11 @@ public class ColorPickerDialogFragment extends DialogFragment {
 				} else if (checkedId == R.id.chip_rgba) {
 					currentFormatKey = "rgba";
 				}
-
+				
+				String selHex = viewModel.getSelectedColor().getValue();
+				if (selHex != null && !selHex.startsWith("var(") && inputHex != null) {
+					inputHex.setText(ColorUtils.formatColor(selHex, currentFormatKey));
+				}
 			});
 		}
 		
@@ -144,8 +198,15 @@ public class ColorPickerDialogFragment extends DialogFragment {
 				colorAdapter.setColors(viewModel.getColorsForCategory(category));
 				return;
 			}
+			boolean hideChips = "theme".equalsIgnoreCase(category) 
+							|| "transparent".equalsIgnoreCase(category)
+							|| "none".equalsIgnoreCase(category);
 			if (colorMenu != null) {
-				colorMenu.setVisibility("theme".equalsIgnoreCase(category) ? View.GONE : View.VISIBLE);
+				colorMenu.setVisibility(hideChips ? View.GONE : View.VISIBLE);
+			}
+			View alphaContainer = view.findViewById(R.id.alpha_container);
+			if (alphaContainer != null) {
+				alphaContainer.setVisibility(hideChips ? View.GONE : View.VISIBLE);
 			}
 			if ("theme".equalsIgnoreCase(category)) {
 				view.findViewById(R.id.card_view_colors).setVisibility(View.GONE);
@@ -163,9 +224,22 @@ public class ColorPickerDialogFragment extends DialogFragment {
 		
 		viewModel.getSelectedColor().observe(this, hex -> {    
 			if (hex != null) {    
-				previewBox.setBackgroundColor(resolveColorHex(hex));    
+				int colorInt = resolveColorHex(hex);
+				previewBox.setBackgroundColor(colorInt);    
 				updateColorFormatChips(hex);
 				
+				if (!isUpdatingFromSlider && alphaSlider != null) {
+					int a = Color.alpha(colorInt);
+					if ("transparent".equalsIgnoreCase(hex)) {
+						a = 0;
+					}
+					alphaSlider.setValue(a);
+					if (tvAlphaVal != null) {
+						int pct = Math.round(a * 100f / 255f);
+						tvAlphaVal.setText(pct + "%");
+					}
+				}
+
 				if ("theme".equalsIgnoreCase(viewModel.getSelectedCategory().getValue())) {
 					RecyclerView recyclerTheme = view.findViewById(R.id.recycler_theme_colors);
 					if (recyclerTheme != null && recyclerTheme.getAdapter() != null) {
@@ -230,7 +304,7 @@ public class ColorPickerDialogFragment extends DialogFragment {
 			Toast.makeText(getContext(), getString(R.string.copied_value, formatted), Toast.LENGTH_SHORT).show();
 		});    
 		
-		inputHex.setFilters(new InputFilter[]{new MaxLengthFilter(9)});    
+		inputHex.setFilters(new InputFilter[]{new InputFilter.LengthFilter(32)});    
 		
 		inputHex.addTextChangedListener(new TextWatcher() {    
 			private boolean isEditing = false;    
@@ -243,22 +317,26 @@ public class ColorPickerDialogFragment extends DialogFragment {
 				if (isEditing) return;    
 				isEditing = true;    
 				
-				String text = s.toString();    
+				String text = s != null ? s.toString() : "";    
 				
 				if (!text.isEmpty()) {    
-					if (!text.startsWith("#")) {    
-						text = "#" + text;    
-					}    
-					text = text.toUpperCase(Locale.ROOT);    
-					
-					inputHex.setText(text);    
-					int sel = Math.min(text.length(), inputHex.getText().length());    
-					inputHex.setSelection(sel);    
+					if ("transparent".equalsIgnoreCase(text) || text.toLowerCase().startsWith("rgb") || text.toLowerCase().startsWith("0x")) {
+						// Keep formatted string as is
+					} else {
+						if (!text.startsWith("#")) {    
+							text = "#" + text;    
+						}    
+						text = text.toUpperCase(Locale.ROOT);    
+						
+						inputHex.setText(text);    
+						int sel = Math.min(text.length(), inputHex.getText().length());    
+						inputHex.setSelection(sel);    
+					}
 				} else {    
 					inputHex.setSelection(0);    
 				}    
 				
-				int color = ColorUtils.parseHexColorSafe(inputHex.getText().toString());    
+				int color = resolveColorHex(inputHex.getText().toString());    
 				previewBox.setBackgroundColor(color);    
 				
 				isEditing = false;    
@@ -295,17 +373,30 @@ public class ColorPickerDialogFragment extends DialogFragment {
 	
 	private void applyInitialHex(String initialHex) {
 		if (initialHex == null || initialHex.isEmpty()) return;
-		String normalized = ColorUtils.normalizeHexColor(initialHex);
-		// Search all categories for the matching color
+		if ("transparent".equalsIgnoreCase(initialHex)) {
+			viewModel.selectCategory("transparent");
+			viewModel.selectColor("transparent");
+			if (inputHex != null) {
+				inputHex.setText("transparent");
+			}
+			return;
+		}
+
+		int initColorInt = ColorUtils.parseHexColorSafe(initialHex);
+		int initR = Color.red(initColorInt);
+		int initG = Color.green(initColorInt);
+		int initB = Color.blue(initColorInt);
+
 		String foundCategory = null;
 		Set<String> categories = viewModel.getColorCategories();
 		if (categories != null) {
 			for (String category : categories) {
+				if ("custom".equalsIgnoreCase(category) || "theme".equalsIgnoreCase(category)) continue;
 				List<String> colors = viewModel.getColorsForCategory(category);
 				if (colors != null) {
 					for (String c : colors) {
-						String cn = ColorUtils.normalizeHexColor(c);
-						if (cn != null && cn.equalsIgnoreCase(normalized)) {
+						int cInt = ColorUtils.parseHexColorSafe(c);
+						if (Color.red(cInt) == initR && Color.green(cInt) == initG && Color.blue(cInt) == initB) {
 							foundCategory = category;
 							break;
 						}
@@ -314,15 +405,16 @@ public class ColorPickerDialogFragment extends DialogFragment {
 				if (foundCategory != null) break;
 			}
 		}
+
 		if (foundCategory != null) {
 			viewModel.selectCategory(foundCategory);
-			viewModel.selectColor(normalized);
+			viewModel.selectColor(initialHex);
 		} else {
 			viewModel.selectCategory("custom");
-			viewModel.selectColor(normalized);
+			viewModel.selectColor(initialHex);
 		}
 		if (inputHex != null) {
-			inputHex.setText(normalized);
+			inputHex.setText(ColorUtils.formatColor(initialHex, (currentFormatKey != null) ? currentFormatKey : "hex"));
 		}
 	}
 

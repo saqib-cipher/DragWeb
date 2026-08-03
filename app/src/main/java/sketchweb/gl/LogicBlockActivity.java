@@ -1741,6 +1741,9 @@ startActivityForResult(intent, 209);
 		}
 		
 		public void onBlockCategorySelect(int i, int i2) {
+				if (this.paletteSelector != null) {
+						this.paletteSelector.setSelectedCategory(i);
+				}
 				this.paletteBlock.removeAllBlocks();
 				PaletteSelector.CategoryItem selectedCat = null;
 				for (PaletteSelector.CategoryItem cat : PaletteSelector.categoriesList) {
@@ -2668,6 +2671,9 @@ startActivityForResult(intent, 209);
 				CategoryDef.clearCache();
 				if (this.paletteSelector != null) {
 						this.paletteSelector.refreshCategories();
+						if (this.currentCategoryItem != null) {
+								this.paletteSelector.setSelectedCategory(this.currentCategoryItem.index);
+						}
 				}
 		}
 		

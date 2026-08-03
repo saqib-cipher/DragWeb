@@ -137,7 +137,10 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
         Runnable updateColorPreview = () -> {
             String colorStr = etWidgetColor.getText() != null ? etWidgetColor.getText().toString().trim() : "";
             try {
-                int parsed = colorStr.isEmpty() ? Color.TRANSPARENT : Color.parseColor(colorStr.startsWith("#") ? colorStr : "#" + colorStr);
+                int parsed = Color.TRANSPARENT;
+                if (!colorStr.isEmpty() && !"transparent".equalsIgnoreCase(colorStr)) {
+                    parsed = Color.parseColor(colorStr.startsWith("#") ? colorStr : "#" + colorStr);
+                }
                 GradientDrawable dot = new GradientDrawable();
                 dot.setShape(GradientDrawable.OVAL);
                 dot.setColor(parsed);

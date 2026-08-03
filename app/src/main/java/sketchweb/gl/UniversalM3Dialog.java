@@ -121,15 +121,18 @@ public final class UniversalM3Dialog {
         String initialVal = initial != null ? initial.trim() : "";
         String defaultUnit = "px";
         String numericPart = initialVal;
+        boolean matchedUnit = false;
 
         for (String u : unitList) {
             if (initialVal.equalsIgnoreCase(u)) {
                 defaultUnit = u;
                 numericPart = "";
+                matchedUnit = true;
                 break;
             } else if (initialVal.toLowerCase().endsWith(u.toLowerCase())) {
                 defaultUnit = u;
                 numericPart = initialVal.substring(0, initialVal.length() - u.length()).trim();
+                matchedUnit = true;
                 break;
             }
         }
@@ -143,29 +146,44 @@ public final class UniversalM3Dialog {
         android.widget.HorizontalScrollView unitScroll = createChipScroll();
         final ChipGroup unitGroup = createChipGroup();
         unitGroup.setSingleSelection(true);
-        unitGroup.setSelectionRequired(true);
+        unitGroup.setSelectionRequired(false);
 
         final TextInputLayout til = createTextInputLayout(hint != null ? hint : "Value");
-        til.setSuffixText(defaultUnit);
-        boolean originalNumeric = this.isNumeric;
-        this.isNumeric = true;
+        
+        final String[] selectedUnit = {matchedUnit ? defaultUnit : ""};
+        if (matchedUnit) {
+            til.setSuffixText(defaultUnit);
+        } else {
+            til.setSuffixText(null);
+        }
+        
+        // Do not force numeric IME; let it be a text input so anything can be entered
         final MaterialAutoCompleteTextView edit = createEditor(til, numericPart, null);
-        this.isNumeric = originalNumeric;
         til.addView(edit);
 
-        final String[] selectedUnit = {defaultUnit};
+        final android.widget.HorizontalScrollView finalUnitScroll = unitScroll;
+
         for (final String u : unitList) {
             Chip c = createPresetChip(u);
             c.setCheckable(true);
-            if (u.equalsIgnoreCase(defaultUnit)) {
+            if (matchedUnit && u.equalsIgnoreCase(defaultUnit)) {
                 c.setChecked(true);
             }
-            c.setOnClickListener(v -> {
-                selectedUnit[0] = u;
-                til.setSuffixText(u);
+            c.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    selectedUnit[0] = u;
+                    til.setSuffixText(u);
+                }
             });
             unitGroup.addView(c);
         }
+
+        unitGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.isEmpty()) {
+                selectedUnit[0] = "";
+                til.setSuffixText(null);
+            }
+        });
 
         unitScroll.addView(unitGroup);
         root.addView(unitScroll);
@@ -183,7 +201,7 @@ public final class UniversalM3Dialog {
                 if (cb != null) {
                     if (val.isEmpty()) {
                         cb.onText(unitStr);
-                    } else if (val.endsWith(unitStr)) {
+                    } else if (unitStr.isEmpty() || val.endsWith(unitStr)) {
                         cb.onText(val);
                     } else {
                         cb.onText(val + unitStr);
@@ -388,7 +406,7 @@ public final class UniversalM3Dialog {
         TextInputLayout til = createTextInputLayout(inputHint);
         final MaterialAutoCompleteTextView edit = createEditor(til, currentValue, presets);
         til.addView(edit);
-
+        
         // 2. Chips
         if (presets != null && !presets.isEmpty()) {
             android.widget.HorizontalScrollView chipScroll = createChipScroll();
@@ -1303,6 +1321,9 @@ public final class UniversalM3Dialog {
                     else if (baseType == 2) typeStr = "string";
 
                     String label = p.second + " (" + (isConst ? "const " : "let ") + typeStr + ")";
+                    if (isConst && usedConstVars != null && usedConstVars.contains(p.second)) {
+                        label += " - [Already Used]";
+                    }
 
                     com.google.android.material.radiobutton.MaterialRadioButton rb = new com.google.android.material.radiobutton.MaterialRadioButton(context);
                     rb.setText(label);
@@ -1310,8 +1331,7 @@ public final class UniversalM3Dialog {
                     rb.setTextSize(16);
                     rb.setPadding(dp(8), dp(10), dp(8), dp(10));
                     if (disableConst && isConst && usedConstVars != null && usedConstVars.contains(p.second)) {
-                        rb.setEnabled(false);
-                        rb.setAlpha(0.45f);
+                        rb.setTextColor(android.graphics.Color.parseColor("#E65100"));
                     }
                     rg.addView(rb);
                 }

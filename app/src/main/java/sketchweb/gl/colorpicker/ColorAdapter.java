@@ -49,19 +49,72 @@ public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
     String hex = colorList.get(position);
     int bgColor = ColorUtils.parseHexColorSafe(hex);
     
-    holder.materialCardView.setCardBackgroundColor(bgColor);
-    holder.hexText.setText(hex);
+    View innerFrame = holder.materialCardView.getChildAt(0);
+    boolean isTransparent = "transparent".equalsIgnoreCase(hex) || (bgColor & 0xFF000000) == 0;
+    if (isTransparent) {
+        holder.materialCardView.setCardBackgroundColor(Color.WHITE);
+        if (innerFrame != null) {
+            innerFrame.setBackground(new android.graphics.drawable.Drawable() {
+                @Override
+                public void draw(@NonNull android.graphics.Canvas canvas) {
+                    int w = canvas.getWidth();
+                    int h = canvas.getHeight();
+                    android.graphics.Paint paint = new android.graphics.Paint();
+                    paint.setColor(Color.WHITE);
+                    canvas.drawRect(0, 0, w, h, paint);
+                    paint.setColor(Color.RED);
+                    paint.setStrokeWidth(4.0f);
+                    canvas.drawLine(0, h, w, 0, paint);
+                }
+                @Override
+                public void setAlpha(int alpha) {}
+                @Override
+                public void setColorFilter(@NonNull android.graphics.ColorFilter colorFilter) {}
+                @Override
+                public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+            });
+        }
+        holder.hexText.setText("transparent");
+        int textColor = Color.BLACK;
+        holder.hexText.setTextColor(textColor);
+        holder.checkMark.setColorFilter(textColor);
+    } else {
+        if (innerFrame != null) {
+            innerFrame.setBackground(null);
+        }
+        holder.materialCardView.setCardBackgroundColor(bgColor);
+        holder.hexText.setText(hex);
+        int textColor = ColorUtils.getContrastingTextColor(bgColor);
+        holder.hexText.setTextColor(textColor);
+        holder.checkMark.setColorFilter(textColor);
+    }
     
-    int textColor = ColorUtils.getContrastingTextColor(bgColor);
-    holder.hexText.setTextColor(textColor);
-    holder.checkMark.setColorFilter(textColor);
-    
-    boolean isSelected = hex.equalsIgnoreCase(selectedColor);
+    boolean isSelected = false;
+    if (selectedColor != null) {
+        if (hex.equalsIgnoreCase(selectedColor)) {
+            isSelected = true;
+        } else if (!"transparent".equalsIgnoreCase(hex) && !"transparent".equalsIgnoreCase(selectedColor)) {
+            int c1 = ColorUtils.parseHexColorSafe(hex);
+            int c2 = ColorUtils.parseHexColorSafe(selectedColor);
+            isSelected = (Color.red(c1) == Color.red(c2)) 
+                      && (Color.green(c1) == Color.green(c2)) 
+                      && (Color.blue(c1) == Color.blue(c2));
+        }
+    }
     holder.checkMark.setVisibility(isSelected ? View.VISIBLE : View.GONE);
+
+    if (isSelected && selectedColor != null && !isTransparent && !"transparent".equalsIgnoreCase(selectedColor)) {
+        int selColorInt = ColorUtils.parseHexColorSafe(selectedColor);
+        holder.materialCardView.setCardBackgroundColor(selColorInt);
+        holder.hexText.setText(selectedColor);
+        int textColor = ColorUtils.getContrastingTextColor(selColorInt);
+        holder.hexText.setTextColor(textColor);
+        holder.checkMark.setColorFilter(textColor);
+    }
     
     holder.itemView.setOnClickListener(v -> {
         try {
-            if (ColorUtils.isValidHexColor(hex)) {
+            if ("transparent".equalsIgnoreCase(hex) || ColorUtils.isValidHexColor(hex)) {
                 viewModel.selectColor(hex);
             }
         } catch (Exception e) {

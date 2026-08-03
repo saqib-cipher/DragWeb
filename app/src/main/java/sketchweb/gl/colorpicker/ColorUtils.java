@@ -32,6 +32,7 @@ public class ColorUtils {
 			put("blue gray", "607D8B");
 			put("black", "000000");
 			put("white", "FFFFFF");
+			put("transparent", "00FFFFFF");
 		}};
 	
 	public static int getColorFromCategory(String category) {
@@ -81,33 +82,70 @@ public class ColorUtils {
 		if (input == null || input.trim().isEmpty()) {
 			return Color.LTGRAY;
 		}
-		
-		String hex = input.trim().toUpperCase();
-		
-		if (!hex.startsWith("#")) {
-			hex = "#" + hex;
+		String trimmed = input.trim();
+		if ("transparent".equalsIgnoreCase(trimmed)) {
+			return Color.TRANSPARENT;
 		}
 		
-		if (!hex.matches("^#([A-F0-9]{3}|[A-F0-9]{4}|[A-F0-9]{6}|[A-F0-9]{8})$")) {
-			return Color.LTGRAY;
+		if (trimmed.toLowerCase().startsWith("rgb")) {
+			try {
+				String content = trimmed.substring(trimmed.indexOf("(") + 1, trimmed.indexOf(")"));
+				String[] parts = content.split(",");
+				int r = Integer.parseInt(parts[0].trim());
+				int g = Integer.parseInt(parts[1].trim());
+				int b = Integer.parseInt(parts[2].trim());
+				int a = 255;
+				if (parts.length >= 4) {
+					a = Math.round(Float.parseFloat(parts[3].trim()) * 255f);
+				}
+				return Color.argb(a, r, g, b);
+			} catch (Exception e) {
+				return Color.LTGRAY;
+			}
 		}
-		
-		if (hex.length() == 4) {
-			hex = "#" + hex.charAt(1) + hex.charAt(1)
-			+ hex.charAt(2) + hex.charAt(2)
-			+ hex.charAt(3) + hex.charAt(3);
-		} else if (hex.length() == 5) {
-			hex = "#" + hex.charAt(1) + hex.charAt(1)
-			+ hex.charAt(2) + hex.charAt(2)
-			+ hex.charAt(3) + hex.charAt(3)
-			+ hex.charAt(4) + hex.charAt(4);
-		} else if (hex.length() == 7) {
-			hex = "#FF" + hex.substring(1);
+
+		String hex = trimmed.toUpperCase();
+		boolean is0x = hex.startsWith("0X");
+		if (is0x) {
+			hex = hex.substring(2);
+		} else if (hex.startsWith("#")) {
+			hex = hex.substring(1);
 		}
-		
+
+		// 8-digit hex: 0xAARRGGBB vs #RRGGBBAA
+		if (hex.length() == 8) {
+			try {
+				if (is0x) {
+					// 0xAARRGGBB (Alpha at start)
+					int a = Integer.parseInt(hex.substring(0, 2), 16);
+					int r = Integer.parseInt(hex.substring(2, 4), 16);
+					int g = Integer.parseInt(hex.substring(4, 6), 16);
+					int b = Integer.parseInt(hex.substring(6, 8), 16);
+					return Color.argb(a, r, g, b);
+				} else {
+					// #RRGGBBAA (Alpha at last, CSS standard)
+					int r = Integer.parseInt(hex.substring(0, 2), 16);
+					int g = Integer.parseInt(hex.substring(2, 4), 16);
+					int b = Integer.parseInt(hex.substring(4, 6), 16);
+					int a = Integer.parseInt(hex.substring(6, 8), 16);
+					return Color.argb(a, r, g, b);
+				}
+			} catch (Exception ignored) {}
+		}
+
+		// 6-digit hex: RRGGBB
+		if (hex.length() == 6) {
+			try {
+				int r = Integer.parseInt(hex.substring(0, 2), 16);
+				int g = Integer.parseInt(hex.substring(2, 4), 16);
+				int b = Integer.parseInt(hex.substring(4, 6), 16);
+				return Color.rgb(r, g, b);
+			} catch (Exception ignored) {}
+		}
+
 		try {
-			return Color.parseColor(hex);
-		} catch (IllegalArgumentException e) {
+			return Color.parseColor("#" + hex);
+		} catch (Exception e) {
 			return Color.LTGRAY;
 		}
 	}
@@ -115,6 +153,8 @@ public class ColorUtils {
 	public static boolean isValidHexColor(String hex) {
 		if (hex == null) return false;
 		hex = hex.trim().toUpperCase();
+		if (hex.toLowerCase().startsWith("rgb")) return true;
+		if (hex.startsWith("0X")) hex = "#" + hex.substring(2);
 		if (!hex.startsWith("#")) {
 			hex = "#" + hex;
 		}
@@ -124,39 +164,77 @@ public class ColorUtils {
 	
 	
 	public static String formatColor(String hex, String format) {
-		// Удаляем символ #
-		String clean = hex.replace("#", "");
+		if (hex == null) return "";
+		if ("transparent".equalsIgnoreCase(hex)) {
+			return "transparent";
+		}
 		
 		int a = 255, r = 0, g = 0, b = 0;
-		
+		String clean = hex.replace("#", "").trim();
+
 		try {
-			if (clean.length() == 8) {
-				a = Integer.parseInt(clean.substring(0, 2), 16);
-				r = Integer.parseInt(clean.substring(2, 4), 16);
-				g = Integer.parseInt(clean.substring(4, 6), 16);
-				b = Integer.parseInt(clean.substring(6, 8), 16);
-			} else if (clean.length() == 6) {
-				r = Integer.parseInt(clean.substring(0, 2), 16);
-				g = Integer.parseInt(clean.substring(2, 4), 16);
-				b = Integer.parseInt(clean.substring(4, 6), 16);
+			if (clean.toLowerCase().startsWith("rgb")) {
+				String content = clean.substring(clean.indexOf("(") + 1, clean.indexOf(")"));
+				String[] parts = content.split(",");
+				r = Integer.parseInt(parts[0].trim());
+				g = Integer.parseInt(parts[1].trim());
+				b = Integer.parseInt(parts[2].trim());
+				if (parts.length >= 4) {
+					float alphaFloat = Float.parseFloat(parts[3].trim());
+					a = Math.round(alphaFloat * 255f);
+				} else {
+					a = 255;
+				}
+			} else {
+				boolean is0x = clean.toLowerCase().startsWith("0x");
+				if (is0x) {
+					clean = clean.substring(2);
+				}
+				if (clean.length() == 8) {
+					if (is0x) {
+						// 0xAARRGGBB format (Alpha at start)
+						a = Integer.parseInt(clean.substring(0, 2), 16);
+						r = Integer.parseInt(clean.substring(2, 4), 16);
+						g = Integer.parseInt(clean.substring(4, 6), 16);
+						b = Integer.parseInt(clean.substring(6, 8), 16);
+					} else {
+						// CSS #RRGGBBAA format (Alpha at last)
+						r = Integer.parseInt(clean.substring(0, 2), 16);
+						g = Integer.parseInt(clean.substring(2, 4), 16);
+						b = Integer.parseInt(clean.substring(4, 6), 16);
+						a = Integer.parseInt(clean.substring(6, 8), 16);
+					}
+				} else if (clean.length() == 6) {
+					r = Integer.parseInt(clean.substring(0, 2), 16);
+					g = Integer.parseInt(clean.substring(2, 4), 16);
+					b = Integer.parseInt(clean.substring(4, 6), 16);
+				}
 			}
 		} catch (Exception e) {
 			return hex;
 		}
 		
+		a = Math.max(0, Math.min(255, a));
+		r = Math.max(0, Math.min(255, r));
+		g = Math.max(0, Math.min(255, g));
+		b = Math.max(0, Math.min(255, b));
+
 		switch (format) {
 			case "hex":
-			return String.format("#%02X%02X%02X", r, g, b);
+				if (a < 255) {
+					return String.format("#%02X%02X%02X%02X", r, g, b, a);
+				}
+				return String.format("#%02X%02X%02X", r, g, b);
 			case "hexad":
-			return String.format("0x%02X%02X%02X%02X", a, r, g, b);
+				return String.format("0x%02X%02X%02X%02X", a, r, g, b);
 			case "rgb":
-			return String.format("rgb(%d, %d, %d);", r, g, b);
+				return String.format("rgb(%d, %d, %d)", r, g, b);
 			case "rgba":
-			float alpha = a / 255f;
-			String alphaStr = (alpha == 1f) ? "1" : String.format(Locale.US, "%.2f", alpha).replaceAll("0+$", "").replaceAll("\\.$", "");
-			return String.format("rgba(%d, %d, %d, %s);", r, g, b, alphaStr);
+				float alpha = a / 255f;
+				String alphaStr = (alpha == 1f) ? "1" : String.format(Locale.US, "%.2f", alpha).replaceAll("0+$", "").replaceAll("\\.$", "");
+				return String.format("rgba(%d, %d, %d, %s)", r, g, b, alphaStr);
 			default:
-			return hex;
+				return hex;
 		}
 	}
     

@@ -128,6 +128,30 @@
         "code":  ".active"
     },
     {
+        "id":  "cssCUnits",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec": "Top|Bottom %m.unit Left|Right %m.unit",
+        "code":  "%1$s %2$s"
+    },
+    {
+        "id":  "cssCUnits2",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec": "Top %m.unit Left|Right %m.unit Bottom %m.unit",
+        "code":  "%1$s %2$s %3$s"
+    },
+    {
+        "id":  "cssCUnits3",
+        "category":  "cssControl",
+        "blockType":  "s",
+        "color":  "#549159",
+        "spec": "Top %m.unit Right %m.unit Bottom %m.unit Left $m.unit",
+        "code":  "%1$s %2$s %3$s %4$s"
+    },
+    {
         "id":  "cssHover",
         "category":  "css",
         "blockType":  "c",
@@ -312,6 +336,14 @@
         "code":  "margin: %1$s;\n"
     },
     {
+        "id":  "setMarginMulti",
+        "category":  "css_layout",
+        "blockType":  "normal",
+        "color":  "#549159",
+        "spec":  "margin %s.inputOnly",
+        "code":  "margin: %1$s;\n"
+    },
+    {
         "id":  "setPadding",
         "category":  "css_layout",
         "blockType":  "normal",
@@ -323,9 +355,9 @@
         "id":  "setPaddingMulti",
         "category":  "css_layout",
         "blockType":  "normal",
-        "color":  "#2196F3",
-        "spec":  "padding TL %m.unit TR %m.unit BR %m.unit BL %m.unit",
-        "code":  "padding: %1$s %2$s %3$s %4$s;\n"
+        "color":  "#549159",
+        "spec":  "padding %s.inputOnly",
+        "code":  "padding: %1$s;\n"
     },
     {
         "id":  "setBorder",
@@ -500,7 +532,7 @@
         "category":  "css_effects",
         "blockType":  "normal",
         "color":  "#2196F3",
-        "spec":  "filter: custom %s.inputOnly",
+        "spec":  "filter: %m.filterType Value %s.inputOnly",
         "code":  "filter: %1$s;\n"
     },
     {
@@ -510,70 +542,6 @@
         "color":  "#2196F3",
         "spec":  "filter: blur %d px",
         "code":  "filter: blur(%1$spx);\n"
-    },
-    {
-        "id":  "filterBrightness",
-        "category":  "css_effects",
-        "blockType":  "normal",
-        "color":  "#2196F3",
-        "spec":  "filter: brightness %d %",
-        "code":  "filter: brightness(%1$s%%);\n"
-    },
-    {
-        "id":  "filterContrast",
-        "category":  "css_effects",
-        "blockType":  "normal",
-        "color":  "#2196F3",
-        "spec":  "filter: contrast %d %",
-        "code":  "filter: contrast(%1$s%%);\n"
-    },
-    {
-        "id":  "filterGrayscale",
-        "category":  "css_effects",
-        "blockType":  "normal",
-        "color":  "#2196F3",
-        "spec":  "filter: grayscale %d %",
-        "code":  "filter: grayscale(%1$s%%);\n"
-    },
-    {
-        "id":  "filterHueRotate",
-        "category":  "css_effects",
-        "blockType":  "normal",
-        "color":  "#2196F3",
-        "spec":  "filter: hue-rotate %d deg",
-        "code":  "filter: hue-rotate(%1$sdeg);\n"
-    },
-    {
-        "id":  "filterInvert",
-        "category":  "css_effects",
-        "blockType":  "normal",
-        "color":  "#2196F3",
-        "spec":  "filter: invert %d %",
-        "code":  "filter: invert(%1$s%%);\n"
-    },
-    {
-        "id":  "filterOpacity",
-        "category":  "css_effects",
-        "blockType":  "normal",
-        "color":  "#2196F3",
-        "spec":  "filter: opacity %d %",
-        "code":  "filter: opacity(%1$s%%);\n"
-    },
-    {
-        "id":  "filterSaturate",
-        "category":  "css_effects",
-        "blockType":  "normal",
-        "color":  "#2196F3",
-        "spec":  "filter: saturate %d %",
-        "code":  "filter: saturate(%1$s%%);\n"
-    },
-    {
-        "id":  "filterSepia",
-        "category":  "css_effects",
-        "blockType":  "normal",
-        "color":  "#2196F3",
-        "spec":  "filter: sepia %d %",
-        "code":  "filter: sepia(%1$s%%);\n"
     },
     {
         "id":  "filterDropShadow",
@@ -736,14 +704,6 @@
         "code":  "animation: flip %1$ss ease both;\n"
     },
     {
-        "id":  "animateCustom",
-        "category":  "css_animation",
-        "blockType":  "normal",
-        "color":  "#9C27B0",
-        "spec":  "%s.inputOnly %s.inputOnly %s.inputOnly %s.inputOnly %m.iter %m.fill",
-        "code":  "animation: %1$s %2$ss %3$s %4$s %5$s %6$s;\n"
-    },
-    {
         "id":  "transitionCustom",
         "category":  "css_animation",
         "blockType":  "normal",
@@ -778,7 +738,7 @@
     {
         "id":  "asdS",
         "category":  "asd",
-        "blockType":  "normal",
+        "blockType":  "s",
         "color":  "#455A64",
         "spec":  "String source %s.inputOnly",
         "code":  "%1$s\n"
@@ -786,7 +746,7 @@
     {
         "id":  "asdB",
         "category":  "asd",
-        "blockType":  "normal",
+        "blockType":  "b",
         "color":  "#455A64",
         "spec":  "Boolean source %s.inputOnly",
         "code":  "%1$s\n"

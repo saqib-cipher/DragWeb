@@ -2798,7 +2798,7 @@ public class MainEditorFragment extends Fragment {
 
 			new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
 				if (button4 instanceof com.google.android.material.button.MaterialButton) {
-					((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.device_floppy_act);
+					((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.device_floppy);
 				}
 			}, 1500);
 		}

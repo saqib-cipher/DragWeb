@@ -379,9 +379,13 @@ public class ManageBlocksActivity extends AppCompatActivity {
                 String spec2 = etSpec2.getText() != null ? etSpec2.getText().toString().trim() : "";
                 String type = etType.getText() != null ? etType.getText().toString().trim() : " ";
                 String hex = etColor.getText() != null ? etColor.getText().toString().trim() : "#2196F3";
-                if (!hex.startsWith("#")) hex = "#" + hex;
                 int blockColor;
-                try { blockColor = Color.parseColor(hex); } catch (Exception e) { blockColor = Color.parseColor("#2196F3"); }
+                if ("transparent".equalsIgnoreCase(hex)) {
+                    blockColor = Color.TRANSPARENT;
+                } else {
+                    if (!hex.startsWith("#") && !hex.isEmpty()) hex = "#" + hex;
+                    try { blockColor = Color.parseColor(hex); } catch (Exception e) { blockColor = Color.parseColor("#2196F3"); }
+                }
 
                 previewContainer.setVisibility(View.VISIBLE);
 
@@ -447,9 +451,12 @@ public class ManageBlocksActivity extends AppCompatActivity {
 
         Runnable updatePreview = () -> {
             String hex = etColor.getText() != null ? etColor.getText().toString().trim() : "";
-            if (!hex.startsWith("#") && !hex.isEmpty()) hex = "#" + hex;
+            if (!hex.startsWith("#") && !hex.isEmpty() && !"transparent".equalsIgnoreCase(hex)) hex = "#" + hex;
             try {
-                int parsed = hex.isEmpty() ? Color.TRANSPARENT : Color.parseColor(hex);
+                int parsed = Color.TRANSPARENT;
+                if (!hex.isEmpty() && !"transparent".equalsIgnoreCase(hex)) {
+                    parsed = Color.parseColor(hex);
+                }
                 GradientDrawable dot = new GradientDrawable();
                 dot.setShape(GradientDrawable.OVAL);
                 dot.setColor(parsed);

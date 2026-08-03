@@ -285,7 +285,7 @@
 							android:clickable="true"
 							android:focusable="true"
 							android:background="?android:attr/selectableItemBackgroundBorderless"
-							android:src="@drawable/outline_lock_open_24"
+							android:src="@drawable/lock_open"
 							app:tint="?attr/colorOnSurfaceVariant" />
 
 						<!-- Toggle Hide Button -->

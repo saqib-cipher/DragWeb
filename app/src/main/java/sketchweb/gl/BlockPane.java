@@ -234,22 +234,38 @@ public class BlockPane extends RelativeLayout {
       }
    }
 
-   public void calculateWidthHeight() {
-      int var1 = this.getChildCount();
-      int var2 = this.getLayoutParams().width;
-      int var3 = this.getLayoutParams().width;
+    public void calculateWidthHeight() {
+        int count = getChildCount();
+        
+        Context context = getContext();
+        int parentWidth = context.getResources().getDisplayMetrics().widthPixels;
+        int parentHeight = context.getResources().getDisplayMetrics().heightPixels;
+        if (getParent() != null) {
+            View parent = (View) getParent();
+            if (parent.getWidth() > 0) parentWidth = parent.getWidth();
+            if (parent.getHeight() > 0) parentHeight = parent.getHeight();
+        }
 
-      for(int var4 = 0; var4 < var1; ++var4) {
-         View var5 = this.getChildAt(var4);
-         if(var5 instanceof Block) {
-            var2 = Math.max(150 + (int)(var5.getX() + (float)((Block)var5).getWidthSum()), var2);
-            var3 = Math.max(150 + (int)(var5.getY() + (float)((Block)var5).getHeightSum()), var3);
-         }
-      }
+        int maxX = 0;
+        int maxY = 0;
 
-      this.getLayoutParams().width = var2;
-      this.getLayoutParams().height = var3;
-   }
+        for (int i = 0; i < count; i++) {
+            View child = getChildAt(i);
+            if (child instanceof Block) {
+                Block block = (Block) child;
+                maxX = Math.max(maxX, (int) (child.getX() + block.getWidthSum()));
+                maxY = Math.max(maxY, (int) (child.getY() + block.getHeightSum()));
+            }
+        }
+
+        // Horizontal width depends on block width, scroll exactly to the last tip of the widest block
+        int finalWidth = Math.max(parentWidth, maxX + 100);
+        // Vertical height allows a small extra scroll height (300px)
+        int finalHeight = Math.max(parentHeight + 300, maxY + 300);
+
+        getLayoutParams().width = finalWidth;
+        getLayoutParams().height = finalHeight;
+    }
     
     
     

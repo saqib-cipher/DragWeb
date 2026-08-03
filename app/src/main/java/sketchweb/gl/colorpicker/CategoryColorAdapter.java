@@ -43,7 +43,8 @@ public class CategoryColorAdapter extends RecyclerView.Adapter<CategoryColorAdap
 		"grey",
 		"blue gray",
 		"black",
-		"white"
+		"white",
+		"transparent"
 		));
 		
 		this.viewModel.getSelectedCategory().observeForever(category -> {
@@ -74,7 +75,31 @@ public class CategoryColorAdapter extends RecyclerView.Adapter<CategoryColorAdap
 		int bgColor = ColorUtils.getColorFromCategory(category);
 		int textColor = ColorUtils.getContrastingTextColor(bgColor);
 		
-		holder.colorBox.setBackgroundColor(bgColor);
+		if ("transparent".equalsIgnoreCase(category)) {
+			holder.colorBox.setBackground(new android.graphics.drawable.Drawable() {
+				@Override
+				public void draw(@NonNull android.graphics.Canvas canvas) {
+					int w = canvas.getWidth();
+					int h = canvas.getHeight();
+					android.graphics.Paint paint = new android.graphics.Paint();
+					paint.setColor(Color.WHITE);
+					canvas.drawRect(0, 0, w, h, paint);
+					paint.setColor(Color.RED);
+					paint.setStrokeWidth(4.0f);
+					canvas.drawLine(0, h, w, 0, paint);
+				}
+				@Override
+				public void setAlpha(int alpha) {}
+				@Override
+				public void setColorFilter(@NonNull android.graphics.ColorFilter colorFilter) {}
+				@Override
+				public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+			});
+		} else {
+			holder.colorBox.setBackground(null);
+			holder.colorBox.setBackgroundColor(bgColor);
+		}
+		
 		holder.text.setTextColor(textColor);
 		
 		holder.imageCheck.setColorFilter(textColor); 
