@@ -230,13 +230,19 @@ public class ColorPickerDialogFragment extends DialogFragment {
 				
 				if (!isUpdatingFromSlider && alphaSlider != null) {
 					int a = Color.alpha(colorInt);
-					if ("transparent".equalsIgnoreCase(hex)) {
+					if ("transparent".equalsIgnoreCase(hex) || "transparent".equalsIgnoreCase(viewModel.getSelectedCategory().getValue())) {
 						a = 0;
 					}
 					alphaSlider.setValue(a);
 					if (tvAlphaVal != null) {
 						int pct = Math.round(a * 100f / 255f);
 						tvAlphaVal.setText(pct + "%");
+					}
+				}
+
+				if ("transparent".equalsIgnoreCase(hex) || "transparent".equalsIgnoreCase(viewModel.getSelectedCategory().getValue())) {
+					if (inputHex != null) {
+						inputHex.setText("transparent");
 					}
 				}
 
@@ -250,8 +256,10 @@ public class ColorPickerDialogFragment extends DialogFragment {
 		});    
 		
 		btnAdd.setOnClickListener(v -> {
-			String hex = inputHex.getText().toString().trim();    
-			if (!hex.startsWith("#")) hex = "#" + hex;    
+			String hex = inputHex.getText() != null ? inputHex.getText().toString().trim() : "";    
+			if (!hex.isEmpty() && !hex.startsWith("#") && !hex.startsWith("0x") && !hex.startsWith("0X") && !hex.toLowerCase().startsWith("rgb") && !"transparent".equalsIgnoreCase(hex)) {
+				hex = "#" + hex;
+			}
 			
 			if (!ColorUtils.isValidHexColor(hex)) {    
 				Toast.makeText(context, getString(R.string.invalid_hex_color), Toast.LENGTH_SHORT).show();
@@ -261,6 +269,21 @@ public class ColorPickerDialogFragment extends DialogFragment {
 			if (viewModel.addCustomColor(hex)) {    
 				Toast.makeText(context, getString(R.string.color_added), Toast.LENGTH_SHORT).show();
 				inputHex.setText("");    
+				inputHex.clearFocus();
+
+				if (context != null) {
+					android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+					if (imm != null && view != null) {
+						imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+					}
+				}
+
+				viewModel.selectCategory("custom");
+				viewModel.selectColor(hex);
+
+				if (categoryRecycler != null) {
+					categoryRecycler.scrollToPosition(0);
+				}
 			} else {    
 				Toast.makeText(context, getString(R.string.color_already_exists), Toast.LENGTH_SHORT).show();
 			}    
@@ -275,8 +298,12 @@ public class ColorPickerDialogFragment extends DialogFragment {
 			
 			if (hex != null && colorSelectedListener != null) {
 				if (!hex.startsWith("var(")) {
-					String formatToUse = (currentFormatKey != null) ? currentFormatKey : "hex";
-					hex = ColorUtils.formatColor(hex, formatToUse);
+					if ("transparent".equalsIgnoreCase(hex) || "transparent".equalsIgnoreCase(viewModel.getSelectedCategory().getValue())) {
+						hex = "transparent";
+					} else {
+						String formatToUse = (currentFormatKey != null) ? currentFormatKey : "hex";
+						hex = ColorUtils.formatColor(hex, formatToUse);
+					}
 				}
 				colorSelectedListener.onColorSelected(hex);
 			}
@@ -293,7 +320,7 @@ public class ColorPickerDialogFragment extends DialogFragment {
 			String formatToUse = (currentFormatKey != null) ? currentFormatKey : "hex";    
 			String formatted = hex;
 			if (!hex.startsWith("var(")) {
-				formatted = ColorUtils.formatColor(hex, formatToUse);    
+				formatted = ColorUtils.formatColor(hex, formatted.startsWith("var(") ? formatted : formatToUse);    
 			}
 			
 			android.content.ClipboardManager clipboard = (android.content.ClipboardManager)    
@@ -304,42 +331,24 @@ public class ColorPickerDialogFragment extends DialogFragment {
 			Toast.makeText(getContext(), getString(R.string.copied_value, formatted), Toast.LENGTH_SHORT).show();
 		});    
 		
-		inputHex.setFilters(new InputFilter[]{new InputFilter.LengthFilter(32)});    
+		inputHex.setFilters(new InputFilter[]{new InputFilter.LengthFilter(32), new InputFilter.AllCaps()});    
 		
 		inputHex.addTextChangedListener(new TextWatcher() {    
-			private boolean isEditing = false;    
-			
 			@Override    
 			public void beforeTextChanged(CharSequence s, int start, int count, int after) {}    
 			
 			@Override    
 			public void onTextChanged(CharSequence s, int start, int before, int count) {    
-				if (isEditing) return;    
-				isEditing = true;    
+				String text = s != null ? s.toString().trim() : "";    
+				if (text.isEmpty()) return;
 				
-				String text = s != null ? s.toString() : "";    
+				String formatted = text;
+				if (!formatted.startsWith("#") && !formatted.startsWith("0X") && !formatted.startsWith("0x") && !formatted.toLowerCase().startsWith("rgb") && !"transparent".equalsIgnoreCase(formatted)) {
+					formatted = "#" + formatted;
+				}
 				
-				if (!text.isEmpty()) {    
-					if ("transparent".equalsIgnoreCase(text) || text.toLowerCase().startsWith("rgb") || text.toLowerCase().startsWith("0x")) {
-						// Keep formatted string as is
-					} else {
-						if (!text.startsWith("#")) {    
-							text = "#" + text;    
-						}    
-						text = text.toUpperCase(Locale.ROOT);    
-						
-						inputHex.setText(text);    
-						int sel = Math.min(text.length(), inputHex.getText().length());    
-						inputHex.setSelection(sel);    
-					}
-				} else {    
-					inputHex.setSelection(0);    
-				}    
-				
-				int color = resolveColorHex(inputHex.getText().toString());    
+				int color = resolveColorHex(formatted);    
 				previewBox.setBackgroundColor(color);    
-				
-				isEditing = false;    
 			}    
 			
 			@Override    

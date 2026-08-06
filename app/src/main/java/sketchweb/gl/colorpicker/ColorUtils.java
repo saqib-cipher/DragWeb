@@ -219,6 +219,10 @@ public class ColorUtils {
 		g = Math.max(0, Math.min(255, g));
 		b = Math.max(0, Math.min(255, b));
 
+		if (a == 0 && !"hexad".equals(format)) {
+			return "transparent";
+		}
+
 		switch (format) {
 			case "hex":
 				if (a < 255) {
@@ -239,22 +243,16 @@ public class ColorUtils {
 	}
     
     public static String normalizeHexColor(String hex) {
-        hex = hex.trim().toUpperCase();
-        if (!hex.startsWith("#")) hex = "#" + hex;
+        if (hex == null || hex.trim().isEmpty()) return "";
+        String trimmed = hex.trim();
+        if ("transparent".equalsIgnoreCase(trimmed)) return "transparent";
+        if (trimmed.toLowerCase().startsWith("rgb")) return trimmed;
 
-        if (hex.length() == 4) {
-            return "#FF" + hex.charAt(1) + hex.charAt(1) +
-                         hex.charAt(2) + hex.charAt(2) +
-                         hex.charAt(3) + hex.charAt(3);
-        } else if (hex.length() == 5) {
-            return "#" + hex.charAt(1) + hex.charAt(1) +
-                         hex.charAt(2) + hex.charAt(2) +
-                         hex.charAt(3) + hex.charAt(3) +
-                         hex.charAt(4) + hex.charAt(4);
-        } else if (hex.length() == 7) {
-            return "#FF" + hex.substring(1);
+        String upper = trimmed.toUpperCase(Locale.ROOT);
+        if (!upper.startsWith("#") && !upper.startsWith("0X")) {
+            upper = "#" + upper;
         }
-        return hex;
+        return upper;
     }
 	
 }

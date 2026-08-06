@@ -928,22 +928,6 @@
         "code":  "document.querySelectorAll('%1$s').forEach(el =\u003e el.classList.remove('%2$s'));\n"
     },
     {
-        "id":  "jsToggleFunctionBlock",
-        "category":  "js_dom",
-        "blockType":  "normal",
-        "color":  "#EF6C00",
-        "spec":  "define toggleActive for %s.inputOnly in %s.inputOnly %s.inputOnly",
-        "code":  "function toggleActive(selectedEl) {\nconst group = selectedEl.parentElement; group.querySelectorAll('%1$s').forEach(el =\u003e el.classList.remove('%2$s')); selectedEl.classList.add('%3$s');\n}\n"
-    },
-    {
-        "id":  "jsCallToggleActive",
-        "category":  "js_dom",
-        "blockType":  "normal",
-        "color":  "#EF6C00",
-        "spec":  "call toggleActive on %s.inputOnly",
-        "code":  "toggleActive(%1$s);\n"
-    },
-    {
         "id":  "jsSetStyleProp",
         "category":  "js_dom",
         "blockType":  "normal",
