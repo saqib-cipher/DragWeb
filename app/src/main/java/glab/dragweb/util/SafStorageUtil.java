@@ -121,6 +121,15 @@ public class SafStorageUtil {
                 return false;
             }
 
+            // Verify .dragweb directory physically exists on storage or via SAF
+            if (!f.exists()) {
+                DocumentFile df = DocumentFile.fromTreeUri(context, uri);
+                if (df == null || !df.exists() || !df.isDirectory()) {
+                    sp.edit().putBoolean(KEY_IS_CONFIGURED, false).apply();
+                    return false;
+                }
+            }
+
             return true;
         } catch (Exception e) {
             Log.w(TAG, "Error verifying storage configuration: " + e.getMessage());

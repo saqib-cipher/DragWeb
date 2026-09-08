@@ -41,21 +41,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Modern file explorer adapter.
- *
- * <p>Drop-in replacement for the previous list-only adapter — the public API
- * (constructor, navigateTo, goUp, getCurrentDir, getRelativePath, click and
- * long-click listeners) is preserved so existing MainActivity wiring keeps
- * working. New features layered on top:
- *
- * <ul>
- *   <li>List <i>and</i> grid view modes via {@link #setViewMode(int)}.</li>
- *   <li>Image / SVG thumbnails (cached in an in-memory LRU).</li>
- *   <li>Search filter via {@link #setQuery(String)}.</li>
- *   <li>Multi-select selection model via
- *       {@link #setMultiSelectEnabled(boolean)} and {@link #getSelected()}.</li>
- *   <li>Material 3 rounded cards, adaptive accent colors per file type.</li>
- * </ul>
+ * Modern file explorer adapter supporting SAF on Android 11+ and scoped storage.
  */
 public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapter.ViewHolder> {
 
@@ -89,8 +75,6 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     private boolean multiSelectEnabled = false;
     private final Set<String> selectedPaths = new HashSet<>();
 
-    // Small thumbnail cache so scrolling through large folders stays smooth
-    // without having to decode bitmaps every bind.
     private static final LruCache<String, Bitmap> THUMB_CACHE =
         new LruCache<String, Bitmap>(8 * 1024 * 1024) {
             @Override protected int sizeOf(String key, Bitmap value) {
@@ -102,23 +86,21 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
 
     private void loadProjectFilesJson() {
         projectFileTypes.clear();
-        if (rootDir == null || !rootDir.exists()) return;
+        if (rootDir == null) return;
         try {
             File manifestFile = new File(rootDir.getParentFile(), "project_files.json");
-            if (manifestFile.exists()) {
-                String json = FileUtil.readFile(manifestFile.getAbsolutePath());
-                if (json != null && !json.trim().isEmpty()) {
-                    com.google.gson.JsonObject obj = new com.google.gson.Gson().fromJson(json, com.google.gson.JsonObject.class);
-                    if (obj != null && obj.has("files")) {
-                        com.google.gson.JsonArray filesArr = obj.getAsJsonArray("files");
-                        if (filesArr != null) {
-                            for (int i = 0; i < filesArr.size(); i++) {
-                                com.google.gson.JsonObject item = filesArr.get(i).getAsJsonObject();
-                                if (item.has("path") && item.has("type")) {
-                                    String path = item.get("path").getAsString();
-                                    String type = item.get("type").getAsString();
-                                    projectFileTypes.put(path, type);
-                                }
+            String json = FileUtil.readFile(manifestFile.getAbsolutePath());
+            if (json != null && !json.trim().isEmpty()) {
+                com.google.gson.JsonObject obj = new com.google.gson.Gson().fromJson(json, com.google.gson.JsonObject.class);
+                if (obj != null && obj.has("files")) {
+                    com.google.gson.JsonArray filesArr = obj.getAsJsonArray("files");
+                    if (filesArr != null) {
+                        for (int i = 0; i < filesArr.size(); i++) {
+                            com.google.gson.JsonObject item = filesArr.get(i).getAsJsonObject();
+                            if (item.has("path") && item.has("type")) {
+                                String path = item.get("path").getAsString();
+                                String type = item.get("type").getAsString();
+                                projectFileTypes.put(path, type);
                             }
                         }
                     }
@@ -249,8 +231,8 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     }
 
     public void navigateTo(File dir) {
-        if (dir == null || !dir.exists()) {
-            if (!rootDir.exists()) rootDir.mkdirs();
+        if (dir == null) {
+            if (rootDir != null) FileUtil.makeDir(rootDir.getAbsolutePath());
             dir = rootDir;
         }
         this.currentDir = dir;
@@ -305,9 +287,9 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             allFiles.add(null); // ".."
         }
 
-        if (currentDir != null && currentDir.exists() && currentDir.isDirectory()) {
-            File[] dirFiles = currentDir.listFiles();
-            if (dirFiles != null) {
+        if (currentDir != null) {
+            File[] dirFiles = FileUtil.listFiles(currentDir);
+            if (dirFiles != null && dirFiles.length > 0) {
                 Arrays.sort(dirFiles, (a, b) -> {
                     if (a.isDirectory() && !b.isDirectory()) return -1;
                     if (!a.isDirectory() && b.isDirectory()) return 1;
@@ -397,7 +379,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             holder.nameView.setTypeface(null, Typeface.BOLD);
             holder.detailView.setVisibility(View.VISIBLE);
 
-            File[] children = file.listFiles();
+            File[] children = FileUtil.listFiles(file);
             int count = children != null ? children.length : 0;
             holder.detailView.setText(count + " items");
 
@@ -592,7 +574,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     }
 
     public void updateProjectFilesJson() {
-        if (rootDir == null || !rootDir.exists()) return;
+        if (rootDir == null) return;
         try {
             java.util.List<java.util.Map<String, String>> fileList = new java.util.ArrayList<>();
             scanDirForManifest(rootDir, rootDir, fileList);
@@ -609,7 +591,8 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     }
 
     private void scanDirForManifest(File dir, File root, java.util.List<java.util.Map<String, String>> list) {
-        File[] files = dir.listFiles();
+        if (dir == null) return;
+        File[] files = FileUtil.listFiles(dir);
         if (files == null) return;
         for (File f : files) {
             try {

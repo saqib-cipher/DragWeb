@@ -99,7 +99,7 @@ public class HtmlCssImporter {
                 String cat = def.category;
                 if (cat == null) continue;
                 // Only match JS blocks: js_* categories or standard JS logic blocks
-                if (!cat.startsWith("js_") && !cat.equals("logic") && !cat.equals("meta")) continue;
+                if (!cat.startsWith("js_") && !cat.equals("logic") && !cat.equals("meta") && !cat.equals("control")) continue;
 
                 // Skip open-ended raw block fallbacks or overly broad blocks
                 if ("asdJs".equals(def.id) || "asdCss".equals(def.id) || "asdHtml".equals(def.id) || "asdHead".equals(def.id) || "asdMeta".equals(def.id)) continue;
@@ -910,32 +910,75 @@ public class HtmlCssImporter {
         return new String[]{x, y, blur, color};
     }
 
+    private boolean isValueShape(String shape) {
+        if (shape == null) return false;
+        String s = shape.toLowerCase();
+        return s.equals("value") || s.equals("boolean") || s.equals("number") || 
+               s.equals("v") || s.equals("b") || s.equals("n") || s.equals("d") || s.equals("s");
+    }
+
     private void linkBlockChains(List<Map<String, Object>> blocks) {
-        Map<String, List<Map<String, Object>>> childrenByParent = new HashMap<>();
+        if (blocks == null || blocks.isEmpty()) return;
+
+        Map<String, List<Map<String, Object>>> statementChildrenByParent = new LinkedHashMap<>();
+        
         for (Map<String, Object> block : blocks) {
+            String shape = (String) block.get("shape");
+            if (isValueShape(shape)) {
+                // Value blocks are never in a nextBlock chain or subStack statement list
+                block.put("nextBlockId", null);
+                block.put("subStackId", null);
+                block.put("subStack1Id", null);
+                block.put("subStack2Id", null);
+                continue;
+            }
+
             String parentId = (String) block.get("parentBlockId");
             if (parentId == null) parentId = "";
-            if (!childrenByParent.containsKey(parentId)) {
-                childrenByParent.put(parentId, new ArrayList<>());
+            if (!statementChildrenByParent.containsKey(parentId)) {
+                statementChildrenByParent.put(parentId, new ArrayList<>());
             }
-            childrenByParent.get(parentId).add(block);
+            statementChildrenByParent.get(parentId).add(block);
         }
 
-        for (Map.Entry<String, List<Map<String, Object>>> entry : childrenByParent.entrySet()) {
+        // Map blocks by ID for fast parent lookup
+        Map<String, Map<String, Object>> blockById = new HashMap<>();
+        for (Map<String, Object> block : blocks) {
+            String id = (String) block.get("id");
+            if (id != null) blockById.put(id, block);
+        }
+
+        for (Map.Entry<String, List<Map<String, Object>>> entry : statementChildrenByParent.entrySet()) {
             String parentId = entry.getKey();
             List<Map<String, Object>> siblings = entry.getValue();
             if (siblings.isEmpty()) continue;
 
+            // Link statement siblings sequentially
             for (int i = 0; i < siblings.size() - 1; i++) {
                 siblings.get(i).put("nextBlockId", siblings.get(i + 1).get("id"));
             }
             siblings.get(siblings.size() - 1).put("nextBlockId", null);
 
+            // If not root, link parent to the first child
             if (!parentId.isEmpty()) {
-                for (Map<String, Object> parentBlock : blocks) {
-                    if (parentId.equals(parentBlock.get("id"))) {
+                if (parentId.endsWith("_sub1")) {
+                    String baseParentId = parentId.substring(0, parentId.length() - 5);
+                    Map<String, Object> parentBlock = blockById.get(baseParentId);
+                    if (parentBlock != null) {
+                        parentBlock.put("subStack1Id", siblings.get(0).get("id"));
                         parentBlock.put("subStackId", siblings.get(0).get("id"));
-                        break;
+                    }
+                } else if (parentId.endsWith("_sub2")) {
+                    String baseParentId = parentId.substring(0, parentId.length() - 5);
+                    Map<String, Object> parentBlock = blockById.get(baseParentId);
+                    if (parentBlock != null) {
+                        parentBlock.put("subStack2Id", siblings.get(0).get("id"));
+                    }
+                } else {
+                    Map<String, Object> parentBlock = blockById.get(parentId);
+                    if (parentBlock != null) {
+                        parentBlock.put("subStackId", siblings.get(0).get("id"));
+                        parentBlock.put("subStack1Id", siblings.get(0).get("id"));
                     }
                 }
             }
@@ -1304,6 +1347,7 @@ public class HtmlCssImporter {
             String oldId = (String) map.get("id");
             int intId = (oldId != null && oldIdToNewIdMap.containsKey(oldId)) ? oldIdToNewIdMap.get(oldId) : (beans.size() + 1);
             bean.id = String.valueOf(intId);
+            bean.stackIndex = beans.size();
 
             String action = (String) map.get("action");
             if (action == null) action = (String) map.get("opCode");
@@ -1396,26 +1440,34 @@ public class HtmlCssImporter {
                 }
             }
 
-            String subStackId = (String) map.get("subStackId");
-            if (subStackId == null) subStackId = (String) map.get("subStack1Id");
-            if (subStackId != null && oldIdToNewIdMap.containsKey(subStackId)) {
-                bean.subStack1 = oldIdToNewIdMap.get(subStackId);
-            } else {
+            boolean isValue = isValueShape(shape) || "v".equals(bean.type) || "b".equals(bean.type) || "n".equals(bean.type) || "d".equals(bean.type) || "s".equals(bean.type);
+
+            if (isValue) {
                 bean.subStack1 = -1;
-            }
-
-            String subStack2Id = (String) map.get("subStack2Id");
-            if (subStack2Id != null && oldIdToNewIdMap.containsKey(subStack2Id)) {
-                bean.subStack2 = oldIdToNewIdMap.get(subStack2Id);
-            } else {
                 bean.subStack2 = -1;
-            }
-
-            String nextBlockId = (String) map.get("nextBlockId");
-            if (nextBlockId != null && oldIdToNewIdMap.containsKey(nextBlockId)) {
-                bean.nextBlock = oldIdToNewIdMap.get(nextBlockId);
-            } else {
                 bean.nextBlock = -1;
+            } else {
+                String subStackId = (String) map.get("subStackId");
+                if (subStackId == null) subStackId = (String) map.get("subStack1Id");
+                if (subStackId != null && oldIdToNewIdMap.containsKey(subStackId)) {
+                    bean.subStack1 = oldIdToNewIdMap.get(subStackId);
+                } else {
+                    bean.subStack1 = -1;
+                }
+
+                String subStack2Id = (String) map.get("subStack2Id");
+                if (subStack2Id != null && oldIdToNewIdMap.containsKey(subStack2Id)) {
+                    bean.subStack2 = oldIdToNewIdMap.get(subStack2Id);
+                } else {
+                    bean.subStack2 = -1;
+                }
+
+                String nextBlockId = (String) map.get("nextBlockId");
+                if (nextBlockId != null && oldIdToNewIdMap.containsKey(nextBlockId)) {
+                    bean.nextBlock = oldIdToNewIdMap.get(nextBlockId);
+                } else {
+                    bean.nextBlock = -1;
+                }
             }
 
             beans.add(bean);
@@ -1533,128 +1585,212 @@ public class HtmlCssImporter {
                 continue;
             }
             
-            // Try to match complex statements that have braces first
             String remaining = js.substring(pos);
-            
-            // 3. Braced block (Function, If, For, etc.)
-            int jsBlockOpenBraceIdx = js.indexOf("{", pos);
-            if (jsBlockOpenBraceIdx >= 0) {
-                // Check if there is a semicolon or another brace before the open brace
-                String headerCandidate = js.substring(pos, jsBlockOpenBraceIdx);
-                if (!headerCandidate.contains(";") && !headerCandidate.contains("}") && !headerCandidate.contains("//") && !headerCandidate.contains("/*")) {
-                    int jsBlockCloseBraceIdx = findMatchingBrace(js, jsBlockOpenBraceIdx);
-                    if (jsBlockCloseBraceIdx >= 0) {
-                        String header = headerCandidate.trim();
-                        String body = js.substring(jsBlockOpenBraceIdx + 1, jsBlockCloseBraceIdx).trim();
-                        pos = jsBlockCloseBraceIdx + 1;
 
-                        // Check if it's a standard function definition
-                        Pattern funcDefPat = Pattern.compile("^function\\s+([a-zA-Z0-9_$]+)\\s*\\(\\s*(.*?)\\s*\\)");
-                        Matcher funcDefMat = funcDefPat.matcher(header);
-                        if (funcDefMat.find()) {
-                            String funcName = funcDefMat.group(1);
-                            String funcParams = funcDefMat.group(2).trim();
+            // 3. If ... Else / If control blocks
+            Pattern ifPat = Pattern.compile("^if\\s*\\((.*?)\\)\\s*\\{");
+            Matcher ifMat = ifPat.matcher(remaining);
+            if (ifMat.find()) {
+                String condition = ifMat.group(1).trim();
+                int openBraceIdx = pos + ifMat.end() - 1;
+                int closeBraceIdx = findMatchingBrace(js, openBraceIdx);
+                if (closeBraceIdx >= 0) {
+                    String ifBody = js.substring(openBraceIdx + 1, closeBraceIdx).trim();
+                    int afterIf = closeBraceIdx + 1;
+                    Pattern elsePat = Pattern.compile("^\\s*else\\s*\\{");
+                    Matcher elseMat = elsePat.matcher(js.substring(afterIf));
+                    if (elseMat.find()) {
+                        int elseOpenBraceIdx = afterIf + elseMat.end() - 1;
+                        int elseCloseBraceIdx = findMatchingBrace(js, elseOpenBraceIdx);
+                        if (elseCloseBraceIdx >= 0) {
+                            String elseBody = js.substring(elseOpenBraceIdx + 1, elseCloseBraceIdx).trim();
+                            pos = elseCloseBraceIdx + 1;
 
-                            String blockId = "blk_js_func_def_" + timestamp + "_" + (counterRef[0]++);
+                            String blockId = "blk_js_ifelse_" + timestamp + "_" + (counterRef[0]++);
                             Map<String, Object> block = new HashMap<>();
                             block.put("id", blockId);
-                            block.put("action", "jsFunctionDefine");
-                            block.put("category", "js_logic");
-                            block.put("shape", "cblock");
-                            block.put("spec", "function %s ( %s ) {");
-                            block.put("paramValues", java.util.Arrays.asList(funcName, funcParams));
-                            block.put("params", funcName + "|" + funcParams);
+                            block.put("action", "jsIfElse");
+                            block.put("category", "control");
+                            block.put("shape", "ifelse");
+                            block.put("spec", "if (%b) \n");
+                            block.put("paramValues", java.util.Arrays.asList(condition));
+                            block.put("params", condition);
                             block.put("event", "immediate");
 
                             String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
                             block.put("parentBlockId", parent != null ? parent : "");
 
                             importedLogicBlocks.add(block);
-                            parseJsRules(body, blockId, timestamp, counterRef);
+                            parseJsRules(ifBody, blockId + "_sub1", timestamp, counterRef);
+                            parseJsRules(elseBody, blockId + "_sub2", timestamp, counterRef);
                             continue;
                         }
+                    }
 
-                        // Check if it's an arrow function definition
-                        Pattern arrowPat = Pattern.compile("^(const|let|var)?\\s*([a-zA-Z0-9_$]+)\\s*=\\s*\\(\\s*(.*?)\\s*\\)\\s*=>");
-                        Matcher arrowMat = arrowPat.matcher(header);
-                        if (arrowMat.find()) {
-                            String funcName = arrowMat.group(2);
-                            String funcParams = arrowMat.group(3).trim();
+                    pos = closeBraceIdx + 1;
+                    String blockId = "blk_js_if_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> block = new HashMap<>();
+                    block.put("id", blockId);
+                    block.put("action", "jsIf");
+                    block.put("category", "control");
+                    block.put("shape", "cblock");
+                    block.put("spec", "if (%b) {\n");
+                    block.put("paramValues", java.util.Arrays.asList(condition));
+                    block.put("params", condition);
+                    block.put("event", "immediate");
 
-                            String blockId = "blk_js_arrow_" + timestamp + "_" + (counterRef[0]++);
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    block.put("parentBlockId", parent != null ? parent : "");
+
+                    importedLogicBlocks.add(block);
+                    parseJsRules(ifBody, blockId, timestamp, counterRef);
+                    continue;
+                }
+            }
+
+            // 4. For loop: for (let i = 0; i < N; i++) {
+            Pattern forPat = Pattern.compile("^for\\s*\\(\\s*(?:(?:let|var)\\s+)?([a-zA-Z0-9_$]+)\\s*=\\s*\\d+\\s*;\\s*\\1\\s*<\\s*([^;]+)\\s*;\\s*(?:\\1\\+\\+|\\+\\+\\1|\\1\\s*\\+=\\s*1)\\s*\\)\\s*\\{");
+            Matcher forMat = forPat.matcher(remaining);
+            if (forMat.find()) {
+                String limit = forMat.group(2).trim();
+                int openBraceIdx = pos + forMat.end() - 1;
+                int closeBraceIdx = findMatchingBrace(js, openBraceIdx);
+                if (closeBraceIdx >= 0) {
+                    String body = js.substring(openBraceIdx + 1, closeBraceIdx).trim();
+                    pos = closeBraceIdx + 1;
+
+                    String blockId = "blk_js_for_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> block = new HashMap<>();
+                    block.put("id", blockId);
+                    block.put("action", "jsForLoop");
+                    block.put("category", "control");
+                    block.put("shape", "cblock");
+                    block.put("spec", "for (let i = 0; i < %d; i++) {\n");
+                    block.put("paramValues", java.util.Arrays.asList(limit));
+                    block.put("params", limit);
+                    block.put("event", "immediate");
+
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    block.put("parentBlockId", parent != null ? parent : "");
+
+                    importedLogicBlocks.add(block);
+                    parseJsRules(body, blockId, timestamp, counterRef);
+                    continue;
+                }
+            }
+
+            // 5. For Of loop: for (const x of y) {
+            Pattern forOfPat = Pattern.compile("^for\\s*\\(\\s*(?:const|let|var)\\s+([a-zA-Z0-9_$]+)\\s+of\\s+([^)]+)\\s*\\)\\s*\\{");
+            Matcher forOfMat = forOfPat.matcher(remaining);
+            if (forOfMat.find()) {
+                String itemVar = forOfMat.group(1);
+                String iterable = forOfMat.group(2).trim();
+                int openBraceIdx = pos + forOfMat.end() - 1;
+                int closeBraceIdx = findMatchingBrace(js, openBraceIdx);
+                if (closeBraceIdx >= 0) {
+                    String body = js.substring(openBraceIdx + 1, closeBraceIdx).trim();
+                    pos = closeBraceIdx + 1;
+
+                    String blockId = "blk_js_forof_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> block = new HashMap<>();
+                    block.put("id", blockId);
+                    block.put("action", "jsForOf");
+                    block.put("category", "control");
+                    block.put("shape", "cblock");
+                    block.put("spec", "for %s.inputOnly of %s.inputOnly");
+                    block.put("paramValues", java.util.Arrays.asList(itemVar, iterable));
+                    block.put("params", itemVar + "|" + iterable);
+                    block.put("event", "immediate");
+
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    block.put("parentBlockId", parent != null ? parent : "");
+
+                    importedLogicBlocks.add(block);
+                    parseJsRules(body, blockId, timestamp, counterRef);
+                    continue;
+                }
+            }
+
+            // 6. While loop: while (...) {
+            Pattern whilePat = Pattern.compile("^while\\s*\\((.*?)\\)\\s*\\{");
+            Matcher whileMat = whilePat.matcher(remaining);
+            if (whileMat.find()) {
+                String cond = whileMat.group(1).trim();
+                int openBraceIdx = pos + whileMat.end() - 1;
+                int closeBraceIdx = findMatchingBrace(js, openBraceIdx);
+                if (closeBraceIdx >= 0) {
+                    String body = js.substring(openBraceIdx + 1, closeBraceIdx).trim();
+                    pos = closeBraceIdx + 1;
+
+                    String blockId = "blk_js_while_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> block = new HashMap<>();
+                    block.put("id", blockId);
+                    block.put("action", "jsWhile");
+                    block.put("category", "control");
+                    block.put("shape", "cblock");
+                    block.put("spec", "while (%b) {\n");
+                    block.put("paramValues", java.util.Arrays.asList(cond));
+                    block.put("params", cond);
+                    block.put("event", "immediate");
+
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    block.put("parentBlockId", parent != null ? parent : "");
+
+                    importedLogicBlocks.add(block);
+                    parseJsRules(body, blockId, timestamp, counterRef);
+                    continue;
+                }
+            }
+
+            // 7. Try Catch: try { ... } catch (e) { ... }
+            Pattern tryPat = Pattern.compile("^try\\s*\\{");
+            Matcher tryMat = tryPat.matcher(remaining);
+            if (tryMat.find()) {
+                int openBraceIdx = pos + tryMat.end() - 1;
+                int closeBraceIdx = findMatchingBrace(js, openBraceIdx);
+                if (closeBraceIdx >= 0) {
+                    String tryBody = js.substring(openBraceIdx + 1, closeBraceIdx).trim();
+                    int afterTry = closeBraceIdx + 1;
+                    Pattern catchPat = Pattern.compile("^\\s*catch\\s*(?:\\(\\s*([a-zA-Z0-9_$]+)\\s*\\))?\\s*\\{");
+                    Matcher catchMat = catchPat.matcher(js.substring(afterTry));
+                    if (catchMat.find()) {
+                        String errVar = catchMat.group(1) != null ? catchMat.group(1) : "e";
+                        int catchOpenBraceIdx = afterTry + catchMat.end() - 1;
+                        int catchCloseBraceIdx = findMatchingBrace(js, catchOpenBraceIdx);
+                        if (catchCloseBraceIdx >= 0) {
+                            String catchBody = js.substring(catchOpenBraceIdx + 1, catchCloseBraceIdx).trim();
+                            pos = catchCloseBraceIdx + 1;
+
+                            String blockId = "blk_js_try_" + timestamp + "_" + (counterRef[0]++);
                             Map<String, Object> block = new HashMap<>();
                             block.put("id", blockId);
-                            block.put("action", "jsFunctionArrow");
-                            block.put("category", "js_logic");
-                            block.put("shape", "cblock");
-                            block.put("spec", "const %s = ( %s ) => {");
-                            block.put("paramValues", java.util.Arrays.asList(funcName, funcParams));
-                            block.put("params", funcName + "|" + funcParams);
+                            block.put("action", "jsTryCatch");
+                            block.put("category", "control");
+                            block.put("shape", "ifelse");
+                            block.put("spec", "try \n");
+                            block.put("paramValues", java.util.Arrays.asList(errVar));
+                            block.put("params", errVar);
                             block.put("event", "immediate");
 
                             String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
                             block.put("parentBlockId", parent != null ? parent : "");
 
                             importedLogicBlocks.add(block);
-                            parseJsRules(body, blockId, timestamp, counterRef);
+                            parseJsRules(tryBody, blockId + "_sub1", timestamp, counterRef);
+                            parseJsRules(catchBody, blockId + "_sub2", timestamp, counterRef);
                             continue;
                         }
-                        
-                        String blockId = "blk_js_block_" + timestamp + "_" + (counterRef[0]++);
-                        Map<String, Object> block = new HashMap<>();
-                        block.put("id", blockId);
-                        block.put("action", "asdJs"); // Using asdJs as base
-                        block.put("category", "asd");
-                        block.put("shape", "cblock");
-                        block.put("spec", header + " { %m.space }");
-                        block.put("labelOverride", header + " {");
-                        block.put("paramValues", new ArrayList<String>());
-                        block.put("params", "");
-                        block.put("event", "immediate");
-                        
-                        String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
-                        block.put("parentBlockId", parent != null ? parent : "");
-                        
-                        importedLogicBlocks.add(block);
-                        parseJsRules(body, blockId, timestamp, counterRef);
-                        continue;
                     }
                 }
             }
 
-            // 4. JS Import / Export statements
-            Pattern importExportPat = Pattern.compile("^(import|export)\\s+[\\s\\S]*?;");
-            Matcher importExportMat = importExportPat.matcher(remaining);
-            if (importExportMat.find()) {
-                String val = importExportMat.group(0).trim();
-                pos += importExportMat.end();
-                
-                String blockId = "blk_js_ie_" + timestamp + "_" + (counterRef[0]++);
-                Map<String, Object> block = new HashMap<>();
-                block.put("id", blockId);
-                block.put("action", "asdJs");
-                block.put("category", "asd");
-                block.put("shape", "stack");
-                block.put("spec", "%s");
-                block.put("paramValues", java.util.Arrays.asList(val));
-                block.put("params", val);
-                block.put("event", "immediate");
-                
-                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
-                block.put("parentBlockId", parent != null ? parent : "");
-                
-                importedLogicBlocks.add(block);
-                continue;
-            }
-
-            // 4. setTimeout(function() { ... }, delay);
+            // 8. setTimeout(function() { ... }, delay);
             Pattern timeoutPat = Pattern.compile("^setTimeout\\s*\\(\\s*function\\s*\\(\\s*\\)\\s*\\{");
             Matcher timeoutMat = timeoutPat.matcher(remaining);
             if (timeoutMat.find()) {
                 int openBraceIdx = pos + timeoutMat.end() - 1;
                 int closeBraceIdx = findMatchingBrace(js, openBraceIdx);
                 if (closeBraceIdx >= 0) {
-                    // Extract inner body
                     String innerBody = js.substring(openBraceIdx + 1, closeBraceIdx).trim();
                     int afterClose = closeBraceIdx + 1;
                     Pattern delayPat = Pattern.compile("^\\s*,\\s*(\\d+)\\s*\\)");
@@ -1687,8 +1823,48 @@ public class HtmlCssImporter {
                     continue;
                 }
             }
+
+            // 9. setInterval(function() { ... }, delay);
+            Pattern intervalPat = Pattern.compile("^setInterval\\s*\\(\\s*function\\s*\\(\\s*\\)\\s*\\{");
+            Matcher intervalMat = intervalPat.matcher(remaining);
+            if (intervalMat.find()) {
+                int openBraceIdx = pos + intervalMat.end() - 1;
+                int closeBraceIdx = findMatchingBrace(js, openBraceIdx);
+                if (closeBraceIdx >= 0) {
+                    String innerBody = js.substring(openBraceIdx + 1, closeBraceIdx).trim();
+                    int afterClose = closeBraceIdx + 1;
+                    Pattern delayPat = Pattern.compile("^\\s*,\\s*(\\d+)\\s*\\)");
+                    Matcher delayMat = delayPat.matcher(js.substring(afterClose));
+                    String delay = "1000";
+                    if (delayMat.find()) {
+                        delay = delayMat.group(1);
+                        pos = afterClose + delayMat.end();
+                        if (pos < len && js.charAt(pos) == ';') pos++;
+                    } else {
+                        pos = closeBraceIdx + 1;
+                    }
+                    
+                    String blockId = "blk_js_interval_" + timestamp + "_" + (counterRef[0]++);
+                    Map<String, Object> intervalBlock = new HashMap<>();
+                    intervalBlock.put("id", blockId);
+                    intervalBlock.put("action", "jsSetInterval");
+                    intervalBlock.put("category", "js_timing");
+                    intervalBlock.put("shape", "cblock");
+                    intervalBlock.put("spec", "every %n ms {");
+                    intervalBlock.put("paramValues", java.util.Arrays.asList(delay));
+                    intervalBlock.put("params", delay);
+                    intervalBlock.put("event", "immediate");
+                    
+                    String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                    intervalBlock.put("parentBlockId", parent != null ? parent : "");
+                    
+                    importedLogicBlocks.add(intervalBlock);
+                    parseJsRules(innerBody, blockId, timestamp, counterRef);
+                    continue;
+                }
+            }
             
-            // 4. addEventListener
+            // 10. addEventListener
             Pattern eventPat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\.addEventListener\\(\\s*['\"]([^'\"]+)['\"]\\s*,\\s*function\\s*\\([^)]*\\)\\s*\\{");
             Matcher eventMat = eventPat.matcher(remaining);
             if (eventMat.find()) {
@@ -1764,8 +1940,116 @@ public class HtmlCssImporter {
                     continue;
                 }
             }
+
+            // 11. Generic Braced blocks (Functions, Arrow Functions, etc.)
+            int jsBlockOpenBraceIdx = js.indexOf("{", pos);
+            if (jsBlockOpenBraceIdx >= 0) {
+                String headerCandidate = js.substring(pos, jsBlockOpenBraceIdx);
+                if (!headerCandidate.contains(";") && !headerCandidate.contains("}") && !headerCandidate.contains("//") && !headerCandidate.contains("/*")) {
+                    int jsBlockCloseBraceIdx = findMatchingBrace(js, jsBlockOpenBraceIdx);
+                    if (jsBlockCloseBraceIdx >= 0) {
+                        String header = headerCandidate.trim();
+                        String body = js.substring(jsBlockOpenBraceIdx + 1, jsBlockCloseBraceIdx).trim();
+                        pos = jsBlockCloseBraceIdx + 1;
+
+                        Pattern funcDefPat = Pattern.compile("^(?:async\\s+)?function\\s+([a-zA-Z0-9_$]+)\\s*\\(\\s*(.*?)\\s*\\)");
+                        Matcher funcDefMat = funcDefPat.matcher(header);
+                        if (funcDefMat.find()) {
+                            String funcName = funcDefMat.group(1);
+                            String funcParams = funcDefMat.group(2).trim();
+
+                            String blockId = "blk_js_func_def_" + timestamp + "_" + (counterRef[0]++);
+                            Map<String, Object> block = new HashMap<>();
+                            block.put("id", blockId);
+                            block.put("action", "jsFunctionDefine");
+                            block.put("category", "js_dom");
+                            block.put("shape", "cblock");
+                            block.put("spec", "function function name %s.inputOnly function %b");
+                            block.put("paramValues", java.util.Arrays.asList(funcName, funcParams));
+                            block.put("params", funcName + "|" + funcParams);
+                            block.put("event", "immediate");
+
+                            String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                            block.put("parentBlockId", parent != null ? parent : "");
+
+                            importedLogicBlocks.add(block);
+                            parseJsRules(body, blockId, timestamp, counterRef);
+                            continue;
+                        }
+
+                        Pattern arrowPat = Pattern.compile("^(const|let|var)?\\s*([a-zA-Z0-9_$]+)\\s*=\\s*(?:async\\s*)?\\(\\s*(.*?)\\s*\\)\\s*=>");
+                        Matcher arrowMat = arrowPat.matcher(header);
+                        if (arrowMat.find()) {
+                            String funcName = arrowMat.group(2);
+                            String funcParams = arrowMat.group(3).trim();
+
+                            String blockId = "blk_js_arrow_" + timestamp + "_" + (counterRef[0]++);
+                            Map<String, Object> block = new HashMap<>();
+                            block.put("id", blockId);
+                            block.put("action", "jsFunctionArrow");
+                            block.put("category", "js_dom");
+                            block.put("shape", "cblock");
+                            block.put("spec", "const %s.inputOnly = %s.inputOnly =>");
+                            block.put("paramValues", java.util.Arrays.asList(funcName, funcParams));
+                            block.put("params", funcName + "|" + funcParams);
+                            block.put("event", "immediate");
+
+                            String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                            block.put("parentBlockId", parent != null ? parent : "");
+
+                            importedLogicBlocks.add(block);
+                            parseJsRules(body, blockId, timestamp, counterRef);
+                            continue;
+                        }
+                        
+                        String blockId = "blk_js_block_" + timestamp + "_" + (counterRef[0]++);
+                        Map<String, Object> block = new HashMap<>();
+                        block.put("id", blockId);
+                        block.put("action", "asdJs");
+                        block.put("category", "asd");
+                        block.put("shape", "cblock");
+                        block.put("spec", header + " { %m.space }");
+                        block.put("labelOverride", header + " {");
+                        block.put("paramValues", new ArrayList<String>());
+                        block.put("params", "");
+                        block.put("event", "immediate");
+                        
+                        String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                        block.put("parentBlockId", parent != null ? parent : "");
+                        
+                        importedLogicBlocks.add(block);
+                        parseJsRules(body, blockId, timestamp, counterRef);
+                        continue;
+                    }
+                }
+            }
+
+            // 12. JS Import / Export statements
+            Pattern importExportPat = Pattern.compile("^(import|export)\\s+[\\s\\S]*?;");
+            Matcher importExportMat = importExportPat.matcher(remaining);
+            if (importExportMat.find()) {
+                String val = importExportMat.group(0).trim();
+                pos += importExportMat.end();
+                
+                String blockId = "blk_js_ie_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "asdJs");
+                block.put("category", "asd");
+                block.put("shape", "stack");
+                block.put("spec", "%s");
+                block.put("paramValues", java.util.Arrays.asList(val));
+                block.put("params", val);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(block);
+                continue;
+            }
             
-            // 5. alert(msg);
+            // 13. alert(msg);
             Pattern alertPat = Pattern.compile("^alert\\(\\s*(['\"]?)(.*?)\\1\\s*\\)\\s*;?");
             Matcher alertMat = alertPat.matcher(remaining);
             if (alertMat.find()) {
@@ -1790,7 +2074,7 @@ public class HtmlCssImporter {
                 continue;
             }
             
-            // 6. console.log(msg);
+            // 14. console.log(msg);
             Pattern logPat = Pattern.compile("^console\\.log\\(\\s*(['\"]?)(.*?)\\1\\s*\\)\\s*;?");
             Matcher logMat = logPat.matcher(remaining);
             if (logMat.find()) {
@@ -1800,7 +2084,7 @@ public class HtmlCssImporter {
                 String blockId = "blk_js_log_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
-                block.put("action", "jsConsoleLog2");
+                block.put("action", "jsConsoleLog");
                 block.put("category", "js_logic");
                 block.put("shape", "stack");
                 block.put("spec", "console.log %s");
@@ -1815,7 +2099,7 @@ public class HtmlCssImporter {
                 continue;
             }
             
-            // 7. window.location.href = url;
+            // 15. window.location.href = url;
             Pattern locPat = Pattern.compile("^window\\.location\\.href\\s*=\\s*(['\"]?)(.*?)\\1\\s*;?");
             Matcher locMat = locPat.matcher(remaining);
             if (locMat.find()) {
@@ -1825,10 +2109,10 @@ public class HtmlCssImporter {
                 String blockId = "blk_js_loc_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
-                block.put("action", "jsWindowRedirect");
+                block.put("action", "jsWindowLocation");
                 block.put("category", "js_window");
                 block.put("shape", "stack");
-                block.put("spec", "redirect to %s");
+                block.put("spec", "redirect to url %s");
                 block.put("paramValues", java.util.Arrays.asList(val));
                 block.put("params", val);
                 block.put("event", "immediate");
@@ -1840,7 +2124,33 @@ public class HtmlCssImporter {
                 continue;
             }
             
-            // 8. const name = value;
+            // 16. let / var name = value;
+            Pattern letPat = Pattern.compile("^(?:let|var)\\s+([a-zA-Z0-9_$]+)\\s*=\\s*(.*?)\\s*;");
+            Matcher letMat = letPat.matcher(remaining);
+            if (letMat.find()) {
+                String name = letMat.group(1);
+                String val = letMat.group(2).trim();
+                pos += letMat.end();
+                
+                String blockId = "blk_js_let_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "jsVarLet");
+                block.put("category", "js_logic");
+                block.put("shape", "stack");
+                block.put("spec", "let %s.inputOnly = %s.inputOnly");
+                block.put("paramValues", java.util.Arrays.asList(name, val));
+                block.put("params", name + "|" + val);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+                
+                importedLogicBlocks.add(block);
+                continue;
+            }
+
+            // 17. const name = value;
             Pattern constPat = Pattern.compile("^const\\s+([a-zA-Z0-9_$]+)\\s*=\\s*(.*?)\\s*;");
             Matcher constMat = constPat.matcher(remaining);
             if (constMat.find()) {
@@ -1854,7 +2164,7 @@ public class HtmlCssImporter {
                 block.put("action", "jsVarConst");
                 block.put("category", "js_logic");
                 block.put("shape", "stack");
-                block.put("spec", "const %s = %s");
+                block.put("spec", "const %s.inputOnly = %s.inputOnly");
                 block.put("paramValues", java.util.Arrays.asList(name, val));
                 block.put("params", name + "|" + val);
                 block.put("event", "immediate");
@@ -1865,8 +2175,8 @@ public class HtmlCssImporter {
                 importedLogicBlocks.add(block);
                 continue;
             }
-            
-            // 9. setInnerHTML
+
+            // 18. DOM innerHTML
             Pattern htmlPat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\.innerHTML\\s*=\\s*(.*?)\\s*;");
             Matcher htmlMat = htmlPat.matcher(remaining);
             if (htmlMat.find()) {
@@ -1874,10 +2184,7 @@ public class HtmlCssImporter {
                 String selector = htmlMat.group(2);
                 String val = htmlMat.group(3).trim();
                 pos += htmlMat.end();
-                
-                if (method.contains("getElementById") && !selector.startsWith("#")) {
-                    selector = "#" + selector;
-                }
+                if (method.contains("getElementById") && !selector.startsWith("#")) selector = "#" + selector;
                 
                 String selBlockId = "blk_js_sel_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> selBlock = new HashMap<>();
@@ -1890,7 +2197,6 @@ public class HtmlCssImporter {
                 selBlock.put("params", selector);
                 selBlock.put("event", "immediate");
                 selBlock.put("parentBlockId", "");
-                selBlock.put("parentSlotIndex", 0);
 
                 String blockId = "blk_js_html_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
@@ -1898,23 +2204,61 @@ public class HtmlCssImporter {
                 block.put("action", "jsSetInnerHTML2");
                 block.put("category", "js_dom");
                 block.put("shape", "stack");
-                block.put("spec", "%s .innerHTML = %s");
-                block.put("paramValues", java.util.Arrays.asList("", val));
-                block.put("params", "|" + val);
+                block.put("spec", "%var .innerHTML = %s");
+                block.put("paramValues", java.util.Arrays.asList("@" + selBlockId, val));
+                block.put("params", "@" + selBlockId + "|" + val);
                 block.put("event", "immediate");
                 
                 String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
                 block.put("parentBlockId", parent != null ? parent : "");
 
-                selBlock.put("parentBlockId", blockId);
-                selBlock.put("parentSlotIndex", 0);
+                importedLogicBlocks.add(block);
+                importedLogicBlocks.add(selBlock);
+                continue;
+            }
+
+            // 19. DOM innerText / textContent
+            Pattern textPat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\.(?:innerText|textContent)\\s*=\\s*(.*?)\\s*;");
+            Matcher textMat = textPat.matcher(remaining);
+            if (textMat.find()) {
+                String method = textMat.group(1);
+                String selector = textMat.group(2);
+                String val = textMat.group(3).trim();
+                pos += textMat.end();
+                if (method.contains("getElementById") && !selector.startsWith("#")) selector = "#" + selector;
+                
+                String selBlockId = "blk_js_sel_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> selBlock = new HashMap<>();
+                selBlock.put("id", selBlockId);
+                selBlock.put("action", "jsQuerySelector");
+                selBlock.put("category", "js_dom");
+                selBlock.put("shape", "value");
+                selBlock.put("spec", "query %selector");
+                selBlock.put("paramValues", java.util.Arrays.asList(selector));
+                selBlock.put("params", selector);
+                selBlock.put("event", "immediate");
+                selBlock.put("parentBlockId", "");
+
+                String blockId = "blk_js_text_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "jsSetInnerText");
+                block.put("category", "js_dom");
+                block.put("shape", "stack");
+                block.put("spec", "%var .innerText = %s");
+                block.put("paramValues", java.util.Arrays.asList("@" + selBlockId, val));
+                block.put("params", "@" + selBlockId + "|" + val);
+                block.put("event", "immediate");
+                
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
 
                 importedLogicBlocks.add(block);
                 importedLogicBlocks.add(selBlock);
                 continue;
             }
             
-            // 10. setStyle
+            // 20. DOM setStyle
             Pattern stylePat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\.style(?:\\[['\"]([^'\"]+)['\"]\\]|\\.([a-zA-Z0-9_$]+))\\s*=\\s*(.*?)\\s*;");
             Matcher styleMat = stylePat.matcher(remaining);
             if (styleMat.find()) {
@@ -1923,10 +2267,7 @@ public class HtmlCssImporter {
                 String prop = styleMat.group(3) != null ? styleMat.group(3) : styleMat.group(4);
                 String val = styleMat.group(5).trim();
                 pos += styleMat.end();
-                
-                if (method.contains("getElementById") && !selector.startsWith("#")) {
-                    selector = "#" + selector;
-                }
+                if (method.contains("getElementById") && !selector.startsWith("#")) selector = "#" + selector;
                 
                 String selBlockId = "blk_js_sel_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> selBlock = new HashMap<>();
@@ -1939,7 +2280,6 @@ public class HtmlCssImporter {
                 selBlock.put("params", selector);
                 selBlock.put("event", "immediate");
                 selBlock.put("parentBlockId", "");
-                selBlock.put("parentSlotIndex", 0);
 
                 String blockId = "blk_js_style_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
@@ -1947,23 +2287,98 @@ public class HtmlCssImporter {
                 block.put("action", "jsSetStyleProp");
                 block.put("category", "js_dom");
                 block.put("shape", "stack");
-                block.put("spec", "%s .style %s = %s");
-                block.put("paramValues", java.util.Arrays.asList("", prop, val));
-                block.put("params", "|" + prop + "|" + val);
+                block.put("spec", "%var .style %s.inputOnly = %s.inputOnly");
+                block.put("paramValues", java.util.Arrays.asList("@" + selBlockId, prop, val));
+                block.put("params", "@" + selBlockId + "|" + prop + "|" + val);
                 block.put("event", "immediate");
                 
                 String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
                 block.put("parentBlockId", parent != null ? parent : "");
 
-                selBlock.put("parentBlockId", blockId);
-                selBlock.put("parentSlotIndex", 0);
+                importedLogicBlocks.add(block);
+                importedLogicBlocks.add(selBlock);
+                continue;
+            }
+
+            // 21. DOM classList
+            Pattern classListPat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\.classList\\.(add|remove|toggle)\\(\\s*(['\"]?)(.*?)\\4\\s*\\)\\s*;");
+            Matcher classListMat = classListPat.matcher(remaining);
+            if (classListMat.find()) {
+                String method = classListMat.group(1);
+                String selector = classListMat.group(2);
+                String op = classListMat.group(3);
+                String cls = classListMat.group(5).trim();
+                pos += classListMat.end();
+                if (method.contains("getElementById") && !selector.startsWith("#")) selector = "#" + selector;
+
+                String selBlockId = "blk_js_sel_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> selBlock = new HashMap<>();
+                selBlock.put("id", selBlockId);
+                selBlock.put("action", "jsQuerySelector");
+                selBlock.put("category", "js_dom");
+                selBlock.put("shape", "value");
+                selBlock.put("spec", "query %selector");
+                selBlock.put("paramValues", java.util.Arrays.asList(selector));
+                selBlock.put("params", selector);
+                selBlock.put("event", "immediate");
+                selBlock.put("parentBlockId", "");
+
+                String actionId = "jsAddClass";
+                String spec = "%var .addClass %s.inputOnly";
+                if ("remove".equals(op)) {
+                    actionId = "jsRemoveClass";
+                    spec = "%var .removeClass %s.inputOnly";
+                } else if ("toggle".equals(op)) {
+                    actionId = "jsToggleClass";
+                    spec = "%var .toggleClass %s.inputOnly";
+                }
+
+                String blockId = "blk_js_cls_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", actionId);
+                block.put("category", "js_dom");
+                block.put("shape", "stack");
+                block.put("spec", spec);
+                block.put("paramValues", java.util.Arrays.asList("@" + selBlockId, cls));
+                block.put("params", "@" + selBlockId + "|" + cls);
+                block.put("event", "immediate");
+
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
 
                 importedLogicBlocks.add(block);
                 importedLogicBlocks.add(selBlock);
                 continue;
             }
+
+            // 22. Variable assignment: x = y;
+            Pattern assignPat = Pattern.compile("^([a-zA-Z0-9_$]+(?:\\[[^\\]]+\\]|\\.[a-zA-Z0-9_$]+)*)\\s*=\\s*(.*?)\\s*;");
+            Matcher assignMat = assignPat.matcher(remaining);
+            if (assignMat.find() && !remaining.startsWith("window.location") && !remaining.startsWith("document.query") && !remaining.startsWith("document.getElement")) {
+                String name = assignMat.group(1);
+                String val = assignMat.group(2).trim();
+                pos += assignMat.end();
+
+                String blockId = "blk_js_assign_" + timestamp + "_" + (counterRef[0]++);
+                Map<String, Object> block = new HashMap<>();
+                block.put("id", blockId);
+                block.put("action", "jsVarAssign");
+                block.put("category", "js_logic");
+                block.put("shape", "stack");
+                block.put("spec", "set %var = %s.inputOnly");
+                block.put("paramValues", java.util.Arrays.asList(name, val));
+                block.put("params", name + "|" + val);
+                block.put("event", "immediate");
+
+                String parent = groupStack.isEmpty() ? parentBlockId : groupStack.peek();
+                block.put("parentBlockId", parent != null ? parent : "");
+
+                importedLogicBlocks.add(block);
+                continue;
+            }
             
-            // 11. getElement
+            // 23. getElement query value block statement standalone: document.querySelector(...);
             Pattern getPat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\s*;?");
             Matcher getMat = getPat.matcher(remaining);
             if (getMat.find()) {
@@ -1978,10 +2393,10 @@ public class HtmlCssImporter {
                 String blockId = "blk_js_get_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
-                block.put("action", "jsGetElementById");
-                block.put("category", "logic");
+                block.put("action", "jsQuerySelector");
+                block.put("category", "js_dom");
                 block.put("shape", "value");
-                block.put("spec", "get element %s");
+                block.put("spec", "query %selector");
                 block.put("paramValues", java.util.Arrays.asList(selector));
                 block.put("params", selector);
                 block.put("event", "immediate");
@@ -1993,7 +2408,7 @@ public class HtmlCssImporter {
                 continue;
             }
             
-            // Try dynamic JS block matchers
+            // 24. Try dynamic JS block matchers
             boolean matchedDynamic = false;
             for (JsBlockMatcher matcher : jsMatchers) {
                 Matcher m = matcher.pattern.matcher(remaining);
@@ -2032,7 +2447,7 @@ public class HtmlCssImporter {
                 continue;
             }
             
-            // 13. Fallback to asdJs
+            // 25. Fallback to asdJs
             int nextSemi = js.indexOf(";", pos);
             int nextBrace = js.indexOf("{", pos);
             int nextCloseBrace = js.indexOf("}", pos);
@@ -2076,9 +2491,9 @@ public class HtmlCssImporter {
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
                 block.put("action", "jsFunctionCall");
-                block.put("category", "js_logic");
+                block.put("category", "js_dom");
                 block.put("shape", "stack");
-                block.put("spec", "call %s ( %s )");
+                block.put("spec", "call %s.inputOnly %s");
                 block.put("paramValues", java.util.Arrays.asList(funcName, funcArgs));
                 block.put("params", funcName + "|" + funcArgs);
                 block.put("event", "immediate");

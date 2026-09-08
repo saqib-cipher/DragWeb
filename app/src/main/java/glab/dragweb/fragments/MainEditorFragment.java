@@ -1133,7 +1133,10 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private String getPageCssPath(String pageName) {
-		File metaFile = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId + "_" + pageName + ".meta");
+		File metaFile = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId + "/pages/" + pageName + ".meta");
+		if (!metaFile.exists()) {
+			metaFile = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId + "_" + pageName + ".meta");
+		}
 		if (metaFile.exists()) {
 			try {
 				String json = FileUtil.readFile(metaFile.getAbsolutePath());
@@ -1497,7 +1500,8 @@ public class MainEditorFragment extends Fragment {
 	private List<String> getCssFiles() {
 		List<String> cssFiles = new ArrayList<>();
 		cssFiles.add("css/style.css");
-		String path = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/assets";
+		cssFiles.add("css/theme.css");
+		String path = FileUtil.getDragWebDir(requireContext()).getAbsolutePath() + "/projects/" + projectId + "/assets";
 		File dir = new File(path);
 		if (dir.exists() && dir.isDirectory()) {
 			collectCssFilesRecursive(dir, dir, cssFiles);
@@ -1506,7 +1510,7 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void collectCssFilesRecursive(File root, File current, List<String> cssFiles) {
-		File[] files = current.listFiles();
+		File[] files = FileUtil.listFiles(current);
 		if (files != null) {
 			for (File f : files) {
 				if (f.isDirectory()) {
@@ -1525,13 +1529,13 @@ public class MainEditorFragment extends Fragment {
 	private List<String> getAssetsDirectories() {
 		List<String> dirs = new ArrayList<>();
 		dirs.add("assets");
-		String path = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/assets";
+		String path = FileUtil.getDragWebDir(requireContext()).getAbsolutePath() + "/projects/" + projectId + "/assets";
 		File dir = new File(path);
-		if (!dir.exists()) dir.mkdirs();
+		if (!dir.exists()) FileUtil.makeDir(dir.getAbsolutePath());
 		File cssDir = new File(dir, "css");
-		if (!cssDir.exists()) cssDir.mkdirs();
+		if (!cssDir.exists()) FileUtil.makeDir(cssDir.getAbsolutePath());
 		File jsDir = new File(dir, "js");
-		if (!jsDir.exists()) jsDir.mkdirs();
+		if (!jsDir.exists()) FileUtil.makeDir(jsDir.getAbsolutePath());
 		dirs.add("assets/css");
 		dirs.add("assets/js");
 		collectSubdirectories(dir, dir, dirs);
@@ -1539,7 +1543,7 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void collectSubdirectories(File root, File current, List<String> dirs) {
-		File[] files = current.listFiles();
+		File[] files = FileUtil.listFiles(current);
 		if (files != null) {
 			for (File f : files) {
 				if (f.isDirectory()) {
@@ -1668,9 +1672,9 @@ public class MainEditorFragment extends Fragment {
 				}
 
 				String chosenDir = actvLocation.getText().toString();
-				String projectPath = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId;
+				String projectPath = FileUtil.getDragWebDir(requireContext()).getAbsolutePath() + "/projects/" + projectId;
 				File targetDir = new File(projectPath, chosenDir);
-				if (!targetDir.exists()) targetDir.mkdirs();
+				if (!targetDir.exists()) FileUtil.makeDir(targetDir.getAbsolutePath());
 
 				File cssFile = new File(targetDir, cssName);
 				if (cssFile.exists()) {
@@ -1709,7 +1713,7 @@ public class MainEditorFragment extends Fragment {
 	private List<String> getJsFiles() {
 		List<String> jsFiles = new ArrayList<>();
 		jsFiles.add("js/script.js");
-		String path = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/assets";
+		String path = FileUtil.getDragWebDir(requireContext()).getAbsolutePath() + "/projects/" + projectId + "/assets";
 		File dir = new File(path);
 		if (dir.exists() && dir.isDirectory()) {
 			collectJsFilesRecursive(dir, dir, jsFiles);
@@ -1718,7 +1722,7 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void collectJsFilesRecursive(File root, File current, List<String> jsFiles) {
-		File[] files = current.listFiles();
+		File[] files = FileUtil.listFiles(current);
 		if (files != null) {
 			for (File f : files) {
 				if (f.isDirectory()) {
@@ -1807,9 +1811,9 @@ public class MainEditorFragment extends Fragment {
 				}
 
 				String chosenDir = actvLocation.getText().toString();
-				String projectPath = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId;
+				String projectPath = FileUtil.getDragWebDir(requireContext()).getAbsolutePath() + "/projects/" + projectId;
 				File targetDir = new File(projectPath, chosenDir);
-				if (!targetDir.exists()) targetDir.mkdirs();
+				if (!targetDir.exists()) FileUtil.makeDir(targetDir.getAbsolutePath());
 
 				File jsFile = new File(targetDir, jsName);
 				if (jsFile.exists()) {
@@ -1904,9 +1908,9 @@ public class MainEditorFragment extends Fragment {
 					themeManager.setUseInlineStyles(false);
 					themeManager.setDisableDefaultStyles(true);
 					try {
-						File dir = new File(FileUtil.getDragWebDir(requireContext()), "projects");
+						File dir = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId);
 						if (!dir.exists()) dir.mkdirs();
-						File themeFile = new File(dir, projectId + ".theme");
+						File themeFile = new File(dir, "theme.json");
 						FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
 						saveProjectToExternal();
 					} catch (Exception e) {}
@@ -1927,14 +1931,14 @@ public class MainEditorFragment extends Fragment {
 					// Save logic blocks for the imported page to .dragweb
 					if (result.logicBeans != null && !result.logicBeans.isEmpty()) {
 						String logicJson = new Gson().toJson(result.logicBeans);
-						File extDir = new File(FileUtil.getDragWebDir(), "projects/" + projectId);
-						if (!extDir.exists()) extDir.mkdirs();
+						File extDir = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId);
+						if (!extDir.exists()) FileUtil.makeDir(extDir.getAbsolutePath());
 						FileUtil.writeFile(new File(extDir, pageName + "_logic.json").getAbsolutePath(), logicJson);
 					} else if (result.logicBlocks != null && !result.logicBlocks.isEmpty()) {
 						ArrayList<BlockBean> beans = importer.convertRawMapsToBeans(result.logicBlocks);
 						String logicJson = new Gson().toJson(beans);
-						File extDir = new File(FileUtil.getDragWebDir(), "projects/" + projectId);
-						if (!extDir.exists()) extDir.mkdirs();
+						File extDir = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId);
+						if (!extDir.exists()) FileUtil.makeDir(extDir.getAbsolutePath());
 						FileUtil.writeFile(new File(extDir, pageName + "_logic.json").getAbsolutePath(), logicJson);
 					}
 				} else {
@@ -2568,7 +2572,7 @@ public class MainEditorFragment extends Fragment {
 		if (configured == null || configured.isEmpty()) return "";
 		if (configured.startsWith("/")) return configured;
 		if (configured.startsWith("assets/")) {
-			return FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/" + configured;
+			return FileUtil.getDragWebDir(getContext()).getAbsolutePath() + "/projects/" + projectId + "/" + configured;
 		}
 		return "";
 	}
@@ -2606,30 +2610,49 @@ public class MainEditorFragment extends Fragment {
 	// ---- Preview ----
 
 	private void showPreview() {
-		// Save project first so all pages, assets, and logics are fully updated
-		saveProject(() -> {
-			File previewDir = new File(requireContext().getCacheDir(), "preview_" + projectId);
+		// Show loading indicator immediately so the user knows work is in progress
+		if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
+
+		// Snapshot page list on the UI thread before going to background
+		List<String> allPages = pageManager != null ? pageManager.getPages() : new ArrayList<>();
+		if (allPages.isEmpty()) allPages.add("index");
+		final ArrayList<String> pageNames = new ArrayList<>(allPages);
+		final String currentPageSnap = pageManager != null ? pageManager.getCurrentPage() : "index";
+		final int startIndexSnap = Math.max(0, pageNames.indexOf(currentPageSnap));
+
+		final android.content.Context appCtx = requireContext().getApplicationContext();
+		final androidx.fragment.app.FragmentActivity act = getActivity();
+		final File previewDir = new File(requireContext().getCacheDir(), "preview_" + projectId);
+
+		java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
+			// Save current state to disk (runs entirely in background)
+			performSaveWork(appCtx);
+
+			// Build preview directory from freshly saved assets
 			deleteDir(previewDir);
 			previewDir.mkdirs();
-
 			if (exportManager != null) {
-				exportManager.generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, previewDir, pageManager);
+				try {
+					exportManager.generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, previewDir, pageManager);
+				} catch (Exception e) {
+					Log.w("MainEditor", "Preview export failed: " + e.getMessage());
+				}
 			}
 
-			List<String> allPages = pageManager != null ? pageManager.getPages() : new ArrayList<>();
-			if (allPages.isEmpty()) allPages.add("index");
-			ArrayList<String> pageNames = new ArrayList<>(allPages);
+			if (act == null) return;
+			act.runOnUiThread(() -> {
+				if (!isAdded()) return;
+				if (layoutLoading != null) layoutLoading.setVisibility(View.GONE);
+				if (progressSave != null) progressSave.setVisibility(View.GONE);
+				if (button4 != null) button4.setVisibility(View.VISIBLE);
 
-			String currentPage = pageManager != null ? pageManager.getCurrentPage() : "index";
-			int startIndex = pageNames.indexOf(currentPage);
-			if (startIndex < 0) startIndex = 0;
-
-			Intent previewIntent = new Intent(requireContext(), PreviewActivity.class);
-			previewIntent.putStringArrayListExtra("page_names", pageNames);
-			previewIntent.putExtra("start_page_index", startIndex);
-			previewIntent.putExtra("preview_project_dir", previewDir.getAbsolutePath());
-			previewIntent.putExtra("project_id", projectId);
-			startActivity(previewIntent);
+				Intent previewIntent = new Intent(requireContext(), PreviewActivity.class);
+				previewIntent.putStringArrayListExtra("page_names", pageNames);
+				previewIntent.putExtra("start_page_index", startIndexSnap);
+				previewIntent.putExtra("preview_project_dir", previewDir.getAbsolutePath());
+				previewIntent.putExtra("project_id", projectId);
+				startActivity(previewIntent);
+			});
 		});
 	}
 
@@ -2747,7 +2770,7 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void loadCustomWidgetsFromDevice() {
-		String widgetsPath = FileUtil.getDragWebDir().getAbsolutePath() + "/custom/widgets.json";
+		String widgetsPath = FileUtil.getDragWebDir(requireContext()).getAbsolutePath() + "/custom/widgets.json";
 		File file = new File(widgetsPath);
 		if (file.exists()) {
 			try {
@@ -2759,14 +2782,14 @@ public class MainEditorFragment extends Fragment {
 				Toast.makeText(requireContext(), "Failed to load: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 			}
 		} else {
-			File dir = new File(FileUtil.getDragWebDir(), "custom");
-			dir.mkdirs();
+			File dir = new File(FileUtil.getDragWebDir(requireContext()), "custom");
+			FileUtil.makeDir(dir.getAbsolutePath());
 			Toast.makeText(requireContext(), "Place widgets.json in:\n" + widgetsPath, Toast.LENGTH_LONG).show();
 		}
 	}
 
 	private void loadCustomBlocksFromDevice() {
-		String blocksPath = FileUtil.getDragWebDir().getAbsolutePath() + "/custom/blocks.json";
+		String blocksPath = FileUtil.getDragWebDir(requireContext()).getAbsolutePath() + "/custom/blocks.json";
 		File file = new File(blocksPath);
 		if (file.exists()) {
 			try {
@@ -2778,8 +2801,8 @@ public class MainEditorFragment extends Fragment {
 				Toast.makeText(requireContext(), "Failed to load: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 			}
 		} else {
-			File dir = new File(FileUtil.getDragWebDir(), "custom");
-			dir.mkdirs();
+			File dir = new File(FileUtil.getDragWebDir(requireContext()), "custom");
+			FileUtil.makeDir(dir.getAbsolutePath());
 			Toast.makeText(requireContext(), "Place blocks.json in:\n" + blocksPath, Toast.LENGTH_LONG).show();
 		}
 	}
@@ -2866,8 +2889,6 @@ public class MainEditorFragment extends Fragment {
 		// Save all logic blocks to .dragweb
 		DesignDataManager.saveAllSavedLogic(context, projectId);
 
-		saveProjectToExternal(context);
-
 		// Compile and save logic assets to files
 		try {
 			ProjectCodeGenerator.generateAndSaveAssets(context, projectId, pageManager.getCurrentPage());
@@ -2904,60 +2925,76 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void loadProject() {
-		if (hierarchyAdapter != null) {
-			hierarchyAdapter.setLoading(true);
-		}
+		// Show loading overlay immediately so the UI stays responsive
+		if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
+		if (hierarchyAdapter != null) hierarchyAdapter.setLoading(true);
 
-		// Try loading the current page from PageManager first
-		String pageJson = pageManager.loadPageLayout(pageManager.getCurrentPage());
-		boolean loadedFromPage = false;
+		final android.content.Context appCtx = requireContext().getApplicationContext();
+		final androidx.fragment.app.FragmentActivity act = getActivity();
+		final String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
 
-		if (pageJson != null) {
-			screen.removeAllViews();
-			if (!"[]".equals(pageJson.trim())) {
+		java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
+			// ---- Background: disk I/O + JSON parsing ----
+			final String pageJson = pageManager.loadPageLayout(currentPageName);
+
+			// Parse widget tree off the UI thread
+			List<Map<String, Object>> parsedTree = null;
+			if (pageJson != null && !"[]".equals(pageJson.trim())) {
 				try {
-					List<Map<String, Object>> widgetTree = new Gson().fromJson(pageJson,
+					parsedTree = new Gson().fromJson(pageJson,
 						new TypeToken<List<Map<String, Object>>>(){}.getType());
-					if (widgetTree != null && !widgetTree.isEmpty()) {
-						for (Map<String, Object> nodeMap : widgetTree) {
+				} catch (Exception e) {
+					Log.w("MainActivity", "Could not parse page layout: " + e.getMessage());
+				}
+			}
+
+			// Load theme from disk in background
+			final String themeJson;
+			File themeFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + projectId + "/theme.json");
+			themeJson = themeFile.exists() ? FileUtil.readFile(themeFile.getAbsolutePath()) : null;
+
+			// Initialize logic blocks from disk in background (heavy I/O)
+			DesignDataManager.initialize(appCtx, projectId, currentPageName);
+
+			final List<Map<String, Object>> finalTree = parsedTree;
+			final boolean hadPageJson = (pageJson != null);
+
+			if (act == null) return;
+			act.runOnUiThread(() -> {
+				if (!isAdded()) return;
+
+				// ---- UI thread: view construction ----
+				if (themeJson != null) themeManager.fromJson(themeJson);
+
+				if (hadPageJson) {
+					screen.removeAllViews();
+					if (finalTree != null && !finalTree.isEmpty()) {
+						for (Map<String, Object> nodeMap : finalTree) {
 							rebuildView(nodeMap, screen);
 						}
 					}
-				} catch (Exception e) {
-					Log.w("MainActivity", "Could not load page layout: " + e.getMessage());
+				} else {
+					// Fall back to legacy project data
+					projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager, null);
 				}
-			}
-			loadedFromPage = true;
-		}
 
-		// Fall back to legacy project data if page layout file does not exist
-		if (!loadedFromPage) {
-			projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager, null);
-		}
+				registerAllWidgetsForDrag(screen);
 
-		// Register all loaded widgets for reorder drag
-		registerAllWidgetsForDrag(screen);
+				// Cache the layout now that it is built
+				if (pageManager != null && screen.getChildCount() > 0) {
+					saveCurrentPageLayout();
+				}
 
-		File themeFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/theme.json");
-		if (themeFile.exists()) {
-			String themeJson = FileUtil.readFile(themeFile.getAbsolutePath());
-			themeManager.fromJson(themeJson);
-		}
+				if (hierarchyAdapter != null) hierarchyAdapter.setLoading(false);
+				refreshHierarchy();
+				updateWidgetSpinnerFromTree();
 
-		// Logic blocks are loaded by DesignDataManager.initialize (called earlier)
-		String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-		DesignDataManager.initialize(requireContext(), projectId, currentPageName);
-
-		// Save initial page layout so it's cached
-		if (pageManager != null && screen.getChildCount() > 0) {
-			saveCurrentPageLayout();
-		}
-
-		if (hierarchyAdapter != null) {
-			hierarchyAdapter.setLoading(false);
-		}
-		refreshHierarchy();
-		updateWidgetSpinnerFromTree();
+				// Dismiss loading overlay
+				if (layoutLoading != null) {
+					layoutLoading.postDelayed(() -> layoutLoading.setVisibility(View.GONE), 200);
+				}
+			});
+		});
 	}
 
 	private void registerAllWidgetsForDrag(ViewGroup parent) {
@@ -3275,9 +3312,9 @@ public class MainEditorFragment extends Fragment {
 
 				// Persist theme changes immediately
 				try {
-					File dir = new File(FileUtil.getDragWebDir(requireContext()), "projects");
+					File dir = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId);
 					if (!dir.exists()) dir.mkdirs();
-					File themeFile = new File(dir, projectId + ".theme");
+					File themeFile = new File(dir, "theme.json");
 					FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
 					saveProjectToExternal();
 				} catch (Exception e) {

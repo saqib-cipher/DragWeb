@@ -88,7 +88,15 @@ public class SplashActivity extends AppCompatActivity {
 			.setDuration(800)
 			.setInterpolator(new OvershootInterpolator(4f));
 
+		checkStorageAndProceed();
+	}
+
+	private void checkStorageAndProceed() {
 		if (SafStorageUtil.isStorageConfigured(this)) {
+			File dragWebDir = FileUtil.getDragWebDir(this);
+			if (!dragWebDir.exists()) {
+				dragWebDir.mkdirs();
+			}
 			go();
 		} else {
 			showFolderPickerDialog();

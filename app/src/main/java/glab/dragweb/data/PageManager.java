@@ -155,13 +155,16 @@ public class PageManager {
             }
         }
 
-        // Fallback for "index" page layout to layout.json or projectId.json
+        // Fallback for "index" page layout to legacy layout.json or projectId.json (one-time migration)
         if ("index".equals(pageName)) {
             File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/layout.json");
             if (layoutFile.exists()) {
                 String json = FileUtil.readFile(layoutFile.getAbsolutePath());
                 if (json != null && !json.isEmpty()) {
                     pageLayoutCache.put(pageName, json);
+                    File extFile = getPageLayoutFile(pageName);
+                    FileUtil.writeFile(extFile.getAbsolutePath(), json);
+                    FileUtil.deleteFile(layoutFile.getAbsolutePath());
                     return json;
                 }
             }
@@ -170,6 +173,8 @@ public class PageManager {
                 String json = FileUtil.readFile(projFile.getAbsolutePath());
                 if (json != null && !json.isEmpty()) {
                     pageLayoutCache.put(pageName, json);
+                    File extFile = getPageLayoutFile(pageName);
+                    FileUtil.writeFile(extFile.getAbsolutePath(), json);
                     return json;
                 }
             }
@@ -178,6 +183,8 @@ public class PageManager {
                 String json = FileUtil.readFile(rootProjFile.getAbsolutePath());
                 if (json != null && !json.isEmpty()) {
                     pageLayoutCache.put(pageName, json);
+                    File extFile = getPageLayoutFile(pageName);
+                    FileUtil.writeFile(extFile.getAbsolutePath(), json);
                     return json;
                 }
             }
@@ -204,20 +211,11 @@ public class PageManager {
         // Always update in-memory cache
         pageLayoutCache.put(pageName, json);
 
-        // Save to pages/pageName.json
+        // Save exclusively to pages/pageName.json
         File extFile = getPageLayoutFile(pageName);
         File extDir = extFile.getParentFile();
         if (extDir != null && !extDir.exists()) extDir.mkdirs();
         FileUtil.writeFile(extFile.getAbsolutePath(), json);
-
-        // If index, also save to layout.json & projectId.json
-        if ("index".equals(pageName)) {
-            File projDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId);
-            if (!projDir.exists()) projDir.mkdirs();
-            FileUtil.writeFile(new File(projDir, "layout.json").getAbsolutePath(), json);
-            FileUtil.writeFile(new File(projDir, projectId + ".json").getAbsolutePath(), json);
-            FileUtil.writeFile(new File(new File(FileUtil.getDragWebDir(context), "projects"), projectId + ".json").getAbsolutePath(), json);
-        }
     }
 
     /**
@@ -275,7 +273,7 @@ public class PageManager {
             + "/projects/" + projectId + "/pages";
         File pagesDir = new File(pagesPath);
         if (pagesDir.exists() && pagesDir.isDirectory()) {
-            File[] pageFiles = pagesDir.listFiles();
+            File[] pageFiles = FileUtil.listFiles(pagesDir);
             if (pageFiles != null) {
                 for (File f : pageFiles) {
                     if (f.getName().endsWith(".json")) {

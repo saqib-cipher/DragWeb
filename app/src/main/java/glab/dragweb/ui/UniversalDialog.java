@@ -63,6 +63,23 @@ public final class UniversalDialog {
     // Public builders
     // -------------------------------------------------------------------
 
+    /** Material 3 Expressive loading dialog with circular progress indicator. */
+    public static AlertDialog loading(Context ctx, String message) {
+        View v = android.view.LayoutInflater.from(ctx).inflate(R.layout.dialog_progress_material, null);
+        TextView tv = v.findViewById(R.id.progress_message);
+        if (tv != null && message != null) {
+            tv.setText(message);
+        }
+        AlertDialog dialog = new MaterialAlertDialogBuilder(ctx)
+            .setView(v)
+            .setCancelable(false)
+            .setBackgroundInsetStart(dp(ctx, 24))
+            .setBackgroundInsetEnd(dp(ctx, 24))
+            .create();
+        dialog.show();
+        return dialog;
+    }
+
     /** Single-line text input dialog. */
     public static void textInput(Context ctx, String title, String hint, String initial,
                                  OnTextResult onResult) {

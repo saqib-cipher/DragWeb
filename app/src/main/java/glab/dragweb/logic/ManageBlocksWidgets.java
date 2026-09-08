@@ -458,8 +458,13 @@ public class ManageBlocksWidgets {
     private File pageInstanceFile(String projectId, String pageName) {
         if (projectId == null) projectId = "";
         if (pageName == null || pageName.isEmpty()) pageName = "index";
-        File dir = new File(FileUtil.getDragWebDir(context), "projects");
-        return new File(dir, projectId + "_" + pageName + ".cblocks");
+        File dir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages");
+        File file = new File(dir, pageName + ".cblocks");
+        if (!file.exists()) {
+            File legacyFile = new File(new File(FileUtil.getDragWebDir(context), "projects"), projectId + "_" + pageName + ".cblocks");
+            if (legacyFile.exists()) return legacyFile;
+        }
+        return file;
     }
 
     // -------------------------------------------------------------------------

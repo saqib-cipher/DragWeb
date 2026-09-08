@@ -1240,11 +1240,9 @@ public class ExportManager {
             return "  <link rel=\"stylesheet\" href=\"css/style.css\">\n";
         }
         
-        File metaFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "_" + pageName + ".meta");
+        File metaFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages/" + pageName + ".meta");
         if (!metaFile.exists()) {
-            String extPath = FileUtil.getDragWebDir(context).getAbsolutePath()
-                + "/projects/" + projectId + "/pages/" + pageName + ".meta";
-            metaFile = new File(extPath);
+            metaFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "_" + pageName + ".meta");
         }
         
         if (metaFile.exists()) {

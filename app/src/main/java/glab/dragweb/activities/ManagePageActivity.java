@@ -128,7 +128,10 @@ public class ManagePageActivity extends AppCompatActivity {
     }
 
     private void loadPageMetadata() {
-        File metaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + pageName + ".meta");
+        File metaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + pageName + ".meta");
+        if (!metaFile.exists()) {
+            metaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + pageName + ".meta");
+        }
         boolean useGlobal = true;
         String customCss = "css/style.css";
 
@@ -228,8 +231,12 @@ public class ManagePageActivity extends AppCompatActivity {
             }
 
             // Rename metadata file
-            File oldMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + pageName + ".meta");
-            File newMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + cleanName + ".meta");
+            File oldMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + pageName + ".meta");
+            if (!oldMeta.exists()) {
+                oldMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + pageName + ".meta");
+            }
+            File newMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + cleanName + ".meta");
+            if (!newMeta.getParentFile().exists()) newMeta.getParentFile().mkdirs();
             if (oldMeta.exists()) {
                 oldMeta.renameTo(newMeta);
             }
@@ -241,11 +248,14 @@ public class ManagePageActivity extends AppCompatActivity {
         }
 
         // Save page metadata
-        File saveMetaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + cleanName + ".meta");
+        File saveMetaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + cleanName + ".meta");
+        if (!saveMetaFile.getParentFile().exists()) saveMetaFile.getParentFile().mkdirs();
         Map<String, Object> metaMap = new HashMap<>();
         metaMap.put("useGlobalCss", switchGlobalCss.isChecked());
         metaMap.put("customCssPath", etCssSelector.getText().toString());
         FileUtil.writeFile(saveMetaFile.getAbsolutePath(), new Gson().toJson(metaMap));
+        File legacyMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + cleanName + ".meta");
+        if (legacyMeta.exists()) legacyMeta.delete();
 
         // Return intent details
         Intent resultIntent = new Intent();
@@ -285,9 +295,13 @@ public class ManagePageActivity extends AppCompatActivity {
                 }
 
                 // Delete metadata file
-                File metaFileToDelete = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + pageName + ".meta");
+                File metaFileToDelete = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + pageName + ".meta");
                 if (metaFileToDelete.exists()) {
                     metaFileToDelete.delete();
+                }
+                File legacyMetaToDelete = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + pageName + ".meta");
+                if (legacyMetaToDelete.exists()) {
+                    legacyMetaToDelete.delete();
                 }
 
                 // Return deleted action

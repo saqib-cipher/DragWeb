@@ -134,12 +134,10 @@ public class ProjectDataManager {
         new Thread(() -> {
             String json = gson.toJson(widgetTree);
 
-            // Save to .dragweb/projects/projectId and .dragweb/projects/projectId.json
-            File extDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId);
-            if (!extDir.exists()) extDir.mkdirs();
-            FileUtil.writeFile(new File(extDir, "layout.json").getAbsolutePath(), json);
-            FileUtil.writeFile(new File(extDir, projectId + ".json").getAbsolutePath(), json);
-            FileUtil.writeFile(new File(new File(FileUtil.getDragWebDir(context), "projects"), projectId + ".json").getAbsolutePath(), json);
+            // Save exclusively to .dragweb/projects/{projectId}/pages/index.json
+            File extPagesDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages");
+            if (!extPagesDir.exists()) extPagesDir.mkdirs();
+            FileUtil.writeFile(new File(extPagesDir, "index.json").getAbsolutePath(), json);
 
             if (onComplete != null) {
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(onComplete);
@@ -151,15 +149,15 @@ public class ProjectDataManager {
                             WidgetSelector selector, DropZoneManager dropZoneManager, Runnable onComplete) {
         new Thread(() -> {
             File projectsDir = new File(FileUtil.getDragWebDir(context), "projects");
-            File file = new File(projectsDir, projectId + "/" + projectId + ".json");
+            File file = new File(projectsDir, projectId + "/pages/index.json");
             if (!file.exists()) {
                 file = new File(projectsDir, projectId + "/layout.json");
             }
             if (!file.exists()) {
-                file = new File(projectsDir, projectId + ".json");
+                file = new File(projectsDir, projectId + "/" + projectId + ".json");
             }
             if (!file.exists()) {
-                file = new File(projectsDir, projectId + "/pages/index.json");
+                file = new File(projectsDir, projectId + ".json");
             }
 
             if (!file.exists()) {
@@ -209,8 +207,8 @@ public class ProjectDataManager {
         try (OutputStream fos = context.getContentResolver().openOutputStream(outputUri);
              ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
 
-            // Add project files (skip project.meta — we write a clean version)
-            addDirectoryToZip(zos, extProjDir, "", "project.meta");
+            // Add project files (skip project.meta, layout.json, project.config.json — we write a clean version)
+            addDirectoryToZip(zos, extProjDir, "", "project.meta", "project.config.json", "layout.json");
 
             // Write clean metadata without the project ID
             String metaJson = makeCleanMetaJson(extProjDir);
@@ -241,8 +239,8 @@ public class ProjectDataManager {
                     for (File d : dirs) {
                         if (!d.isDirectory()) continue;
                         String folderName = sanitizeDirName(d.getName());
-                        // Add project files (skip project.meta — we write a clean version)
-                        addDirectoryToZip(zos, d, folderName + "/", "project.meta");
+                        // Add project files (skip project.meta, layout.json, project.config.json — we write a clean version)
+                        addDirectoryToZip(zos, d, folderName + "/", "project.meta", "project.config.json", "layout.json");
                         // Write clean metadata without the project ID
                         String metaJson = makeCleanMetaJson(d);
                         if (metaJson != null) {
@@ -357,7 +355,7 @@ public class ProjectDataManager {
                         if (relative.isEmpty()) { zis.closeEntry(); continue; }
 
                         // Capture metadata but don't extract as a file
-                        if (relative.equals("project.meta")) {
+                        if (relative.equals("project.meta") || relative.equals("project.config.json")) {
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
                             byte[] buf = new byte[4096]; int len;
                             while ((len = zis.read(buf)) > 0) baos.write(buf, 0, len);
@@ -365,7 +363,13 @@ public class ProjectDataManager {
                             try {
                                 Map<String, String> m = gson.fromJson(metaStr,
                                         new TypeToken<Map<String, String>>() {}.getType());
-                                if (m != null) backupMeta.putAll(m);
+                                if (m != null) {
+                                    for (Map.Entry<String, String> entry : m.entrySet()) {
+                                        if (!backupMeta.containsKey(entry.getKey()) || "project.meta".equals(relative)) {
+                                            backupMeta.put(entry.getKey(), entry.getValue());
+                                        }
+                                    }
+                                }
                             } catch (Exception ignored) {}
                             zis.closeEntry();
                             continue;
@@ -401,18 +405,27 @@ public class ProjectDataManager {
                         new File(extProjDir, "project.meta").getAbsolutePath(),
                         gson.toJson(backupMeta));
 
-                // Save layout file copies
+                // Ensure layout file exists in pages/index.json, and delete legacy files
+                File pagesDir = new File(extProjDir, "pages");
+                if (!pagesDir.exists()) pagesDir.mkdirs();
+                File indexFile = new File(pagesDir, "index.json");
+
                 File layoutFile = new File(extProjDir, "layout.json");
                 if (layoutFile.exists()) {
-                    try {
-                        String json = FileUtil.readFile(layoutFile.getAbsolutePath());
-                        if (json != null) {
-                            FileUtil.writeFile(
-                                    new File(extProjDir, newId + ".json").getAbsolutePath(), json);
-                            FileUtil.writeFile(
-                                    new File(new File(extProjectsPath), newId + ".json").getAbsolutePath(), json);
-                        }
-                    } catch (Exception ignored) {}
+                    if (!indexFile.exists()) {
+                        try {
+                            String json = FileUtil.readFile(layoutFile.getAbsolutePath());
+                            if (json != null) {
+                                FileUtil.writeFile(indexFile.getAbsolutePath(), json);
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    FileUtil.deleteFile(layoutFile.getAbsolutePath());
+                }
+
+                File legacyConfig = new File(extProjDir, "project.config.json");
+                if (legacyConfig.exists()) {
+                    FileUtil.deleteFile(legacyConfig.getAbsolutePath());
                 }
 
                 result.importedProjectIds.add(newId);
@@ -441,17 +454,22 @@ public class ProjectDataManager {
                 if (dirs != null) {
                     for (File dir : dirs) {
                         if (!dir.isDirectory()) continue;
+                        String dirName = dir.getName();
+                        if (dirName.startsWith(".") || "logic".equalsIgnoreCase(dirName) || "custom".equalsIgnoreCase(dirName) || "templates".equalsIgnoreCase(dirName)) {
+                            continue;
+                        }
                         File layoutFile = new File(dir, "layout.json");
                         if (!layoutFile.exists()) {
-                            layoutFile = new File(dir, dir.getName() + ".json");
+                            layoutFile = new File(dir, "pages/index.json");
                         }
                         if (!layoutFile.exists()) {
-                            layoutFile = new File(projectsDir, dir.getName() + ".json");
+                            layoutFile = new File(dir, dirName + ".json");
                         }
                         if (!layoutFile.exists()) continue;
 
                         Map<String, String> project = new HashMap<>();
-                        project.put("name", dir.getName());
+                        project.put("id", dirName);
+                        project.put("name", dirName);
                         project.put("path", layoutFile.getAbsolutePath());
                         projects.add(project);
                     }
@@ -469,15 +487,22 @@ public class ProjectDataManager {
 
     private File tryLoadFromExternal(String projectId, File internalDir) {
         try {
-            // Try new internal-mirrored path first
-            String extNewPath = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/" + projectId + ".json";
-            File extNew = new File(extNewPath);
-            if (extNew.exists()) {
-                return copyToInternal(extNew, internalDir, projectId + ".json");
+            // Try pages/index.json first
+            String extIndexPath = FileUtil.getDragWebDir(context).getAbsolutePath() + "/projects/" + projectId + "/pages/index.json";
+            File extIndex = new File(extIndexPath);
+            if (extIndex.exists()) {
+                return copyToInternal(extIndex, internalDir, projectId + ".json");
             }
 
-            // Fall back to legacy layout.json
-            String extLegacyPath = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/layout.json";
+            // Fall back to layout.json
+            String extLayoutPath = FileUtil.getDragWebDir(context).getAbsolutePath() + "/projects/" + projectId + "/layout.json";
+            File extLayout = new File(extLayoutPath);
+            if (extLayout.exists()) {
+                return copyToInternal(extLayout, internalDir, projectId + ".json");
+            }
+
+            // Fall back to legacy projectId.json in folder
+            String extLegacyPath = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/" + projectId + ".json";
             File extLegacy = new File(extLegacyPath);
             if (extLegacy.exists()) {
                 return copyToInternal(extLegacy, internalDir, projectId + ".json");
@@ -616,12 +641,10 @@ public class ProjectDataManager {
         Map<String, Object> preset = loadPreset("presets/embedding.json");
         if (preset != null) {
             String json = gson.toJson(preset);
-            File layoutFile = new File(extProjectDir, "layout.json");
-            try (FileWriter fw = new FileWriter(layoutFile)) {
-                fw.write(json);
-            } catch (IOException e) {
-                Log.e(TAG, "Error writing layout.json", e);
-            }
+            File pagesDir = new File(extProjectDir, "pages");
+            pagesDir.mkdirs();
+            File indexFile = new File(pagesDir, "index.json");
+            FileUtil.writeFile(indexFile.getAbsolutePath(), json);
         }
 
         // Write external CSS

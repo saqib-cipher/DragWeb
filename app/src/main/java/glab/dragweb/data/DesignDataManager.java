@@ -400,8 +400,20 @@ public class DesignDataManager {
         if (!mapBlocks.containsKey(clean)) {
             return new ArrayList();
         }
-        Map map = (Map) mapBlocks.get(clean);
-        return map == null ? new ArrayList() : !map.containsKey(str2) ? new ArrayList() : (ArrayList) map.get(str2);
+        Map<String, ArrayList<BlockBean>> map = mapBlocks.get(clean);
+        if (map == null) return new ArrayList();
+        if (map.containsKey(str2)) {
+            ArrayList<BlockBean> list = map.get(str2);
+            return list != null ? list : new ArrayList();
+        }
+        // Fallback for page-load aliases
+        if ("onPageLoad_onPageLoad".equals(str2) || "onCreate_initializeLogic".equals(str2) || "initializeLogic_initializeLogic".equals(str2) || "onPageLoad".equals(str2)) {
+            if (map.containsKey("onPageLoad_onPageLoad")) return map.get("onPageLoad_onPageLoad");
+            if (map.containsKey("onCreate_initializeLogic")) return map.get("onCreate_initializeLogic");
+            if (map.containsKey(clean)) return map.get(clean);
+            if (map.containsKey(str)) return map.get(str);
+        }
+        return new ArrayList();
     }
 
     public static ArrayList<BlockBean> getClipboard(String str) {
@@ -1203,7 +1215,17 @@ public class DesignDataManager {
         if (!mapBlocks.containsKey(clean)) {
             mapBlocks.put(clean, new HashMap());
         }
-        ((Map) mapBlocks.get(clean)).put(str2, arrayList);
+        HashMap<String, ArrayList<BlockBean>> pageMap = mapBlocks.get(clean);
+        // Normalize page load events to onPageLoad_onPageLoad and clear alias duplicates
+        if ("onPageLoad_onPageLoad".equals(str2) || "onCreate_initializeLogic".equals(str2) || "initializeLogic_initializeLogic".equals(str2) || "onPageLoad".equals(str2) || "initializeLogic".equals(str2)) {
+            pageMap.remove("onCreate_initializeLogic");
+            pageMap.remove("onPageLoad_onPageLoad");
+            pageMap.remove("initializeLogic_initializeLogic");
+            pageMap.remove(clean);
+            pageMap.remove(str);
+            str2 = "onPageLoad_onPageLoad";
+        }
+        pageMap.put(str2, arrayList != null ? arrayList : new ArrayList<>());
     }
 
     public static class WidgetSelectorData {

@@ -470,18 +470,6 @@ public class ImportSiteActivity extends AppCompatActivity {
             }
         }
 
-        // Save external project.config.json
-        try {
-            File configFile = new File(extPath, "project.config.json");
-            Map<String, String> config = new HashMap<>();
-            config.put("id", projectId);
-            config.put("name", projectName);
-            config.put("description", "Imported website");
-            FileUtil.writeFile(configFile.getAbsolutePath(), new Gson().toJson(config));
-        } catch (Exception e) {
-            Log.e("ImportSite", "Failed to write config: " + e.getMessage());
-        }
-
         // Open the newly created project in MainActivity
         Intent intent = new Intent(this, MainActivity.class);
         intent.putExtra("project_id", projectId);

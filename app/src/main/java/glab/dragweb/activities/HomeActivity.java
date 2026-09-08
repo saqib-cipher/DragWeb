@@ -95,6 +95,13 @@ public class HomeActivity extends AppCompatActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		if (!SafStorageUtil.isStorageConfigured(this)) {
+			Intent splashIntent = new Intent(this, SplashActivity.class);
+			splashIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+			startActivity(splashIntent);
+			finish();
+			return;
+		}
 		EdgeToEdge.enable(this);
 		setContentView(R.layout.home);
 		initViews();
@@ -136,6 +143,14 @@ public class HomeActivity extends AppCompatActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
+		if (!SafStorageUtil.isStorageConfigured(this)) {
+			Intent splashIntent = new Intent(this, SplashActivity.class);
+			splashIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+			startActivity(splashIntent);
+			finish();
+			return;
+		}
+		ensureExternalDirectories();
 		loadProjects();
 	}
 
@@ -466,6 +481,24 @@ public class HomeActivity extends AppCompatActivity {
 		if (dir.exists() && dir.isDirectory()) {
 			File[] files = FileUtil.listFiles(dir);
 			if (files != null) {
+				// Safely remove any legacy loose root files if their project folder exists
+				for (File f : files) {
+					if (!f.isDirectory()) {
+						String fname = f.getName();
+						if (fname.endsWith(".json") || fname.endsWith(".meta") || fname.endsWith(".meta.txt") || fname.endsWith(".theme") || fname.endsWith(".cblocks") || fname.endsWith(".logic")) {
+							String baseId = fname;
+							int dotIdx = baseId.indexOf('.');
+							if (dotIdx > 0) baseId = baseId.substring(0, dotIdx);
+							int underIdx = baseId.indexOf('_');
+							if (underIdx > 0) baseId = baseId.substring(0, underIdx);
+							File projDir = new File(dir, baseId);
+							if (projDir.exists() && projDir.isDirectory()) {
+								try { f.delete(); } catch (Exception ignored) {}
+							}
+						}
+					}
+				}
+
 				for (File projectFolder : files) {
 					if (projectFolder.isDirectory()) {
 						String fileId = projectFolder.getName();
@@ -480,8 +513,11 @@ public class HomeActivity extends AppCompatActivity {
 						project.put("description", "Website Project");
 						
 						String metaJson = FileUtil.readFile(new File(projectFolder, "project.meta").getAbsolutePath());
+						File legacyConfigFile = new File(projectFolder, "project.config.json");
 						if (metaJson == null || metaJson.trim().isEmpty()) {
-							metaJson = FileUtil.readFile(new File(projectFolder, "project.config.json").getAbsolutePath());
+							if (legacyConfigFile.exists()) {
+								metaJson = FileUtil.readFile(legacyConfigFile.getAbsolutePath());
+							}
 						}
 
 						if (metaJson != null && !metaJson.trim().isEmpty()) {
@@ -503,6 +539,22 @@ public class HomeActivity extends AppCompatActivity {
 							SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 							meta.put("created", sdf.format(new Date(projectFolder.lastModified())));
 							FileUtil.writeFile(new File(projectFolder, "project.meta").getAbsolutePath(), new Gson().toJson(meta));
+						}
+
+						// Clean up legacy files if present
+						if (legacyConfigFile.exists()) {
+							FileUtil.deleteFile(legacyConfigFile.getAbsolutePath());
+						}
+						File legacyLayout = new File(projectFolder, "layout.json");
+						if (legacyLayout.exists()) {
+							File indexPage = new File(projectFolder, "pages/index.json");
+							if (!indexPage.exists()) {
+								String lJson = FileUtil.readFile(legacyLayout.getAbsolutePath());
+								if (lJson != null && !lJson.isEmpty()) {
+									FileUtil.writeFile(indexPage.getAbsolutePath(), lJson);
+								}
+							}
+							FileUtil.deleteFile(legacyLayout.getAbsolutePath());
 						}
 						SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
 						project.put("lastModified", sdf.format(new Date(projectFolder.lastModified())));
@@ -585,31 +637,29 @@ public class HomeActivity extends AppCompatActivity {
 		try {
 			File dragWebDir = FileUtil.getDragWebDir(this);
 			File projectsDir = new File(dragWebDir, "projects");
-			if (!projectsDir.exists()) projectsDir.mkdirs();
+			if (!projectsDir.exists()) FileUtil.makeDir(projectsDir.getAbsolutePath());
 
 			File extDir = new File(projectsDir, projectId);
-			if (!extDir.exists()) extDir.mkdirs();
+			if (!extDir.exists()) FileUtil.makeDir(extDir.getAbsolutePath());
 
 			File pagesDir = new File(extDir, "pages");
-			if (!pagesDir.exists()) pagesDir.mkdirs();
+			if (!pagesDir.exists()) FileUtil.makeDir(pagesDir.getAbsolutePath());
 
 			File assetsDir = new File(extDir, "assets");
-			if (!assetsDir.exists()) assetsDir.mkdirs();
+			if (!assetsDir.exists()) FileUtil.makeDir(assetsDir.getAbsolutePath());
 
 			File cssDir = new File(assetsDir, "css");
-			if (!cssDir.exists()) cssDir.mkdirs();
+			if (!cssDir.exists()) FileUtil.makeDir(cssDir.getAbsolutePath());
 
 			File jsDir = new File(assetsDir, "js");
-			if (!jsDir.exists()) jsDir.mkdirs();
+			if (!jsDir.exists()) FileUtil.makeDir(jsDir.getAbsolutePath());
 
 			File imgDir = new File(assetsDir, "images");
-			if (!imgDir.exists()) imgDir.mkdirs();
+			if (!imgDir.exists()) FileUtil.makeDir(imgDir.getAbsolutePath());
 
 			File indexPage = new File(pagesDir, "index.json");
 			FileUtil.writeFile(indexPage.getAbsolutePath(), "[]");
 			FileUtil.writeFile(new File(extDir, "pages.json").getAbsolutePath(), "[\"index\"]");
-			FileUtil.writeFile(new File(extDir, "layout.json").getAbsolutePath(), "[]");
-			FileUtil.writeFile(new File(extDir, projectId + ".json").getAbsolutePath(), "[]");
 			FileUtil.writeFile(new File(extDir, "index_logic.json").getAbsolutePath(), "{}");
 			FileUtil.writeFile(new File(extDir, "theme.json").getAbsolutePath(), new ThemeManager().toJson());
 
@@ -620,7 +670,9 @@ public class HomeActivity extends AppCompatActivity {
 			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 			meta.put("created", sdf.format(new Date()));
 			FileUtil.writeFile(new File(extDir, "project.meta").getAbsolutePath(), new Gson().toJson(meta));
-			FileUtil.writeFile(new File(extDir, "project.config.json").getAbsolutePath(), new Gson().toJson(meta));
+
+			// Generate initial assets (theme.css, style.css, script.js)
+			ProjectCodeGenerator.generateAndSaveAssets(this, projectId, "index");
 
 			openProject(projectId, name);
 		} catch (Exception e) {
@@ -641,12 +693,12 @@ public class HomeActivity extends AppCompatActivity {
 		File extDir = new File(dir, projectId);
 		if (!extDir.exists()) extDir.mkdirs();
 
-		// Save widget tree as project JSON and layout.json
-		File projectFile = new File(dir, projectId + ".json");
+		// Save widget tree as pages/index.json
 		String jsonStr = new Gson().toJson(widgetTree);
-		FileUtil.writeFile(projectFile.getAbsolutePath(), jsonStr);
-		FileUtil.writeFile(new File(extDir, "layout.json").getAbsolutePath(), jsonStr);
-		FileUtil.writeFile(new File(extDir, projectId + ".json").getAbsolutePath(), jsonStr);
+		File pagesDir = new File(extDir, "pages");
+		if (!pagesDir.exists()) pagesDir.mkdirs();
+		FileUtil.writeFile(new File(pagesDir, "index.json").getAbsolutePath(), jsonStr);
+		FileUtil.writeFile(new File(extDir, "pages.json").getAbsolutePath(), "[\"index\"]");
 
 		HtmlCssImporter importer = new HtmlCssImporter(this);
 
@@ -665,15 +717,7 @@ public class HomeActivity extends AppCompatActivity {
 			FileUtil.writeFile(cssLogicFile.getAbsolutePath(), new Gson().toJson(cssBeans));
 		}
 
-		// Save global JS logic blocks if any
-		if (jsContent != null && !jsContent.trim().isEmpty()) {
-			ArrayList<BlockBean> jsBeans = importer.importJsToBeans(jsContent);
-			if (jsBeans != null && !jsBeans.isEmpty()) {
-				String cleanJsName = DesignDataManager.getCleanPageName("js/script.js");
-				File jsLogicFile = new File(extDir, cleanJsName + "_logic.json");
-				FileUtil.writeFile(jsLogicFile.getAbsolutePath(), new Gson().toJson(jsBeans));
-			}
-		}
+		// Global JS content is saved directly to assets/js/script.js without creating redundant script_logic.json
 
 		// Save metadata
 		File metaFile = new File(extDir, "project.meta");
@@ -704,13 +748,6 @@ public class HomeActivity extends AppCompatActivity {
 		try {
 			new File(extDir, "assets").mkdirs();
 
-			File configFile = new File(extDir, "project.config.json");
-			Map<String, String> config = new HashMap<>();
-			config.put("id", projectId);
-			config.put("name", name.isEmpty() ? "Imported Website" : name);
-			config.put("description", "Imported from HTML/CSS");
-			FileUtil.writeFile(configFile.getAbsolutePath(), new Gson().toJson(config));
-
 			// If global CSS blocks were imported, compile and write to assets/css/style.css
 			if (cssLogicBlocks != null && !cssLogicBlocks.isEmpty()) {
 				try {
@@ -739,22 +776,14 @@ public class HomeActivity extends AppCompatActivity {
 				}
 			}
 
-			// If JS content was imported, write to assets/js/script.js and create its logic block
+			// If JS content was imported, write to assets/js/script.js
 			if (jsContent != null && !jsContent.trim().isEmpty()) {
 				try {
 					File targetJsFile = new File(extDir, "assets/js/script.js");
 					targetJsFile.getParentFile().mkdirs();
 					FileUtil.writeFile(targetJsFile.getAbsolutePath(), jsContent);
-
-					// Parse JavaScript content into visual logic blocks
-					List<Map<String, Object>> jsBlocksList = importer.importJsOnly(jsContent);
-
-					String cleanJsName = DesignDataManager.getCleanPageName("js/script.js");
-					File jsLogicFile = new File(extDir, cleanJsName + "_logic.json");
-					ArrayList<BlockBean> jsBeans = importer.convertRawMapsToBeans(jsBlocksList);
-					FileUtil.writeFile(jsLogicFile.getAbsolutePath(), new Gson().toJson(jsBeans));
 				} catch (Exception e) {
-					Log.w("HomeActivity", "Failed to write script.js/logic to assets: " + e.getMessage());
+					Log.w("HomeActivity", "Failed to write script.js to assets: " + e.getMessage());
 				}
 			}
 		} catch (Exception e) {
@@ -886,8 +915,8 @@ public class HomeActivity extends AppCompatActivity {
 				}
 
 				// Update metadata file
-				File dir = new File(FileUtil.getDragWebDir(this), "projects");
-				File metaFile = new File(dir, projectId + ".meta");
+				File metaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/project.meta");
+				if (!metaFile.getParentFile().exists()) metaFile.getParentFile().mkdirs();
 				Map<String, String> meta = new HashMap<>();
 				if (metaFile.exists()) {
 					try {
@@ -906,21 +935,10 @@ public class HomeActivity extends AppCompatActivity {
 				}
 				FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
 
-				// Update external config
-				try {
-					File configFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/project.config.json");
-					if (configFile.exists()) {
-						String configJson = FileUtil.readFile(configFile.getAbsolutePath());
-						Map<String, String> config = new Gson().fromJson(configJson,
-							new TypeToken<Map<String, String>>(){}.getType());
-						if (config != null) {
-							config.put("name", newName);
-							if (!newDesc.isEmpty()) config.put("description", newDesc);
-							FileUtil.writeFile(configFile.getAbsolutePath(), new Gson().toJson(config));
-						}
-					}
-				} catch (Exception e) {
-					// ignore
+				// Clean up legacy config if present
+				File configFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/project.config.json");
+				if (configFile.exists()) {
+					FileUtil.deleteFile(configFile.getAbsolutePath());
 				}
 
 				loadProjects();

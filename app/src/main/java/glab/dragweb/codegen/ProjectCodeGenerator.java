@@ -24,8 +24,12 @@ import java.util.Map;
 public class ProjectCodeGenerator {
 
     public static ThemeManager getProjectThemeManager(String projectId) {
+        return getProjectThemeManager(null, projectId);
+    }
+
+    public static ThemeManager getProjectThemeManager(Context context, String projectId) {
         ThemeManager tm = new ThemeManager();
-        File themeFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/theme.json");
+        File themeFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/theme.json");
         if (themeFile.exists()) {
             try {
                 String json = FileUtil.readFile(themeFile.getAbsolutePath());
@@ -48,13 +52,13 @@ public class ProjectCodeGenerator {
         if (pageName == null || pageName.isEmpty()) pageName = "index";
 
         String cleanPage = DesignDataManager.getCleanPageName(pageName);
-        File assetsDir = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/assets");
+        File assetsDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/assets");
         File cssDir = new File(assetsDir, "css");
         File jsDir = new File(assetsDir, "js");
-        cssDir.mkdirs();
-        jsDir.mkdirs();
+        FileUtil.makeDir(cssDir.getAbsolutePath());
+        FileUtil.makeDir(jsDir.getAbsolutePath());
 
-        ThemeManager themeManager = getProjectThemeManager(projectId);
+        ThemeManager themeManager = getProjectThemeManager(context, projectId);
 
         // 1. Generate & save theme.css
         {
@@ -250,24 +254,7 @@ public class ProjectCodeGenerator {
         BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
         StringBuilder sb = new StringBuilder();
 
-        // Load all logic files in the project directory so mapBlocks is fully populated
-        File projDir = new File(FileUtil.getDragWebDir(), "projects/" + projectId);
-        if (projDir.exists() && projDir.isDirectory()) {
-            File[] files = projDir.listFiles();
-            if (files != null) {
-                for (File f : files) {
-                    if (f.getName().endsWith("_logic.json")) {
-                        String pageKey = f.getName().replace("_logic.json", "");
-                        DesignDataManager.loadSavedLogic(context, projectId, pageKey);
-                    }
-                }
-            }
-        }
         DesignDataManager.loadSavedLogic(context, projectId, cleanPage);
-        DesignDataManager.loadSavedLogic(context, projectId, "script");
-        DesignDataManager.loadSavedLogic(context, projectId, "index");
-
-        java.util.Set<String> compiledFuncs = new java.util.HashSet<>();
 
         // 1. Emit all registered MoreBlock functions
         ArrayList<String> mbCodes = addMoreBlockCodes(context, projectId, compiler);
@@ -277,21 +264,21 @@ public class ProjectCodeGenerator {
             }
         }
 
-        // 2. Collect event blocks from current page AND global JS script page
-        String jsPage = DesignDataManager.getCleanPageName("js/script.js");
-        String[] pagesToCompile = (jsPage.equals(cleanPage)) 
-            ? new String[]{cleanPage} 
-            : new String[]{jsPage, cleanPage};
-
-        for (String pageKey : pagesToCompile) {
-            DesignDataManager.loadSavedLogic(context, projectId, pageKey);
-            HashMap<String, ArrayList<BlockBean>> blocksMap = DesignDataManager.mapBlocks.get(pageKey);
-            if (blocksMap == null || blocksMap.isEmpty()) continue;
-
+        // 2. Collect event blocks from target page (without duplicating alias events)
+        HashMap<String, ArrayList<BlockBean>> blocksMap = DesignDataManager.mapBlocks.get(cleanPage);
+        if (blocksMap != null && !blocksMap.isEmpty()) {
+            java.util.Set<String> processedEvents = new java.util.HashSet<>();
             for (Map.Entry<String, ArrayList<BlockBean>> entry : blocksMap.entrySet()) {
                 String key = entry.getKey();
-                if (key.startsWith("func_") || key.contains("moreBlock")) continue;
+                if (key == null || key.startsWith("func_") || key.contains("moreBlock")) continue;
                 if (isOrContainsDefinedFunc(entry.getValue())) continue;
+
+                // Normalize page load alias events so it only compiles once
+                String normalizedKey = key;
+                if ("onPageLoad_onPageLoad".equals(key) || "onCreate_initializeLogic".equals(key) || "initializeLogic_initializeLogic".equals(key) || key.equals(cleanPage)) {
+                    normalizedKey = "onPageLoad_onPageLoad";
+                }
+                if (!processedEvents.add(normalizedKey)) continue;
 
                 // Filter out HTML blocks — they go into the body, not JS
                 ArrayList<BlockBean> jsBlocks = new ArrayList<>();
@@ -350,9 +337,9 @@ public class ProjectCodeGenerator {
         }
 
         // 2. Compile visual layout styles if inline styles are toggled off
-        ThemeManager themeManager = getProjectThemeManager(projectId);
+        ThemeManager themeManager = getProjectThemeManager(context, projectId);
         if (themeManager != null && !themeManager.isUseInlineStyles()) {
-            File layoutFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/pages/" + cleanPage + ".json");
+            File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages/" + cleanPage + ".json");
             if (layoutFile.exists()) {
                 try {
                     String layoutJson = FileUtil.readFile(layoutFile.getAbsolutePath());

@@ -1746,22 +1746,54 @@ startActivityForResult(intent, 209);
 		}
 		
 		private void saveAndFinish() {
+			final AlertDialog progressDialog = (!isFinishing()) ? UniversalDialog.loading(this, "Saving logic...") : null;
 			try {
-					saveLogic();
-					if (this.pane != null) {
-						ArrayList<BlockBean> beans = getBlocksWithoutDefinedFunc();
-						DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
-						if ("onPageLoad".equals(this.eventName) || "initializeLogic".equals(this.eventName)) {
-							DesignDataManager.setBlocks(this.pageName, "onCreate_initializeLogic", beans);
-							DesignDataManager.setBlocks(this.pageName, "onPageLoad_onPageLoad", beans);
-						}
+				ArrayList<BlockBean> beans = getBlocksWithoutDefinedFunc();
+				DesignDataManager.setBlocks(LogicBlockActivity.filename, this.id + LogicBlockActivity.LOGIC_NAME_SEPARATOR + this.eventName, beans);
+				if ("onPageLoad".equals(this.eventName) || "initializeLogic".equals(this.eventName)) {
+					DesignDataManager.setBlocks(LogicBlockActivity.filename, "onCreate_initializeLogic", beans);
+					DesignDataManager.setBlocks(LogicBlockActivity.filename, "onPageLoad_onPageLoad", beans);
+				}
+				if (this.pageName != null && !this.pageName.isEmpty()) {
+					DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
+					if ("onPageLoad".equals(this.eventName) || "initializeLogic".equals(this.eventName)) {
+						DesignDataManager.setBlocks(this.pageName, "onCreate_initializeLogic", beans);
+						DesignDataManager.setBlocks(this.pageName, "onPageLoad_onPageLoad", beans);
 					}
-					DesignDataManager.saveSavedLogic(this.context != null ? this.context : this, this.projectId, this.pageName);
-					ProjectCodeGenerator.generateAndSaveAssets(this.context != null ? this.context : this, this.projectId, this.pageName);
+				}
+
+				final Context appCtx = getApplicationContext();
+				final String pId = this.projectId;
+				final String fName = LogicBlockActivity.filename;
+				final String pName = this.pageName;
+
+				java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
+					try {
+						DesignDataManager.saveSavedLogic(appCtx, pId, fName);
+						if (pName != null && !pName.isEmpty() && !pName.equals(fName)) {
+							DesignDataManager.saveSavedLogic(appCtx, pId, pName);
+						}
+						ProjectCodeGenerator.generateAndSaveAssets(appCtx, pId, pName != null ? pName : fName);
+					} catch (Exception e) {
+						e.printStackTrace();
+					} finally {
+						runOnUiThread(() -> {
+							if (progressDialog != null && progressDialog.isShowing()) {
+								try { progressDialog.dismiss(); } catch (Exception ignored) {}
+							}
+							setResult(RESULT_OK);
+							finish();
+						});
+					}
+				});
 			} catch (Exception e) {
-					e.printStackTrace();
+				e.printStackTrace();
+				if (progressDialog != null && progressDialog.isShowing()) {
+					try { progressDialog.dismiss(); } catch (Exception ignored) {}
+				}
+				setResult(RESULT_OK);
+				finish();
 			}
-			setResult(RESULT_OK);
 		}
 
 		@Override
@@ -1769,22 +1801,25 @@ startActivityForResult(intent, 209);
 				super.onPause();
 				if (isFinishing()) return; // saveAndFinish() already handled persistence
 				try {
-						saveLogic();
-						if (this.pane != null) {
-								ArrayList<BlockBean> beans = getBlocksWithoutDefinedFunc();
-								DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
-								if ("onPageLoad".equals(this.eventName) || "initializeLogic".equals(this.eventName)) {
-									DesignDataManager.setBlocks(this.pageName, "onCreate_initializeLogic", beans);
-									DesignDataManager.setBlocks(this.pageName, "onPageLoad_onPageLoad", beans);
-								}
+						ArrayList<BlockBean> beans = getBlocksWithoutDefinedFunc();
+						DesignDataManager.setBlocks(LogicBlockActivity.filename, this.id + LogicBlockActivity.LOGIC_NAME_SEPARATOR + this.eventName, beans);
+						if (this.pageName != null && !this.pageName.isEmpty()) {
+							DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
 						}
-						DesignDataManager.saveSavedLogic(this.context != null ? this.context : this, this.projectId, this.pageName);
-						ProjectCodeGenerator.generateAndSaveAssets(this.context != null ? this.context : this, this.projectId, this.pageName);
-			} catch (Exception e) {
-					e.printStackTrace();
-			}
+						final Context appCtx = getApplicationContext();
+						final String pId = this.projectId;
+						final String fName = LogicBlockActivity.filename;
+						java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
+							try {
+								DesignDataManager.saveSavedLogic(appCtx, pId, fName);
+							} catch (Exception ignored) {}
+						});
+				} catch (Exception e) {
+						e.printStackTrace();
+				}
 		}
 
+		@Override
 		public void onBackPressed() {
 				if (this.isPaletteOpened) {
 						openPalette(!this.isPaletteOpened);
@@ -1792,7 +1827,6 @@ startActivityForResult(intent, 209);
 				}
 				if (checkValidForever() && checkValidZero()) {
 						saveAndFinish();
-						super.onBackPressed();
 				}
 		}
 		
@@ -2525,7 +2559,10 @@ startActivityForResult(intent, 209);
 		
 		public boolean onOptionsItemSelected(MenuItem menuItem) {
 				int id = menuItem.getItemId();
-				if (id == R.id.menu_show_source) {
+				if (id == android.R.id.home) {
+						onBackPressed();
+						return true;
+				} else if (id == R.id.menu_show_source) {
 						showSourceCode();
 						return true;
 				} else if (id == R.id.menu_logic_undo) {

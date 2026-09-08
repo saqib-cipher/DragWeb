@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Privacy Policy — DragWeb</title>
+<meta name="description" content="Privacy Policy for DragWeb — A local-first visual website builder and editor. Complete transparency on data, permissions, and security.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="privacy-page">
+
+  <!-- ===== APP BAR ===== -->
+  <header class="appbar">
+    <div class="appbar-row">
+      <a href="index.html" class="icon-btn" aria-label="Back to Fundamentals Guide"><i class="ti ti-arrow-left"></i></a>
+      <div class="appbar-titles">
+        <h1>DragWeb Privacy Policy</h1>
+        <span class="sub">Local-First · Zero Tracking · Open Source</span>
+      </div>
+      <div class="appbar-icons">
+        <a href="index.html" class="top-nav-link"><i class="ti ti-book"></i> Guide</a>
+        <a href="https://github.com/saqib-cipher/DragWeb" target="_blank" rel="noopener noreferrer" class="icon-btn ghost" aria-label="GitHub Repository"><i class="ti ti-brand-github"></i></a>
+      </div>
+    </div>
+  </header>
+
+  <main class="privacy-container">
+
+    <!-- ===== HERO / SUMMARY ===== -->
+    <section class="privacy-hero">
+      <div class="privacy-badge">
+        <i class="ti ti-shield-check"></i>
+        <span>Privacy-First Architecture</span>
+      </div>
+      <h2>Your code belongs to you.<br>Not to the cloud.</h2>
+      <p class="lede">DragWeb is designed from the ground up to respect your privacy. All your visual layouts, logic blocks, stylesheets, scripts, and asset files live exclusively on your device in your local storage directory.</p>
+      
+      <div class="privacy-highlights">
+        <div class="highlight-pill">
+          <i class="ti ti-database-off"></i>
+          <div>
+            <strong>No Cloud Server</strong>
+            <span>Zero remote database tracking</span>
+          </div>
+        </div>
+        <div class="highlight-pill">
+          <i class="ti ti-user-x"></i>
+          <div>
+            <strong>No Account Required</strong>
+            <span>Instant access without sign-in</span>
+          </div>
+        </div>
+        <div class="highlight-pill">
+          <i class="ti ti-device-mobile"></i>
+          <div>
+            <strong>100% Offline Capable</strong>
+            <span>Design &amp; preview without internet</span>
+          </div>
+        </div>
+        <div class="highlight-pill">
+          <i class="ti ti-file-export"></i>
+          <div>
+            <strong>Complete Portability</strong>
+            <span>Standard HTML/CSS/JS export</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== DETAILED SECTIONS ===== -->
+    <div class="policy-sections-grid">
+
+      <!-- Section 1: Overview -->
+      <article class="policy-card" id="overview">
+        <div class="policy-card-header">
+          <div class="policy-icon-wrapper lang-bridge">
+            <i class="ti ti-info-circle"></i>
+          </div>
+          <div>
+            <span class="policy-step">Section 01</span>
+            <h3>Overview &amp; Core Principles</h3>
+          </div>
+        </div>
+        <div class="policy-card-body">
+          <p>DragWeb is a mobile and web visual designer created to help developers and learners build responsive web applications using visual drag-and-drop components and block logic. Our foundational commitment is simple:</p>
+          <ul class="policy-list">
+            <li><strong>Local Storage Exclusivity:</strong> Projects are structured locally under <code>.dragweb/projects/{projectId}/</code> on your device storage.</li>
+            <li><strong>No Tracking or Telemetry:</strong> We do not include third-party analytics SDKs (such as Firebase Analytics, Mixpanel, or Google Analytics) that monitor user behavior.</li>
+            <li><strong>No Ad Networks:</strong> The application contains no advertising trackers or marketing identifiers.</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Section 2: Storage & Permissions -->
+      <article class="policy-card" id="storage">
+        <div class="policy-card-header">
+          <div class="policy-icon-wrapper lang-html">
+            <i class="ti ti-folder-check"></i>
+          </div>
+          <div>
+            <span class="policy-step">Section 02</span>
+            <h3>Storage &amp; Device Permissions</h3>
+          </div>
+        </div>
+        <div class="policy-card-body">
+          <p>To provide file management, custom asset importing, and code generation, DragWeb requires specific file permissions on Android devices:</p>
+          <div class="table-wrap" style="margin-top:12px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Permission / Mechanism</th>
+                  <th>Purpose</th>
+                  <th>Data Handled</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Storage Access Framework (SAF)</code></td>
+                  <td>Grants the app access to pick or create your <code>.dragweb</code> workspace directory.</td>
+                  <td>Project JSON trees, <code>theme.css</code>, <code>style.css</code>, <code>script.js</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>MANAGE_EXTERNAL_STORAGE</code> (Optional / Android 11+)</td>
+                  <td>Allows direct file reading and writing for projects located in external directories.</td>
+                  <td>User-imported images, custom block templates, fonts, and stylesheets.</td>
+                </tr>
+                <tr>
+                  <td><code>READ_MEDIA_IMAGES</code></td>
+                  <td>Allows you to pick and import images into your project's <code>assets/images/</code> folder.</td>
+                  <td>Only the specific image files you select via the system file picker.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <!-- Section 3: Web Previews & Security -->
+      <article class="policy-card" id="previews">
+        <div class="policy-card-header">
+          <div class="policy-icon-wrapper lang-css">
+            <i class="ti ti-browser-check"></i>
+          </div>
+          <div>
+            <span class="policy-step">Section 03</span>
+            <h3>In-App Web Previews</h3>
+          </div>
+        </div>
+        <div class="policy-card-body">
+          <p>When you preview your website inside DragWeb, the built-in Android WebView or Web Sandbox runs your compiled HTML, CSS, and JS entirely on your local device:</p>
+          <ul class="policy-list">
+            <li><strong>Isolated Sandbox:</strong> Preview pages are loaded from local file storage or temporary cache memory.</li>
+            <li><strong>No Remote Interception:</strong> DragWeb does not intercept or log network requests generated within the WebView preview.</li>
+            <li><strong>Third-Party CDN Assets:</strong> If your project explicitly includes external library links (e.g. Google Fonts, Tailwind CDN, Tabler Icons), the WebView will request those assets directly from the respective public CDN server when connected to the internet.</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Section 4: Export & Backups -->
+      <article class="policy-card" id="exports">
+        <div class="policy-card-header">
+          <div class="policy-icon-wrapper lang-js">
+            <i class="ti ti-archive"></i>
+          </div>
+          <div>
+            <span class="policy-step">Section 04</span>
+            <h3>Data Portability &amp; Backups</h3>
+          </div>
+        </div>
+        <div class="policy-card-body">
+          <p>You retain 100% copyright and intellectual property rights over all content, code, and websites you create using DragWeb:</p>
+          <ul class="policy-list">
+            <li><strong>ZIP Backup &amp; Restore:</strong> You can create comprehensive <code>.zip</code> backups of your projects anytime and restore them on any device.</li>
+            <li><strong>Production Clean Export:</strong> The Export feature outputs clean, standards-compliant HTML5, CSS3, and modern ECMAScript without proprietary wrapper dependencies.</li>
+            <li><strong>Zero Lock-in:</strong> You can delete any project or remove the entire <code>.dragweb</code> folder at your discretion without contacting any server.</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Section 5: Children's Privacy -->
+      <article class="policy-card" id="children">
+        <div class="policy-card-header">
+          <div class="policy-icon-wrapper" style="background:rgba(52, 168, 83, 0.15); color:#34a853;">
+            <i class="ti ti-mood-smile"></i>
+          </div>
+          <div>
+            <span class="policy-step">Section 05</span>
+            <h3>Children &amp; Education Privacy</h3>
+          </div>
+        </div>
+        <div class="policy-card-body">
+          <p>DragWeb is suitable for students, educators, and young programmers learning web development. Because DragWeb does not collect personal identifiers, account names, email addresses, or location data, it fully complies with the principles of the Children's Online Privacy Protection Act (COPPA) and GDPR regulations for educational tools.</p>
+        </div>
+      </article>
+
+      <!-- Section 6: Contact & Updates -->
+      <article class="policy-card" id="contact">
+        <div class="policy-card-header">
+          <div class="policy-icon-wrapper" style="background:rgba(241, 224, 90, 0.15); color:#f1e05a;">
+            <i class="ti ti-message-circle-check"></i>
+          </div>
+          <div>
+            <span class="policy-step">Section 06</span>
+            <h3>Policy Updates &amp; Contact</h3>
+          </div>
+        </div>
+        <div class="policy-card-body">
+          <p>We may periodically update this policy to reflect new features or security improvements. Any updates will be published directly to this page and distributed with app releases.</p>
+          <div class="contact-box">
+            <p><strong>Have questions or feedback?</strong></p>
+            <p>Visit the official GitHub repository to open an issue or contribute to DragWeb:</p>
+            <a href="https://github.com/saqib-cipher/DragWeb" target="_blank" rel="noopener noreferrer" class="m3-button primary">
+              <i class="ti ti-brand-github"></i> GitHub Repository
+            </a>
+          </div>
+        </div>
+      </article>
+
+    </div>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <h4>DragWeb</h4>
+          <p>Visual Website Builder &amp; Code Generator for Android &amp; Web</p>
+        </div>
+        <div class="footer-links">
+          <a href="index.html"><i class="ti ti-book"></i> Fundamentals Guide</a>
+          <a href="privacy.html" class="active"><i class="ti ti-shield-lock"></i> Privacy Policy</a>
+          <a href="https://github.com/saqib-cipher/DragWeb" target="_blank" rel="noopener noreferrer"><i class="ti ti-code"></i> Source Code</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 DragWeb. Built with Material 3 Expressive Design.</span>
+      </div>
+    </footer>
+
+  </main>
+
+</body>
+</html>

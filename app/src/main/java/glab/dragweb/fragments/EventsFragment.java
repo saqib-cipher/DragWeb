@@ -189,7 +189,7 @@ public class EventsFragment extends Fragment {
                             .setPositiveButton("Reset", (d, w) -> {
                                 String linkedFile = selectedMb.linkedFile != null ? selectedMb.linkedFile : "js/script.js";
                                 String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
-                                File logicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + cleanPage + "_logic.json");
+                                File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanPage + "_logic.json");
                                 if (logicFile.exists()) {
                                     try {
                                         String json = FileUtil.readFile(logicFile.getAbsolutePath());
@@ -208,7 +208,7 @@ public class EventsFragment extends Fragment {
                                 }
 
                                 // Delete function's own separate logic file if exists
-                                File funcLogicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + cleanPage + "_func_" + selectedName + "_logic.json");
+                                File funcLogicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanPage + "_func_" + selectedName + "_logic.json");
                                 if (funcLogicFile.exists()) {
                                     funcLogicFile.delete();
                                 }
@@ -241,7 +241,7 @@ public class EventsFragment extends Fragment {
                             .setMessage("Are you sure you want to delete all logic blocks for '" + selected + "'? This cannot be undone.")
                             .setPositiveButton("Reset", (d, w) -> {
                                 String cleanName = DesignDataManager.getCleanPageName(selected);
-                                File logicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + cleanName + "_logic.json");
+                                File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanName + "_logic.json");
                                 if (logicFile.exists()) {
                                     logicFile.delete();
                                 }
@@ -331,6 +331,7 @@ public class EventsFragment extends Fragment {
     private List<String> getProjectFiles() {
         List<String> files = new ArrayList<>();
         files.add("css/style.css");
+        files.add("css/theme.css");
         files.add("js/script.js");
         files.add("index.html");
 
@@ -343,7 +344,7 @@ public class EventsFragment extends Fragment {
             }
         }
 
-        String path = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/assets";
+        String path = FileUtil.getDragWebDir(getContext()).getAbsolutePath() + "/projects/" + projectId + "/assets";
         File dir = new File(path);
         if (dir.exists() && dir.isDirectory()) {
             collectFilesRecursive(dir, dir, files);
@@ -352,7 +353,7 @@ public class EventsFragment extends Fragment {
     }
 
     private void collectFilesRecursive(File root, File current, List<String> filesList) {
-        File[] files = current.listFiles();
+        File[] files = FileUtil.listFiles(current);
         if (files != null) {
             for (File f : files) {
                 if (f.isDirectory()) {
@@ -361,9 +362,7 @@ public class EventsFragment extends Fragment {
                     String name = f.getName().toLowerCase();
                     if (name.endsWith(".css") || name.endsWith(".js") || name.endsWith(".html")) {
                         String relative = f.getAbsolutePath().substring(root.getAbsolutePath().length() + 1);
-                        if (name.contains("theme.css") || relative.contains("theme.css")) {
-                            continue; // Lock/hide theme.css
-                        }
+                        relative = relative.replace("\\", "/");
                         if (!filesList.contains(relative)) {
                             filesList.add(relative);
                         }
@@ -447,6 +446,18 @@ public class EventsFragment extends Fragment {
     private int getBlockCountForCss(String cssPath) {
         if (getContext() == null) return 0;
         String cleanName = DesignDataManager.getCleanPageName(cssPath);
+
+        // 1. Prefer the in-memory mapBlocks — always reflects the latest edits,
+        //    including blocks deleted in LogicBlockActivity before it saved to disk.
+        if (DesignDataManager.mapBlocks != null
+                && DesignDataManager.mapBlocks.containsKey(cleanName)) {
+            HashMap<String, ArrayList<BlockBean>> blocksMap = DesignDataManager.mapBlocks.get(cleanName);
+            if (blocksMap != null) {
+                return countBlocksFromMap(blocksMap);
+            }
+        }
+
+        // 2. Fall back to disk only when the key is absent from memory
         File logicFile = new File(FileUtil.getDragWebDir(getContext()),
             "projects/" + projectId + "/" + cleanName + "_logic.json");
         if (logicFile.exists()) {
@@ -455,33 +466,36 @@ public class EventsFragment extends Fragment {
                 if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
                     DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(json, cssPath);
                     if (data != null && data.blocks != null) {
-                        java.util.HashSet<String> seenBlockIds = new java.util.HashSet<>();
-                        int count = 0;
-                        boolean hasOnCreate = data.blocks.containsKey("onCreate_initializeLogic");
-                        for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
-                            String key = entry.getKey();
-                            if (key.startsWith("func_")) continue;
-                            if (hasOnCreate && "onPageLoad_onPageLoad".equals(key)) continue;
-                            if (entry.getValue() != null) {
-                                for (BlockBean b : entry.getValue()) {
-                                    if (b != null) {
-                                        if (b.id != null && !b.id.isEmpty()) {
-                                            if (seenBlockIds.add(b.id)) {
-                                                count++;
-                                            }
-                                        } else {
-                                            count++;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        return count;
+                        return countBlocksFromMap(data.blocks);
                     }
                 }
             } catch (Exception ignored) {}
         }
         return 0;
+    }
+
+    /** Shared counting logic used by both in-memory and disk paths. */
+    private int countBlocksFromMap(java.util.Map<String, ArrayList<BlockBean>> blocksMap) {
+        java.util.HashSet<String> seenBlockIds = new java.util.HashSet<>();
+        int count = 0;
+        boolean hasOnCreate = blocksMap.containsKey("onCreate_initializeLogic");
+        for (Map.Entry<String, ArrayList<BlockBean>> entry : blocksMap.entrySet()) {
+            String key = entry.getKey();
+            if (key.startsWith("func_")) continue;
+            if (hasOnCreate && "onPageLoad_onPageLoad".equals(key)) continue;
+            if (entry.getValue() != null) {
+                for (BlockBean b : entry.getValue()) {
+                    if (b != null) {
+                        if (b.id != null && !b.id.isEmpty()) {
+                            if (seenBlockIds.add(b.id)) count++;
+                        } else {
+                            count++;
+                        }
+                    }
+                }
+            }
+        }
+        return count;
     }
 
     private void showImportCodeDialog() {
@@ -987,7 +1001,7 @@ public class EventsFragment extends Fragment {
                             .setMessage("Are you sure you want to delete all logic blocks for '" + item.title + "'? This cannot be undone.")
                             .setPositiveButton("Reset", (d, w) -> {
                                 String cleanName = DesignDataManager.getCleanPageName(item.targetPath);
-                                File logicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + cleanName + "_logic.json");
+                                File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanName + "_logic.json");
                                 if (logicFile.exists()) {
                                     logicFile.delete();
                                 }

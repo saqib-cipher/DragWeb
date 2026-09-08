@@ -153,7 +153,7 @@ public class AssetsFragment extends Fragment {
         intent.putExtra("read_only", isLocked);
         String relPath = "";
         try {
-            String assetsPath = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/assets";
+            String assetsPath = FileUtil.getDragWebDir(getContext()).getAbsolutePath() + "/projects/" + projectId + "/assets";
             File rootDir = new File(assetsPath);
             String rootCanonical = rootDir.getCanonicalPath();
             String fileCanonical = file.getCanonicalPath();
@@ -173,9 +173,20 @@ public class AssetsFragment extends Fragment {
     private void setupFileExplorer() {
         if (getContext() == null) return;
 
-        String assetsPath = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/assets";
+        String assetsPath = FileUtil.getDragWebDir(getContext()).getAbsolutePath() + "/projects/" + projectId + "/assets";
+        FileUtil.makeDir(assetsPath);
         File assetsDir = new File(assetsPath);
-        if (!assetsDir.exists()) assetsDir.mkdirs();
+
+        // Ensure default asset directories and files exist
+        File cssDir = new File(assetsDir, "css");
+        File jsDir = new File(assetsDir, "js");
+        FileUtil.makeDir(cssDir.getAbsolutePath());
+        FileUtil.makeDir(jsDir.getAbsolutePath());
+        File styleCss = new File(cssDir, "style.css");
+        File themeCss = new File(cssDir, "theme.css");
+        if (!styleCss.exists() || !themeCss.exists()) {
+            ProjectCodeGenerator.generateAndSaveAssets(getContext(), projectId, "index");
+        }
 
         fileExplorerAdapter = new FileExplorerAdapter(getContext(), assetsDir);
         fileExplorerAdapter.setOnFileClickListener(file -> {
@@ -241,20 +252,13 @@ public class AssetsFragment extends Fragment {
         if (fileExplorerAdapter == null) return;
         File current = fileExplorerAdapter.getCurrentDir();
         File newDir = new File(current, name.trim());
-        if (newDir.exists()) {
-            Toast.makeText(getContext(), "Directory already exists", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (newDir.mkdirs()) {
-            if (fileExplorerAdapter != null) {
-                fileExplorerAdapter.setFileType(newDir, "external");
-            }
+        FileUtil.makeDir(newDir.getAbsolutePath());
+        if (fileExplorerAdapter != null) {
+            fileExplorerAdapter.setFileType(newDir, "external");
             fileExplorerAdapter.navigateTo(current);
-            updateAssetsPath();
-            Toast.makeText(getContext(), "Folder created: " + name, Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(getContext(), "Failed to create folder", Toast.LENGTH_SHORT).show();
         }
+        updateAssetsPath();
+        Toast.makeText(getContext(), "Folder created: " + name, Toast.LENGTH_SHORT).show();
     }
 
     private void saveAssetFile(Uri uri) {
@@ -263,9 +267,9 @@ public class AssetsFragment extends Fragment {
             File targetDir = fileExplorerAdapter != null ?
                 fileExplorerAdapter.getCurrentDir() : null;
             if (targetDir == null) {
-                targetDir = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/assets");
+                targetDir = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/assets");
             }
-            targetDir.mkdirs();
+            FileUtil.makeDir(targetDir.getAbsolutePath());
 
             String name = getFileNameFromUri(uri);
             if (name == null) name = "asset_" + System.currentTimeMillis();
@@ -410,19 +414,9 @@ public class AssetsFragment extends Fragment {
     }
 
     private boolean deleteRecursive(File fileOrDirectory) {
-        if (fileOrDirectory.isDirectory()) {
-            for (File child : fileOrDirectory.listFiles()) {
-                deleteRecursive(child);
-            }
-        }
-        return fileOrDirectory.delete();
-    }
-
-    private void useFileAsImageSource(File file) {
-        Activity act = getActivity();
-        if (act instanceof MainActivity) {
-            ((MainActivity) act).useFileAsImageSource(file);
-        }
+        if (fileOrDirectory == null) return false;
+        FileUtil.deleteFile(fileOrDirectory.getAbsolutePath());
+        return !fileOrDirectory.exists();
     }
 
     public void refresh() {
