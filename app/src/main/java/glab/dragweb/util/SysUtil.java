@@ -1,0 +1,31 @@
+package glab.dragweb.util;
+
+import glab.dragweb.R;
+import glab.dragweb.activities.*;
+import glab.dragweb.fragments.*;
+import glab.dragweb.engine.*;
+import glab.dragweb.ui.*;
+import glab.dragweb.logic.*;
+import glab.dragweb.codegen.*;
+import glab.dragweb.data.*;
+import glab.dragweb.adapters.*;
+import glab.dragweb.models.*;
+import glab.dragweb.util.*;
+import glab.dragweb.colorpicker.*;
+
+import android.content.Context;
+
+public class SysUtil {
+    public static int getStatusBarHeight(Context var0) {
+        int var1 = var0.getResources().getIdentifier("status_bar_height", "dimen", "android");
+        
+        int var2 = 0;
+        if(var1 > 0) {
+            var2 = var0.getResources().getDimensionPixelSize(var1);
+        }
+        
+        //lol
+
+        return var2;
+    }
+}

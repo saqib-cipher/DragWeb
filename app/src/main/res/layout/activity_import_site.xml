@@ -174,7 +174,7 @@
                     android:id="@+id/switchConvertCss"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:checked="false"
+                    android:checked="true"
                     app:thumbIcon="@drawable/ic_thumb_selector"/>
             </LinearLayout>
 
@@ -252,19 +252,19 @@
                     android:id="@+id/switchConvertJs"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:checked="false"
+                    android:checked="true"
                     app:thumbIcon="@drawable/ic_thumb_selector"/>
             </LinearLayout>
 
-            <!-- Warning Notice Card -->
+            <!-- Info Notice Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 app:cardCornerRadius="12dp"
-                app:strokeColor="?attr/colorError"
+                app:strokeColor="?attr/colorPrimary"
                 app:strokeWidth="1dp"
-                app:cardBackgroundColor="#14FF5252"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
                 style="?attr/materialCardViewFilledStyle">
 
                 <LinearLayout
@@ -278,16 +278,16 @@
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:src="@drawable/emphasis"
-                        app:tint="?attr/colorError" />
+                        app:tint="?attr/colorPrimary" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="10dp"
-                        android:text="Notice: Code-to-blocks conversion is unstable (specially for JS). We recommend toggling it OFF to use clean raw code blocks."
+                        android:text="CSS styles and JavaScript will automatically be converted to visual logic blocks in the Logic Editor."
                         android:textSize="13sp"
-                        android:textColor="?attr/colorError" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

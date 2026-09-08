@@ -36,7 +36,7 @@
                 android:layout_height="match_parent"
                 android:alpha="0.5" />
 
-            <sketchweb.gl.ViewLogicEditor
+            <glab.dragweb.ui.ViewLogicEditor
                 android:id="@+id/editor"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
@@ -162,14 +162,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content">
 
-            <sketchweb.gl.PaletteBlock
+            <glab.dragweb.logic.PaletteBlock
                 android:id="@+id/palette_block"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
         </LinearLayout>
     </LinearLayout>
 
-    <sketchweb.gl.ViewDummy
+    <glab.dragweb.ui.ViewDummy
         android:id="@+id/dummy"
         android:visibility="gone"
         android:layout_width="match_parent"

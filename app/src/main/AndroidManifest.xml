@@ -1,6 +1,5 @@
 <manifest
 	xmlns:android="http://schemas.android.com/apk/res/android">
-	<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 	<uses-permission android:name="android.permission.INTERNET" />
@@ -14,26 +13,26 @@
 		android:usesCleartextTraffic="true"
 		android:theme="@style/AppTheme">
 		<activity
-			android:name=".MainActivity"
+			android:name=".activities.MainActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:supportsPictureInPicture="true"
 			android:screenOrientation="portrait"
 			android:windowSoftInputMode="stateHidden" />
 		<activity
-			android:name=".ManagePageActivity"
+			android:name=".activities.ManagePageActivity"
 			android:configChanges="orientation|screenSize"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="stateHidden|adjustResize"
 			android:exported="false" />
 		<activity
-			android:name=".EditorSettingsActivity"
+			android:name=".activities.EditorSettingsActivity"
 			android:configChanges="orientation|screenSize"
 			android:hardwareAccelerated="true"
 			android:theme="@style/AppTheme"
 			android:exported="false" />
 		<activity
-			android:name=".SplashActivity"
+			android:name=".activities.SplashActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:supportsPictureInPicture="true"
@@ -46,82 +45,83 @@
 			</intent-filter>
 		</activity>
 		<activity
-			android:name=".HomeActivity"
+			android:name=".activities.HomeActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:supportsPictureInPicture="true"
 			android:windowSoftInputMode="stateHidden"
 			android:exported="false" />
+
 		<activity
-			android:name=".ImportSiteActivity"
+			android:name=".activities.ImportSiteActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="adjustResize"
 			android:theme="@style/AppTheme"
 			android:exported="false" />
 		<activity
-			android:name=".LogicBlockActivity"
+			android:name=".activities.LogicBlockActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="stateHidden|adjustResize"
 			android:exported="false" />
 		<activity
-			android:name=".TextEditorActivity"
+			android:name=".activities.TextEditorActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="stateHidden|adjustResize"
 			android:theme="@style/AppTheme"
 			android:exported="false" />
 		<activity
-			android:name=".BlockParamManagerActivity"
+			android:name=".activities.BlockParamManagerActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="stateHidden"
 			android:exported="false" />
 		<activity
-			android:name=".ManageBlocksWidgetsActivity"
+			android:name=".activities.ManageBlocksWidgetsActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="stateHidden"
 			android:exported="false" />
 		<activity
-			android:name=".ManageBlocksActivity"
+			android:name=".activities.ManageBlocksActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="stateHidden|adjustResize"
 			android:exported="false" />
 		<activity
-			android:name=".ManageCategoriesActivity"
+			android:name=".activities.ManageCategoriesActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="stateHidden|adjustResize"
 			android:exported="false" />
 		<activity
-			android:name=".ManageWidgetsActivity"
+			android:name=".activities.ManageWidgetsActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="stateHidden|adjustResize"
 			android:exported="false" />
 		<activity
-			android:name=".BlockWidgetEditorActivity"
+			android:name=".activities.BlockWidgetEditorActivity"
 			android:configChanges="orientation|screenSize"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="stateHidden|adjustResize"
 			android:exported="false" />
 		<activity
-			android:name=".PreviewActivity"
+			android:name=".activities.PreviewActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:windowSoftInputMode="stateHidden"
 			android:exported="false" />
 		<activity
-			android:name=".DebugActivity"
+			android:name=".activities.DebugActivity"
 			android:screenOrientation="portrait"
 			android:theme="@style/AppTheme.DebugActivity" />
 
 		<provider
 			android:name="androidx.startup.InitializationProvider"
-			android:authorities="sketchweb.gl.androidx-startup"
+			android:authorities="${applicationId}.androidx-startup"
 			android:exported="false">
 			<meta-data
 				android:name="androidx.lifecycle.ProcessLifecycleInitializer"
