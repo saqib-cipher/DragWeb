@@ -634,51 +634,66 @@ public class HomeActivity extends AppCompatActivity {
 	}
 
 	private void createProject(String projectId, String name, String description) {
-		try {
-			File dragWebDir = FileUtil.getDragWebDir(this);
-			File projectsDir = new File(dragWebDir, "projects");
-			if (!projectsDir.exists()) FileUtil.makeDir(projectsDir.getAbsolutePath());
+		androidx.appcompat.app.AlertDialog progressDialog = new MaterialAlertDialogBuilder(this)
+			.setTitle("Creating Project")
+			.setMessage("Setting up project workspace...")
+			.setCancelable(false)
+			.create();
+		progressDialog.show();
 
-			File extDir = new File(projectsDir, projectId);
-			if (!extDir.exists()) FileUtil.makeDir(extDir.getAbsolutePath());
+		java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
+			try {
+				File dragWebDir = FileUtil.getDragWebDir(HomeActivity.this);
+				File projectsDir = new File(dragWebDir, "projects");
+				if (!projectsDir.exists()) FileUtil.makeDir(projectsDir.getAbsolutePath());
 
-			File pagesDir = new File(extDir, "pages");
-			if (!pagesDir.exists()) FileUtil.makeDir(pagesDir.getAbsolutePath());
+				File extDir = new File(projectsDir, projectId);
+				if (!extDir.exists()) FileUtil.makeDir(extDir.getAbsolutePath());
 
-			File assetsDir = new File(extDir, "assets");
-			if (!assetsDir.exists()) FileUtil.makeDir(assetsDir.getAbsolutePath());
+				File pagesDir = new File(extDir, "pages");
+				if (!pagesDir.exists()) FileUtil.makeDir(pagesDir.getAbsolutePath());
 
-			File cssDir = new File(assetsDir, "css");
-			if (!cssDir.exists()) FileUtil.makeDir(cssDir.getAbsolutePath());
+				File assetsDir = new File(extDir, "assets");
+				if (!assetsDir.exists()) FileUtil.makeDir(assetsDir.getAbsolutePath());
 
-			File jsDir = new File(assetsDir, "js");
-			if (!jsDir.exists()) FileUtil.makeDir(jsDir.getAbsolutePath());
+				File cssDir = new File(assetsDir, "css");
+				if (!cssDir.exists()) FileUtil.makeDir(cssDir.getAbsolutePath());
 
-			File imgDir = new File(assetsDir, "images");
-			if (!imgDir.exists()) FileUtil.makeDir(imgDir.getAbsolutePath());
+				File jsDir = new File(assetsDir, "js");
+				if (!jsDir.exists()) FileUtil.makeDir(jsDir.getAbsolutePath());
 
-			File indexPage = new File(pagesDir, "index.json");
-			FileUtil.writeFile(indexPage.getAbsolutePath(), "[]");
-			FileUtil.writeFile(new File(extDir, "pages.json").getAbsolutePath(), "[\"index\"]");
-			FileUtil.writeFile(new File(extDir, "index_logic.json").getAbsolutePath(), "{}");
-			FileUtil.writeFile(new File(extDir, "theme.json").getAbsolutePath(), new ThemeManager().toJson());
+				File imgDir = new File(assetsDir, "images");
+				if (!imgDir.exists()) FileUtil.makeDir(imgDir.getAbsolutePath());
 
-			Map<String, String> meta = new HashMap<>();
-			meta.put("id", projectId);
-			meta.put("name", name);
-			meta.put("description", description.isEmpty() ? "Website project" : description);
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-			meta.put("created", sdf.format(new Date()));
-			FileUtil.writeFile(new File(extDir, "project.meta").getAbsolutePath(), new Gson().toJson(meta));
+				File indexPage = new File(pagesDir, "index.json");
+				FileUtil.writeFile(indexPage.getAbsolutePath(), "[]");
+				FileUtil.writeFile(new File(extDir, "pages.json").getAbsolutePath(), "[\"index\"]");
+				FileUtil.writeFile(new File(extDir, "index_logic.json").getAbsolutePath(), "{}");
+				FileUtil.writeFile(new File(extDir, "theme.json").getAbsolutePath(), new ThemeManager().toJson());
 
-			// Generate initial assets (theme.css, style.css, script.js)
-			ProjectCodeGenerator.generateAndSaveAssets(this, projectId, "index");
+				Map<String, String> meta = new HashMap<>();
+				meta.put("id", projectId);
+				meta.put("name", name);
+				meta.put("description", description.isEmpty() ? "Website project" : description);
+				SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+				meta.put("created", sdf.format(new Date()));
+				FileUtil.writeFile(new File(extDir, "project.meta").getAbsolutePath(), new Gson().toJson(meta));
 
-			openProject(projectId, name);
-		} catch (Exception e) {
-			Log.e("HomeActivity", "Error creating project: " + e.getMessage(), e);
-			Toast.makeText(this, "Failed to create project: " + e.getMessage(), Toast.LENGTH_LONG).show();
-		}
+				// Generate initial assets (theme.css, style.css, script.js)
+				ProjectCodeGenerator.generateAndSaveAssets(HomeActivity.this, projectId, "index");
+
+				runOnUiThread(() -> {
+					try { progressDialog.dismiss(); } catch (Exception ignored) {}
+					openProject(projectId, name);
+				});
+			} catch (Exception e) {
+				Log.e("HomeActivity", "Error creating project: " + e.getMessage(), e);
+				runOnUiThread(() -> {
+					try { progressDialog.dismiss(); } catch (Exception ignored) {}
+					Toast.makeText(HomeActivity.this, "Failed to create project: " + e.getMessage(), Toast.LENGTH_LONG).show();
+				});
+			}
+		});
 	}
 
 	/**

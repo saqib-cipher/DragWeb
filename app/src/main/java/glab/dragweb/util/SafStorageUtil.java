@@ -577,9 +577,10 @@ public class SafStorageUtil {
                     File[] result = new File[children.length];
                     for (int i = 0; i < children.length; i++) {
                         String name = children[i].getName();
-                        // Cache child in fileCache if it's a file
-                        if (children[i].isFile()) {
-                            String childSubPath = subPath.isEmpty() ? name : subPath + "/" + name;
+                        String childSubPath = subPath.isEmpty() ? name : subPath + "/" + name;
+                        if (children[i].isDirectory()) {
+                            dirCache.put(childSubPath, children[i]);
+                        } else if (children[i].isFile()) {
                             fileCache.put(childSubPath, children[i]);
                         }
                         result[i] = new File(dir, name != null ? name : "");
@@ -595,6 +596,85 @@ public class SafStorageUtil {
 
     public static File[] listSafFiles(File dir) {
         return listSafFiles(SketchApplication.getContext(), dir);
+    }
+
+    public static boolean isSafDirectory(Context context, File file) {
+        if (context == null) context = SketchApplication.getContext();
+        if (context == null || file == null) return false;
+        try {
+            String subPath = getRelativeSubPath(context, file.getAbsolutePath());
+            DocumentFile doc = getDirectoryDocumentFile(context, subPath, false);
+            return doc != null && doc.exists() && doc.isDirectory();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static boolean isSafDirectory(File file) {
+        return isSafDirectory(SketchApplication.getContext(), file);
+    }
+
+    public static boolean isSafFile(Context context, File file) {
+        if (context == null) context = SketchApplication.getContext();
+        if (context == null || file == null) return false;
+        try {
+            DocumentFile doc = getFileDocumentFile(context, file.getAbsolutePath(), false);
+            return doc != null && doc.exists() && doc.isFile();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static boolean isSafFile(File file) {
+        return isSafFile(SketchApplication.getContext(), file);
+    }
+
+    public static boolean safFileExists(Context context, File file) {
+        if (context == null) context = SketchApplication.getContext();
+        if (context == null || file == null) return false;
+        try {
+            String subPath = getRelativeSubPath(context, file.getAbsolutePath());
+            DocumentFile dirDoc = getDirectoryDocumentFile(context, subPath, false);
+            if (dirDoc != null && dirDoc.exists()) return true;
+            DocumentFile fileDoc = getFileDocumentFile(context, file.getAbsolutePath(), false);
+            return fileDoc != null && fileDoc.exists();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static boolean safFileExists(File file) {
+        return safFileExists(SketchApplication.getContext(), file);
+    }
+
+    public static long getSafFileLength(Context context, File file) {
+        if (context == null) context = SketchApplication.getContext();
+        if (context == null || file == null) return 0L;
+        try {
+            DocumentFile doc = getFileDocumentFile(context, file.getAbsolutePath(), false);
+            return doc != null && doc.exists() ? doc.length() : 0L;
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
+
+    public static long getSafFileLength(File file) {
+        return getSafFileLength(SketchApplication.getContext(), file);
+    }
+
+    public static long getSafLastModified(Context context, File file) {
+        if (context == null) context = SketchApplication.getContext();
+        if (context == null || file == null) return 0L;
+        try {
+            DocumentFile doc = getFileDocumentFile(context, file.getAbsolutePath(), false);
+            return doc != null && doc.exists() ? doc.lastModified() : 0L;
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
+
+    public static long getSafLastModified(File file) {
+        return getSafLastModified(SketchApplication.getContext(), file);
     }
 
     public static boolean isSafFileMissingOrEmpty(Context context, String path) {

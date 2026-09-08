@@ -147,19 +147,89 @@ public class FileUtil {
 
     public static File[] listFiles(File dir) {
         if (dir == null) return new File[0];
+        java.util.LinkedHashMap<String, File> resultMap = new java.util.LinkedHashMap<>();
+
         try {
             File[] files = dir.listFiles();
             if (files != null) {
-                return files;
+                for (File f : files) {
+                    if (f != null && f.getName() != null && !f.getName().isEmpty()) {
+                        resultMap.put(f.getName(), f);
+                    }
+                }
             }
         } catch (Exception ignored) {}
 
-        // Fallback to SAF
-        return SafStorageUtil.listSafFiles(dir);
+        try {
+            File[] safFiles = SafStorageUtil.listSafFiles(dir);
+            if (safFiles != null) {
+                for (File f : safFiles) {
+                    if (f != null && f.getName() != null && !f.getName().isEmpty()) {
+                        if (!resultMap.containsKey(f.getName())) {
+                            resultMap.put(f.getName(), f);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return resultMap.values().toArray(new File[0]);
     }
 
     public static File[] listFiles(String path) {
         if (path == null || path.isEmpty()) return new File[0];
         return listFiles(new File(path));
+    }
+
+    public static boolean isDirectory(File file) {
+        if (file == null) return false;
+        try {
+            if (file.exists() && file.isDirectory()) {
+                return true;
+            }
+        } catch (Exception ignored) {}
+        return SafStorageUtil.isSafDirectory(file);
+    }
+
+    public static boolean isFile(File file) {
+        if (file == null) return false;
+        try {
+            if (file.exists() && file.isFile()) {
+                return true;
+            }
+        } catch (Exception ignored) {}
+        return SafStorageUtil.isSafFile(file);
+    }
+
+    public static boolean exists(File file) {
+        if (file == null) return false;
+        try {
+            if (file.exists()) {
+                return true;
+            }
+        } catch (Exception ignored) {}
+        return SafStorageUtil.safFileExists(file);
+    }
+
+    public static long getFileLength(File file) {
+        if (file == null) return 0L;
+        try {
+            if (file.exists()) {
+                long len = file.length();
+                if (len > 0) return len;
+            }
+        } catch (Exception ignored) {}
+        return SafStorageUtil.getSafFileLength(file);
+    }
+
+    public static long getLastModified(File file) {
+        if (file == null) return 0L;
+        try {
+            if (file.exists()) {
+                long mod = file.lastModified();
+                if (mod > 0) return mod;
+            }
+        } catch (Exception ignored) {}
+        return SafStorageUtil.getSafLastModified(file);
     }
 }

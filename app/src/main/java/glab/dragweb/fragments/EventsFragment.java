@@ -276,40 +276,53 @@ public class EventsFragment extends Fragment {
         return clean.isEmpty() ? text : clean;
     }
 
+    private final java.util.concurrent.ExecutorService bgExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+
     private void refreshLogicList() {
         if (getContext() == null || rvEvents == null) return;
 
-        List<EventListItem> items = new ArrayList<>();
+        final int tabSnap = currentTab;
+        final String projId = projectId;
 
-        if (currentTab == 3) {
-            List<FunctionItem> functions = getAllProjectFunctions();
-            for (FunctionItem f : functions) {
-                EventListItem item = new EventListItem();
-                item.isFunction = true;
-                item.title = getCleanBlockName(f.name != null && !f.name.isEmpty() ? f.name : f.spec);
-                item.subtitle = "Linked to: " + f.linkedFile;
-                item.tag = "FUNC";
-                item.targetPath = f.linkedFile;
-                item.funcName = f.name;
-                item.blockCount = getBlockCountForMoreBlock(f.linkedFile, f.name);
-                items.add(item);
-            }
-        } else {
-            List<String> filteredFiles = getFilteredFiles(currentTab);
-            for (String f : filteredFiles) {
-                EventListItem item = new EventListItem();
-                item.isFunction = false;
-                String displayName = f.substring(f.lastIndexOf('/') + 1);
-                item.title = displayName;
-                item.subtitle = f;
-                item.tag = f.endsWith(".js") ? "JS" : f.endsWith(".html") ? "HTML" : "CSS";
-                item.targetPath = f;
-                item.blockCount = getBlockCountForCss(f);
-                items.add(item);
-            }
-        }
+        bgExecutor.execute(() -> {
+            List<EventListItem> items = new ArrayList<>();
 
-        rvEvents.setAdapter(new CssFilesAdapter(items));
+            if (tabSnap == 3) {
+                List<FunctionItem> functions = getAllProjectFunctions();
+                for (FunctionItem f : functions) {
+                    EventListItem item = new EventListItem();
+                    item.isFunction = true;
+                    item.title = getCleanBlockName(f.name != null && !f.name.isEmpty() ? f.name : f.spec);
+                    item.subtitle = "Linked to: " + f.linkedFile;
+                    item.tag = "FUNC";
+                    item.targetPath = f.linkedFile;
+                    item.funcName = f.name;
+                    item.blockCount = getBlockCountForMoreBlock(f.linkedFile, f.name);
+                    items.add(item);
+                }
+            } else {
+                List<String> filteredFiles = getFilteredFiles(tabSnap);
+                for (String f : filteredFiles) {
+                    EventListItem item = new EventListItem();
+                    item.isFunction = false;
+                    String displayName = f.substring(f.lastIndexOf('/') + 1);
+                    item.title = displayName;
+                    item.subtitle = f;
+                    item.tag = f.endsWith(".js") ? "JS" : f.endsWith(".html") ? "HTML" : "CSS";
+                    item.targetPath = f;
+                    item.blockCount = getBlockCountForCss(f);
+                    items.add(item);
+                }
+            }
+
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    if (!isAdded() || rvEvents == null) return;
+                    if (tabSnap != currentTab) return;
+                    rvEvents.setAdapter(new CssFilesAdapter(items));
+                });
+            }
+        });
     }
 
     private List<String> getFilteredFiles(int tab) {
@@ -346,7 +359,7 @@ public class EventsFragment extends Fragment {
 
         String path = FileUtil.getDragWebDir(getContext()).getAbsolutePath() + "/projects/" + projectId + "/assets";
         File dir = new File(path);
-        if (dir.exists() && dir.isDirectory()) {
+        if (FileUtil.exists(dir) && FileUtil.isDirectory(dir)) {
             collectFilesRecursive(dir, dir, files);
         }
         return files;
@@ -356,9 +369,9 @@ public class EventsFragment extends Fragment {
         File[] files = FileUtil.listFiles(current);
         if (files != null) {
             for (File f : files) {
-                if (f.isDirectory()) {
+                if (FileUtil.isDirectory(f)) {
                     collectFilesRecursive(root, f, filesList);
-                } else if (f.isFile()) {
+                } else {
                     String name = f.getName().toLowerCase();
                     if (name.endsWith(".css") || name.endsWith(".js") || name.endsWith(".html")) {
                         String relative = f.getAbsolutePath().substring(root.getAbsolutePath().length() + 1);

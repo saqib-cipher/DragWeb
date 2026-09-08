@@ -75,6 +75,9 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     private boolean multiSelectEnabled = false;
     private final Set<String> selectedPaths = new HashSet<>();
 
+    private static final java.util.concurrent.ExecutorService bgExecutor = java.util.concurrent.Executors.newFixedThreadPool(2);
+    private final android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+
     private static final LruCache<String, Bitmap> THUMB_CACHE =
         new LruCache<String, Bitmap>(8 * 1024 * 1024) {
             @Override protected int sizeOf(String key, Bitmap value) {
@@ -291,8 +294,10 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             File[] dirFiles = FileUtil.listFiles(currentDir);
             if (dirFiles != null && dirFiles.length > 0) {
                 Arrays.sort(dirFiles, (a, b) -> {
-                    if (a.isDirectory() && !b.isDirectory()) return -1;
-                    if (!a.isDirectory() && b.isDirectory()) return 1;
+                    boolean aIsDir = FileUtil.isDirectory(a);
+                    boolean bIsDir = FileUtil.isDirectory(b);
+                    if (aIsDir && !bIsDir) return -1;
+                    if (!aIsDir && bIsDir) return 1;
                     return a.getName().compareToIgnoreCase(b.getName());
                 });
                 allFiles.addAll(Arrays.asList(dirFiles));
@@ -365,6 +370,8 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         }
         holder.iconView.setVisibility(View.VISIBLE);
 
+        boolean isDir = file != null && FileUtil.isDirectory(file);
+
         if (file == null) {
             iconBg.setColor(Color.parseColor("#5F6368"));
             holder.iconView.setImageResource(R.drawable.icon_arrow_back_round);
@@ -372,7 +379,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             holder.nameView.setTypeface(null, Typeface.ITALIC);
             holder.detailView.setVisibility(View.GONE);
             holder.itemView.setOnClickListener(v -> goUp());
-        } else if (file.isDirectory()) {
+        } else if (isDir) {
             iconBg.setColor(Color.parseColor("#1A73E8"));
             holder.iconView.setImageResource(R.drawable.folder);
             holder.nameView.setText(file.getName());
@@ -398,9 +405,10 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
             attachThumbnailIfImage(holder.iconContainer, holder.iconView, file);
             holder.nameView.setText(file.getName());
 
-            String size = formatFileSize(file.length());
-            String date = dateFormat.format(new Date(file.lastModified()));
-            holder.detailView.setText(size + " • " + date);
+            String size = formatFileSize(FileUtil.getFileLength(file));
+            long lastMod = FileUtil.getLastModified(file);
+            String date = lastMod > 0 ? dateFormat.format(new Date(lastMod)) : "";
+            holder.detailView.setText(date.isEmpty() ? size : size + " • " + date);
 
             holder.itemView.setOnClickListener(v -> {
                 if (multiSelectEnabled) toggleSelection(file);
@@ -460,13 +468,15 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         holder.thumb.setVisibility(View.GONE);
         holder.placeholder.setVisibility(View.VISIBLE);
 
+        boolean isDir = file != null && FileUtil.isDirectory(file);
+
         int iconColor = Color.WHITE;
         if (file == null) {
             iconColor = Color.parseColor("#5F6368");
             holder.placeholder.setImageResource(R.drawable.icon_arrow_back_round);
             holder.name.setText(".. up");
             holder.itemView.setOnClickListener(v -> goUp());
-        } else if (file.isDirectory()) {
+        } else if (isDir) {
             iconColor = Color.parseColor("#1A73E8");
             holder.placeholder.setImageResource(R.drawable.folder);
             holder.name.setText(file.getName());
@@ -575,19 +585,21 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
 
     public void updateProjectFilesJson() {
         if (rootDir == null) return;
-        try {
-            java.util.List<java.util.Map<String, String>> fileList = new java.util.ArrayList<>();
-            scanDirForManifest(rootDir, rootDir, fileList);
+        bgExecutor.execute(() -> {
+            try {
+                java.util.List<java.util.Map<String, String>> fileList = new java.util.ArrayList<>();
+                scanDirForManifest(rootDir, rootDir, fileList);
 
-            java.util.Map<String, Object> manifest = new java.util.HashMap<>();
-            manifest.put("files", fileList);
+                java.util.Map<String, Object> manifest = new java.util.HashMap<>();
+                manifest.put("files", fileList);
 
-            String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(manifest);
-            File manifestFile = new File(rootDir.getParentFile(), "project_files.json");
-            FileUtil.writeFile(manifestFile.getAbsolutePath(), json);
-        } catch (Exception e) {
-            android.util.Log.w("FileExplorer", "Failed to update project_files.json: " + e.getMessage());
-        }
+                String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(manifest);
+                File manifestFile = new File(rootDir.getParentFile(), "project_files.json");
+                FileUtil.writeFile(manifestFile.getAbsolutePath(), json);
+            } catch (Exception e) {
+                android.util.Log.w("FileExplorer", "Failed to update project_files.json: " + e.getMessage());
+            }
+        });
     }
 
     private void scanDirForManifest(File dir, File root, java.util.List<java.util.Map<String, String>> list) {
@@ -617,7 +629,7 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
                 item.put("type", type);
                 list.add(item);
 
-                if (f.isDirectory()) {
+                if (FileUtil.isDirectory(f)) {
                     scanDirForManifest(f, root, list);
                 }
             } catch (Exception ignored) { android.util.Log.e("FileExplorer", "Error", ignored); }
@@ -627,32 +639,40 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
     private void attachThumbnailIfImage(View target, View placeholder, File file) {
         String name = file.getName().toLowerCase(Locale.US);
         if (!isImageFile(name)) return;
-        Bitmap cached = THUMB_CACHE.get(file.getAbsolutePath());
+        final String filePath = file.getAbsolutePath();
+        Bitmap cached = THUMB_CACHE.get(filePath);
         if (cached != null) {
             applyThumb(target, placeholder, cached);
             return;
         }
-        try {
-            BitmapFactory.Options opts = new BitmapFactory.Options();
-            opts.inJustDecodeBounds = true;
-            BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
-            int sample = 1;
-            int target128 = dp(80);
-            if (opts.outWidth > 0 && opts.outHeight > 0) {
-                while ((opts.outWidth / sample) > target128 * 2 && (opts.outHeight / sample) > target128 * 2) {
-                    sample *= 2;
+        target.setTag(filePath);
+        bgExecutor.execute(() -> {
+            try {
+                BitmapFactory.Options opts = new BitmapFactory.Options();
+                opts.inJustDecodeBounds = true;
+                BitmapFactory.decodeFile(filePath, opts);
+                int sample = 1;
+                int target128 = dp(80);
+                if (opts.outWidth > 0 && opts.outHeight > 0) {
+                    while ((opts.outWidth / sample) > target128 * 2 && (opts.outHeight / sample) > target128 * 2) {
+                        sample *= 2;
+                    }
                 }
+                opts.inJustDecodeBounds = false;
+                opts.inSampleSize = Math.max(sample, 1);
+                Bitmap bm = BitmapFactory.decodeFile(filePath, opts);
+                if (bm != null) {
+                    THUMB_CACHE.put(filePath, bm);
+                    mainHandler.post(() -> {
+                        if (filePath.equals(target.getTag())) {
+                            applyThumb(target, placeholder, bm);
+                        }
+                    });
+                }
+            } catch (Throwable ignore) {
+                // Falls back to icon glyph automatically.
             }
-            opts.inJustDecodeBounds = false;
-            opts.inSampleSize = Math.max(sample, 1);
-            Bitmap bm = BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
-            if (bm != null) {
-                THUMB_CACHE.put(file.getAbsolutePath(), bm);
-                applyThumb(target, placeholder, bm);
-            }
-        } catch (Throwable ignore) {
-            // Falls back to icon glyph automatically.
-        }
+        });
     }
 
     private void applyThumb(View target, View placeholder, Bitmap bm) {

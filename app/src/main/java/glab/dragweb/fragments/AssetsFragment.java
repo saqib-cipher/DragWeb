@@ -136,7 +136,7 @@ public class AssetsFragment extends Fragment {
     }
 
     private boolean isTextFile(File file) {
-        if (file == null || file.isDirectory()) return false;
+        if (file == null || FileUtil.isDirectory(file)) return false;
         String name = file.getName().toLowerCase(java.util.Locale.US);
         return name.endsWith(".html") || name.endsWith(".htm") 
             || name.endsWith(".css") || name.endsWith(".js") 
@@ -192,7 +192,7 @@ public class AssetsFragment extends Fragment {
         fileExplorerAdapter.setOnFileClickListener(file -> {
             if (file == null) {
                 fileExplorerAdapter.goUp();
-            } else if (file.isDirectory()) {
+            } else if (FileUtil.isDirectory(file)) {
                 fileExplorerAdapter.navigateTo(file);
             } else if (isTextFile(file)) {
                 openTextEditor(file);
@@ -328,7 +328,7 @@ public class AssetsFragment extends Fragment {
         }
 
         final java.util.List<String> optionsList = new java.util.ArrayList<>();
-        if (file.isDirectory()) {
+        if (FileUtil.isDirectory(file)) {
             optionsList.add("Open");
             if (!isSys) {
                 optionsList.add("Rename");
@@ -394,7 +394,7 @@ public class AssetsFragment extends Fragment {
     private void deleteFileWithConfirm(File file) {
         if (getContext() == null) return;
         new MaterialAlertDialogBuilder(getContext())
-            .setTitle("Delete " + (file.isDirectory() ? "Folder" : "File"))
+            .setTitle("Delete " + (FileUtil.isDirectory(file) ? "Folder" : "File"))
             .setMessage("Are you sure you want to delete " + file.getName() + "? This cannot be undone.")
             .setPositiveButton("Delete", (dialog, which) -> {
                 if (fileExplorerAdapter != null) {

@@ -1503,7 +1503,7 @@ public class MainEditorFragment extends Fragment {
 		cssFiles.add("css/theme.css");
 		String path = FileUtil.getDragWebDir(requireContext()).getAbsolutePath() + "/projects/" + projectId + "/assets";
 		File dir = new File(path);
-		if (dir.exists() && dir.isDirectory()) {
+		if (FileUtil.exists(dir) && FileUtil.isDirectory(dir)) {
 			collectCssFilesRecursive(dir, dir, cssFiles);
 		}
 		return cssFiles;
@@ -1513,9 +1513,9 @@ public class MainEditorFragment extends Fragment {
 		File[] files = FileUtil.listFiles(current);
 		if (files != null) {
 			for (File f : files) {
-				if (f.isDirectory()) {
+				if (FileUtil.isDirectory(f)) {
 					collectCssFilesRecursive(root, f, cssFiles);
-				} else if (f.isFile() && f.getName().toLowerCase().endsWith(".css")) {
+				} else if (f.getName().toLowerCase().endsWith(".css")) {
 					String relative = f.getAbsolutePath().substring(root.getAbsolutePath().length() + 1);
 					relative = relative.replace("\\", "/");
 					if (!cssFiles.contains(relative)) {
@@ -1546,7 +1546,7 @@ public class MainEditorFragment extends Fragment {
 		File[] files = FileUtil.listFiles(current);
 		if (files != null) {
 			for (File f : files) {
-				if (f.isDirectory()) {
+				if (FileUtil.isDirectory(f)) {
 					String relative = f.getAbsolutePath().substring(root.getParentFile().getAbsolutePath().length() + 1);
 					relative = relative.replace("\\", "/");
 					if (!dirs.contains(relative)) {
@@ -1715,7 +1715,7 @@ public class MainEditorFragment extends Fragment {
 		jsFiles.add("js/script.js");
 		String path = FileUtil.getDragWebDir(requireContext()).getAbsolutePath() + "/projects/" + projectId + "/assets";
 		File dir = new File(path);
-		if (dir.exists() && dir.isDirectory()) {
+		if (FileUtil.exists(dir) && FileUtil.isDirectory(dir)) {
 			collectJsFilesRecursive(dir, dir, jsFiles);
 		}
 		return jsFiles;
@@ -1725,9 +1725,9 @@ public class MainEditorFragment extends Fragment {
 		File[] files = FileUtil.listFiles(current);
 		if (files != null) {
 			for (File f : files) {
-				if (f.isDirectory()) {
+				if (FileUtil.isDirectory(f)) {
 					collectJsFilesRecursive(root, f, jsFiles);
-				} else if (f.isFile() && f.getName().toLowerCase().endsWith(".js")) {
+				} else if (f.getName().toLowerCase().endsWith(".js")) {
 					String relative = f.getAbsolutePath().substring(root.getAbsolutePath().length() + 1);
 					relative = relative.replace("\\", "/");
 					if (!jsFiles.contains(relative)) {
