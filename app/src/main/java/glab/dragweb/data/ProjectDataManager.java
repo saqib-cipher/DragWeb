@@ -129,20 +129,23 @@ public class ProjectDataManager {
     // Save / Load
     // ──────────────────────────────────────────────
 
+    /**
+     * Saves the current page layout synchronously.
+     * IMPORTANT: This must be called from a background thread — it performs disk I/O.
+     * The onComplete callback is posted to the main thread.
+     */
     public void saveProject(View screen, String projectId, Runnable onComplete) {
         List<Map<String, Object>> widgetTree = serializeViewTree(screen);
-        new Thread(() -> {
-            String json = gson.toJson(widgetTree);
+        String json = gson.toJson(widgetTree);
 
-            // Save exclusively to .dragweb/projects/{projectId}/pages/index.json
-            File extPagesDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages");
-            if (!extPagesDir.exists()) extPagesDir.mkdirs();
-            FileUtil.writeFile(new File(extPagesDir, "index.json").getAbsolutePath(), json);
+        // Save exclusively to .dragweb/projects/{projectId}/pages/index.json
+        File extPagesDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages");
+        if (!extPagesDir.exists()) extPagesDir.mkdirs();
+        FileUtil.writeFile(new File(extPagesDir, "index.json").getAbsolutePath(), json);
 
-            if (onComplete != null) {
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(onComplete);
-            }
-        }).start();
+        if (onComplete != null) {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(onComplete);
+        }
     }
 
     public void loadProject(View screen, String projectId, WidgetBuilderEngine engine,
@@ -377,7 +380,8 @@ public class ProjectDataManager {
 
                         // Write file into target project directory
                         File target = new File(extProjDir, relative);
-                        if (!target.getCanonicalPath().startsWith(externalCanonical)) {
+                        String extProjCanonical = extProjDir.getCanonicalPath() + File.separator;
+                        if (!target.getCanonicalPath().startsWith(extProjCanonical) && !target.getCanonicalPath().equals(extProjDir.getCanonicalPath())) {
                             Log.w(TAG, "Zip path traversal attempt: " + ename);
                             zis.closeEntry();
                             continue;

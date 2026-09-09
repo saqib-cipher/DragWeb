@@ -1975,33 +1975,51 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void loadCurrentPageLayout() {
+		// Show loading immediately on the UI thread
 		if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
-		String json = pageManager.loadPageLayout(pageManager.getCurrentPage());
-		screen.removeAllViews();
-		try {
-			List<Map<String, Object>> widgetTree = new Gson().fromJson(json,
-				new TypeToken<List<Map<String, Object>>>(){}.getType());
-			if (widgetTree != null) {
-				for (Map<String, Object> nodeMap : widgetTree) {
-					rebuildView(nodeMap, screen);
+
+		String pageName = pageManager.getCurrentPage();
+		final androidx.fragment.app.FragmentActivity act = getActivity();
+
+		AppExecutors.io().execute(() -> {
+			// Background: disk read + JSON parse
+			final String json = pageManager.loadPageLayout(pageName);
+			List<Map<String, Object>> parsedTree = null;
+			if (json != null && !"[]".equals(json.trim())) {
+				try {
+					parsedTree = new Gson().fromJson(json,
+						new TypeToken<List<Map<String, Object>>>(){}.getType());
+				} catch (Exception e) {
+					Log.w("MainActivity", "Could not parse page layout: " + e.getMessage());
 				}
 			}
-		} catch (Exception e) {
-			Log.w("MainActivity", "Could not load page layout: " + e.getMessage());
-		}
-		setupHierarchyTracker(screen);
-		saveCurrentPageLayout();
-		selector.clearSelection();
-		selector.attachTo(screen);
-		textview2.setText("No widget selected");
-		delete.setEnabled(false);
-		undoRedoManager.clear();
-		saveUndoState();
-		refreshHierarchy();
-		updateWidgetSpinnerFromTree();
-		if (layoutLoading != null) {
-			layoutLoading.postDelayed(() -> layoutLoading.setVisibility(View.GONE), 300);
-		}
+
+			final List<Map<String, Object>> finalTree = parsedTree;
+
+			if (act == null) return;
+			act.runOnUiThread(() -> {
+				if (!isAdded()) return;
+				screen.removeAllViews();
+				if (finalTree != null) {
+					for (Map<String, Object> nodeMap : finalTree) {
+						rebuildView(nodeMap, screen);
+					}
+				}
+				setupHierarchyTracker(screen);
+				saveCurrentPageLayout();
+				selector.clearSelection();
+				selector.attachTo(screen);
+				textview2.setText("No widget selected");
+				delete.setEnabled(false);
+				undoRedoManager.clear();
+				saveUndoState();
+				refreshHierarchy();
+				updateWidgetSpinnerFromTree();
+				if (layoutLoading != null) {
+					layoutLoading.postDelayed(() -> layoutLoading.setVisibility(View.GONE), 200);
+				}
+			});
+		});
 	}
 
 	// ---- Widget Search ----
@@ -2620,12 +2638,15 @@ public class MainEditorFragment extends Fragment {
 		final String currentPageSnap = pageManager != null ? pageManager.getCurrentPage() : "index";
 		final int startIndexSnap = Math.max(0, pageNames.indexOf(currentPageSnap));
 
+		// Capture current page layout before going background
+		saveCurrentPageLayout();
+
 		final android.content.Context appCtx = requireContext().getApplicationContext();
 		final androidx.fragment.app.FragmentActivity act = getActivity();
 		final File previewDir = new File(requireContext().getCacheDir(), "preview_" + projectId);
 
-		java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-			// Save current state to disk (runs entirely in background)
+		AppExecutors.io().execute(() -> {
+			// Full save + codegen before preview (runs export which save() skips)
 			performSaveWork(appCtx);
 
 			// Build preview directory from freshly saved assets
@@ -2845,8 +2866,10 @@ public class MainEditorFragment extends Fragment {
 		final android.content.Context appContext = requireContext().getApplicationContext();
 		final androidx.fragment.app.FragmentActivity activity = getActivity();
 
-		java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-			performSaveWork(appContext);
+		AppExecutors.io().execute(() -> {
+			// Perform lightweight save: pages + theme + logic blocks
+			// Does NOT run full exportManager (that only runs on Preview)
+			performFastSaveWork(appContext);
 
 			if (activity != null) {
 				activity.runOnUiThread(() -> {
@@ -2874,7 +2897,13 @@ public class MainEditorFragment extends Fragment {
 		});
 	}
 
-	private void performSaveWork(android.content.Context context) {
+	/**
+	 * Fast save: pages + theme + logic blocks only.
+	 * Does NOT run exportManager (full HTML/CSS/JS codegen).
+	 * Called by the Save button. Preview triggers a full save via performSaveWork().
+	 * MUST be called from a background thread.
+	 */
+	private void performFastSaveWork(android.content.Context context) {
 		// Save all cached pages to disk
 		pageManager.saveAllPages();
 
@@ -2888,6 +2917,16 @@ public class MainEditorFragment extends Fragment {
 
 		// Save all logic blocks to .dragweb
 		DesignDataManager.saveAllSavedLogic(context, projectId);
+	}
+
+	/**
+	 * Full save: fast save + compile + HTML/CSS/JS export.
+	 * Called before Preview and on explicit full export.
+	 * MUST be called from a background thread.
+	 */
+	private void performSaveWork(android.content.Context context) {
+		// Do the fast save first
+		performFastSaveWork(context);
 
 		// Compile and save logic assets to files
 		try {
@@ -2933,7 +2972,7 @@ public class MainEditorFragment extends Fragment {
 		final androidx.fragment.app.FragmentActivity act = getActivity();
 		final String currentPageName = pageManager != null ? pageManager.getCurrentPage() : "index";
 
-		java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
+		AppExecutors.io().execute(() -> {
 			// ---- Background: disk I/O + JSON parsing ----
 			final String pageJson = pageManager.loadPageLayout(currentPageName);
 

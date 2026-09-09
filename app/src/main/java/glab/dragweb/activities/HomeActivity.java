@@ -47,6 +47,7 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import glab.dragweb.util.AppExecutors;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
@@ -66,12 +67,14 @@ import androidx.activity.result.contract.ActivityResultContracts;
 
 public class HomeActivity extends AppCompatActivity {
 
+	private static final Gson GSON = new Gson();
 	private MaterialToolbar toolbar;
 	private DrawerLayout drawer;
 	private RecyclerView rvProjects;
 	private LinearLayout layoutEmptyState;
 	private TextView tvEmptyState;
 	private ExtendedFloatingActionButton fabNewProject;
+	private com.google.android.material.progressindicator.CircularProgressIndicator progressProjects;
 	private ArrayList<Map<String, String>> projectList = new ArrayList<>();
 	private ProjectListAdapter adapter;
 
@@ -181,6 +184,7 @@ public class HomeActivity extends AppCompatActivity {
 		layoutEmptyState = findViewById(R.id.layoutEmptyState);
 		tvEmptyState = findViewById(R.id.tvEmptyState);
 		fabNewProject = findViewById(R.id.fabNewProject);
+		progressProjects = findViewById(R.id.progressProjects);
 
 		rvProjects.setLayoutManager(new LinearLayoutManager(this));
 		adapter = new ProjectListAdapter();
@@ -473,45 +477,55 @@ public class HomeActivity extends AppCompatActivity {
 	}
 
 	private void loadProjects() {
-		projectList.clear();
-		File dir = new File(FileUtil.getDragWebDir(this), "projects");
-		if (!dir.exists()) {
-			dir.mkdirs();
-		}
-		if (dir.exists() && dir.isDirectory()) {
-			File[] files = FileUtil.listFiles(dir);
-			if (files != null) {
-				// Safely remove any legacy loose root files if their project folder exists
-				for (File f : files) {
-					if (!f.isDirectory()) {
-						String fname = f.getName();
-						if (fname.endsWith(".json") || fname.endsWith(".meta") || fname.endsWith(".meta.txt") || fname.endsWith(".theme") || fname.endsWith(".cblocks") || fname.endsWith(".logic")) {
-							String baseId = fname;
-							int dotIdx = baseId.indexOf('.');
-							if (dotIdx > 0) baseId = baseId.substring(0, dotIdx);
-							int underIdx = baseId.indexOf('_');
-							if (underIdx > 0) baseId = baseId.substring(0, underIdx);
-							File projDir = new File(dir, baseId);
-							if (projDir.exists() && projDir.isDirectory()) {
-								try { f.delete(); } catch (Exception ignored) {}
+		// Show loading spinner, hide list/empty state while scanning
+		if (progressProjects != null) progressProjects.setVisibility(android.view.View.VISIBLE);
+		if (rvProjects != null) rvProjects.setVisibility(android.view.View.GONE);
+		if (layoutEmptyState != null) layoutEmptyState.setVisibility(android.view.View.GONE);
+
+		final File dir = new File(FileUtil.getDragWebDir(this), "projects");
+
+		AppExecutors.io().execute(() -> {
+			if (!dir.exists()) dir.mkdirs();
+
+			final ArrayList<Map<String, String>> loaded = new ArrayList<>();
+
+			if (dir.isDirectory()) {
+				File[] files = FileUtil.listFiles(dir);
+				if (files != null) {
+					// Safely remove any legacy loose root files if their project folder exists
+					for (File f : files) {
+						if (!f.isDirectory()) {
+							String fname = f.getName();
+							if (fname.endsWith(".json") || fname.endsWith(".meta") || fname.endsWith(".meta.txt") || fname.endsWith(".theme") || fname.endsWith(".cblocks") || fname.endsWith(".logic")) {
+								String baseId = fname;
+								int dotIdx = baseId.indexOf('.');
+								if (dotIdx > 0) baseId = baseId.substring(0, dotIdx);
+								int underIdx = baseId.indexOf('_');
+								if (underIdx > 0) baseId = baseId.substring(0, underIdx);
+								File projDir = new File(dir, baseId);
+								if (projDir.exists() && projDir.isDirectory()) {
+									try { f.delete(); } catch (Exception ignored) {}
+								}
 							}
 						}
 					}
-				}
 
-				for (File projectFolder : files) {
-					if (projectFolder.isDirectory()) {
+					SimpleDateFormat sdfMeta = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+					SimpleDateFormat sdfDisplay = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+
+					for (File projectFolder : files) {
+						if (!projectFolder.isDirectory()) continue;
 						String fileId = projectFolder.getName();
 						if (fileId == null || fileId.startsWith(".") || fileId.equalsIgnoreCase("logic") || fileId.equalsIgnoreCase("custom") || fileId.equalsIgnoreCase("templates")) {
 							continue;
 						}
-						
+
 						Map<String, String> project = new HashMap<>();
 						project.put("id", fileId);
 						project.put("path", projectFolder.getAbsolutePath());
 						project.put("name", fileId);
 						project.put("description", "Website Project");
-						
+
 						String metaJson = FileUtil.readFile(new File(projectFolder, "project.meta").getAbsolutePath());
 						File legacyConfigFile = new File(projectFolder, "project.config.json");
 						if (metaJson == null || metaJson.trim().isEmpty()) {
@@ -522,7 +536,7 @@ public class HomeActivity extends AppCompatActivity {
 
 						if (metaJson != null && !metaJson.trim().isEmpty()) {
 							try {
-								Map<String, String> meta = new Gson().fromJson(metaJson, new TypeToken<Map<String, String>>(){}.getType());
+								Map<String, String> meta = GSON.fromJson(metaJson, new TypeToken<Map<String, String>>(){}.getType());
 								if (meta != null) {
 									if (meta.containsKey("name")) project.put("name", meta.get("name"));
 									if (meta.containsKey("description")) project.put("description", meta.get("description"));
@@ -536,9 +550,8 @@ public class HomeActivity extends AppCompatActivity {
 							meta.put("id", fileId);
 							meta.put("name", fileId);
 							meta.put("description", "Website Project");
-							SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-							meta.put("created", sdf.format(new Date(projectFolder.lastModified())));
-							FileUtil.writeFile(new File(projectFolder, "project.meta").getAbsolutePath(), new Gson().toJson(meta));
+							meta.put("created", sdfMeta.format(new Date(projectFolder.lastModified())));
+							FileUtil.writeFile(new File(projectFolder, "project.meta").getAbsolutePath(), GSON.toJson(meta));
 						}
 
 						// Clean up legacy files if present
@@ -556,17 +569,23 @@ public class HomeActivity extends AppCompatActivity {
 							}
 							FileUtil.deleteFile(legacyLayout.getAbsolutePath());
 						}
-						SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
-						project.put("lastModified", sdf.format(new Date(projectFolder.lastModified())));
 
-						projectList.add(project);
+						project.put("lastModified", sdfDisplay.format(new Date(projectFolder.lastModified())));
+						loaded.add(project);
 					}
 				}
 			}
-		}
 
-		updateEmptyState();
-		adapter.notifyDataSetChanged();
+			// Post results back to UI thread
+			AppExecutors.mainThread(() -> {
+				if (isDestroyed() || isFinishing()) return;
+				projectList.clear();
+				projectList.addAll(loaded);
+				if (progressProjects != null) progressProjects.setVisibility(android.view.View.GONE);
+				updateEmptyState();
+				adapter.notifyDataSetChanged();
+			});
+		});
 	}
 
 	private void loadExternalProjects() {

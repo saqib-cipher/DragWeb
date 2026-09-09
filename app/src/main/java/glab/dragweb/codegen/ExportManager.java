@@ -1091,6 +1091,7 @@ public class ExportManager {
         if (!projectDir.exists()) projectDir.mkdirs();
         
         try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(new FileInputStream(zipFile))) {
+            String projectCanonical = projectDir.getCanonicalPath() + File.separator;
             ZipEntry entry;
             byte[] buffer = new byte[4096];
             while ((entry = zis.getNextEntry()) != null) {
@@ -1099,22 +1100,14 @@ public class ExportManager {
                 if (name.startsWith("data/")) {
                     String fileName = name.substring(5);
                     File target = new File(projectDir, fileName);
+                    if (!target.getCanonicalPath().startsWith(projectCanonical)) {
+                        zis.closeEntry();
+                        continue;
+                    }
                     try (FileOutputStream fos = new FileOutputStream(target)) {
                         int len;
                         while ((len = zis.read(buffer)) > 0) fos.write(buffer, 0, len);
                     }
-                } else if (name.startsWith("assets/")) {
-                    // Extract to external storage assets path
-                    // We need the projectId from the filename if possible, but the ZIP itself 
-                    // should ideally contain it in a meta file or we infer it.
-                    // For now, let's assume we find a .json file in data/ first or just extract assets
-                    // to a temporary location then move them once we know the projectId.
-                    // Or better: the zip structure is assets/projectId/...
-                    
-                    // Actually, let's look for any .json file in data/ to find the projectId
-                    // This is tricky during streaming.
-                    
-                    // Simple approach: Extract everything to a temp dir, then find the .json file, then move.
                 }
                 zis.closeEntry();
             }
@@ -1131,14 +1124,20 @@ public class ExportManager {
         tempDir.mkdirs();
         
         try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(new FileInputStream(zipFile))) {
+            String tempCanonical = tempDir.getCanonicalPath() + File.separator;
             ZipEntry entry;
             byte[] buffer = new byte[4096];
             while ((entry = zis.getNextEntry()) != null) {
                 File file = new File(tempDir, entry.getName());
+                if (!file.getCanonicalPath().startsWith(tempCanonical)) {
+                    zis.closeEntry();
+                    continue;
+                }
                 if (entry.isDirectory()) {
                     file.mkdirs();
                 } else {
-                    file.getParentFile().mkdirs();
+                    File parent = file.getParentFile();
+                    if (parent != null) parent.mkdirs();
                     try (FileOutputStream fos = new FileOutputStream(file)) {
                         int len;
                         while ((len = zis.read(buffer)) > 0) fos.write(buffer, 0, len);
