@@ -369,6 +369,14 @@ public class HomeActivity extends AppCompatActivity {
 				showStorageLocationDialog();
 			});
 		}
+
+		LinearLayout menuSetupStorage = findViewById(R.id.menuSetupStorage);
+		if (menuSetupStorage != null) {
+			menuSetupStorage.setOnClickListener(v -> {
+				drawer.closeDrawer(GravityCompat.START);
+				startActivity(new Intent(HomeActivity.this, StorageSetupActivity.class));
+			});
+		}
 	}
 
 	private String generateProjectId() {

@@ -4,24 +4,18 @@ import glab.dragweb.R;
 import glab.dragweb.util.*;
 
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import java.io.File;
 import android.view.View;
 import android.view.animation.OvershootInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -34,8 +28,6 @@ public class SplashActivity extends AppCompatActivity {
 	private TimerTask t;
 	private Intent n = new Intent();
 	private boolean hasStarted = false;
-
-	private ActivityResultLauncher<Intent> folderPickerLauncher;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -56,26 +48,6 @@ public class SplashActivity extends AppCompatActivity {
 			v.setPadding(initialLeft + systemBars.left, initialTop + systemBars.top, initialRight + systemBars.right, initialBottom + systemBars.bottom);
 			return insets;
 		});
-
-		folderPickerLauncher = registerForActivityResult(
-			new ActivityResultContracts.StartActivityForResult(),
-			result -> {
-				if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-					Uri uri = result.getData().getData();
-					if (uri != null) {
-						SafStorageUtil.ValidationResult validation = SafStorageUtil.validateFolderSelection(this, uri);
-						if (validation.isValid) {
-							SafStorageUtil.persistFolderSelection(this, uri);
-							go();
-						} else {
-							showMismatchDialog(validation.folderName);
-						}
-						return;
-					}
-				}
-				showFolderPickerDialog();
-			}
-		);
 
 		initializeLogic();
 	}
@@ -104,39 +76,22 @@ public class SplashActivity extends AppCompatActivity {
 	}
 
 	private void showFolderPickerDialog() {
-		new MaterialAlertDialogBuilder(this)
-			.setTitle("Select Workspace Folder")
-			.setMessage("DragWeb saves all your website design projects, assets, custom blocks, and themes in a '.dragweb' folder.\n\nPlease select or create the '.dragweb' folder on your device storage to continue.")
-			.setCancelable(false)
-			.setPositiveButton("Select Folder", (dialog, which) -> {
-				launchFolderPicker();
-			})
-			.setNegativeButton("Exit", (dialog, which) -> {
-				finish();
-			})
-			.show();
+		goToStorageSetup();
 	}
 
 	private void launchFolderPicker() {
-		try {
-			folderPickerLauncher.launch(SafStorageUtil.createFolderPickerIntent());
-		} catch (Exception e) {
-			Toast.makeText(this, "Could not open folder picker: " + e.getMessage(), Toast.LENGTH_LONG).show();
-		}
+		goToStorageSetup();
+	}
+
+	private void goToStorageSetup() {
+		Intent intent = new Intent(this, StorageSetupActivity.class);
+		intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+		startActivity(intent);
+		finish();
 	}
 
 	private void showMismatchDialog(String selectedFolderName) {
-		new MaterialAlertDialogBuilder(this)
-			.setTitle("Folder Location Mismatch")
-			.setMessage("You selected: \"" + (selectedFolderName != null ? selectedFolderName : "Unknown folder") + "\"\n\nDragWeb requires the folder to be '.dragweb' so your website projects and configurations are properly organized.\n\nPlease select or create the '.dragweb' folder.")
-			.setCancelable(false)
-			.setPositiveButton("Select Again", (dialog, which) -> {
-				launchFolderPicker();
-			})
-			.setNegativeButton("Exit", (dialog, which) -> {
-				finish();
-			})
-			.show();
+		goToStorageSetup();
 	}
 
 	@Override
