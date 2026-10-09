@@ -255,7 +255,7 @@ public class WidgetBuilderEngine {
                     try {
                         String base64 = src.substring(src.indexOf(",") + 1);
                         byte[] decoded = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
-                        android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
+                        android.graphics.Bitmap bmp = decodeSampledBitmapFromByteArray(decoded, 1024, 1024);
                         if (bmp != null) {
                             iv.setImageBitmap(bmp);
                         } else {
@@ -266,7 +266,7 @@ public class WidgetBuilderEngine {
                     }
                 } else {
                     try {
-                        android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeFile(src);
+                        android.graphics.Bitmap bmp = decodeSampledBitmapFromFile(src, 1024, 1024);
                         if (bmp != null) {
                             iv.setImageBitmap(bmp);
                         } else {
@@ -683,4 +683,37 @@ public class WidgetBuilderEngine {
         }
         return result;
     }
+
+    private static android.graphics.Bitmap decodeSampledBitmapFromFile(String path, int reqWidth, int reqHeight) {
+        android.graphics.BitmapFactory.Options options = new android.graphics.BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        android.graphics.BitmapFactory.decodeFile(path, options);
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+        options.inJustDecodeBounds = false;
+        return android.graphics.BitmapFactory.decodeFile(path, options);
+    }
+
+    private static android.graphics.Bitmap decodeSampledBitmapFromByteArray(byte[] data, int reqWidth, int reqHeight) {
+        android.graphics.BitmapFactory.Options options = new android.graphics.BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        android.graphics.BitmapFactory.decodeByteArray(data, 0, data.length, options);
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+        options.inJustDecodeBounds = false;
+        return android.graphics.BitmapFactory.decodeByteArray(data, 0, data.length, options);
+    }
+
+    private static int calculateInSampleSize(android.graphics.BitmapFactory.Options options, int reqWidth, int reqHeight) {
+        final int height = options.outHeight;
+        final int width = options.outWidth;
+        int inSampleSize = 1;
+        if (height > reqHeight || width > reqWidth) {
+            final int halfHeight = height / 2;
+            final int halfWidth = width / 2;
+            while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2;
+            }
+        }
+        return inSampleSize;
+    }
 }
+

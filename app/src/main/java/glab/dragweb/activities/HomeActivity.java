@@ -97,11 +97,12 @@ public class HomeActivity extends AppCompatActivity {
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		androidx.core.splashscreen.SplashScreen.installSplashScreen(this);
 		super.onCreate(savedInstanceState);
 		if (!SafStorageUtil.isStorageConfigured(this)) {
-			Intent splashIntent = new Intent(this, SplashActivity.class);
-			splashIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-			startActivity(splashIntent);
+			Intent setupIntent = new Intent(this, StorageSetupActivity.class);
+			setupIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+			startActivity(setupIntent);
 			finish();
 			return;
 		}
@@ -147,9 +148,9 @@ public class HomeActivity extends AppCompatActivity {
 	protected void onResume() {
 		super.onResume();
 		if (!SafStorageUtil.isStorageConfigured(this)) {
-			Intent splashIntent = new Intent(this, SplashActivity.class);
-			splashIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-			startActivity(splashIntent);
+			Intent setupIntent = new Intent(this, StorageSetupActivity.class);
+			setupIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+			startActivity(setupIntent);
 			finish();
 			return;
 		}
@@ -204,14 +205,7 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		});
 
-		// Empty state import button
-		MaterialButton btnEmptyImport = findViewById(R.id.btnEmptyImport);
-		if (btnEmptyImport != null) {
-			btnEmptyImport.setOnClickListener(v -> {
-				Intent intent = new Intent(HomeActivity.this, ImportSiteActivity.class);
-				startActivity(intent);
-			});
-		}
+
 
 		// Register activity result launchers
 		backupLauncher = registerForActivityResult(
@@ -290,7 +284,6 @@ public class HomeActivity extends AppCompatActivity {
 						SafStorageUtil.ValidationResult validation = SafStorageUtil.validateFolderSelection(this, uri);
 						if (validation.isValid) {
 							SafStorageUtil.persistFolderSelection(this, uri);
-							CustomStorageUtil.syncAssetsToStorage(this, null);
 							loadProjects();
 							Toast.makeText(this, "Storage location updated", Toast.LENGTH_SHORT).show();
 						} else {
@@ -306,7 +299,6 @@ public class HomeActivity extends AppCompatActivity {
 		LinearLayout menuAbout = findViewById(R.id.menuAbout);
 		LinearLayout menuBackup = findViewById(R.id.menuBackup);
 		LinearLayout menuImport = findViewById(R.id.menuImport);
-		LinearLayout menuImportWebsite = findViewById(R.id.menuImportWebsite);
 
 		if (menuMyProjects != null) {
 			menuMyProjects.setOnClickListener(v -> {
@@ -338,13 +330,7 @@ public class HomeActivity extends AppCompatActivity {
 				importProject();
 			});
 		}
-		if (menuImportWebsite != null) {
-			menuImportWebsite.setOnClickListener(v -> {
-				drawer.closeDrawer(GravityCompat.START);
-				Intent intent = new Intent(HomeActivity.this, ImportSiteActivity.class);
-				startActivity(intent);
-			});
-		}
+
 
 		LinearLayout menuCustomManager = findViewById(R.id.menuCustomManager);
 		if (menuCustomManager != null) {

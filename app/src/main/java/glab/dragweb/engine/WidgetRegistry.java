@@ -41,43 +41,34 @@ public class WidgetRegistry {
     }
 
     private void loadWidgets() {
-        File customFile = getCustomWidgetsFile();
-        if (customFile != null && customFile.exists()) {
-            try {
-                String json = FileUtil.readFile(customFile.getAbsolutePath());
-                if (json != null && !json.isEmpty()) {
-                    allWidgets = new Gson().fromJson(json,
-                        new TypeToken<ArrayList<HashMap<String, Object>>>(){}.getType());
-                    if (allWidgets != null && !allWidgets.isEmpty()) {
-                        sanitizeWidgets(allWidgets);
-                        ensureDefaultWidgets();
-                        return;
-                    }
-                }
-            } catch (Exception e) {
-                Log.w("WidgetRegistry", "Could not load custom widgets from file: " + e.getMessage());
-            }
+        allWidgets = new ArrayList<>();
+        ArrayList<HashMap<String, Object>> inbuilt = loadInbuiltWidgets();
+        if (inbuilt != null) {
+            allWidgets.addAll(inbuilt);
         }
+        ArrayList<HashMap<String, Object>> custom = loadOnlyCustomWidgets();
+        if (custom != null) {
+            allWidgets.addAll(custom);
+        }
+    }
 
-        // Fallback to assets
+    public ArrayList<HashMap<String, Object>> loadInbuiltWidgets() {
         try {
             InputStream is = context.getAssets().open("widgets.json");
             byte[] buffer = new byte[is.available()];
             is.read(buffer);
             is.close();
             String json = new String(buffer, "UTF-8");
-
-            allWidgets = new Gson().fromJson(json,
+            ArrayList<HashMap<String, Object>> inbuilt = new Gson().fromJson(json,
                 new TypeToken<ArrayList<HashMap<String, Object>>>(){}.getType());
-            sanitizeWidgets(allWidgets);
-            ensureDefaultWidgets();
-            
-            // Save to device immediately so user has local starting set
-            saveCustomWidgets(allWidgets);
-        } catch (IOException e) {
-            loadDefaultWidgets();
-            saveCustomWidgets(allWidgets);
+            if (inbuilt != null) {
+                sanitizeWidgets(inbuilt);
+                return inbuilt;
+            }
+        } catch (Exception e) {
+            Log.w("WidgetRegistry", "Could not load inbuilt widgets: " + e.getMessage());
         }
+        return new ArrayList<>();
     }
 
     private void sanitizeWidgets(ArrayList<HashMap<String, Object>> widgets) {
@@ -216,8 +207,23 @@ public class WidgetRegistry {
     }
 
     public ArrayList<HashMap<String, Object>> loadOnlyCustomWidgets() {
-        loadWidgets();
-        return allWidgets;
+        File customFile = getCustomWidgetsFile();
+        if (customFile != null && customFile.exists() && customFile.length() > 0) {
+            try {
+                String json = FileUtil.readFile(customFile.getAbsolutePath());
+                if (json != null && !json.trim().isEmpty()) {
+                    ArrayList<HashMap<String, Object>> custom = new Gson().fromJson(json,
+                        new TypeToken<ArrayList<HashMap<String, Object>>>(){}.getType());
+                    if (custom != null) {
+                        sanitizeWidgets(custom);
+                        return custom;
+                    }
+                }
+            } catch (Exception e) {
+                Log.w("WidgetRegistry", "Could not load custom widgets: " + e.getMessage());
+            }
+        }
+        return new ArrayList<>();
     }
 
     public void saveCustomWidgets(ArrayList<HashMap<String, Object>> customList) {

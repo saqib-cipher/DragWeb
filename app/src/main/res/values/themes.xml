@@ -1,0 +1,79 @@
+<resources>
+    <style name="Base.Theme.Dragweb" parent="Scheme.Dragweb.DayNight" />
+    <style name="Theme.Dragweb" parent="Platform.Theme.Dragweb">
+        <item name="bottomNavigationStyle">@style/Widget.Dragweb.BottomNavigationView</item>
+        <item name="chipStyle">@style/Widget.Dragweb.Chip</item>
+        <item name="collapsingToolbarLayoutStyle">?attr/collapsingToolbarLayoutLargeStyle</item>
+        <item name="collapsingToolbarLayoutLargeSize">@dimen/collapsing_toolbar_large_size</item>
+        <item name="collapsingToolbarLayoutLargeStyle">@style/Widget.Dragweb.CollapsingToolbar</item>
+        <item name="homeAsUpIndicator">@drawable/abc_ic_ab_back_material</item>
+        <item name="textInputStyle">@style/Widget.Dragweb.TextInputLayout</item>
+        <item name="switchPreferenceCompatStyle">
+            @style/Preference.Dragweb.SwitchPreferenceCompat
+        </item>
+        <item name="tabStyle">@style/Widget.Dragweb.TabLayout</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Dragweb.AlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Dragweb.AlertDialog</item>
+        <item name="popupMenuStyle">@style/Widget.Material3.PopupMenu</item>
+        <item name="android:popupMenuStyle">@style/Widget.Material3.PopupMenu</item>
+        <item name="materialCardViewStyle">?attr/materialCardViewFilledStyle</item>
+        <item name="materialCardViewFilledStyle">@style/Widget.Dragweb.CardView</item>
+        <item name="materialSwitchStyle">@style/DayDream.MaterialSwitch</item>
+        <!-- Type styles. -->
+        <item name="textAppearanceDisplayLarge">@style/TextAppearance.Dragweb.DisplayLarge</item>
+        <item name="textAppearanceDisplayMedium">@style/TextAppearance.Dragweb.DisplayMedium</item>
+        <item name="textAppearanceDisplaySmall">@style/TextAppearance.Dragweb.DisplaySmall</item>
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.Dragweb.HeadlineLarge</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.Dragweb.HeadlineMedium</item>
+        <item name="textAppearanceHeadlineSmall">@style/TextAppearance.Dragweb.HeadlineSmall</item>
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.Dragweb.TitleLarge</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.Dragweb.TitleMedium</item>
+        <item name="textAppearanceTitleSmall">@style/TextAppearance.Dragweb.TitleSmall</item>
+        <item name="textAppearanceBodyLarge">@style/TextAppearance.Dragweb.BodyLarge</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.Dragweb.BodyMedium</item>
+        <item name="textAppearanceBodySmall">@style/TextAppearance.Dragweb.BodySmall</item>
+        <item name="textAppearanceLabelLarge">@style/TextAppearance.Dragweb.LabelLarge</item>
+        <item name="textAppearanceLabelMedium">@style/TextAppearance.Dragweb.LabelMedium</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.Dragweb.LabelSmall</item>
+<!--        <item name="textAppearanceBodyLargeEmphasized">@style/TextAppearance.Dragweb.BodyLargeEmphasized</item>-->
+    </style>
+
+    <style name="Theme.Dragweb.Main" parent="Theme.Dragweb">
+        <item name="navigationViewStyle">@style/Widget.Dragweb.NavigationView.Main</item>
+    </style>
+
+    <style name="Theme.Dragweb.ProjectPreview">
+        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.Dragweb.BottomSheetDialog
+        </item>
+    </style>
+
+    <style name="Theme.Dragweb.SmallToolbar">
+        <item name="actionBarSize">@dimen/mtrl_toolbar_default_height</item>
+        <item name="toolbarStyle">@style/Widget.Dragweb.Toolbar.SmallText</item>
+    </style>
+
+    <style name="Theme.Dragweb.Starting.Base" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenAnimationDuration">850</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/app_logo</item>
+        <item name="windowSplashScreenBackground">@color/splash_bg_color</item>
+        <item name="postSplashScreenTheme">@style/Theme.Dragweb.Main</item>
+
+        <item name="android:navigationBarColor">@color/splash_bg_color</item>
+        <item name="android:statusBarColor">@color/splash_bg_color</item>
+        <item name="android:windowLightStatusBar">@bool/is_light_theme</item>
+        <item name="android:windowLightNavigationBar">@bool/is_light_theme
+        </item>
+    </style>
+
+    <style name="Theme.Dragweb.Starting" parent="Theme.Dragweb.Starting.Base" />
+
+    <style name="Platform.V21.Theme.Dragweb" parent="Base.Theme.Dragweb">
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+    </style>
+    <style name="Platform.Theme.Dragweb" parent="Platform.V21.Theme.Dragweb" />
+
+    <style name="DayDreamTheme" parent="Theme.Dragweb">
+        <item name="android:windowBackground">?attr/colorSurfaceContainerLow</item>
+    </style>
+</resources>

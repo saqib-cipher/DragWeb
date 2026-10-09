@@ -25,4 +25,5 @@
     <color name="view_property_spinner_filter">#ffffffff</color>
     <color name="color_error_bg">#261008</color>
     <color name="colorError">#F2B8B5</color>
+    <color name="splash_bg_color">#1C1C1C</color>
 </resources>

@@ -13,7 +13,7 @@
 		android:layout_height="wrap_content"
 		android:hint="Attribute Name (e.g. data-target)"
 		app:hintTextColor="?attr/colorOnSurfaceVariant"
-		style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+		style="@style/Widget.Dragweb.TextInputLayout">
 		<com.google.android.material.textfield.TextInputEditText
 			android:id="@+id/etAttrName"
 			android:layout_width="match_parent"
@@ -29,7 +29,7 @@
 		android:layout_marginTop="16dp"
 		android:hint="Attribute Value (e.g. myModal)"
 		app:hintTextColor="?attr/colorOnSurfaceVariant"
-		style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+		style="@style/Widget.Dragweb.TextInputLayout">
 		<com.google.android.material.textfield.TextInputEditText
 			android:id="@+id/etAttrValue"
 			android:layout_width="match_parent"

@@ -15,7 +15,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Category ID (unique, e.g. css_animation)"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            style="@style/Widget.Dragweb.TextInputLayout">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_cat_id"
                 android:layout_width="match_parent"
@@ -28,7 +28,7 @@
             android:layout_height="wrap_content"
             android:hint="Display Name (e.g. Animation)"
             android:layout_marginTop="12dp"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            style="@style/Widget.Dragweb.TextInputLayout">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_cat_name"
                 android:layout_width="match_parent"
@@ -42,7 +42,7 @@
             android:layout_height="wrap_content"
             android:hint="Category Color Hex (e.g. #FFA000)"
             android:layout_marginTop="12dp"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            style="@style/Widget.Dragweb.TextInputLayout">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_cat_color"
                 android:layout_width="match_parent"
@@ -56,7 +56,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="Event Scope Type"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+            style="@style/Widget.Dragweb.TextInputLayout.ExposedDropdownMenu">
             <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/et_cat_type"
                 android:layout_width="match_parent"

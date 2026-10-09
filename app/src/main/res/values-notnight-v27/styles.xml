@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Platform.V27.Theme.Dragweb" parent="Platform.V23.Theme.Dragweb">
+        <item name="android:navigationBarColor">?android:attr/colorBackground</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <style name="Platform.Theme.Dragweb" parent="Platform.V27.Theme.Dragweb" />
+</resources>

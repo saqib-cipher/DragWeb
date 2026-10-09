@@ -138,7 +138,7 @@ public class BlockDef {
         String src = resolvedTemplate();
         if (src.isEmpty()) return derivedInputs;
 
-        Pattern p = Pattern.compile("%(?:(selector)|(?:(?:(\\d+)\\$)?(?:(m\\.[a-zA-Z_\\.]+|var\\.[sbd]|var)|([nsbd]))))");
+        Pattern p = Pattern.compile("%(?:(selector|id\\.selector|c\\.selector|class\\.selector|id|c)|(?:(?:(\\d+)\\$)?(?:(m\\.[a-zA-Z_\\.]+|var\\.[sbd]|var)|([nsbd]))))");
         Matcher m = p.matcher(src);
         int idx = 0;
         while (m.find()) {
@@ -152,8 +152,16 @@ public class BlockDef {
             chip.id = (pos != null) ? "p" + pos : "p" + idx;
             
             if (selectorLiteral != null) {
-                chip.type = "selector";
-                chip.selector = "any";
+                if (selectorLiteral.startsWith("id")) {
+                    chip.type = "selector";
+                    chip.selector = "id";
+                } else if (selectorLiteral.startsWith("c")) {
+                    chip.type = "selector";
+                    chip.selector = "class";
+                } else {
+                    chip.type = "selector";
+                    chip.selector = "any";
+                }
             } else if (mType != null) {
                 String cleanSelector = mType;
                 if (mType.startsWith("m.")) {
@@ -209,7 +217,7 @@ public class BlockDef {
                 // Count this as a chip parameter (unless it's a compound token like %s.something)
                 if (token.equals("%s") || token.equals("%s.inputOnly") || token.equals("%d") || token.equals("%n") || token.equals("%b")) {
                     specIdx++;
-                } else if (token.matches("%m\\.[a-zA-Z_\\.]+") || token.equals("%selector") || token.startsWith("%var")) {
+                } else if (token.matches("%m\\.[a-zA-Z_\\.]+") || token.equals("%selector") || token.equals("%id.selector") || token.equals("%c.selector") || token.equals("%id") || token.equals("%c") || token.startsWith("%var")) {
                     specIdx++;
                 } else if (token.startsWith("%") && token.contains(".")) {
                     // Compound tokens like %s.setupList - still count as a chip
@@ -247,49 +255,53 @@ public class BlockDef {
         }
     }
 
-    public static void clearCache() {
-        // no-op: cache removed; always reads fresh from file
+    private static List<BlockDef> sCachedDefinitions = null;
+
+    public static synchronized void clearCache() {
+        sCachedDefinitions = null;
     }
 
-    public static List<BlockDef> getDefinitions(android.content.Context context) {
-        if (context == null) {
-            try {
-                java.io.File file = new java.io.File("app/src/main/assets/blocks.json");
-                if (!file.exists()) file = new java.io.File("src/main/assets/blocks.json");
-                if (file.exists()) {
-                    String json = FileUtil.readFile(file.getAbsolutePath());
-                    if (json != null && !json.trim().isEmpty()) {
-                        List<BlockDef> loaded = new com.google.gson.Gson().fromJson(json,
-                            new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
-                        if (loaded != null) return loaded;
-                    }
-                }
-            } catch (Exception ignored) {}
-            return new ArrayList<>();
-        }
-
-        String json = null;
-        java.io.File customFile = new java.io.File(CustomStorageUtil.getCustomDir(context), "blocks.json");
-        if (customFile.exists() && customFile.length() > 0) {
-            json = FileUtil.readFile(customFile.getAbsolutePath());
-        }
-        // Fall back to asset if custom file is missing/empty
-        if (json == null || json.trim().isEmpty()) {
-            try (java.io.InputStream is = context.getAssets().open("blocks.json")) {
-                java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
-                json = s.hasNext() ? s.next() : "";
-            } catch (Exception ignored) {}
-        }
-        if (json != null && !json.trim().isEmpty()) {
-            try {
+    public static List<BlockDef> loadInbuiltBlocks(android.content.Context context) {
+        if (context == null) return new ArrayList<>();
+        try (java.io.InputStream is = context.getAssets().open("blocks.json")) {
+            java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+            String json = s.hasNext() ? s.next() : "";
+            if (json != null && !json.trim().isEmpty()) {
                 List<BlockDef> loaded = new com.google.gson.Gson().fromJson(json,
                     new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
                 if (loaded != null) return loaded;
-            } catch (Exception e) {
-                e.printStackTrace();
+            }
+        } catch (Exception ignored) {}
+        return new ArrayList<>();
+    }
+
+    public static List<BlockDef> loadCustomBlocks(android.content.Context context) {
+        if (context == null) return new ArrayList<>();
+        java.io.File customFile = new java.io.File(CustomStorageUtil.getCustomDir(context), "blocks.json");
+        if (customFile.exists() && customFile.length() > 0) {
+            String json = FileUtil.readFile(customFile.getAbsolutePath());
+            if (json != null && !json.trim().isEmpty()) {
+                try {
+                    List<BlockDef> loaded = new com.google.gson.Gson().fromJson(json,
+                        new com.google.gson.reflect.TypeToken<List<BlockDef>>(){}.getType());
+                    if (loaded != null) return loaded;
+                } catch (Exception ignored) {}
             }
         }
         return new ArrayList<>();
     }
-}
 
+    public static synchronized List<BlockDef> getDefinitions(android.content.Context context) {
+        if (context == null) return new ArrayList<>();
+        if (sCachedDefinitions != null) {
+            return sCachedDefinitions;
+        }
+        List<BlockDef> result = new ArrayList<>(loadInbuiltBlocks(context));
+        List<BlockDef> custom = loadCustomBlocks(context);
+        if (custom != null) {
+            result.addAll(custom);
+        }
+        sCachedDefinitions = result;
+        return result;
+    }
+}

@@ -43,7 +43,7 @@
                     android:layout_height="56dp"  
                     android:layout_weight="1"  
                     android:hint="#HEX"  
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    style="@style/Widget.Dragweb.TextInputLayout"
                     app:boxBackgroundMode="outline">
 
                     <com.google.android.material.textfield.TextInputEditText  

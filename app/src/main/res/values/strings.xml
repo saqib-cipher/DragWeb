@@ -8,7 +8,7 @@
 	<string name="delete" translatable="false">Delete</string>
 	<string name="export_project" translatable="false">Export</string>
 	<string name="save" translatable="false">Save</string>
-	<string name="no_projects" translatable="false">No projects yet.\nTap + to create one or import a website.</string>
+	<string name="no_projects" translatable="false">No projects yet.\nTap + to create one.</string>
 	<string name="welcome_message" translatable="false">Welcome to DragWeb</string>
 	<string name="app_description_short" translatable="false">No-Code Web Builder</string>
 	<string name="version_info" translatable="false">Version 1.0</string>

@@ -1865,14 +1865,23 @@ public class HtmlCssImporter {
             }
             
             // 10. addEventListener
-            Pattern eventPat = Pattern.compile("^(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)\\.addEventListener\\(\\s*['\"]([^'\"]+)['\"]\\s*,\\s*function\\s*\\([^)]*\\)\\s*\\{");
+            Pattern eventPat = Pattern.compile("^(?:(document\\.querySelector|document\\.getElementById)\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)|([a-zA-Z0-9_$]+))\\.addEventListener\\(\\s*['\"]([^'\"]+)['\"]\\s*,\\s*(?:async\\s*)?(?:function\\s*\\([^)]*\\)|\\([^)]*\\)\\s*=>)\\s*\\{");
             Matcher eventMat = eventPat.matcher(remaining);
             if (eventMat.find()) {
                 String method = eventMat.group(1);
                 String selector = eventMat.group(2);
-                String event = eventMat.group(3);
-                if (method.contains("getElementById") && !selector.startsWith("#")) {
-                    selector = "#" + selector;
+                String directVar = eventMat.group(3);
+                String event = eventMat.group(4);
+                
+                String targetVar;
+                if (directVar != null && !directVar.isEmpty()) {
+                    targetVar = directVar;
+                } else if (method != null && method.contains("getElementById")) {
+                    targetVar = selector != null ? selector.replaceFirst("^#+", "") : "el";
+                } else if (selector != null) {
+                    targetVar = selector.replaceFirst("^[#.]+", "");
+                } else {
+                    targetVar = "el";
                 }
                 
                 int openBraceIdx = pos + eventMat.end() - 1;
@@ -1890,36 +1899,9 @@ public class HtmlCssImporter {
                         pos = closeBraceIdx + 1;
                     }
                     
-                    String actionId = "jsOnClick";
-                    String spec = "%selector on click {";
-                    List<String> paramValues = java.util.Arrays.asList(selector);
-
-                    if ("click".equals(event)) {
-                        actionId = "jsOnClick";
-                        spec = "%selector on click {";
-                    } else if ("input".equals(event)) {
-                        actionId = "jsOnInput";
-                        spec = "%selector on input {";
-                    } else if ("change".equals(event)) {
-                        actionId = "jsOnChange";
-                        spec = "%selector on change {";
-                    } else if ("submit".equals(event)) {
-                        actionId = "jsOnSubmit";
-                        spec = "%selector on submit {";
-                    } else if ("keydown".equals(event)) {
-                        actionId = "jsOnKeyDown";
-                        spec = "%selector on keydown {";
-                    } else if ("mouseenter".equals(event)) {
-                        actionId = "jsOnMouseEnter";
-                        spec = "%selector on mouseenter {";
-                    } else if ("mouseleave".equals(event)) {
-                        actionId = "jsOnMouseLeave";
-                        spec = "%selector on mouseleave {";
-                    } else {
-                        actionId = "jsAddEventOnVar";
-                        spec = "%s addEventListener %s {";
-                        paramValues = java.util.Arrays.asList("document.querySelector('" + selector + "')", event);
-                    }
+                    String actionId = "jsAddEventOnVar";
+                    String spec = "%var addEventListener %m.event {";
+                    List<String> paramValues = java.util.Arrays.asList(targetVar, event);
 
                     String blockId = "blk_js_event_" + timestamp + "_" + (counterRef[0]++);
                     Map<String, Object> eventBlock = new HashMap<>();

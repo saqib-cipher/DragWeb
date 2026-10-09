@@ -61,26 +61,12 @@ public class BlockParamManagerActivity extends AppCompatActivity {
         ExtendedFloatingActionButton fab = findViewById(R.id.addFab);
         fab.setOnClickListener(v -> showAddTypeDialog());
 
-        // Ensure param.json exists in storage before loading manager
-        java.io.File paramFile = new java.io.File(CustomStorageUtil.getCustomDir(this), "param.json");
-        if (!paramFile.exists() || paramFile.length() == 0) {
-            try (java.io.InputStream is = getAssets().open("param.json");
-                 java.io.FileOutputStream fos = new java.io.FileOutputStream(paramFile)) {
-                byte[] buf = new byte[8192];
-                int n;
-                while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
-                fos.flush();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
         manager = new BlockParamTypeManager(this);
         refreshList();
     }
 
     private void refreshList() {
-        Map<String, List<String>> all = manager.getAllParamTypes();
+        Map<String, List<String>> all = manager.getCustomParamTypes();
         adapter.setItems(new ArrayList<>(all.entrySet()));
     }
 

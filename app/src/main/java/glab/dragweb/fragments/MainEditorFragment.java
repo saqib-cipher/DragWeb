@@ -1217,8 +1217,6 @@ public class MainEditorFragment extends Fragment {
 		if (window != null) {
 			window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
 			androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false);
-			window.setStatusBarColor(Color.TRANSPARENT);
-			window.setNavigationBarColor(Color.TRANSPARENT);
 			window.setWindowAnimations(android.R.style.Animation_Dialog);
 		}
 
@@ -1850,32 +1848,15 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void showAddPageDialog() {
-		pageImportHtmlUri = null;
 		View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_page, null);
-		TextInputLayout tilPageName = dialogView.findViewById(R.id.tilPageName);
 		TextInputEditText etPageName = dialogView.findViewById(R.id.etPageName);
 		etDialogPageName = etPageName;
-		View cardSelectHtml = dialogView.findViewById(R.id.cardSelectHtml);
-		tvDialogHtmlFileName = dialogView.findViewById(R.id.tvHtmlFileName);
-		btnDialogClearHtml = dialogView.findViewById(R.id.btnClearHtml);
-
-		cardSelectHtml.setOnClickListener(v -> {
-			android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
-			intent.setType("text/html");
-			importPageHtmlLauncher.launch(intent);
-		});
-
-		btnDialogClearHtml.setOnClickListener(v -> {
-			pageImportHtmlUri = null;
-			tvDialogHtmlFileName.setText("No file selected");
-			btnDialogClearHtml.setVisibility(View.GONE);
-		});
 
 		new MaterialAlertDialogBuilder(requireContext())
 			.setTitle("New Page")
 			.setView(dialogView)
 			.setPositiveButton("Create", (dialog, which) -> {
-				String rawName = etPageName.getText().toString().trim();
+				String rawName = etPageName != null && etPageName.getText() != null ? etPageName.getText().toString().trim() : "";
 				String pageName = rawName.replaceAll("[^a-zA-Z0-9_-]", "");
 				if (pageName.isEmpty()) {
 					Toast.makeText(requireContext(), "Invalid page name", Toast.LENGTH_SHORT).show();
@@ -1887,64 +1868,7 @@ public class MainEditorFragment extends Fragment {
 				}
 
 				saveCurrentPageLayout();
-
-				if (pageImportHtmlUri != null) {
-					// Parse the selected HTML file
-					String htmlContent = readUriContent(pageImportHtmlUri);
-					if (htmlContent == null || htmlContent.trim().isEmpty()) {
-						Toast.makeText(requireContext(), "Could not read HTML file", Toast.LENGTH_SHORT).show();
-						return;
-					}
-
-					HtmlCssImporter importer = new HtmlCssImporter(requireContext());
-					HtmlCssImporter.ImportResult result = importer.importHtmlCss(htmlContent, null);
-
-					if (!result.success) {
-						Toast.makeText(requireContext(), "Import failed: " + result.message, Toast.LENGTH_LONG).show();
-						return;
-					}
-
-					// Disable default styles and inline styles for the project on import
-					themeManager.setUseInlineStyles(false);
-					themeManager.setDisableDefaultStyles(true);
-					try {
-						File dir = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId);
-						if (!dir.exists()) dir.mkdirs();
-						File themeFile = new File(dir, "theme.json");
-						FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
-						saveProjectToExternal();
-					} catch (Exception e) {}
-
-					// Enable detected standard icon libraries
-					if (result.enabledLibraries != null && !result.enabledLibraries.isEmpty()) {
-						IconLibraryManager ilm = new IconLibraryManager(requireContext(), projectId);
-						for (String libId : result.enabledLibraries) {
-							ilm.enable(libId);
-						}
-					}
-
-					// Save imported page layout
-					String widgetTreeJson = new Gson().toJson(result.widgetTree);
-					pageManager.addPage(pageName);
-					pageManager.savePageLayout(pageName, widgetTreeJson);
-
-					// Save logic blocks for the imported page to .dragweb
-					if (result.logicBeans != null && !result.logicBeans.isEmpty()) {
-						String logicJson = new Gson().toJson(result.logicBeans);
-						File extDir = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId);
-						if (!extDir.exists()) FileUtil.makeDir(extDir.getAbsolutePath());
-						FileUtil.writeFile(new File(extDir, pageName + "_logic.json").getAbsolutePath(), logicJson);
-					} else if (result.logicBlocks != null && !result.logicBlocks.isEmpty()) {
-						ArrayList<BlockBean> beans = importer.convertRawMapsToBeans(result.logicBlocks);
-						String logicJson = new Gson().toJson(beans);
-						File extDir = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId);
-						if (!extDir.exists()) FileUtil.makeDir(extDir.getAbsolutePath());
-						FileUtil.writeFile(new File(extDir, pageName + "_logic.json").getAbsolutePath(), logicJson);
-					}
-				} else {
-					// Standard empty page
-					pageManager.addPage(pageName);
-				}
+				pageManager.addPage(pageName);
 
 				// Switch to new page
 				pageManager.setCurrentPage(pageName);
@@ -1961,10 +1885,6 @@ public class MainEditorFragment extends Fragment {
 				Toast.makeText(requireContext(), "Page '" + pageName + "' created", Toast.LENGTH_SHORT).show();
 			})
 			.setNegativeButton("Cancel", null)
-			.setOnDismissListener(dialog -> {
-				tvDialogHtmlFileName = null;
-				btnDialogClearHtml = null;
-			})
 			.show();
 	}
 
@@ -3999,10 +3919,6 @@ public class MainEditorFragment extends Fragment {
 		Object tag = v.getTag();
 		if (tag instanceof Map) {
 			Map<String, Object> wm = (Map<String, Object>) tag;
-			if (wm.containsKey("tag")) {
-				String widgetTag = String.valueOf(wm.get("tag")).trim();
-				if (!widgetTag.isEmpty()) set.add(widgetTag);
-			}
 			Map<String, Object> fn = (Map<String, Object>) wm.get("function");
 			if (fn != null && fn.containsKey("id")) {
 				String s = String.valueOf(fn.get("id")).trim();

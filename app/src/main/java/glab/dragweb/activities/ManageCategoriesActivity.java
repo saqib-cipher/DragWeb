@@ -284,7 +284,7 @@ public class ManageCategoriesActivity extends AppCompatActivity {
         categories.clear();
         CategoryDef.clearCache();
         try {
-            List<CategoryDef> loaded = CategoryDef.getCategories(this);
+            List<CategoryDef> loaded = CategoryDef.loadCustomCategories(this);
             if (loaded != null) categories.addAll(loaded);
         } catch (Exception e) {
             e.printStackTrace();

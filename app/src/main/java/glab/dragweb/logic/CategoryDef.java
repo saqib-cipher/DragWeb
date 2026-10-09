@@ -27,33 +27,51 @@ public class CategoryDef {
     public String catColor;
     public String type; // css | js | common
 
-    public static void clearCache() {
-        // no-op: cache removed; always reads fresh from file
+    private static List<CategoryDef> sCachedCategories = null;
+
+    public static synchronized void clearCache() {
+        sCachedCategories = null;
     }
 
-    public static List<CategoryDef> getCategories(Context context) {
+    public static List<CategoryDef> loadInbuiltCategories(Context context) {
         if (context == null) return new ArrayList<>();
-
-        try {
-            java.io.File file = new java.io.File(CustomStorageUtil.getCustomDir(context), "categories.json");
-            String json = null;
-            if (file.exists() && file.length() > 0) {
-                json = FileUtil.readFile(file.getAbsolutePath());
-            }
-            // Fall back to asset if custom file is missing/empty
-            if (json == null || json.trim().isEmpty()) {
-                try (java.io.InputStream is = context.getAssets().open("categories.json")) {
-                    java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
-                    json = s.hasNext() ? s.next() : "";
-                } catch (Exception ignored) {}
-            }
+        try (InputStream is = context.getAssets().open("categories.json")) {
+            java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+            String json = s.hasNext() ? s.next() : "";
             if (json != null && !json.trim().isEmpty()) {
                 List<CategoryDef> loaded = new Gson().fromJson(json, new TypeToken<List<CategoryDef>>(){}.getType());
                 if (loaded != null) return loaded;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Exception ignored) {}
+        return new ArrayList<>();
+    }
+
+    public static List<CategoryDef> loadCustomCategories(Context context) {
+        if (context == null) return new ArrayList<>();
+        java.io.File file = new java.io.File(CustomStorageUtil.getCustomDir(context), "categories.json");
+        if (file.exists() && file.length() > 0) {
+            String json = FileUtil.readFile(file.getAbsolutePath());
+            if (json != null && !json.trim().isEmpty()) {
+                try {
+                    List<CategoryDef> loaded = new Gson().fromJson(json, new TypeToken<List<CategoryDef>>(){}.getType());
+                    if (loaded != null) return loaded;
+                } catch (Exception ignored) {}
+            }
         }
         return new ArrayList<>();
+    }
+
+    public static synchronized List<CategoryDef> getCategories(Context context) {
+        if (context == null) return new ArrayList<>();
+        if (sCachedCategories != null) {
+            return sCachedCategories;
+        }
+        List<CategoryDef> result = new ArrayList<>(loadInbuiltCategories(context));
+        List<CategoryDef> custom = loadCustomCategories(context);
+        if (custom != null) {
+            result.addAll(custom);
+        }
+        sCachedCategories = result;
+        return result;
     }
 }

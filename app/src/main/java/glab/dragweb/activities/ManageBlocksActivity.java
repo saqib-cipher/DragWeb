@@ -319,7 +319,7 @@ public class ManageBlocksActivity extends AppCompatActivity {
         allBlockDefs.clear();
         BlockDef.clearCache();
         try {
-            List<BlockDef> loaded = BlockDef.getDefinitions(this);
+            List<BlockDef> loaded = BlockDef.loadCustomBlocks(this);
             if (loaded != null) allBlockDefs.addAll(loaded);
         } catch (Exception e) {
             e.printStackTrace();

@@ -68,9 +68,6 @@ public class EventsFragment extends Fragment {
     private TextView tvSectionTitle;
     private RecyclerView rvEvents;
     private Button btnResetLogic;
-    private Button btnImportCss;
-    private ImageView clear;
-    private CardView suggestCard;
 
     private int currentTab = 0; // 0: CSS, 1: JS, 2: HTML, 3: Functions (MoreBlocks)
 
@@ -124,6 +121,13 @@ public class EventsFragment extends Fragment {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        invalidateProjectFilesCache();
+        refreshLogicList();
+    }
+
+    @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         
@@ -137,11 +141,6 @@ public class EventsFragment extends Fragment {
         tvSectionTitle = view.findViewById(R.id.tvSectionTitle);
         rvEvents = view.findViewById(R.id.rv_events);
         btnResetLogic = view.findViewById(R.id.btnResetLogic);
-        btnImportCss = view.findViewById(R.id.btnImportCss);
-        clear = view.findViewById(R.id.clear);
-        suggestCard = view.findViewById(R.id.suggestCard);
-
-        clear.setOnClickListener(v -> suggestCard.setVisibility(View.GONE));
 
         pageManager = new PageManager(getContext(), projectId);
         rvEvents.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -257,10 +256,7 @@ public class EventsFragment extends Fragment {
             }
         });
 
-        if (btnImportCss != null) {
-            btnImportCss.setText("Import Code");
-            btnImportCss.setOnClickListener(v -> showImportCodeDialog());
-        }
+
 
         refreshLogicList();
     }
@@ -278,6 +274,12 @@ public class EventsFragment extends Fragment {
 
     private final java.util.concurrent.ExecutorService bgExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
 
+    private List<String> cachedProjectFiles = null;
+
+    public void invalidateProjectFilesCache() {
+        cachedProjectFiles = null;
+    }
+
     private void refreshLogicList() {
         if (getContext() == null || rvEvents == null) return;
 
@@ -285,11 +287,13 @@ public class EventsFragment extends Fragment {
         final String projId = projectId;
 
         bgExecutor.execute(() -> {
+            if (tabSnap != currentTab) return;
             List<EventListItem> items = new ArrayList<>();
 
             if (tabSnap == 3) {
                 List<FunctionItem> functions = getAllProjectFunctions();
                 for (FunctionItem f : functions) {
+                    if (tabSnap != currentTab) return;
                     EventListItem item = new EventListItem();
                     item.isFunction = true;
                     item.title = getCleanBlockName(f.name != null && !f.name.isEmpty() ? f.name : f.spec);
@@ -303,6 +307,7 @@ public class EventsFragment extends Fragment {
             } else {
                 List<String> filteredFiles = getFilteredFiles(tabSnap);
                 for (String f : filteredFiles) {
+                    if (tabSnap != currentTab) return;
                     EventListItem item = new EventListItem();
                     item.isFunction = false;
                     String displayName = f.substring(f.lastIndexOf('/') + 1);
@@ -319,7 +324,11 @@ public class EventsFragment extends Fragment {
                 getActivity().runOnUiThread(() -> {
                     if (!isAdded() || rvEvents == null) return;
                     if (tabSnap != currentTab) return;
-                    rvEvents.setAdapter(new CssFilesAdapter(items));
+                    if (rvEvents.getAdapter() instanceof CssFilesAdapter) {
+                        ((CssFilesAdapter) rvEvents.getAdapter()).setItems(items);
+                    } else {
+                        rvEvents.setAdapter(new CssFilesAdapter(items));
+                    }
                 });
             }
         });
@@ -342,13 +351,16 @@ public class EventsFragment extends Fragment {
     }
 
     private List<String> getProjectFiles() {
+        if (cachedProjectFiles != null) {
+            return new ArrayList<>(cachedProjectFiles);
+        }
         List<String> files = new ArrayList<>();
         files.add("css/style.css");
         files.add("css/theme.css");
         files.add("js/script.js");
         files.add("index.html");
 
-        // Always read from storage — recreate PageManager to avoid stale cache
+        // Read from storage & PageManager
         PageManager pm = new PageManager(getContext(), projectId);
         for (String page : pm.getPages()) {
             String htmlName = page.endsWith(".html") ? page : page + ".html";
@@ -362,7 +374,8 @@ public class EventsFragment extends Fragment {
         if (FileUtil.exists(dir) && FileUtil.isDirectory(dir)) {
             collectFilesRecursive(dir, dir, files);
         }
-        return files;
+        cachedProjectFiles = files;
+        return new ArrayList<>(files);
     }
 
     private void collectFilesRecursive(File root, File current, List<String> filesList) {
@@ -511,423 +524,19 @@ public class EventsFragment extends Fragment {
         return count;
     }
 
-    private void showImportCodeDialog() {
-        if (getContext() == null) return;
-
-        if (currentTab == 3) {
-            UniversalDialog.multilineInput(getContext(), "Import JS as MoreBlock", "Paste JS code here", "", codeText -> {
-                if (codeText.trim().isEmpty()) return;
-                HtmlCssImporter importer = new HtmlCssImporter(getContext());
-                ArrayList<BlockBean> importedBeans = importer.importJsToBeans(codeText);
-                if (importedBeans == null || importedBeans.isEmpty()) {
-                    Toast.makeText(getContext(), "No JS blocks could be parsed.", Toast.LENGTH_LONG).show();
-                    return;
-                }
-                ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(projectId);
-                if (funcs == null || funcs.isEmpty()) {
-                    Toast.makeText(getContext(), "No existing functions to import into", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                String[] names = new String[funcs.size()];
-                for (int i = 0; i < funcs.size(); i++) {
-                    names[i] = funcs.get(i).name != null ? funcs.get(i).name : funcs.get(i).spec;
-                }
-                UniversalDialog.singleChoice(getContext(), "Select Function", names, (idx3, selectedName) -> {
-                    String funcName = (idx3 >= 0 && idx3 < funcs.size() && funcs.get(idx3).name != null) ? funcs.get(idx3).name : selectedName;
-                    String linkedFile = "js/script.js";
-                    if (idx3 >= 0 && idx3 < funcs.size() && funcs.get(idx3).linkedFile != null) {
-                        linkedFile = funcs.get(idx3).linkedFile;
-                    }
-                    saveImportedBlocksAsFunction(funcName, importedBeans, linkedFile);
-                });
-            });
-            return;
-        }
-
-        List<String> files = getProjectFiles();
-        if (files.isEmpty()) return;
-
-        String[] items = files.toArray(new String[0]);
-        UniversalDialog.singleChoice(getContext(), "Select Target File", items, (index, target) -> {
-            boolean isJs = target.toLowerCase().endsWith(".js");
-            String title = isJs ? "Import JS to " + target.substring(target.lastIndexOf('/') + 1) : "Import CSS to " + target.substring(target.lastIndexOf('/') + 1);
-            String hint = isJs ? "Paste JS code here" : "Paste CSS code here";
-            String codeType = isJs ? "JS" : "CSS";
-
-            UniversalDialog.multilineInput(getContext(), title, hint, "", codeText -> {
-                if (codeText.trim().isEmpty()) {
-                    Toast.makeText(getContext(), "Pasted " + codeType + " is empty", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                HtmlCssImporter importer = new HtmlCssImporter(getContext());
-                ArrayList<BlockBean> importedBeans;
-                if (isJs) {
-                    importedBeans = importer.importJsToBeans(codeText);
-                } else {
-                    importedBeans = importer.importCssToBeans(codeText);
-                }
-
-                if (importedBeans == null || importedBeans.isEmpty()) {
-                    Toast.makeText(getContext(), "No " + codeType + " rules could be parsed into blocks.", Toast.LENGTH_LONG).show();
-                    return;
-                }
-
-                String cleanPage = DesignDataManager.getCleanPageName(target);
-                File extDir = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId);
-                if (!extDir.exists()) extDir.mkdirs();
-                File logicFile = new File(extDir, cleanPage + "_logic.json");
-
-                DesignDataManager.PageLogicData data = null;
-                if (logicFile.exists()) {
-                    try {
-                        String json = FileUtil.readFile(logicFile.getAbsolutePath());
-                        if (json != null && !json.trim().isEmpty()) {
-                            data = DesignDataManager.deserializePageLogicData(json, target);
-                        }
-                    } catch (Exception e) {
-                        Log.e("EventsFragment", "Error reading logic file", e);
-                    }
-                }
-                if (data == null) {
-                    data = new DesignDataManager.PageLogicData();
-                }
-
-                String eventKey = "onCreate_initializeLogic";
-                ArrayList<BlockBean> currentBlocks = data.blocks.get(eventKey);
-                if (currentBlocks == null) {
-                    currentBlocks = data.blocks.get("onPageLoad_onPageLoad");
-                    if (currentBlocks == null) {
-                        currentBlocks = new ArrayList<>();
-                    }
-                    data.blocks.put(eventKey, currentBlocks);
-                }
-
-                Map<Integer, Integer> idMapping = new HashMap<>();
-                int maxId = 0;
-                for (BlockBean b : currentBlocks) {
-                    try {
-                        int idNum = Integer.parseInt(b.id);
-                        if (idNum > maxId) maxId = idNum;
-                    } catch (Exception ignored) {}
-                }
-
-                for (BlockBean bean : importedBeans) {
-                    try {
-                        int oldId = Integer.parseInt(bean.id);
-                        maxId++;
-                        idMapping.put(oldId, maxId);
-                        bean.id = String.valueOf(maxId);
-                    } catch (Exception e) {
-                        maxId++;
-                        bean.id = String.valueOf(maxId);
-                    }
-                }
-
-                for (BlockBean bean : importedBeans) {
-                    if (bean.subStack1 >= 0 && idMapping.containsKey(bean.subStack1)) {
-                        bean.subStack1 = idMapping.get(bean.subStack1);
-                    } else if (bean.subStack1 >= 0) {
-                        bean.subStack1 = -1;
-                    }
-
-                    if (bean.subStack2 >= 0 && idMapping.containsKey(bean.subStack2)) {
-                        bean.subStack2 = idMapping.get(bean.subStack2);
-                    } else if (bean.subStack2 >= 0) {
-                        bean.subStack2 = -1;
-                    }
-
-                    if (bean.nextBlock >= 0 && idMapping.containsKey(bean.nextBlock)) {
-                        bean.nextBlock = idMapping.get(bean.nextBlock);
-                    } else if (bean.nextBlock >= 0) {
-                        bean.nextBlock = -1;
-                    }
-
-                    if (bean.parameters != null) {
-                        for (int i = 0; i < bean.parameters.size(); i++) {
-                            String p = bean.parameters.get(i);
-                            if (p != null && p.startsWith("@")) {
-                                try {
-                                    int refId = Integer.parseInt(p.substring(1));
-                                    if (idMapping.containsKey(refId)) {
-                                        bean.parameters.set(i, "@" + idMapping.get(refId));
-                                    }
-                                } catch (Exception ignored) {}
-                            }
-                        }
-                    }
-                }
-
-                // Link the imported blocks chain to the bottom of the existing block chain in workspace
-                BlockBean importedRootBlock = null;
-                if (!importedBeans.isEmpty()) {
-                    java.util.Set<String> childIds = new java.util.HashSet<>();
-                    for (BlockBean b : importedBeans) {
-                        if (b.nextBlock >= 0) childIds.add(String.valueOf(b.nextBlock));
-                        if (b.subStack1 >= 0) childIds.add(String.valueOf(b.subStack1));
-                        if (b.subStack2 >= 0) childIds.add(String.valueOf(b.subStack2));
-                    }
-                    for (BlockBean b : importedBeans) {
-                        if (!childIds.contains(b.id)) {
-                            importedRootBlock = b;
-                            break;
-                        }
-                    }
-                    if (importedRootBlock == null) {
-                        importedRootBlock = importedBeans.get(0);
-                    }
-                }
-
-                BlockBean currentRootBlock = null;
-                if (!currentBlocks.isEmpty()) {
-                    java.util.Set<String> childIds = new java.util.HashSet<>();
-                    for (BlockBean b : currentBlocks) {
-                        if (b.nextBlock >= 0) childIds.add(String.valueOf(b.nextBlock));
-                        if (b.subStack1 >= 0) childIds.add(String.valueOf(b.subStack1));
-                        if (b.subStack2 >= 0) childIds.add(String.valueOf(b.subStack2));
-                    }
-                    for (BlockBean b : currentBlocks) {
-                        if (!childIds.contains(b.id)) {
-                            currentRootBlock = b;
-                            break;
-                        }
-                    }
-                    if (currentRootBlock == null) {
-                        currentRootBlock = currentBlocks.get(0);
-                    }
-                }
-
-                BlockBean currentBottomBlock = currentRootBlock;
-                if (currentBottomBlock != null) {
-                    while (currentBottomBlock.nextBlock >= 0) {
-                        BlockBean next = null;
-                        for (BlockBean b : currentBlocks) {
-                            if (b.id.equals(String.valueOf(currentBottomBlock.nextBlock))) {
-                                next = b;
-                                break;
-                            }
-                        }
-                        if (next == null) break;
-                        currentBottomBlock = next;
-                    }
-                }
-
-                if (currentBottomBlock != null && importedRootBlock != null) {
-                    currentBottomBlock.nextBlock = Integer.parseInt(importedRootBlock.id);
-                }
-
-                int maxStackIndex = currentBlocks.size();
-                for (BlockBean bean : importedBeans) {
-                    bean.stackIndex = maxStackIndex++;
-                    currentBlocks.add(bean);
-                }
-
-                data.blocks.put("onCreate_initializeLogic", currentBlocks);
-                data.blocks.put("onPageLoad_onPageLoad", currentBlocks);
-
-                String updatedJson = new GsonBuilder().setPrettyPrinting().create().toJson(data);
-                FileUtil.writeFile(logicFile.getAbsolutePath(), updatedJson);
-
-                HashMap<String, ArrayList<BlockBean>> pageBlocks = DesignDataManager.mapBlocks.get(cleanPage);
-                if (pageBlocks == null) {
-                    pageBlocks = new HashMap<>();
-                    DesignDataManager.mapBlocks.put(cleanPage, pageBlocks);
-                }
-                pageBlocks.put("onCreate_initializeLogic", currentBlocks);
-                pageBlocks.put("onPageLoad_onPageLoad", currentBlocks);
-
-                refreshLogicList();
-                Toast.makeText(getContext(), "Successfully imported " + importedBeans.size() + " " + codeType + " blocks into " + target, Toast.LENGTH_LONG).show();
-            });
-        });
-    }
-
-    private void saveImportedBlocksAsFunction(String funcName, ArrayList<BlockBean> importedBeans, String linkedFile) {
-        String funcKey = "func_" + funcName;
-        String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
-        File extDir = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId);
-        if (!extDir.exists()) extDir.mkdirs();
-        File logicFile = new File(extDir, cleanPage + "_logic.json");
-
-        DesignDataManager.PageLogicData data = null;
-        if (logicFile.exists()) {
-            try {
-                String json = FileUtil.readFile(logicFile.getAbsolutePath());
-                if (json != null && !json.trim().isEmpty()) {
-                    data = DesignDataManager.deserializePageLogicData(json, linkedFile);
-                }
-            } catch (Exception e) {
-                Log.e("EventsFragment", "Error reading logic file", e);
-            }
-        }
-        if (data == null) {
-            data = new DesignDataManager.PageLogicData();
-        }
-
-        // Remap IDs of imported blocks to avoid collision with existing blocks
-        Map<Integer, Integer> idMapping = new HashMap<>();
-        int maxId = 0;
-        ArrayList<BlockBean> existing = data.blocks.get(funcKey);
-        if (existing != null) {
-            for (BlockBean b : existing) {
-                try { int idNum = Integer.parseInt(b.id); if (idNum > maxId) maxId = idNum; } catch (Exception ignored) {}
-            }
-        }
-        for (BlockBean bean : importedBeans) {
-            try {
-                int oldId = Integer.parseInt(bean.id);
-                maxId++;
-                idMapping.put(oldId, maxId);
-                bean.id = String.valueOf(maxId);
-            } catch (Exception e) {
-                maxId++;
-                bean.id = String.valueOf(maxId);
-            }
-        }
-        // Update internal references within imported blocks using remapped IDs
-        for (BlockBean bean : importedBeans) {
-            if (bean.subStack1 >= 0 && idMapping.containsKey(bean.subStack1)) bean.subStack1 = idMapping.get(bean.subStack1);
-            else if (bean.subStack1 >= 0) bean.subStack1 = -1;
-            if (bean.subStack2 >= 0 && idMapping.containsKey(bean.subStack2)) bean.subStack2 = idMapping.get(bean.subStack2);
-            else if (bean.subStack2 >= 0) bean.subStack2 = -1;
-            if (bean.nextBlock >= 0 && idMapping.containsKey(bean.nextBlock)) bean.nextBlock = idMapping.get(bean.nextBlock);
-            else if (bean.nextBlock >= 0) bean.nextBlock = -1;
-
-            if (bean.parameters != null) {
-                for (int i = 0; i < bean.parameters.size(); i++) {
-                    String p = bean.parameters.get(i);
-                    if (p != null && p.startsWith("@")) {
-                        try {
-                            int refId = Integer.parseInt(p.substring(1));
-                            if (idMapping.containsKey(refId)) {
-                                bean.parameters.set(i, "@" + idMapping.get(refId));
-                            }
-                        } catch (Exception ignored) {}
-                    }
-                }
-            }
-        }
-
-        // Find root of imported chain
-        BlockBean importedRootBlock = null;
-        if (!importedBeans.isEmpty()) {
-            java.util.Set<String> childIds = new java.util.HashSet<>();
-            for (BlockBean b : importedBeans) {
-                if (b.nextBlock >= 0) childIds.add(String.valueOf(b.nextBlock));
-                if (b.subStack1 >= 0) childIds.add(String.valueOf(b.subStack1));
-                if (b.subStack2 >= 0) childIds.add(String.valueOf(b.subStack2));
-            }
-            for (BlockBean b : importedBeans) {
-                if (!childIds.contains(b.id)) {
-                    importedRootBlock = b;
-                    break;
-                }
-            }
-            if (importedRootBlock == null) {
-                importedRootBlock = importedBeans.get(0);
-            }
-        }
-
-        ArrayList<BlockBean> funcBlocks;
-        if (existing != null && !existing.isEmpty()) {
-            // Clone list so we don't mutate the original reference in data.blocks
-            funcBlocks = new ArrayList<>(existing);
-            // Remove any stale definedFunc blocks that may have been saved by an older import
-            for (int i = funcBlocks.size() - 1; i >= 0; i--) {
-                if ("definedFunc".equals(funcBlocks.get(i).opCode)) funcBlocks.remove(i);
-            }
-
-            // Find root of existing body blocks (the one not referenced by other blocks)
-            BlockBean currentRootBlock = null;
-            java.util.Set<String> childIds = new java.util.HashSet<>();
-            for (BlockBean b : funcBlocks) {
-                if (b.nextBlock >= 0) childIds.add(String.valueOf(b.nextBlock));
-                if (b.subStack1 >= 0) childIds.add(String.valueOf(b.subStack1));
-                if (b.subStack2 >= 0) childIds.add(String.valueOf(b.subStack2));
-            }
-            for (BlockBean b : funcBlocks) {
-                if (!childIds.contains(b.id)) {
-                    currentRootBlock = b;
-                    break;
-                }
-            }
-            if (currentRootBlock == null) {
-                currentRootBlock = funcBlocks.get(0);
-            }
-
-            // Walk the chain to find the last block
-            BlockBean currentBottomBlock = currentRootBlock;
-            if (currentBottomBlock != null) {
-                while (currentBottomBlock.nextBlock >= 0) {
-                    BlockBean next = null;
-                    for (BlockBean b : funcBlocks) {
-                        if (b.id.equals(String.valueOf(currentBottomBlock.nextBlock))) {
-                            next = b;
-                            break;
-                        }
-                    }
-                    if (next == null) break;
-                    currentBottomBlock = next;
-                }
-            }
-
-            // Re-assign stackIndex to collapse any gaps from removeIf
-            for (int si = 0; si < funcBlocks.size(); si++) {
-                funcBlocks.get(si).stackIndex = si;
-            }
-
-            // Link imported chain to bottom of existing chain
-            if (currentBottomBlock != null && importedRootBlock != null) {
-                currentBottomBlock.nextBlock = Integer.parseInt(importedRootBlock.id);
-            }
-
-            // Append imported blocks with proper stackIndex
-            int maxStackIndex = funcBlocks.size();
-            for (BlockBean bean : importedBeans) {
-                bean.stackIndex = maxStackIndex++;
-                funcBlocks.add(bean);
-            }
-        } else {
-            funcBlocks = new ArrayList<>();
-            // No definedFunc block — the logic editor creates the hat block on-the-fly.
-            // Only body blocks are saved here.
-            for (int si = 0; si < importedBeans.size(); si++) {
-                importedBeans.get(si).stackIndex = si;
-                funcBlocks.add(importedBeans.get(si));
-            }
-        }
-        data.blocks.put(funcKey, funcBlocks);
-        // Remove legacy _moreBlock key to prevent duplicate entries from old saves
-        String oldKey = funcName + "_moreBlock";
-        data.blocks.remove(oldKey);
-
-        String updatedJson = new GsonBuilder().setPrettyPrinting().create().toJson(data);
-        FileUtil.writeFile(logicFile.getAbsolutePath(), updatedJson);
-
-        // Clean up legacy _moreBlock from all pages in mapBlocks
-        if (DesignDataManager.mapBlocks != null) {
-            for (HashMap<String, ArrayList<BlockBean>> pageMap : DesignDataManager.mapBlocks.values()) {
-                if (pageMap != null) {
-                    pageMap.remove(oldKey);
-                }
-            }
-        }
-        HashMap<String, ArrayList<BlockBean>> pageBlocks = DesignDataManager.mapBlocks.get(cleanPage);
-        if (pageBlocks == null) {
-            pageBlocks = new HashMap<>();
-            DesignDataManager.mapBlocks.put(cleanPage, pageBlocks);
-        }
-        pageBlocks.put(funcKey, funcBlocks);
-
-        refreshLogicList();
-        Toast.makeText(getContext(), "Imported " + importedBeans.size() + " blocks into function: " + funcName, Toast.LENGTH_LONG).show();
-    }
-
     class CssFilesAdapter extends RecyclerView.Adapter<CssFilesAdapter.ViewHolder> {
         private final List<EventListItem> items;
 
         CssFilesAdapter(List<EventListItem> items) {
-            this.items = items;
+            this.items = items != null ? new ArrayList<>(items) : new ArrayList<>();
+        }
+
+        public void setItems(List<EventListItem> newItems) {
+            this.items.clear();
+            if (newItems != null) {
+                this.items.addAll(newItems);
+            }
+            notifyDataSetChanged();
         }
 
         class ViewHolder extends ListItemViewHolder {

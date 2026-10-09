@@ -45,7 +45,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilId"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Dragweb.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp">
@@ -59,7 +59,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/events_creator_icon_til"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Dragweb.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
@@ -79,7 +79,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilDisplayText"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Dragweb.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp">
@@ -93,7 +93,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilWidgetTag"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Dragweb.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
@@ -113,7 +113,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilWidgetColor"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Dragweb.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp">
@@ -127,7 +127,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilCode"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Dragweb.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp">

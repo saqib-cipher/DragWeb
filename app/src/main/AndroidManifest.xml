@@ -17,7 +17,6 @@
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:supportsPictureInPicture="true"
-			android:screenOrientation="portrait"
 			android:windowSoftInputMode="stateHidden"
 			android:exported="false" />
 		<activity
@@ -33,25 +32,18 @@
 			android:theme="@style/AppTheme"
 			android:exported="false" />
 		<activity
-			android:name=".activities.SplashActivity"
+			android:name=".activities.HomeActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
 			android:supportsPictureInPicture="true"
-			android:theme="@style/AppTheme.FullScreen"
 			android:windowSoftInputMode="stateHidden"
+			android:theme="@style/Theme.Dragweb.Starting"
 			android:exported="true">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />
 				<category android:name="android.intent.category.LAUNCHER" />
 			</intent-filter>
 		</activity>
-		<activity
-			android:name=".activities.HomeActivity"
-			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
-			android:hardwareAccelerated="true"
-			android:supportsPictureInPicture="true"
-			android:windowSoftInputMode="stateHidden"
-			android:exported="false" />
 
 		<activity
 			android:name=".activities.ImportSiteActivity"
@@ -123,7 +115,6 @@
 			android:exported="false" />
 		<activity
 			android:name=".activities.DebugActivity"
-			android:screenOrientation="portrait"
 			android:theme="@style/AppTheme.DebugActivity"
 			android:exported="false" />
 

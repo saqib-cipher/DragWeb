@@ -205,7 +205,7 @@ public final class UniversalM3Dialog {
         lp.topMargin = dp(12);
         root.addView(til, lp);
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder builder = createBuilder()
             .setTitle(title.isEmpty() ? "Input Unit Value" : title)
             .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
@@ -376,7 +376,7 @@ public final class UniversalM3Dialog {
 
         renderCurrent.run();
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder builder = createBuilder()
             .setTitle(title)
             .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
@@ -482,7 +482,7 @@ public final class UniversalM3Dialog {
         lp.topMargin = dp(8);
         root.addView(til, lp);
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder builder = createBuilder()
             .setTitle(title)
             .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
@@ -1106,6 +1106,194 @@ public final class UniversalM3Dialog {
         showAndFocusKeyboard(builder, edit);
     }
 
+    public void showIdSelectorInput(List<String> idSuggestions, OnText cb) {
+        int pad = dp(24);
+        ScrollView scroll = new ScrollView(context);
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, dp(12), pad, dp(20));
+        scroll.addView(root);
+
+        final ChipGroup suggestionChips = createChipGroup();
+        suggestionChips.setPadding(0, 0, 0, dp(4));
+        if (idSuggestions != null && !idSuggestions.isEmpty()) {
+            android.widget.HorizontalScrollView suggestionScroll = createChipScroll();
+            suggestionScroll.addView(suggestionChips);
+            root.addView(suggestionScroll);
+        }
+
+        TextInputLayout til = createTextInputLayout("Element ID");
+        final MaterialAutoCompleteTextView edit = createEditor(til, "", null);
+        til.addView(edit);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(4);
+        root.addView(til, lp);
+
+        final boolean[] isInternal = {false};
+
+        String val = initial == null ? "" : initial.trim().replaceFirst("^#+", "");
+        edit.setText(val);
+        if (val.length() > 0) edit.setSelection(val.length());
+
+        if (idSuggestions != null && !idSuggestions.isEmpty()) {
+            isInternal[0] = true;
+            List<String> cleanList = new ArrayList<>();
+            java.util.Set<String> htmlTags = new java.util.HashSet<>(java.util.Arrays.asList(
+                "div", "span", "p", "a", "h1", "h2", "h3", "h4", "h5", "h6",
+                "button", "img", "input", "textarea", "select", "form",
+                "ul", "ol", "li", "table", "tr", "td", "th", "header", "footer", "nav", "section", "article", "aside"
+            ));
+            for (String s : idSuggestions) {
+                String cleanS = s != null ? s.replaceFirst("^#+", "").trim() : "";
+                if (!cleanS.isEmpty()) {
+                    if (htmlTags.contains(cleanS.toLowerCase()) && !cleanS.equalsIgnoreCase(val)) {
+                        continue;
+                    }
+                    if (!cleanList.contains(cleanS)) {
+                        cleanList.add(cleanS);
+                        Chip chip = createPresetChip(cleanS);
+                        if (cleanS.equalsIgnoreCase(val)) chip.setChecked(true);
+                        suggestionChips.addView(chip);
+                    }
+                }
+            }
+            edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, cleanList));
+            isInternal[0] = false;
+        }
+
+        suggestionChips.setOnCheckedStateChangeListener((g, checkedIds) -> {
+            if (isInternal[0] || checkedIds.isEmpty()) return;
+            Chip selected = g.findViewById(checkedIds.get(0));
+            if (selected != null) {
+                String t = selected.getText().toString().replaceFirst("^#+", "").trim();
+                isInternal[0] = true;
+                edit.setText(t);
+                edit.setSelection(t.length());
+                isInternal[0] = false;
+            }
+        });
+
+        edit.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                if (isInternal[0]) return;
+                String text = s.toString().replaceFirst("^#+", "").trim();
+                isInternal[0] = true;
+                boolean found = false;
+                for (int i = 0; i < suggestionChips.getChildCount(); i++) {
+                    Chip c = (Chip) suggestionChips.getChildAt(i);
+                    if (c.getText().toString().equalsIgnoreCase(text)) {
+                        suggestionChips.check(c.getId());
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) suggestionChips.clearCheck();
+                isInternal[0] = false;
+            }
+        });
+
+        MaterialAlertDialogBuilder builder = createBuilder()
+            .setTitle(title != null && !title.isEmpty() ? title : "Pick ID")
+            .setView(scroll)
+            .setPositiveButton("Done", (d, w) -> {
+                String raw = edit.getText().toString().trim().replaceFirst("^#+", "");
+                if (cb != null) cb.onText(raw);
+            })
+            .setNegativeButton("Cancel", null);
+        showAndFocusKeyboard(builder, edit);
+    }
+
+    public void showClassSelectorInput(List<String> classSuggestions, OnText cb) {
+        int pad = dp(24);
+        ScrollView scroll = new ScrollView(context);
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, dp(12), pad, dp(20));
+        scroll.addView(root);
+
+        final ChipGroup suggestionChips = createChipGroup();
+        suggestionChips.setPadding(0, 0, 0, dp(4));
+        if (classSuggestions != null && !classSuggestions.isEmpty()) {
+            android.widget.HorizontalScrollView suggestionScroll = createChipScroll();
+            suggestionScroll.addView(suggestionChips);
+            root.addView(suggestionScroll);
+        }
+
+        TextInputLayout til = createTextInputLayout("Class Name");
+        final MaterialAutoCompleteTextView edit = createEditor(til, "", null);
+        til.addView(edit);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(4);
+        root.addView(til, lp);
+
+        final boolean[] isInternal = {false};
+
+        String val = initial == null ? "" : initial.trim().replaceFirst("^\\.+", "");
+        edit.setText(val);
+        if (val.length() > 0) edit.setSelection(val.length());
+
+        if (classSuggestions != null && !classSuggestions.isEmpty()) {
+            isInternal[0] = true;
+            List<String> cleanList = new ArrayList<>();
+            for (String s : classSuggestions) {
+                String cleanS = s != null ? s.replaceFirst("^\\.+", "").trim() : "";
+                if (!cleanS.isEmpty()) {
+                    cleanList.add(cleanS);
+                    Chip chip = createPresetChip(cleanS);
+                    if (cleanS.equalsIgnoreCase(val)) chip.setChecked(true);
+                    suggestionChips.addView(chip);
+                }
+            }
+            edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, cleanList));
+            isInternal[0] = false;
+        }
+
+        suggestionChips.setOnCheckedStateChangeListener((g, checkedIds) -> {
+            if (isInternal[0] || checkedIds.isEmpty()) return;
+            Chip selected = g.findViewById(checkedIds.get(0));
+            if (selected != null) {
+                String t = selected.getText().toString().replaceFirst("^\\.+", "").trim();
+                isInternal[0] = true;
+                edit.setText(t);
+                edit.setSelection(t.length());
+                isInternal[0] = false;
+            }
+        });
+
+        edit.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                if (isInternal[0]) return;
+                String text = s.toString().replaceFirst("^\\.+", "").trim();
+                isInternal[0] = true;
+                boolean found = false;
+                for (int i = 0; i < suggestionChips.getChildCount(); i++) {
+                    Chip c = (Chip) suggestionChips.getChildAt(i);
+                    if (c.getText().toString().equalsIgnoreCase(text)) {
+                        suggestionChips.check(c.getId());
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) suggestionChips.clearCheck();
+                isInternal[0] = false;
+            }
+        });
+
+        MaterialAlertDialogBuilder builder = createBuilder()
+            .setTitle(title != null && !title.isEmpty() ? title : "Pick Class")
+            .setView(scroll)
+            .setPositiveButton("Done", (d, w) -> {
+                String raw = edit.getText().toString().trim().replaceFirst("^\\.+", "");
+                if (cb != null) cb.onText(raw);
+            })
+            .setNegativeButton("Cancel", null);
+        showAndFocusKeyboard(builder, edit);
+    }
+
     public void showFourValueInput(String prop, OnText cb) {
         int pad = dp(24);
         ScrollView scroll = new ScrollView(context);
@@ -1145,7 +1333,7 @@ public final class UniversalM3Dialog {
             root.addView(til, new LinearLayout.LayoutParams(-1, -2) {{ bottomMargin = dp(12); }});
         }
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder builder = createBuilder()
             .setTitle(title).setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
                 if (cb != null) cb.onText(edits[0].getText().toString().trim() + " " + edits[1].getText().toString().trim() + " " + edits[2].getText().toString().trim() + " " + edits[3].getText().toString().trim());
@@ -1190,8 +1378,13 @@ public final class UniversalM3Dialog {
         return g;
     }
 
+    private MaterialAlertDialogBuilder createBuilder() {
+        return new MaterialAlertDialogBuilder(context, R.style.ThemeOverlay_Dragweb_AlertDialog);
+    }
+
     private Chip createPresetChip(String text) {
-        Chip c = new Chip(context);
+        androidx.appcompat.view.ContextThemeWrapper themedCtx = new androidx.appcompat.view.ContextThemeWrapper(context, R.style.Widget_Dragweb_Chip);
+        Chip c = new Chip(themedCtx);
         c.setId(View.generateViewId());
         c.setText(text);
         c.setCheckable(true);
@@ -1207,11 +1400,13 @@ public final class UniversalM3Dialog {
     }
 
     private TextInputLayout createTextInputLayout(String hint) {
-        TextInputLayout til = new TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+        androidx.appcompat.view.ContextThemeWrapper themedCtx = new androidx.appcompat.view.ContextThemeWrapper(context, R.style.Widget_Dragweb_TextInputLayout);
+        TextInputLayout til = new TextInputLayout(themedCtx);
         til.setHint(hint);
         til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        til.setBoxCornerRadii(dp(14), dp(14), dp(14), dp(14));
         til.setEndIconMode(TextInputLayout.END_ICON_CLEAR_TEXT);
+        float r = 14 * context.getResources().getDisplayMetrics().density;
+        til.setBoxCornerRadii(r, r, r, r);
         return til;
     }
 
@@ -1455,7 +1650,7 @@ public final class UniversalM3Dialog {
             rg.addView(tvEmpty);
         }
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder builder = createBuilder()
             .setTitle("Select List")
             .setView(dialogContainer)
             .setPositiveButton("Select", new android.content.DialogInterface.OnClickListener() {

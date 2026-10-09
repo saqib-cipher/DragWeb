@@ -87,7 +87,7 @@ public class DebugActivity extends AppCompatActivity {
         MaterialButton btnSend = findViewById(R.id.btn_send_report);
 
         btnRestart.setOnClickListener(v -> {
-            Intent intent = new Intent(this, SplashActivity.class);
+            Intent intent = new Intent(this, HomeActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
             Process.killProcess(Process.myPid());

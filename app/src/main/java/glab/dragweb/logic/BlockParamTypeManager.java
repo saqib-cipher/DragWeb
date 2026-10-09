@@ -30,7 +30,8 @@ import java.util.Map;
 public class BlockParamTypeManager {
 
     private Context context;
-    private Map<String, List<String>> paramTypes = new LinkedHashMap<>();
+    private Map<String, List<String>> inbuiltParamTypes = new LinkedHashMap<>();
+    private Map<String, List<String>> customParamTypes = new LinkedHashMap<>();
     private Gson gson = new Gson();
 
     public BlockParamTypeManager() {
@@ -48,26 +49,12 @@ public class BlockParamTypeManager {
 
     public void load(Context context) {
         this.context = context;
+        loadInbuilt(context);
+        loadCustom(context);
+    }
 
-        // Step 1: Try reading from .dragweb/custom/param.json
-        try {
-            File file = new File(CustomStorageUtil.getCustomDir(context), "param.json");
-            if (file.exists() && file.length() > 0) {
-                String json = FileUtil.readFile(file.getAbsolutePath());
-                if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
-                    Map<String, List<String>> loaded = gson.fromJson(json,
-                        new TypeToken<Map<String, List<String>>>() {}.getType());
-                    if (loaded != null && !loaded.isEmpty()) {
-                        paramTypes = new LinkedHashMap<>(loaded);
-                        return;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        // Step 2: Try reading from assets/param.json
+    private void loadInbuilt(Context context) {
+        inbuiltParamTypes.clear();
         if (context != null) {
             try (InputStream is = context.getAssets().open("param.json");
                  java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
@@ -78,21 +65,34 @@ public class BlockParamTypeManager {
                 Map<String, List<String>> loaded = gson.fromJson(assetJson,
                     new TypeToken<Map<String, List<String>>>() {}.getType());
                 if (loaded != null && !loaded.isEmpty()) {
-                    paramTypes = new LinkedHashMap<>(loaded);
-                    save();
+                    inbuiltParamTypes.putAll(loaded);
                     return;
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception ignored) {}
         }
-
-        // Step 3: Guaranteed hardcoded defaults (matches assets/param.json exactly)
-        paramTypes = getDefaults();
-        save();
+        inbuiltParamTypes.putAll(getDefaults());
     }
 
-    /** Returns the default param types matching assets/param.json. Always non-empty. */
+    private void loadCustom(Context context) {
+        customParamTypes.clear();
+        if (context == null) return;
+        try {
+            File file = new File(CustomStorageUtil.getCustomDir(context), "param.json");
+            if (file.exists() && file.length() > 0) {
+                String json = FileUtil.readFile(file.getAbsolutePath());
+                if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
+                    Map<String, List<String>> loaded = gson.fromJson(json,
+                        new TypeToken<Map<String, List<String>>>() {}.getType());
+                    if (loaded != null) {
+                        customParamTypes.putAll(loaded);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private static Map<String, List<String>> getDefaults() {
         Map<String, List<String>> d = new LinkedHashMap<>();
         d.put("position", Arrays.asList("static", "relative", "absolute", "fixed", "sticky"));
@@ -120,13 +120,12 @@ public class BlockParamTypeManager {
     }
 
     public void save() {
-        if (paramTypes == null || paramTypes.isEmpty()) return;
         try {
             File dir = CustomStorageUtil.getCustomDir(this.context);
             if (dir == null) return;
             if (!dir.exists()) dir.mkdirs();
             File file = new File(dir, "param.json");
-            String json = new GsonBuilder().setPrettyPrinting().create().toJson(paramTypes);
+            String json = new GsonBuilder().setPrettyPrinting().create().toJson(customParamTypes);
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 fos.write(json.getBytes("UTF-8"));
                 fos.flush();
@@ -136,13 +135,24 @@ public class BlockParamTypeManager {
         }
     }
 
+    public Map<String, List<String>> getAllParamTypes() {
+        Map<String, List<String>> merged = new LinkedHashMap<>(inbuiltParamTypes);
+        merged.putAll(customParamTypes);
+        return merged;
+    }
+
+    public Map<String, List<String>> getCustomParamTypes() {
+        return customParamTypes;
+    }
+
     public List<String> getOptions(String typeName) {
         if (typeName == null || typeName.trim().isEmpty()) return new ArrayList<>();
         String clean = cleanTypeName(typeName);
-        if (paramTypes.containsKey(clean)) {
-            return new ArrayList<>(paramTypes.get(clean));
+        Map<String, List<String>> all = getAllParamTypes();
+        if (all.containsKey(clean)) {
+            return new ArrayList<>(all.get(clean));
         }
-        for (Map.Entry<String, List<String>> entry : paramTypes.entrySet()) {
+        for (Map.Entry<String, List<String>> entry : all.entrySet()) {
             if (entry.getKey().equalsIgnoreCase(clean)) {
                 return new ArrayList<>(entry.getValue());
             }
@@ -153,8 +163,9 @@ public class BlockParamTypeManager {
     public boolean hasType(String typeName) {
         if (typeName == null || typeName.trim().isEmpty()) return false;
         String clean = cleanTypeName(typeName);
-        if (paramTypes.containsKey(clean)) return true;
-        for (String k : paramTypes.keySet()) {
+        Map<String, List<String>> all = getAllParamTypes();
+        if (all.containsKey(clean)) return true;
+        for (String k : all.keySet()) {
             if (k.equalsIgnoreCase(clean)) return true;
         }
         return false;
@@ -162,7 +173,7 @@ public class BlockParamTypeManager {
 
     private String findMatchingKey(String typeName) {
         String clean = cleanTypeName(typeName);
-        for (String k : paramTypes.keySet()) {
+        for (String k : customParamTypes.keySet()) {
             if (k.equalsIgnoreCase(clean)) return k;
         }
         return clean;
@@ -181,7 +192,7 @@ public class BlockParamTypeManager {
     public void addOption(String typeName, String option) {
         if (typeName == null || typeName.trim().isEmpty()) return;
         String key = findMatchingKey(typeName);
-        List<String> options = paramTypes.computeIfAbsent(key, k -> new ArrayList<>());
+        List<String> options = customParamTypes.computeIfAbsent(key, k -> new ArrayList<>());
         if (option != null && !option.trim().isEmpty() && !options.contains(option.trim())) {
             options.add(option.trim());
         }
@@ -191,21 +202,17 @@ public class BlockParamTypeManager {
     public void removeOption(String typeName, String option) {
         if (typeName == null || typeName.trim().isEmpty()) return;
         String key = findMatchingKey(typeName);
-        List<String> options = paramTypes.get(key);
+        List<String> options = customParamTypes.get(key);
         if (options != null) {
             options.remove(option);
             save();
         }
     }
 
-    public Map<String, List<String>> getAllParamTypes() {
-        return paramTypes;
-    }
-
     public void setOptions(String typeName, List<String> options) {
         if (typeName == null || typeName.trim().isEmpty()) return;
         String key = findMatchingKey(typeName);
-        paramTypes.put(key, options != null ? new ArrayList<>(options) : new ArrayList<>());
+        customParamTypes.put(key, options != null ? new ArrayList<>(options) : new ArrayList<>());
         save();
     }
 }

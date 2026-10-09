@@ -85,4 +85,5 @@
     <color name="view_property_grid_see_all_background">#ff008dcd</color>
     <color name="view_property_spinner_filter">#ff000000</color>
     <color name="colorError">#BA1A1A</color>
+    <color name="splash_bg_color">#FFFFFF</color>
 </resources>

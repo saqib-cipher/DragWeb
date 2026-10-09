@@ -124,5 +124,11 @@
         "name": "HTML",
         "catColor": "#607D8B",
         "type": "html"
+    },
+    {
+        "id": "js_network",
+        "name": "HTTP & Network",
+        "catColor": "#00897B",
+        "type": "js"
     }
 ]

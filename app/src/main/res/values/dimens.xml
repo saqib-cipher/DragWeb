@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="collapsing_toolbar_large_size">152dp</dimen>
+    <dimen name="main_drawer_horizontal_padding">12dp</dimen>
+    <dimen name="main_drawer_icon_padding">16dp</dimen>
+    <dimen name="main_drawer_shape_horizontal_inset">8dp</dimen>
+</resources>

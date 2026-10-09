@@ -143,6 +143,12 @@ public class Block extends BlockBase {
             if (str.equals("%selector")) {
                 return new BlockArg(this.mContext, "m", i, "selector");
             }
+            if (str.equals("%id.selector") || str.equals("%id")) {
+                return new BlockArg(this.mContext, "m", i, "id.selector");
+            }
+            if (str.equals("%c.selector") || str.equals("%class.selector") || str.equals("%c")) {
+                return new BlockArg(this.mContext, "m", i, "c.selector");
+            }
             if (str.startsWith("%var")) {
                 String sub = "";
                 if (str.startsWith("%var.")) {

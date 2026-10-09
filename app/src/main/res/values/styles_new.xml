@@ -1,0 +1,192 @@
+<resources>
+    <!--
+      I decided that new or modified styles will be stored here.
+      If you change the style of a component from styles.xml, please MOVE (not copy) that style here.
+
+      So, contributors, can you follow the following "guidelines" xD:
+      — 'Theme|ThemeOverlay|Widget|TextAppearance|ShapeAppearanceOverlay' -
+           this prefix must always be included first
+      — 'Dragweb' - remains unchanged, as the name of the app speaks for itself.
+      — '*' - instead of using the asterisk (*), replace it with the specific name of the component whose style is being modified or created.
+    -->
+
+    <style name="Widget.Dragweb.BottomNavigationView" parent="Widget.Material3.BottomNavigationView">
+        <item name="android:background">?attr/colorSurfaceContainer</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.Dragweb.CollapsingToolbar" parent="Widget.Material3Expressive.CollapsingToolbar.Large">
+        <item name="collapsedTitleTextAppearance">
+            @style/TextAppearance.Dragweb.CollapsingToolbar.Collapsed
+        </item>
+        <item name="expandedTitleTextAppearance">
+            @style/TextAppearance.Dragweb.CollapsingToolbar.Expanded
+        </item>
+        <item name="titleCollapseMode">scale</item>
+    </style>
+
+    <style name="TextAppearance.Dragweb.CollapsingToolbar.Collapsed" parent="TextAppearance.Dragweb.TitleLarge" />
+    <style name="TextAppearance.Dragweb.CollapsingToolbar.Expanded" parent="TextAppearance.Dragweb.HeadlineMedium" />
+
+    <style name="Widget.Dragweb.Toolbar.SmallText" parent="Widget.Material3Expressive.Toolbar.OnSurface">
+        <item name="titleTextAppearance">?attr/textAppearanceBodyLarge</item>
+    </style>
+
+    <style name="Widget.Dragweb.NavigationView.Main" parent="Widget.Material3.NavigationView">
+        <item name="dividerInsetEnd">@dimen/main_drawer_horizontal_padding</item>
+        <item name="dividerInsetStart">@dimen/main_drawer_horizontal_padding</item>
+        <item name="itemHorizontalPadding">@dimen/main_drawer_horizontal_padding</item>
+        <item name="itemIconPadding">@dimen/main_drawer_icon_padding</item>
+        <item name="itemShapeInsetEnd">@dimen/main_drawer_shape_horizontal_inset</item>
+        <item name="itemShapeInsetStart">@dimen/main_drawer_shape_horizontal_inset</item>
+        <item name="itemTextAppearance">?attr/textAppearanceBodyMedium</item>
+        <item name="subheaderInsetEnd">@dimen/main_drawer_horizontal_padding</item>
+        <item name="subheaderInsetStart">@dimen/main_drawer_horizontal_padding</item>
+    </style>
+
+    <style name="Widget.Dragweb.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="shapeAppearance">@style/ShapeAppearance.Material3.Corner.Medium</item>
+    </style>
+
+    <style name="Widget.Dragweb.TextInputLayout.ExposedDropdownMenu" parent="Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+        <item name="shapeAppearance">@style/ShapeAppearance.Material3.Corner.Medium</item>
+    </style>
+
+    <style name="ThemeOverlay.Dragweb.ViewEditor" parent="Base.Theme.MaterialComponents.Light" />
+
+    <style name="ThemeOverlay.Dragweb.ViewEditor.Material3.Light" parent="ThemeOverlay.Material3.DynamicColors.Light" />
+
+    <style name="ThemeOverlay.Dragweb.ViewEditor.Material3.Dark" parent="ThemeOverlay.Material3.DynamicColors.Dark" />
+
+    <style name="ThemeOverlay.Dragweb.ViewEditor.Material3.NON_DYNAMIC.Light" parent="Base.Theme.Material3.Light" />
+
+    <style name="ThemeOverlay.Dragweb.ViewEditor.Material3.NON_DYNAMIC.Dark" parent="Base.Theme.Material3.Dark" />
+
+    <style name="Preference.Dragweb.SwitchPreferenceCompat" parent="Preference.SwitchPreferenceCompat.Material">
+        <item name="widgetLayout">@layout/preference_widget_layout_m3_switch</item>
+    </style>
+
+    <style name="Widget.Dragweb.TabLayout" parent="Widget.Material3.TabLayout">
+        <item name="tabIndicator">@drawable/view_tab_indicator</item>
+    </style>
+
+    <style name="ThemeOverlay.Dragweb.BottomSheetDialog" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="bottomSheetStyle">@style/Widget.Dragweb.BottomSheet.Modal</item>
+    </style>
+
+    <style name="Widget.Dragweb.BottomSheet.Modal" parent="Widget.Material3.BottomSheet">
+        <item name="android:elevation">0dp</item>
+        <item name="backgroundTint">?attr/colorSurface</item>
+    </style>
+
+    <style name="Widget.Dragweb.Button.Dialog.Filled" parent="Widget.Material3Expressive.Button">
+        <item name="android:minWidth">@dimen/m3_btn_dialog_btn_min_width</item>
+        <item name="android:layout_marginStart">@dimen/m3_btn_dialog_btn_spacing</item>
+        <item name="android:layout_marginLeft">@dimen/m3_btn_dialog_btn_spacing</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="Widget.Dragweb.Button.Dialog.Tonal" parent="Widget.Material3Expressive.Button.TonalButton">
+        <item name="android:minWidth">@dimen/m3_btn_dialog_btn_min_width</item>
+        <item name="android:layout_marginStart">@dimen/m3_btn_dialog_btn_spacing</item>
+        <item name="android:layout_marginLeft">@dimen/m3_btn_dialog_btn_spacing</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="ThemeOverlay.Dragweb.AlertDialog" parent="ThemeOverlay.Material3Expressive.MaterialAlertDialog.Centered">
+        <item name="android:colorBackground">?attr/colorSurfaceContainer</item>
+        <item name="android:windowAnimationStyle">@style/MaterialAlertDialog.Material3.Animation</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:windowMinWidthMajor">65%</item>
+        <item name="android:windowMinWidthMinor">98%</item>
+        <item name="alertDialogStyle">@style/MaterialAlertDialog.Dragweb</item>
+
+        <item name="buttonBarButtonStyle">@style/Widget.Dragweb.Button.Dialog.Tonal</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.Dragweb.Button.Dialog.Tonal</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.Dragweb.Button.Dialog.Tonal</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.Dragweb.Button.Dialog.Filled</item>
+    </style>
+
+    <style name="MaterialAlertDialog.Dragweb" parent="MaterialAlertDialog.Material3Expressive">
+        <item name="backgroundInsetBottom">8dp</item>
+        <item name="backgroundInsetTop">8dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Material3.Corner.ExtraLarge</item>
+    </style>
+
+    <style name="Widget.Dragweb.CardView" parent="Widget.Material3.CardView.Filled">
+        <item name="cardCornerRadius">18dp</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainer</item>
+    </style>
+
+    <style name="Widget.Dragweb.Chip" parent="Widget.Material3.Chip.Input.Icon.Elevated">
+        <item name="closeIconEnabled">false</item>
+        <item name="closeIcon">@null</item>
+        <item name="checkedIconEnabled">true</item>
+        <item name="checkedIconTint">?attr/colorOnSecondary</item>
+        <item name="checkedIcon">@drawable/ic_mtrl_done</item>
+        <item name="chipBackgroundColor">?attr/colorSecondary</item>
+        <item name="chipCornerRadius">90dp</item>
+        <item name="android:textAppearance">@style/TextAppearance.Dragweb.Chip</item>
+        <item name="android:textColor">?attr/colorOnSecondary</item>
+    </style>
+
+    <style name="Widget.Dragweb.Chip.ProjectPreview" parent="Widget.Material3.Chip.Suggestion">
+        <item name="android:focusable">false</item>
+        <item name="android:clickable">false</item>
+        <item name="chipIconVisible">true</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="rippleColor">@null</item>
+        <item name="shapeAppearance">?attr/shapeAppearanceCornerLarge</item>
+    </style>
+
+    <style name="TextAppearance.Dragweb.Chip" parent="TextAppearance.Dragweb.BodyMedium">
+    </style>
+
+    <style name="TextAppearance.Dragweb.BodyLargeEmphasized" parent="TextAppearance.Dragweb.BodyLarge">
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="ThemeOverlay.Dragweb.Chip.ProjectPreview" parent="">
+        <item name="chipStyle">@style/Widget.Dragweb.Chip.ProjectPreview</item>
+    </style>
+    <!-- Theme used by AsdDialog to fix keyboard visibility for find/replace -->
+    <style name="AsdEditorDialogTheme" parent="Theme.Dragweb">
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowSoftInputMode">stateVisible|adjustResize</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+    </style>
+
+    <style name="Scheme.Dragweb.DayNight" parent="Theme.Material3Expressive.DayNight.NoActionBar" />
+
+    <!-- AppTheme bridge for AndroidManifest.xml -->
+    <style name="AppTheme" parent="Theme.Dragweb" />
+    <style name="AppTheme.FullScreen" parent="AppTheme">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+    <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.Material3" />
+    <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.Material3" />
+    <style name="AppTheme.DebugActivity" parent="AppTheme" />
+
+    <!-- Material 3 Expressive Typography Tokens -->
+    <style name="TextAppearance.Dragweb.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge" />
+    <style name="TextAppearance.Dragweb.DisplayMedium" parent="TextAppearance.Material3.DisplayMedium" />
+    <style name="TextAppearance.Dragweb.DisplaySmall" parent="TextAppearance.Material3.DisplaySmall" />
+    <style name="TextAppearance.Dragweb.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge" />
+    <style name="TextAppearance.Dragweb.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium" />
+    <style name="TextAppearance.Dragweb.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall" />
+    <style name="TextAppearance.Dragweb.TitleLarge" parent="TextAppearance.Material3.TitleLarge" />
+    <style name="TextAppearance.Dragweb.TitleMedium" parent="TextAppearance.Material3.TitleMedium" />
+    <style name="TextAppearance.Dragweb.TitleSmall" parent="TextAppearance.Material3.TitleSmall" />
+    <style name="TextAppearance.Dragweb.BodyLarge" parent="TextAppearance.Material3.BodyLarge" />
+    <style name="TextAppearance.Dragweb.BodyMedium" parent="TextAppearance.Material3.BodyMedium" />
+    <style name="TextAppearance.Dragweb.BodySmall" parent="TextAppearance.Material3.BodySmall" />
+    <style name="TextAppearance.Dragweb.LabelLarge" parent="TextAppearance.Material3.LabelLarge" />
+    <style name="TextAppearance.Dragweb.LabelMedium" parent="TextAppearance.Material3.LabelMedium" />
+    <style name="TextAppearance.Dragweb.LabelSmall" parent="TextAppearance.Material3.LabelSmall" />
+</resources>

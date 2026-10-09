@@ -24,7 +24,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Block ID (unique)"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            style="@style/Widget.Dragweb.TextInputLayout">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_block_id"
                 android:layout_width="match_parent"
@@ -38,7 +38,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="Category"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+            style="@style/Widget.Dragweb.TextInputLayout.ExposedDropdownMenu">
             <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/et_block_category"
                 android:layout_width="match_parent"
@@ -52,7 +52,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="Block Type / Shape"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+            style="@style/Widget.Dragweb.TextInputLayout.ExposedDropdownMenu">
             <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/et_block_type"
                 android:layout_width="match_parent"
@@ -66,7 +66,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="Block Color Hex (e.g. #2196F3)"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            style="@style/Widget.Dragweb.TextInputLayout">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_block_color"
                 android:layout_width="match_parent"
@@ -80,7 +80,7 @@
             android:layout_height="wrap_content"
             android:hint="Spec (e.g. set width %d %m.unit)"
             android:layout_marginTop="12dp"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            style="@style/Widget.Dragweb.TextInputLayout">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_block_spec"
                 android:layout_width="match_parent"
@@ -95,7 +95,7 @@
             android:hint="Spec 2 (body template, for type E)"
             android:layout_marginTop="12dp"
             android:visibility="gone"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            style="@style/Widget.Dragweb.TextInputLayout">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_block_spec2"
                 android:layout_width="match_parent"
@@ -109,7 +109,7 @@
             android:layout_height="wrap_content"
             android:hint="Code Template (e.g. width: %1$s%2$s;)"
             android:layout_marginTop="12dp"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            style="@style/Widget.Dragweb.TextInputLayout">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_block_code"
                 android:layout_width="match_parent"

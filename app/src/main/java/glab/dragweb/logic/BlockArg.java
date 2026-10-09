@@ -278,6 +278,54 @@ public class BlockArg extends BlockBase {
             else if (menuName.startsWith("m.")) menuName = menuName.substring(2);
             else if (menuName.startsWith("s.")) menuName = menuName.substring(2);
 
+            if ("id.selector".equalsIgnoreCase(menuName) || "id".equalsIgnoreCase(menuName) || "idSelector".equalsIgnoreCase(menuName)) {
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Pick ID")
+                      .setInitialValue(this.argValue != null ? this.argValue.toString().replaceFirst("^#+", "") : "");
+                java.util.List<String> ids = ProjectAssetManager.getInstance().getIds();
+                if (ids.isEmpty()) {
+                    DesignDataManager.WidgetSelectorData data = DesignDataManager.getWidgetSelectorData(this.getContext(), LogicBlockActivity.projectId, LogicBlockActivity.pageName);
+                    ids = data.ids;
+                }
+                dialog.showIdSelectorInput(ids, new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        String clean = value != null ? value.replaceFirst("^#+", "").trim() : "";
+                        setArgValue(clean);
+                        if (parentBlock != null) {
+                            parentBlock.recalcWidthToParent();
+                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        }
+                    }
+                });
+                return;
+            }
+
+            if ("c.selector".equalsIgnoreCase(menuName) || "class.selector".equalsIgnoreCase(menuName) || "c".equalsIgnoreCase(menuName) || "class".equalsIgnoreCase(menuName)) {
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Pick Class")
+                      .setInitialValue(this.argValue != null ? this.argValue.toString().replaceFirst("^\\.+", "") : "");
+                java.util.List<String> classes = ProjectAssetManager.getInstance().getClasses();
+                if (classes.isEmpty()) {
+                    DesignDataManager.WidgetSelectorData data = DesignDataManager.getWidgetSelectorData(this.getContext(), LogicBlockActivity.projectId, LogicBlockActivity.pageName);
+                    classes = data.classes;
+                }
+                dialog.showClassSelectorInput(classes, new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        String clean = value != null ? value.replaceFirst("^\\.+", "").trim() : "";
+                        setArgValue(clean);
+                        if (parentBlock != null) {
+                            parentBlock.recalcWidthToParent();
+                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        }
+                    }
+                });
+                return;
+            }
+
             if ("selector".equalsIgnoreCase(menuName)) {
                 UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
                 dialog.setTitle("Pick selector")
@@ -457,6 +505,8 @@ public class BlockArg extends BlockBase {
             final ArrayList<String> options = new ArrayList<>();
             if (pManager.hasType(menuName)) {
                 options.addAll(pManager.getOptions(menuName));
+            } else if ("event".equalsIgnoreCase(menuName)) {
+                options.addAll(java.util.Arrays.asList("click", "input", "change", "submit", "keydown", "keyup", "mouseenter", "mouseleave", "focus", "blur", "scroll", "resize", "load"));
             } else if (menuName.equals("varInt")) {
                 options.addAll(DesignDataManager.getVariablesByType(LogicBlockActivity.filename, 1));
             } else if (menuName.equals("varBool")) {

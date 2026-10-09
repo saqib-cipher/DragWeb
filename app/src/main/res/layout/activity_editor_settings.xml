@@ -174,7 +174,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilDisplay"
-                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.Dragweb.TextInputLayout"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -189,7 +189,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilInsert"
-                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.Dragweb.TextInputLayout"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1.5"
