@@ -271,8 +271,9 @@ public class ExportManager {
 
                 List<Map<String, Object>> widgetTree = null;
                 try {
-                    widgetTree = new com.google.gson.Gson().fromJson(pageJson,
-                        new com.google.gson.reflect.TypeToken<List<Map<String, Object>>>(){}.getType());
+                    widgetTree = glab.dragweb.data.PageManager.parseLayoutTree(pageJson);
+                    // Parsed with PageManager.parseLayoutTree
+                    // TypeToken removed
                 } catch (Exception e) {
                     Log.w("ExportManager", "Error parsing widget tree for page: " + pageName, e);
                 }

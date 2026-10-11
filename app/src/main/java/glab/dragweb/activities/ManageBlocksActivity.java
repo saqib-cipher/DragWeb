@@ -288,17 +288,20 @@ public class ManageBlocksActivity extends AppCompatActivity {
         categoriesList.add("All");
 
         List<CategoryDef> builtinCats = CategoryDef.loadInbuiltCategories(this);
-        java.util.Set<String> builtinIds = new java.util.HashSet<>();
         for (CategoryDef bc : builtinCats) {
-            if (bc.id != null) builtinIds.add(bc.id.trim().toLowerCase(java.util.Locale.ROOT));
-            if (bc.name != null) builtinIds.add(bc.name.trim().toLowerCase(java.util.Locale.ROOT));
+            if (bc.id != null && !bc.id.trim().isEmpty()) {
+                String id = bc.id.trim();
+                if (!categoriesList.contains(id)) {
+                    categoriesList.add(id);
+                }
+            }
         }
 
         List<CategoryDef> customCats = CategoryDef.loadCustomCategories(this);
         for (CategoryDef cat : customCats) {
             if (cat.id != null && !cat.id.trim().isEmpty()) {
                 String id = cat.id.trim();
-                if (!builtinIds.contains(id.toLowerCase(java.util.Locale.ROOT)) && !categoriesList.contains(id)) {
+                if (!categoriesList.contains(id)) {
                     categoriesList.add(id);
                 }
             }
@@ -307,7 +310,7 @@ public class ManageBlocksActivity extends AppCompatActivity {
         for (BlockDef def : allBlockDefs) {
             if (def.category != null && !def.category.trim().isEmpty()) {
                 String cat = def.category.trim();
-                if (!builtinIds.contains(cat.toLowerCase(java.util.Locale.ROOT)) && !categoriesList.contains(cat)) {
+                if (!categoriesList.contains(cat)) {
                     categoriesList.add(cat);
                 }
             }
@@ -395,19 +398,22 @@ public class ManageBlocksActivity extends AppCompatActivity {
         final com.google.android.material.textfield.TextInputLayout tilSpec2 = dialogView.findViewById(R.id.til_block_spec2);
         final com.google.android.material.textfield.TextInputLayout codeTil = dialogView.findViewById(R.id.til_code);
 
-        List<CategoryDef> customCats = CategoryDef.loadCustomCategories(this);
         List<CategoryDef> builtinCats = CategoryDef.loadInbuiltCategories(this);
-        java.util.Set<String> builtinIds = new java.util.HashSet<>();
-        for (CategoryDef bc : builtinCats) {
-            if (bc.id != null) builtinIds.add(bc.id.trim().toLowerCase(java.util.Locale.ROOT));
-            if (bc.name != null) builtinIds.add(bc.name.trim().toLowerCase(java.util.Locale.ROOT));
-        }
+        List<CategoryDef> customCats = CategoryDef.loadCustomCategories(this);
 
         List<String> catIds = new ArrayList<>();
+        for (CategoryDef bc : builtinCats) {
+            if (bc.id != null && !bc.id.trim().isEmpty()) {
+                String id = bc.id.trim();
+                if (!catIds.contains(id)) {
+                    catIds.add(id);
+                }
+            }
+        }
         for (CategoryDef c : customCats) {
             if (c.id != null && !c.id.trim().isEmpty()) {
                 String id = c.id.trim();
-                if (!builtinIds.contains(id.toLowerCase(java.util.Locale.ROOT)) && !catIds.contains(id)) {
+                if (!catIds.contains(id)) {
                     catIds.add(id);
                 }
             }
@@ -415,13 +421,13 @@ public class ManageBlocksActivity extends AppCompatActivity {
         for (BlockDef b : allBlockDefs) {
             if (b.category != null && !b.category.trim().isEmpty()) {
                 String cat = b.category.trim();
-                if (!builtinIds.contains(cat.toLowerCase(java.util.Locale.ROOT)) && !catIds.contains(cat)) {
+                if (!catIds.contains(cat)) {
                     catIds.add(cat);
                 }
             }
         }
         if (catIds.isEmpty()) {
-            catIds.add("custom");
+            catIds.add("css");
         }
 
         ArrayAdapter<String> catAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, catIds);

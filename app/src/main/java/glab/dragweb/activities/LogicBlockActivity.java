@@ -15,6 +15,7 @@ import glab.dragweb.colorpicker.*;
 
 import static android.content.Intent.getIntent;
 
+import java.io.File;
 import android.animation.ObjectAnimator;
 import androidx.appcompat.app.AlertDialog;
 import android.content.Intent;
@@ -1811,45 +1812,21 @@ startActivityForResult(intent, 209);
 				final String pId = (this.projectId != null && !this.projectId.isEmpty()) ? this.projectId : DesignDataManager.currentProjectId;
 				final String fName = LogicBlockActivity.filename;
 				final String pName = this.pageName;
-				final String baseName = (fName != null && fName.contains("/")) ? fName.substring(fName.lastIndexOf('/') + 1) : "";
+				final String targetFile = (fName != null && !fName.isEmpty()) ? fName : ((pName != null && !pName.isEmpty()) ? pName : "index");
 
 				// 1. Update in-memory block maps
-				if (fName != null && !fName.isEmpty()) {
-					DesignDataManager.setBlocks(fName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
-				}
-				if (pName != null && !pName.isEmpty() && !pName.equals(fName)) {
-					DesignDataManager.setBlocks(pName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
-				}
-				if (!baseName.isEmpty() && !baseName.equals(fName) && !baseName.equals(pName)) {
-					DesignDataManager.setBlocks(baseName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
-				}
+				DesignDataManager.setBlocks(targetFile, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
 
 				// 2. Normalize and replicate page load event aliases
 				if ("onPageLoad".equals(this.eventName) || "initializeLogic".equals(this.eventName)) {
-					if (fName != null && !fName.isEmpty()) {
-						DesignDataManager.setBlocks(fName, "onCreate_initializeLogic", beans);
-						DesignDataManager.setBlocks(fName, "onPageLoad_onPageLoad", beans);
-					}
-					if (pName != null && !pName.isEmpty()) {
-						DesignDataManager.setBlocks(pName, "onCreate_initializeLogic", beans);
-						DesignDataManager.setBlocks(pName, "onPageLoad_onPageLoad", beans);
-					}
-					if (!baseName.isEmpty()) {
-						DesignDataManager.setBlocks(baseName, "onCreate_initializeLogic", beans);
-						DesignDataManager.setBlocks(baseName, "onPageLoad_onPageLoad", beans);
-					}
+					DesignDataManager.setBlocks(targetFile, "onCreate_initializeLogic", beans);
+					DesignDataManager.setBlocks(targetFile, "onPageLoad_onPageLoad", beans);
 				}
 
 				// 3. For Functions / MoreBlocks, update both alias keys and project more_blocks
 				if ("func".equals(this.id) || (this.id != null && this.id.startsWith("func")) || "moreBlock".equals(this.eventName)) {
-					if (fName != null && !fName.isEmpty()) {
-						DesignDataManager.setBlocks(fName, "func_" + this.eventName, beans);
-						DesignDataManager.setBlocks(fName, this.eventName + "_moreBlock", beans);
-					}
-					if (pName != null && !pName.isEmpty()) {
-						DesignDataManager.setBlocks(pName, "func_" + this.eventName, beans);
-						DesignDataManager.setBlocks(pName, this.eventName + "_moreBlock", beans);
-					}
+					DesignDataManager.setBlocks(targetFile, "func_" + this.eventName, beans);
+					DesignDataManager.setBlocks(targetFile, this.eventName + "_moreBlock", beans);
 					ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(pId);
 					if (funcs != null) {
 						for (DesignDataManager.MoreBlockData mb : funcs) {
@@ -1863,14 +1840,18 @@ startActivityForResult(intent, 209);
 				}
 
 				// 4. Synchronously write logic JSON files to disk so they are immediately available
-				if (fName != null && !fName.isEmpty()) {
-					DesignDataManager.saveSavedLogic(appCtx, pId, fName);
-				}
-				if (pName != null && !pName.isEmpty() && !pName.equals(fName)) {
-					DesignDataManager.saveSavedLogic(appCtx, pId, pName);
-				}
-				if (!baseName.isEmpty() && !baseName.equals(fName) && !baseName.equals(pName)) {
-					DesignDataManager.saveSavedLogic(appCtx, pId, baseName);
+				DesignDataManager.saveSavedLogic(appCtx, pId, targetFile);
+
+				// Clean up redundant style_logic.json if css_style is saved
+				String cleanTarget = DesignDataManager.getCleanPageName(targetFile);
+				if ("css_style".equals(cleanTarget)) {
+					File redundantStyle = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/style_logic.json");
+					if (redundantStyle.exists()) {
+						FileUtil.deleteFile(redundantStyle.getAbsolutePath());
+					}
+					if (DesignDataManager.mapBlocks != null) {
+						DesignDataManager.mapBlocks.remove("style");
+					}
 				}
 
 				// 5. Generate and save compiled assets synchronously

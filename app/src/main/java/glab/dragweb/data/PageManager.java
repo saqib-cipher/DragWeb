@@ -139,46 +139,60 @@ public class PageManager {
             }
         }
 
-        // Try external pages/pageName.json first
-        File file = getPageLayoutFile(pageName);
-        if (FileUtil.exists(file)) {
-            String json = FileUtil.readFile(file.getAbsolutePath());
-            if (json != null && !json.isEmpty()) {
+        // 1. Try external layouts/pageName.json first
+        File layoutsFile = getLayoutsPageFile(pageName);
+        if (FileUtil.exists(layoutsFile)) {
+            String json = FileUtil.readFile(layoutsFile.getAbsolutePath());
+            if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
                 pageLayoutCache.put(pageName, json);
+                FileUtil.writeFile(getPageLayoutFile(pageName).getAbsolutePath(), json);
                 return json;
             }
         }
 
-        // Fallback for "index" page layout to legacy layout.json or projectId.json (one-time migration)
+        // 2. Try external pages/pageName.json
+        File file = getPageLayoutFile(pageName);
+        if (FileUtil.exists(file)) {
+            String json = FileUtil.readFile(file.getAbsolutePath());
+            if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
+                pageLayoutCache.put(pageName, json);
+                FileUtil.writeFile(layoutsFile.getAbsolutePath(), json);
+                return json;
+            }
+        }
+
+        // Fallback for "index" page layout to layout.json or projectId.json
         if ("index".equals(pageName)) {
             File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/layout.json");
             if (FileUtil.exists(layoutFile)) {
                 String json = FileUtil.readFile(layoutFile.getAbsolutePath());
-                if (json != null && !json.isEmpty()) {
+                if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
                     pageLayoutCache.put(pageName, json);
                     File extFile = getPageLayoutFile(pageName);
                     FileUtil.writeFile(extFile.getAbsolutePath(), json);
-                    FileUtil.deleteFile(layoutFile.getAbsolutePath());
+                    FileUtil.writeFile(getLayoutsPageFile(pageName).getAbsolutePath(), json);
                     return json;
                 }
             }
             File projFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/" + projectId + ".json");
             if (FileUtil.exists(projFile)) {
                 String json = FileUtil.readFile(projFile.getAbsolutePath());
-                if (json != null && !json.isEmpty()) {
+                if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
                     pageLayoutCache.put(pageName, json);
                     File extFile = getPageLayoutFile(pageName);
                     FileUtil.writeFile(extFile.getAbsolutePath(), json);
+                    FileUtil.writeFile(getLayoutsPageFile(pageName).getAbsolutePath(), json);
                     return json;
                 }
             }
             File rootProjFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + ".json");
             if (FileUtil.exists(rootProjFile)) {
                 String json = FileUtil.readFile(rootProjFile.getAbsolutePath());
-                if (json != null && !json.isEmpty()) {
+                if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
                     pageLayoutCache.put(pageName, json);
                     File extFile = getPageLayoutFile(pageName);
                     FileUtil.writeFile(extFile.getAbsolutePath(), json);
+                    FileUtil.writeFile(getLayoutsPageFile(pageName).getAbsolutePath(), json);
                     return json;
                 }
             }
@@ -205,11 +219,102 @@ public class PageManager {
         // Always update in-memory cache
         pageLayoutCache.put(pageName, json);
 
-        // Save exclusively to pages/pageName.json
+        // 1. Save to pages/pageName.json
         File extFile = getPageLayoutFile(pageName);
         File extDir = extFile.getParentFile();
         if (extDir != null && !FileUtil.exists(extDir)) FileUtil.makeDir(extDir.getAbsolutePath());
         FileUtil.writeFile(extFile.getAbsolutePath(), json);
+
+        // 2. Save to layouts/pageName.json
+        File layoutsFile = getLayoutsPageFile(pageName);
+        File layoutsDir = layoutsFile.getParentFile();
+        if (layoutsDir != null && !FileUtil.exists(layoutsDir)) FileUtil.makeDir(layoutsDir.getAbsolutePath());
+        FileUtil.writeFile(layoutsFile.getAbsolutePath(), json);
+
+        // 3. Keep layout.json in root synchronized for index page
+        if ("index".equals(pageName)) {
+            File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/layout.json");
+            FileUtil.writeFile(layoutFile.getAbsolutePath(), json);
+        }
+    }
+
+    /**
+     * Robust parser that parses both JSON array format and Sketchware format
+     * (flat list with parent attributes or newline-delimited JSON objects).
+     */
+    public static List<Map<String, Object>> parseLayoutTree(String json) {
+        if (json == null || json.trim().isEmpty() || "[]".equals(json.trim())) {
+            return new ArrayList<>();
+        }
+        String trimmed = json.trim();
+        List<Map<String, Object>> rawList = null;
+
+        if (trimmed.startsWith("[")) {
+            try {
+                rawList = new Gson().fromJson(trimmed, new TypeToken<List<Map<String, Object>>>(){}.getType());
+            } catch (Exception ignored) {}
+        }
+
+        if (rawList == null || rawList.isEmpty()) {
+            rawList = new ArrayList<>();
+            String[] lines = trimmed.split("\r?\n");
+            for (String line : lines) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("@") || line.startsWith("#")) continue;
+                if (line.startsWith("{") && line.endsWith("}")) {
+                    try {
+                        Map<String, Object> obj = new Gson().fromJson(line, new TypeToken<Map<String, Object>>(){}.getType());
+                        if (obj != null) rawList.add(obj);
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+
+        if (rawList == null || rawList.isEmpty()) return new ArrayList<>();
+
+        // Check if already a nested tree with children
+        boolean hasNestedChildren = false;
+        for (Map<String, Object> node : rawList) {
+            if (node.containsKey("children") && node.get("children") instanceof List && !((List<?>) node.get("children")).isEmpty()) {
+                hasNestedChildren = true;
+                break;
+            }
+        }
+        if (hasNestedChildren) {
+            return rawList;
+        }
+
+        // Flat list (Sketchware format): organize into tree by parent and index
+        Map<String, Map<String, Object>> idToNode = new HashMap<>();
+        Map<String, List<Map<String, Object>>> parentToChildren = new HashMap<>();
+        List<Map<String, Object>> rootNodes = new ArrayList<>();
+
+        for (Map<String, Object> node : rawList) {
+            String id = node.containsKey("id") && node.get("id") != null ? node.get("id").toString() : null;
+            if (id != null) {
+                idToNode.put(id, node);
+            }
+            String parent = node.containsKey("parent") && node.get("parent") != null ? node.get("parent").toString() : "root";
+            if ("root".equalsIgnoreCase(parent) || parent.isEmpty()) {
+                rootNodes.add(node);
+            } else {
+                if (!parentToChildren.containsKey(parent)) {
+                    parentToChildren.put(parent, new ArrayList<>());
+                }
+                parentToChildren.get(parent).add(node);
+            }
+        }
+
+        for (Map.Entry<String, List<Map<String, Object>>> entry : parentToChildren.entrySet()) {
+            Map<String, Object> parentNode = idToNode.get(entry.getKey());
+            if (parentNode != null) {
+                parentNode.put("children", entry.getValue());
+            } else {
+                rootNodes.addAll(entry.getValue());
+            }
+        }
+
+        return rootNodes.isEmpty() ? rawList : rootNodes;
     }
 
     /**
@@ -232,6 +337,14 @@ public class PageManager {
         File pagesDir = new File(basePath);
         if (!FileUtil.exists(pagesDir)) FileUtil.makeDir(pagesDir.getAbsolutePath());
         return new File(pagesDir, pageName + ".json");
+    }
+
+    private File getLayoutsPageFile(String pageName) {
+        String basePath = FileUtil.getDragWebDir(context).getAbsolutePath()
+            + "/projects/" + projectId + "/layouts";
+        File layoutsDir = new File(basePath);
+        if (!FileUtil.exists(layoutsDir)) FileUtil.makeDir(layoutsDir.getAbsolutePath());
+        return new File(layoutsDir, pageName + ".json");
     }
 
     private File getLegacyPageFile(String pageName) {

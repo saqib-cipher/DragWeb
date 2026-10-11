@@ -66,8 +66,13 @@ public class WidgetBuilderEngine {
             case "pre":
             case "blockquote":
             case "i":
-                view = new TextView(context);
+            case "a": {
+                TextView linkView = new TextView(context);
+                linkView.setTextColor(Color.parseColor("#2196F3"));
+                linkView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+                view = linkView;
                 break;
+            }
             case "button": {
                 Button btn = new Button(context);
                 btn.setTransformationMethod(null);
@@ -121,8 +126,7 @@ public class WidgetBuilderEngine {
             case "form":
             case "ul":
             case "ol":
-            case "li":
-            case "a": {
+            case "li": {
                 LinearLayout layoutView = new LinearLayout(context);
                 layoutView.setOrientation(LinearLayout.VERTICAL);
                 layoutView.setMinimumHeight(dpToPx(60));

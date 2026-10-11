@@ -1332,6 +1332,13 @@ public class WidgetCanvasStyler {
      * Recursively traverses and synchronizes the entire canvas hierarchy.
      */
     public void synchronizeCanvas(View root) {
+        if (root != null && root.getId() == R.id.screen) {
+            String bg = (themeManager != null) ? themeManager.getGlobalStyle("bodyBackground") : "#FFFFFF";
+            if (bg == null || bg.isEmpty()) bg = "#FFFFFF";
+            try {
+                root.setBackgroundColor(parseColor(bg, Color.WHITE));
+            } catch (Exception ignored) {}
+        }
         if (root instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) root;
             if (vg.getTag() instanceof Map) {

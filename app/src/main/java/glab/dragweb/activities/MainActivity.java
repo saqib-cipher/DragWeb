@@ -64,10 +64,12 @@ public class MainActivity extends AppCompatActivity {
 			toolbar.setTitle(projectName);
 			toolbar.setSubtitle("ID: " + projectId);
 			toolbar.setNavigationOnClickListener(v -> {
-				if (mainEditorFragment != null) {
-					mainEditorFragment.saveProject();
+				MainEditorFragment fragment = getMainEditorFragment();
+				if (fragment != null) {
+					fragment.saveProject(() -> finish());
+				} else {
+					finish();
 				}
-				finish();
 			});
 		}
 
@@ -75,10 +77,12 @@ public class MainActivity extends AppCompatActivity {
 		getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
-				if (mainEditorFragment != null) {
-					mainEditorFragment.saveProject();
+				MainEditorFragment fragment = getMainEditorFragment();
+				if (fragment != null) {
+					fragment.saveProject(() -> finish());
+				} else {
+					finish();
 				}
-				finish();
 			}
 		});
 
@@ -147,7 +151,15 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	public MainEditorFragment getMainEditorFragment() {
-		return mainEditorFragment;
+		if (mainEditorFragment != null) return mainEditorFragment;
+		try {
+			Fragment f = getSupportFragmentManager().findFragmentByTag("f0");
+			if (f instanceof MainEditorFragment) {
+				mainEditorFragment = (MainEditorFragment) f;
+				return mainEditorFragment;
+			}
+		} catch (Exception ignored) {}
+		return null;
 	}
 
 	public ViewPager2 getViewPager() {

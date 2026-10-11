@@ -15,6 +15,17 @@
         android:gravity="center_vertical"
         android:padding="16dp">
 
+        <ImageView
+            android:id="@+id/iv_widget_icon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="12dp"
+            android:padding="8dp"
+            android:background="@drawable/bg_empty_state_icon"
+            android:src="@drawable/puzzle"
+            app:tint="?attr/colorPrimary"
+            android:contentDescription="Widget Icon" />
+
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"

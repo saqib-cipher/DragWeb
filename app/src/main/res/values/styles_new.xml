@@ -128,7 +128,7 @@
         <item name="android:textColor">@color/text_chip_states</item>
         <item name="chipStartPadding">12dp</item>
         <item name="chipEndPadding">12dp</item>
-        <item name="textEndPadding">0dp</item>
+<!--        <item name="textEndPadding">0dp</item>-->
         <item name="chipMinTouchTargetSize">32dp</item>
         <item name="chipMinHeight">32dp</item>
     </style>

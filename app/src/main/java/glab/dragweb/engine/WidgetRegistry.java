@@ -27,8 +27,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class WidgetRegistry {
 
@@ -85,89 +87,6 @@ public class WidgetRegistry {
         }
     }
 
-    private HashMap<String, Object> createDefaultWidget(String name) {
-        String tag = "div";
-        String color = "#F5F5F5";
-        switch (name) {
-            case "Text":      tag = "p";      color = "#333333"; break;
-            case "Heading":   tag = "h1";     color = "#000000"; break;
-            case "Button":    tag = "button"; color = "#FFBB33"; break;
-            case "Image":     tag = "img";    color = "#CCCCCC"; break;
-            case "Input":     tag = "input";  color = "#FFFFFF"; break;
-            case "Container": tag = "div";    color = "#F5F5F5"; break;
-        }
-
-        HashMap<String, Object> widget = new HashMap<>();
-        widget.put("name", name);
-        widget.put("tag", tag);
-        widget.put("color", color);
-        widget.put("category", "basic");
-
-        HashMap<String, Object> function = new HashMap<>();
-        HashMap<String, Object> style = new HashMap<>();
-
-        switch (tag) {
-            case "p":
-                function.put("text", "Hello, world!");
-                style.put("fontSize", "16px");
-                break;
-            case "h1":
-                function.put("text", "Your Page Title");
-                style.put("fontSize", "32px");
-                style.put("fontWeight", "bold");
-                break;
-            case "button":
-                function.put("text", "Click Me");
-                style.put("padding", "10px 20px");
-                style.put("backgroundColor", "#FFBB33");
-                break;
-            case "img":
-                function.put("src", "android.R.drawable.ic_menu_gallery");
-                style.put("width", "100%");
-                break;
-            case "input":
-                function.put("type", "text");
-                function.put("placeholder", "Enter text");
-                style.put("width", "100%");
-                style.put("padding", "8px");
-                break;
-            case "div":
-                style.put("padding", "16px");
-                style.put("backgroundColor", "#F5F5F5");
-                break;
-        }
-        function.put("style", style);
-        widget.put("function", function);
-        return widget;
-    }
-
-    private void loadDefaultWidgets() {
-        allWidgets.clear();
-        String[] names = {"Text", "Heading", "Button", "Image", "Input", "Container"};
-        for (String name : names) {
-            allWidgets.add(createDefaultWidget(name));
-        }
-    }
-
-    private void ensureDefaultWidgets() {
-        if (allWidgets == null) {
-            allWidgets = new ArrayList<>();
-        }
-        String[] names = {"Text", "Heading", "Button", "Image", "Input", "Container"};
-        for (String name : names) {
-            boolean found = false;
-            for (HashMap<String, Object> widget : allWidgets) {
-                if (widget != null && name.equalsIgnoreCase(String.valueOf(widget.get("name")))) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                allWidgets.add(createDefaultWidget(name));
-            }
-        }
-    }
-
     public ArrayList<HashMap<String, Object>> getAllWidgets() {
         loadWidgets();
         return allWidgets;
@@ -206,6 +125,128 @@ public class WidgetRegistry {
         return file;
     }
 
+    public static class WidgetCategory {
+        public String id;
+        public String name;
+        public String icon;
+    }
+
+    public static final String[] AVAILABLE_ICONS = new String[] {
+        "box", "columns_3", "stack_2", "layout_grid", "layout_list", "arrows_move_vertical",
+        "cursor_text", "puzzle", "photo", "world", "pencil", "pencil_code",
+        "check_bg", "video", "file_music", "source_code", "ic_list_view", "table",
+        "palette", "bulb", "blocks", "layout_grid_add", "file_code", "code_plus",
+        "droplet", "shadow", "folder"
+    };
+
+    public static int getIconDrawableRes(Context context, String iconName) {
+        if (iconName == null || iconName.trim().isEmpty()) return R.drawable.pencil_question;
+        String name = iconName.trim().toLowerCase();
+        if (context != null) {
+            int resId = context.getResources().getIdentifier(name, "drawable", context.getPackageName());
+            if (resId != 0) return resId;
+        }
+        return getIconDrawableRes(name);
+    }
+
+    public static int getIconDrawableRes(String iconName) {
+        if (iconName == null) return R.drawable.blocks;
+        switch (iconName.toLowerCase().trim()) {
+            case "box": return R.drawable.box;
+            case "columns_3": return R.drawable.columns_3;
+            case "stack_2": return R.drawable.stack_2;
+            case "layout_grid": return R.drawable.layout_grid;
+            case "layout_list": return R.drawable.layout_list;
+            case "arrows_move_vertical": return R.drawable.arrows_move_vertical;
+            case "cursor_text": return R.drawable.cursor_text;
+            case "puzzle": return R.drawable.puzzle;
+            case "photo": return R.drawable.photo;
+            case "world": return R.drawable.world;
+            case "pencil": return R.drawable.pencil;
+            case "pencil_code": return R.drawable.pencil_code;
+            case "check_bg": return R.drawable.check_bg;
+            case "video": return R.drawable.video;
+            case "file_music": return R.drawable.file_music;
+            case "source_code": return R.drawable.source_code;
+            case "ic_list_view": return R.drawable.ic_list_view;
+            case "table": return R.drawable.table;
+            case "palette": return R.drawable.palette;
+            case "bulb": return R.drawable.bulb;
+            case "blocks": return R.drawable.blocks;
+            case "layout_grid_add": return R.drawable.layout_grid_add;
+            case "file_code": return R.drawable.file_code;
+            case "code_plus": return R.drawable.code_plus;
+            case "droplet": return R.drawable.droplet;
+            case "shadow": return R.drawable.shadow;
+            case "folder": return R.drawable.folder;
+            case "layers_linked": return R.drawable.layers_linked;
+            case "text_size": return R.drawable.text_size;
+            case "focus_centered": return R.drawable.focus_centered;
+            case "text_color": return R.drawable.text_color;
+            case "alphabet_cyrillic": return R.drawable.alphabet_cyrillic;
+            case "background": return R.drawable.background;
+            case "border_radius": return R.drawable.border_radius;
+            case "border_style": return R.drawable.border_style;
+            case "box_padding": return R.drawable.box_padding;
+            case "box_margin": return R.drawable.box_margin;
+            case "refresh": return R.drawable.refresh;
+            case "arrow_autofit_width": return R.drawable.arrow_autofit_width;
+            case "arrow_autofit_height": return R.drawable.arrow_autofit_height;
+            case "box_model_2": return R.drawable.box_model_2;
+            case "settings_code": return R.drawable.settings_code;
+            case "pencil_question": return R.drawable.pencil_question;
+            default: return R.drawable.blocks;
+        }
+    }
+
+    public Map<String, Map<String, Object>> loadDesignProperties() {
+        Map<String, Map<String, Object>> map = new HashMap<>();
+        try {
+            InputStream is = context.getAssets().open("design_properties.json");
+            byte[] buffer = new byte[is.available()];
+            is.read(buffer);
+            is.close();
+            String json = new String(buffer, "UTF-8");
+            Map<String, Map<String, Object>> inbuilt = new Gson().fromJson(json,
+                new TypeToken<Map<String, Map<String, Object>>>(){}.getType());
+            if (inbuilt != null) {
+                map.putAll(inbuilt);
+            }
+        } catch (Exception e) {
+            Log.w("WidgetRegistry", "Could not load inbuilt design properties: " + e.getMessage());
+        }
+        File customFile = new File(FileUtil.getDragWebDir(context), "custom/design_properties.json");
+        if (customFile.exists() && customFile.length() > 0) {
+            try {
+                String json = FileUtil.readFile(customFile.getAbsolutePath());
+                if (json != null && !json.trim().isEmpty()) {
+                    Map<String, Map<String, Object>> custom = new Gson().fromJson(json,
+                        new TypeToken<Map<String, Map<String, Object>>>(){}.getType());
+                    if (custom != null) {
+                        map.putAll(custom);
+                    }
+                }
+            } catch (Exception e) {
+                Log.w("WidgetRegistry", "Could not load custom design properties: " + e.getMessage());
+            }
+        }
+        return map;
+    }
+
+    public List<WidgetCategory> getWidgetCategories() {
+        try {
+            InputStream is = context.getAssets().open("widget_categories.json");
+            byte[] buffer = new byte[is.available()];
+            is.read(buffer);
+            is.close();
+            String json = new String(buffer, "UTF-8");
+            return new Gson().fromJson(json, new TypeToken<List<WidgetCategory>>(){}.getType());
+        } catch (Exception e) {
+            Log.w("WidgetRegistry", "Could not load widget categories: " + e.getMessage());
+        }
+        return new ArrayList<>();
+    }
+
     public ArrayList<HashMap<String, Object>> loadOnlyCustomWidgets() {
         File customFile = getCustomWidgetsFile();
         if (customFile != null && customFile.exists() && customFile.length() > 0) {
@@ -215,8 +256,25 @@ public class WidgetRegistry {
                     ArrayList<HashMap<String, Object>> custom = new Gson().fromJson(json,
                         new TypeToken<ArrayList<HashMap<String, Object>>>(){}.getType());
                     if (custom != null) {
-                        sanitizeWidgets(custom);
-                        return custom;
+                        // Filter out any accidentally saved inbuilt widgets
+                        ArrayList<HashMap<String, Object>> inbuilt = loadInbuiltWidgets();
+                        Set<String> inbuiltNames = new HashSet<>();
+                        for (HashMap<String, Object> in : inbuilt) {
+                            if (in != null && in.containsKey("name")) {
+                                inbuiltNames.add(String.valueOf(in.get("name")).toLowerCase());
+                            }
+                        }
+                        ArrayList<HashMap<String, Object>> filtered = new ArrayList<>();
+                        for (HashMap<String, Object> c : custom) {
+                            if (c != null && c.containsKey("name")) {
+                                String cName = String.valueOf(c.get("name")).toLowerCase();
+                                if (!inbuiltNames.contains(cName)) {
+                                    filtered.add(c);
+                                }
+                            }
+                        }
+                        sanitizeWidgets(filtered);
+                        return filtered;
                     }
                 }
             } catch (Exception e) {
@@ -249,36 +307,36 @@ public class WidgetRegistry {
         if (widget == null) return;
         String name = widget.containsKey("name") ? widget.get("name").toString() : "";
         if (name.isEmpty()) return;
-        loadWidgets();
 
+        ArrayList<HashMap<String, Object>> custom = loadOnlyCustomWidgets();
         boolean replaced = false;
-        for (int i = 0; i < allWidgets.size(); i++) {
-            String existing = allWidgets.get(i).containsKey("name")
-                ? allWidgets.get(i).get("name").toString() : "";
+        for (int i = 0; i < custom.size(); i++) {
+            String existing = custom.get(i).containsKey("name")
+                ? custom.get(i).get("name").toString() : "";
             if (name.equalsIgnoreCase(existing)) {
-                allWidgets.set(i, widget);
+                custom.set(i, widget);
                 replaced = true;
                 break;
             }
         }
         if (!replaced) {
-            allWidgets.add(widget);
+            custom.add(widget);
         }
-        saveCustomWidgets(allWidgets);
+        saveCustomWidgets(custom);
     }
 
     public void deleteWidget(String name) {
         if (name == null || name.isEmpty()) return;
-        loadWidgets();
-        for (int i = 0; i < allWidgets.size(); i++) {
-            String existing = allWidgets.get(i).containsKey("name")
-                ? allWidgets.get(i).get("name").toString() : "";
+        ArrayList<HashMap<String, Object>> custom = loadOnlyCustomWidgets();
+        for (int i = 0; i < custom.size(); i++) {
+            String existing = custom.get(i).containsKey("name")
+                ? custom.get(i).get("name").toString() : "";
             if (name.equalsIgnoreCase(existing)) {
-                allWidgets.remove(i);
+                custom.remove(i);
                 break;
             }
         }
-        saveCustomWidgets(allWidgets);
+        saveCustomWidgets(custom);
     }
 
     private String stripMarkdownCodeBlocks(String input) {
@@ -381,26 +439,27 @@ public class WidgetRegistry {
             sanitizeWidgets(customWidgets);
 
             // Merge custom widgets: replace duplicates by name, add new ones
+            ArrayList<HashMap<String, Object>> existingCustom = loadOnlyCustomWidgets();
             for (HashMap<String, Object> custom : customWidgets) {
                 String customName = custom.containsKey("name") ? custom.get("name").toString() : "";
                 if (customName.isEmpty()) continue;
                 boolean replaced = false;
-                for (int i = 0; i < allWidgets.size(); i++) {
-                    String existingName = allWidgets.get(i).containsKey("name")
-                        ? allWidgets.get(i).get("name").toString() : "";
+                for (int i = 0; i < existingCustom.size(); i++) {
+                    String existingName = existingCustom.get(i).containsKey("name")
+                        ? existingCustom.get(i).get("name").toString() : "";
                     if (customName.equalsIgnoreCase(existingName)) {
-                        allWidgets.set(i, custom);
+                        existingCustom.set(i, custom);
                         replaced = true;
                         break;
                     }
                 }
                 if (!replaced) {
-                    allWidgets.add(custom);
+                    existingCustom.add(custom);
                 }
             }
 
-            // Save back
-            saveCustomWidgets(allWidgets);
+            // Save back only custom widgets
+            saveCustomWidgets(existingCustom);
             return true;
         } catch (Exception e) {
             Log.e("WidgetRegistry", "Error importing custom widgets", e);
@@ -412,25 +471,30 @@ public class WidgetRegistry {
         if (widget == null) return;
         String name = widget.containsKey("name") ? widget.get("name").toString() : "";
         if (name.isEmpty()) return;
-        loadWidgets();
         
+        ArrayList<HashMap<String, Object>> custom = loadOnlyCustomWidgets();
         // Remove existing if any
-        deleteWidget(name);
+        for (int i = 0; i < custom.size(); i++) {
+            if (name.equalsIgnoreCase(String.valueOf(custom.get(i).get("name")))) {
+                custom.remove(i);
+                break;
+            }
+        }
         
         int insertIndex = -1;
-        for (int i = 0; i < allWidgets.size(); i++) {
-            String existing = allWidgets.get(i).containsKey("name")
-                ? allWidgets.get(i).get("name").toString() : "";
+        for (int i = 0; i < custom.size(); i++) {
+            String existing = custom.get(i).containsKey("name")
+                ? custom.get(i).get("name").toString() : "";
             if (afterName.equalsIgnoreCase(existing)) {
                 insertIndex = i + 1;
                 break;
             }
         }
-        if (insertIndex >= 0 && insertIndex <= allWidgets.size()) {
-            allWidgets.add(insertIndex, widget);
+        if (insertIndex >= 0 && insertIndex <= custom.size()) {
+            custom.add(insertIndex, widget);
         } else {
-            allWidgets.add(widget);
+            custom.add(widget);
         }
-        saveCustomWidgets(allWidgets);
+        saveCustomWidgets(custom);
     }
 }

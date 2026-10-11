@@ -1,0 +1,32 @@
+[
+  {
+    "id": "layout",
+    "name": "Layouts",
+    "icon": "box"
+  },
+  {
+    "id": "basic",
+    "name": "Widgets",
+    "icon": "cursor_text"
+  },
+  {
+    "id": "form",
+    "name": "Forms",
+    "icon": "pencil"
+  },
+  {
+    "id": "media",
+    "name": "Media",
+    "icon": "video"
+  },
+  {
+    "id": "advanced",
+    "name": "Advanced",
+    "icon": "table"
+  },
+  {
+    "id": "custom",
+    "name": "Custom",
+    "icon": "puzzle"
+  }
+]

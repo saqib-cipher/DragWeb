@@ -960,6 +960,24 @@ public class DesignDataManager {
         File extLogicFile = new File(FileUtil.getDragWebDir(context),
             "projects/" + projectId + "/" + cleanPage + "_logic.json");
 
+        // Migrate any legacy style_logic.json into canonical css_style_logic.json and remove duplicate
+        if ("css_style".equals(cleanPage)) {
+            File legacyStyleFile = new File(FileUtil.getDragWebDir(context),
+                "projects/" + projectId + "/style_logic.json");
+            if (FileUtil.exists(legacyStyleFile)) {
+                if (!FileUtil.exists(extLogicFile)) {
+                    String legacyContent = FileUtil.readFile(legacyStyleFile.getAbsolutePath());
+                    if (legacyContent != null && !legacyContent.trim().isEmpty() && !legacyContent.trim().equals("{}")) {
+                        FileUtil.writeFile(extLogicFile.getAbsolutePath(), legacyContent);
+                    }
+                }
+                FileUtil.deleteFile(legacyStyleFile.getAbsolutePath());
+            }
+            if (mapBlocks != null) {
+                mapBlocks.remove("style");
+            }
+        }
+
         String content = null;
         if (FileUtil.exists(extLogicFile)) {
             content = FileUtil.readFile(extLogicFile.getAbsolutePath());
@@ -1042,12 +1060,28 @@ public class DesignDataManager {
         if (!extDir.exists()) extDir.mkdirs();
         File extFile = new File(extDir, cleanPage + "_logic.json");
         FileUtil.writeFile(extFile.getAbsolutePath(), content);
+
+        // Delete any redundant style_logic.json when css_style is saved
+        if ("css_style".equals(cleanPage)) {
+            File redundantStyle = new File(extDir, "style_logic.json");
+            if (FileUtil.exists(redundantStyle)) {
+                FileUtil.deleteFile(redundantStyle.getAbsolutePath());
+            }
+            if (mapBlocks != null) {
+                mapBlocks.remove("style");
+            }
+        }
     }
 
     public static void saveAllSavedLogic(Context context, String projectId) {
         if (projectId == null || projectId.isEmpty()) projectId = currentProjectId;
         if (projectId == null || projectId.isEmpty()) return;
+        // Purge redundant "style" key so duplicate style_logic.json is never created
+        if (mapBlocks != null && mapBlocks.containsKey("css_style")) {
+            mapBlocks.remove("style");
+        }
         for (String page : new ArrayList<>(mapBlocks.keySet())) {
+            if ("style".equals(page) && mapBlocks.containsKey("css_style")) continue;
             saveSavedLogic(context, projectId, page);
         }
     }

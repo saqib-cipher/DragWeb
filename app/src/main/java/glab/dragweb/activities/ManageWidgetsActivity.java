@@ -21,6 +21,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -326,9 +327,13 @@ public class ManageWidgetsActivity extends AppCompatActivity {
             String name = String.valueOf(widget.get("name"));
             String tag = String.valueOf(widget.get("tag"));
             String cat = String.valueOf(widget.get("category"));
+            String iconName = widget.containsKey("icon") && widget.get("icon") != null ? String.valueOf(widget.get("icon")) : "box";
 
             holder.tvName.setText(name);
             holder.tvDetails.setText("<" + tag + "> | Category: " + cat);
+            if (holder.ivIcon != null) {
+                holder.ivIcon.setImageResource(WidgetRegistry.getIconDrawableRes(iconName));
+            }
 
             holder.btnEdit.setOnClickListener(v -> {
                 android.content.Intent intent = new android.content.Intent(ManageWidgetsActivity.this, BlockWidgetEditorActivity.class);
@@ -360,11 +365,13 @@ public class ManageWidgetsActivity extends AppCompatActivity {
         }
 
         class ViewHolder extends RecyclerView.ViewHolder {
+            ImageView ivIcon;
             TextView tvName, tvDetails;
             View btnEdit, btnDelete;
 
             ViewHolder(View itemView) {
                 super(itemView);
+                ivIcon = itemView.findViewById(R.id.iv_widget_icon);
                 tvName = itemView.findViewById(R.id.tv_widget_name);
                 tvDetails = itemView.findViewById(R.id.tv_widget_details);
                 btnEdit = itemView.findViewById(R.id.btn_edit_widget);

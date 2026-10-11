@@ -159,40 +159,15 @@ public class ThemeManager {
 
     public String generateCssVariables() {
         StringBuilder css = new StringBuilder();
-        // Light theme as default :root
+        boolean isDark = THEME_DARK.equals(currentTheme);
+        Map<String, String> activeStyles = getActiveStyles();
+
+        // Active theme as default :root
         css.append(":root {\n");
-        css.append(generateVarsBlock(lightStyles, false));
+        css.append(generateVarsBlock(activeStyles, isDark));
         css.append("}\n\n");
 
-        // Dark theme via prefers-color-scheme AND a .dark-theme class
-        css.append("@media (prefers-color-scheme: dark) {\n");
-        css.append("  :root {\n");
-        for (Map.Entry<String, String> entry : darkStyles.entrySet()) {
-            String lightVal = lightStyles.get(entry.getKey());
-            // Only output if different from light
-            if (lightVal == null || !lightVal.equals(entry.getValue())) {
-                String cssVar = "--" + camelToKebab(entry.getKey());
-                css.append("    ").append(cssVar).append(": ").append(entry.getValue()).append(";\n");
-            }
-        }
-        // Output custom dark variables that differ from light
-        for (Map.Entry<String, String> entry : customCssVars.entrySet()) {
-            String val = entry.getValue();
-            if (val != null && val.contains("|")) {
-                String[] parts = val.split("\\|", 2);
-                if (!parts[0].equals(parts[1])) {
-                    String varName = entry.getKey();
-                    if (!varName.startsWith("--")) {
-                        varName = "--" + varName;
-                    }
-                    css.append("    ").append(varName).append(": ").append(parts[1]).append(";\n");
-                }
-            }
-        }
-        css.append("  }\n");
-        css.append("}\n\n");
-
-        // Also support explicit .dark-theme class on body/html
+        // Explicit .dark-theme and .light-theme class support
         css.append(".dark-theme {\n");
         css.append(generateVarsBlock(darkStyles, true));
         css.append("}\n\n");
@@ -219,6 +194,9 @@ public class ThemeManager {
         css.append("  color: var(--body-color);\n");
         css.append("  font-family: var(--font-family);\n");
         css.append("  line-height: 1.6;\n");
+        css.append("  min-height: 100vh;\n");
+        css.append("  display: flex;\n");
+        css.append("  flex-direction: column;\n");
         css.append("}\n\n");
         css.append("a {\n  color: var(--link-color);\n  text-decoration: none;\n}\n\n");
         css.append("a:hover {\n  text-decoration: underline;\n}\n\n");

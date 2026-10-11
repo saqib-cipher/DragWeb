@@ -18,6 +18,7 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.Toast;
 
@@ -52,12 +53,14 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
     private TextInputEditText etId;
     private TextInputLayout tilCategory;
     private TextInputEditText etCategory;
+    private TextInputLayout tilCustomCategory;
+    private TextInputEditText etCustomCategory;
     private TextInputLayout tilDisplayText;
     private TextInputEditText etDisplayText;
     private TextInputLayout tilWidgetTag;
     private TextInputEditText etWidgetTag;
-    private TextInputLayout tilWidgetColor;
-    private TextInputEditText etWidgetColor;
+    private TextInputLayout tilWidgetIcon;
+    private TextInputEditText etWidgetIcon;
     private TextInputLayout tilCode;
     private TextInputEditText etCode;
     private Button btnCancel;
@@ -124,12 +127,14 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
         etId = findViewById(R.id.mngId);
         tilCategory = findViewById(R.id.events_creator_icon_til);
         etCategory = findViewById(R.id.mngCategory);
+        tilCustomCategory = findViewById(R.id.tilCustomCategory);
+        etCustomCategory = findViewById(R.id.mngCustomCategory);
         tilDisplayText = findViewById(R.id.tilDisplayText);
         etDisplayText = findViewById(R.id.mngDisplayText);
         tilWidgetTag = findViewById(R.id.tilWidgetTag);
         etWidgetTag = findViewById(R.id.mngWidgetTag);
-        tilWidgetColor = findViewById(R.id.tilWidgetColor);
-        etWidgetColor = findViewById(R.id.mngWidgetColor);
+        tilWidgetIcon = findViewById(R.id.tilWidgetIcon);
+        etWidgetIcon = findViewById(R.id.mngWidgetIcon);
         tilCode = findViewById(R.id.tilCode);
         etCode = findViewById(R.id.mngCode);
         btnCancel = findViewById(R.id.events_creator_cancel);
@@ -146,43 +151,13 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
         etCategory.setOnClickListener(categoryChooser);
         tilCategory.setEndIconOnClickListener(categoryChooser);
 
-        // Color picker behavior for widget color
-        Runnable updateColorPreview = () -> {
-            String colorStr = etWidgetColor.getText() != null ? etWidgetColor.getText().toString().trim() : "";
-            try {
-                int parsed = Color.TRANSPARENT;
-                if (!colorStr.isEmpty() && !"transparent".equalsIgnoreCase(colorStr)) {
-                    parsed = Color.parseColor(colorStr.startsWith("#") ? colorStr : "#" + colorStr);
-                }
-                GradientDrawable dot = new GradientDrawable();
-                dot.setShape(GradientDrawable.OVAL);
-                dot.setColor(parsed);
-                dot.setStroke((int)(1 * getResources().getDisplayMetrics().density), Color.LTGRAY);
-                int size = (int)(20 * getResources().getDisplayMetrics().density);
-                dot.setBounds(0, 0, size, size);
-                etWidgetColor.setCompoundDrawablesRelative(null, null, dot, null);
-            } catch (Exception ignored) {}
-        };
-
-        if (etWidgetColor != null) {
-            etWidgetColor.setFocusable(false);
-            etWidgetColor.setCursorVisible(false);
-            etWidgetColor.setOnClickListener(v -> {
-                ColorPickerDialogFragment colorPicker = new ColorPickerDialogFragment();
-                colorPicker.setHexOnlyMode(true);
-                colorPicker.setOnColorSelectedListener(selectedHex -> {
-                    etWidgetColor.setText(selectedHex);
-                    updateColorPreview.run();
-                });
-                colorPicker.show(getSupportFragmentManager(), "widget_color_picker");
-            });
-
-            etWidgetColor.addTextChangedListener(new TextWatcher() {
-                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-                @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateColorPreview.run(); }
-                @Override public void afterTextChanged(Editable s) {}
-            });
-            updateColorPreview.run();
+        // Icon picker behavior for widget icon
+        View.OnClickListener iconChooser = v -> showIconPickerDialog();
+        if (etWidgetIcon != null) {
+            etWidgetIcon.setOnClickListener(iconChooser);
+        }
+        if (tilWidgetIcon != null) {
+            tilWidgetIcon.setEndIconOnClickListener(iconChooser);
         }
 
         // Real-time ID validation
@@ -231,7 +206,7 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
             // Adjust input field visibility for Blocks
             tilDisplayText.setVisibility(View.VISIBLE);
             tilWidgetTag.setVisibility(View.GONE);
-            tilWidgetColor.setVisibility(View.GONE);
+            tilWidgetIcon.setVisibility(View.GONE);
 
             // Set input helper descriptions
             tilId.setHint("Block ID (unique alphanumeric)");
@@ -258,7 +233,7 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
             // Adjust input field visibility for Widgets
             tilDisplayText.setVisibility(View.GONE);
             tilWidgetTag.setVisibility(View.VISIBLE);
-            tilWidgetColor.setVisibility(View.VISIBLE);
+            tilWidgetIcon.setVisibility(View.VISIBLE);
 
             tilId.setHint("Widget Name (unique, e.g. CustomCard)");
             tilCode.setHint("Function Properties JSON");
@@ -271,9 +246,28 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
                 HashMap<String, Object> widget = widgetRegistry.getWidgetByName(editId);
                 if (widget != null) {
                     etId.setText(String.valueOf(widget.get("name")));
-                    etCategory.setText(String.valueOf(widget.get("category")));
+                    String cat = String.valueOf(widget.get("category"));
+                    boolean isStandardCat = false;
+                    for (WidgetRegistry.WidgetCategory wc : widgetRegistry.getWidgetCategories()) {
+                        if (wc != null && wc.id != null && wc.id.equalsIgnoreCase(cat) && !"custom".equalsIgnoreCase(wc.id)) {
+                            isStandardCat = true;
+                            break;
+                        }
+                    }
+                    if (isStandardCat) {
+                        etCategory.setText(cat);
+                        tilCustomCategory.setVisibility(View.GONE);
+                    } else {
+                        etCategory.setText("custom");
+                        tilCustomCategory.setVisibility(View.VISIBLE);
+                        if (etCustomCategory != null) {
+                            etCustomCategory.setText(cat);
+                        }
+                    }
                     etWidgetTag.setText(String.valueOf(widget.get("tag")));
-                    etWidgetColor.setText(widget.containsKey("color") ? String.valueOf(widget.get("color")) : "#FFBB33");
+                    String iconName = widget.containsKey("icon") && widget.get("icon") != null ? String.valueOf(widget.get("icon")) : "box";
+                    etWidgetIcon.setText(iconName);
+                    updateIconPreview(iconName);
                     
                     Object funcObj = widget.get("function");
                     String funcJson = funcObj != null ? new GsonBuilder().setPrettyPrinting().create().toJson(funcObj) : "{}";
@@ -284,8 +278,10 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
                 }
             } else {
                 etCategory.setText("basic"); // Default widget category
+                tilCustomCategory.setVisibility(View.GONE);
                 etWidgetTag.setText("button"); // Default tag
-                etWidgetColor.setText("#FFBB33");
+                etWidgetIcon.setText("puzzle");
+                updateIconPreview("puzzle");
                 etCode.setText("{\n  \"text\": \"Click Me\",\n  \"style\": {\n    \"padding\": \"10px 20px\",\n    \"backgroundColor\": \"#FFBB33\"\n  }\n}");
             }
 
@@ -326,23 +322,104 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
         final String[] categories;
         if ("block".equals(type)) {
             List<CategoryDef> defs = CategoryDef.getCategories(this);
-            List<String> list = new ArrayList<>();
+            java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<>();
             for (CategoryDef c : defs) {
-                list.add(c.id);
+                if (c.id != null && !c.id.trim().isEmpty()) {
+                    set.add(c.id.trim());
+                }
             }
-            if (list.isEmpty()) {
+            if (set.isEmpty()) {
                 categories = new String[]{"css", "css_layout", "css_flex", "css_grid", "js_dom", "js_logic", "js_events", "meta"};
             } else {
-                categories = list.toArray(new String[0]);
+                categories = set.toArray(new String[0]);
             }
         } else {
-            categories = new String[]{"basic", "layout", "form"};
+            List<WidgetRegistry.WidgetCategory> widgetCats = widgetRegistry.getWidgetCategories();
+            java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<>();
+            for (WidgetRegistry.WidgetCategory c : widgetCats) {
+                if (c.id != null && !c.id.trim().isEmpty()) {
+                    set.add(c.id.trim());
+                }
+            }
+            if (set.isEmpty()) {
+                categories = new String[]{"layout", "basic", "form", "media", "advanced", "custom"};
+            } else {
+                categories = set.toArray(new String[0]);
+            }
         }
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Select Category")
-                .setItems(categories, (dialog, which) -> etCategory.setText(categories[which]))
+                .setItems(categories, (dialog, which) -> {
+                    String selected = categories[which];
+                    etCategory.setText(selected);
+                    checkCategorySelection(selected);
+                })
                 .show();
+    }
+
+    private void checkCategorySelection(String selectedCat) {
+        if (tilCustomCategory == null) return;
+        if ("custom".equalsIgnoreCase(selectedCat)) {
+            tilCustomCategory.setVisibility(View.VISIBLE);
+            if (etCustomCategory != null) {
+                etCustomCategory.requestFocus();
+            }
+        } else {
+            tilCustomCategory.setVisibility(View.GONE);
+        }
+    }
+
+    private void showIconPickerDialog() {
+        final String[] iconNames = WidgetRegistry.AVAILABLE_ICONS;
+        android.widget.BaseAdapter iconAdapter = new android.widget.BaseAdapter() {
+            @Override
+            public int getCount() { return iconNames.length; }
+            @Override
+            public Object getItem(int position) { return iconNames[position]; }
+            @Override
+            public long getItemId(int position) { return position; }
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                if (convertView == null) {
+                    convertView = getLayoutInflater().inflate(android.R.layout.activity_list_item, parent, false);
+                }
+                android.widget.TextView text = convertView.findViewById(android.R.id.text1);
+                android.widget.ImageView icon = convertView.findViewById(android.R.id.icon);
+                String name = iconNames[position];
+                text.setText(name);
+                int res = WidgetRegistry.getIconDrawableRes(name);
+                icon.setImageResource(res);
+                icon.setImageTintList(com.google.android.material.color.MaterialColors.getColorStateList(
+                    BlockWidgetEditorActivity.this, android.R.attr.colorPrimary, android.content.res.ColorStateList.valueOf(Color.BLACK)));
+                return convertView;
+            }
+        };
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Select Icon")
+                .setAdapter(iconAdapter, (dialog, which) -> {
+                    String selectedIcon = iconNames[which];
+                    etWidgetIcon.setText(selectedIcon);
+                    updateIconPreview(selectedIcon);
+                })
+                .show();
+    }
+
+    private void updateIconPreview(String iconName) {
+        if (etWidgetIcon == null) return;
+        int res = WidgetRegistry.getIconDrawableRes(iconName);
+        android.graphics.drawable.Drawable d = androidx.core.content.ContextCompat.getDrawable(this, res);
+        if (d != null) {
+            d = androidx.core.graphics.drawable.DrawableCompat.wrap(d.mutate());
+            int color = com.google.android.material.color.MaterialColors.getColor(
+                this, android.R.attr.colorPrimary, Color.BLACK);
+            androidx.core.graphics.drawable.DrawableCompat.setTint(d, color);
+            int size = (int)(24 * getResources().getDisplayMetrics().density);
+            d.setBounds(0, 0, size, size);
+            etWidgetIcon.setCompoundDrawablesRelative(d, null, null, null);
+            etWidgetIcon.setCompoundDrawablePadding((int)(8 * getResources().getDisplayMetrics().density));
+        }
     }
 
     private void showHtmlTagPickerDialog() {
@@ -397,24 +474,11 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
         } else {
             // Widget validation and saving
             String tag = etWidgetTag.getText().toString().trim();
-            String color = etWidgetColor.getText().toString().trim();
+            String icon = etWidgetIcon != null && etWidgetIcon.getText() != null ? etWidgetIcon.getText().toString().trim() : "box";
+            if (icon.isEmpty()) icon = "box";
 
-            if (tag.isEmpty() || color.isEmpty()) {
+            if (tag.isEmpty()) {
                 Toast.makeText(this, "Please fill in all widget fields", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            // Validate hex color format
-            if (!color.startsWith("#") || (color.length() != 4 && color.length() != 7 && color.length() != 9)) {
-                Toast.makeText(this, "Invalid hex color code (e.g. #FFBB33)", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            // Validate color parsing
-            try {
-                Color.parseColor(color);
-            } catch (Exception e) {
-                Toast.makeText(this, "Invalid hex color code format", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -442,11 +506,20 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
                 widgetRegistry.deleteWidget(editId);
             }
 
+            String cat = category;
+            if ("custom".equalsIgnoreCase(cat)) {
+                String customCat = etCustomCategory != null && etCustomCategory.getText() != null
+                    ? etCustomCategory.getText().toString().trim() : "";
+                if (!customCat.isEmpty()) {
+                    cat = customCat;
+                }
+            }
+
             HashMap<String, Object> newWidget = new HashMap<>();
             newWidget.put("name", id);
             newWidget.put("tag", tag);
-            newWidget.put("category", category);
-            newWidget.put("color", color);
+            newWidget.put("category", cat);
+            newWidget.put("icon", icon);
             newWidget.put("function", functionMap);
 
             widgetRegistry.updateOrAddWidget(newWidget);

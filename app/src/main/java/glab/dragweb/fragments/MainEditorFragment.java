@@ -38,6 +38,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.EditText;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -65,6 +66,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -94,7 +96,9 @@ public class MainEditorFragment extends Fragment {
 
 	private ArrayList<HashMap<String, Object>> widgets = new ArrayList<>();
 	private ArrayList<HashMap<String, Object>> filteredWidgets = new ArrayList<>();
+	private ArrayList<CategorizedWidgetItem> categorizedWidgetItems = new ArrayList<>();
 	private ArrayList<HashMap<String, Object>> design = new ArrayList<>();
+	private Map<String, Map<String, Object>> designPropertiesMap = new HashMap<>();
 
 	// Clipboard for copy/paste
 	private Map<String, Object> widgetClipboard = null;
@@ -130,9 +134,10 @@ public class MainEditorFragment extends Fragment {
 	private TabLayout tabLayout;
 	private Chip chipBasic, chipLayout;
 	private ChipGroup chipGroupBottom;
-	private TextInputEditText etSearchWidget, etSearchHierarchy;
+	private EditText etSearchWidget;
+	private ImageView btnSearchClear;
+	private TextInputEditText etSearchHierarchy;
 	private ChipGroup chipGroupCategories;
-	private ChipGroup chipGroupDrawerCategories;
 
 	private androidx.drawerlayout.widget.DrawerLayout drawerLayout;
 	private View rightPanelCard;
@@ -420,28 +425,23 @@ public class MainEditorFragment extends Fragment {
 		chipLayout = view.findViewById(R.id.chipLayout);
 		chipGroupBottom = view.findViewById(R.id.chipGroupBottom);
 		etSearchWidget = view.findViewById(R.id.etSearchWidget);
+		btnSearchClear = view.findViewById(R.id.btnSearchClear);
 		etSearchHierarchy = view.findViewById(R.id.etSearchHierarchy);
 		chipGroupCategories = view.findViewById(R.id.chipGroupCategories);
-		chipGroupDrawerCategories = view.findViewById(R.id.chipGroupDrawerCategories);
 
-		// Drawer button - store reference as field for reliability
+		// Drawer / Attached Panel toggle button
 		drawerLayout = view.findViewById(R.id._main);
-		btnDrawer.setOnClickListener(v -> {
-			try {
-				if (drawerLayout != null) {
-					View drawerContent = view.findViewById(R.id.drawerContent);
-					if (drawerContent != null) {
-						if (drawerLayout.isDrawerOpen(drawerContent)) {
-							drawerLayout.closeDrawer(drawerContent);
-						} else {
-							drawerLayout.openDrawer(drawerContent);
-						}
-					}
+		View drawerContent = view.findViewById(R.id.drawerContent);
+		View sidebarDivider = view.findViewById(R.id.sidebarDivider);
+		if (btnDrawer != null && drawerContent != null) {
+			btnDrawer.setOnClickListener(v -> {
+				boolean isVisible = drawerContent.getVisibility() == View.VISIBLE;
+				drawerContent.setVisibility(isVisible ? View.GONE : View.VISIBLE);
+				if (sidebarDivider != null) {
+					sidebarDivider.setVisibility(isVisible ? View.GONE : View.VISIBLE);
 				}
-			} catch (Exception e) {
-				Log.w("MainEditorFragment", "Drawer toggle error: " + e.getMessage());
-			}
-		});
+			});
+		}
 		if (btnHierarchy != null) {
 			btnHierarchy.setOnClickListener(v -> {
 				try {
@@ -544,88 +544,6 @@ public class MainEditorFragment extends Fragment {
 		setupBottomChips();
 		setupWidgetSearch();
 		setupHierarchySearch();
-		setupDrawerCategories(view);
-	}
-
-	private void setupDrawerCategories(View view) {
-		if (chipGroupDrawerCategories == null) return;
-		populateCategoryChips();
-		chipGroupDrawerCategories.setOnCheckedStateChangeListener((group, checkedIds) -> {
-			String filter = "all";
-			if (!checkedIds.isEmpty()) {
-				int checkedId = checkedIds.get(0);
-				for (int i = 0; i < group.getChildCount(); i++) {
-					View child = group.getChildAt(i);
-					if (child.getId() == checkedId && child.getTag() instanceof String) {
-						filter = (String) child.getTag();
-						break;
-					}
-				}
-			}
-			filteredWidgets.clear();
-			for (HashMap<String, Object> w : widgets) {
-				if ("all".equals(filter) || filter.equalsIgnoreCase(String.valueOf(w.get("category")))) {
-					filteredWidgets.add(w);
-				}
-			}
-			if (rvDrawerWidgets != null && rvDrawerWidgets.getAdapter() != null) {
-				rvDrawerWidgets.getAdapter().notifyDataSetChanged();
-			}
-		});
-	}
-
-	private void populateCategoryChips() {
-		Set<String> categories = new LinkedHashSet<>();
-		for (HashMap<String, Object> w : widgets) {
-			String cat = String.valueOf(w.get("category"));
-			if (cat != null && !"null".equals(cat) && !cat.isEmpty()) {
-				categories.add(cat);
-			}
-		}
-
-		// Populate hidden chipGroupCategories (used for programmatic access)
-		if (chipGroupCategories != null) {
-			chipGroupCategories.removeAllViews();
-			Chip allChip = new Chip(requireContext());
-			allChip.setText("All");
-			allChip.setCheckable(true);
-			allChip.setChecked(false);
-			allChip.setTag("all");
-			allChip.setId(View.generateViewId());
-			chipGroupCategories.addView(allChip);
-			for (String cat : categories) {
-				Chip chip = new Chip(requireContext());
-				chip.setText(cat.substring(0, 1).toUpperCase() + cat.substring(1));
-				chip.setCheckable(true);
-				chip.setTag(cat);
-				chip.setId(View.generateViewId());
-				chipGroupCategories.addView(chip);
-			}
-		}
-
-		// Populate visible drawer chip group
-		if (chipGroupDrawerCategories != null) {
-			chipGroupDrawerCategories.removeAllViews();
-			Chip allChip = new Chip(requireContext());
-			allChip.setText("All");
-			allChip.setChecked(false);
-			allChip.setCheckable(true);
-			allChip.setClickable(true);
-			allChip.setTextSize(11);
-			allChip.setTag("all");
-			allChip.setId(View.generateViewId());
-			chipGroupDrawerCategories.addView(allChip);
-			for (String cat : categories) {
-				Chip chip = new Chip(requireContext());
-				chip.setText(cat.substring(0, 1).toUpperCase() + cat.substring(1));
-				chip.setCheckable(true);
-				chip.setClickable(true);
-				chip.setTextSize(11);
-				chip.setTag(cat);
-				chip.setId(View.generateViewId());
-				chipGroupDrawerCategories.addView(chip);
-			}
-		}
 	}
 
 	private void initializeLogic() {
@@ -675,8 +593,9 @@ public class MainEditorFragment extends Fragment {
 		widgetRegistry = new WidgetRegistry(requireContext());
 		widgets = widgetRegistry.getAllWidgets();
 		filteredWidgets = new ArrayList<>(widgets);
+		designPropertiesMap = widgetRegistry.loadDesignProperties();
 
-		populateCategoryChips();
+		rebuildCategorizedList("");
 
 		autoLoadCustomConfigs();
 
@@ -710,13 +629,13 @@ public class MainEditorFragment extends Fragment {
 		}
 
 		if (recyclerview1 != null) {
-			recyclerview1.setAdapter(new Recyclerview1Adapter(filteredWidgets));
+			recyclerview1.setAdapter(new Recyclerview1Adapter(categorizedWidgetItems));
 			recyclerview1.setLayoutManager(new LinearLayoutManager(requireContext()));
 		}
 
-		// Set up widget list in drawer (vertical - bigger)
+		// Set up widget list in attached drawer
 		if (rvDrawerWidgets != null) {
-			rvDrawerWidgets.setAdapter(new Recyclerview1Adapter(filteredWidgets));
+			rvDrawerWidgets.setAdapter(new Recyclerview1Adapter(categorizedWidgetItems));
 			rvDrawerWidgets.setLayoutManager(new LinearLayoutManager(requireContext()));
 		}
 
@@ -734,6 +653,7 @@ public class MainEditorFragment extends Fragment {
 			updateWidgetSpinnerFromTree();
 			refreshHierarchy();
 		});
+		dropZoneManager.setOnWidgetCreatedListener(this::setupWidgetReorderDrag);
 
 		setupHierarchyTracker(screen);
 		setupCanvasDragListener();
@@ -892,16 +812,73 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private List<Map<String, Object>> serializeChildren(ViewGroup parent) {
+		return serializeChildren(parent, "root");
+	}
+
+	private List<Map<String, Object>> serializeChildren(ViewGroup parent, String parentId) {
 		List<Map<String, Object>> nodes = new ArrayList<>();
+		if (parent == null) return nodes;
 		for (int i = 0; i < parent.getChildCount(); i++) {
 			View child = parent.getChildAt(i);
+			if (child == null || "__drop_indicator__".equals(child.getTag())) continue;
 			Object tagObj = child.getTag();
 			if (tagObj instanceof Map) {
-				Map<String, Object> widgetMap = new HashMap<>((Map<String, Object>) tagObj);
+				@SuppressWarnings("unchecked")
+				Map<String, Object> widgetMap = new LinkedHashMap<>((Map<String, Object>) tagObj);
+				String tag = widgetMap.containsKey("tag") && widgetMap.get("tag") != null ? widgetMap.get("tag").toString() : "div";
+
+				@SuppressWarnings("unchecked")
+				Map<String, Object> fn = (Map<String, Object>) widgetMap.get("function");
+				if (fn == null) {
+					fn = new LinkedHashMap<>();
+					widgetMap.put("function", fn);
+				}
+
+				String widgetId = null;
+				if (widgetMap.get("id") != null && !widgetMap.get("id").toString().trim().isEmpty()) {
+					widgetId = widgetMap.get("id").toString().trim();
+				} else if (fn.get("id") != null && !fn.get("id").toString().trim().isEmpty()) {
+					widgetId = fn.get("id").toString().trim();
+				} else {
+					widgetId = tag + "_" + (i + 1);
+				}
+
+				// Sync live text from view if applicable
+				if (child instanceof TextView) {
+					String liveText = ((TextView) child).getText().toString();
+					if (!liveText.startsWith("[") || !liveText.endsWith("]")) {
+						fn.put("text", liveText);
+					}
+				} else if (child instanceof com.google.android.material.textfield.TextInputEditText) {
+					fn.put("value", ((com.google.android.material.textfield.TextInputEditText) child).getText().toString());
+				}
+
+				widgetMap.put("id", widgetId);
+				widgetMap.put("index", i);
+				widgetMap.put("parent", parentId);
+				if (!fn.containsKey("id") || fn.get("id") == null || fn.get("id").toString().trim().isEmpty()) {
+					fn.put("id", widgetId);
+				}
+
+				// Convert tag for Sketchware compatibility
+				if (!widgetMap.containsKey("convert") || widgetMap.get("convert") == null || widgetMap.get("convert").toString().isEmpty()) {
+					String conv = "View";
+					if (tag.equals("button")) conv = "Button";
+					else if (tag.equals("p") || tag.equals("h1") || tag.equals("h2") || tag.equals("h3") || tag.equals("span") || tag.equals("a")) conv = "TextView";
+					else if (tag.equals("img")) conv = "ImageView";
+					else if (tag.equals("div") || tag.equals("section") || tag.equals("header") || tag.equals("footer")) conv = "LinearLayout";
+					widgetMap.put("convert", conv);
+				}
+
+				// Synchronize view tag so in-memory view is always in sync with serialized attributes
+				child.setTag(widgetMap);
+
 				if (child instanceof ViewGroup) {
-					List<Map<String, Object>> children = serializeChildren((ViewGroup) child);
+					List<Map<String, Object>> children = serializeChildren((ViewGroup) child, widgetId);
 					if (!children.isEmpty()) {
 						widgetMap.put("children", children);
+					} else {
+						widgetMap.remove("children");
 					}
 				}
 				nodes.add(widgetMap);
@@ -1891,9 +1868,19 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void saveCurrentPageLayout() {
+		if (screen == null) return;
 		List<Map<String, Object>> widgetTree = serializeChildren(screen);
+		if (widgetTree.isEmpty()) {
+			String cached = pageManager != null ? pageManager.loadPageLayout(pageManager.getCurrentPage()) : null;
+			if (cached != null && !cached.trim().isEmpty() && !"[]".equals(cached.trim())) {
+				// Safety: Canvas is momentarily empty during loading/fragment transition, do not wipe disk layout!
+				return;
+			}
+		}
 		String json = new Gson().toJson(widgetTree);
-		pageManager.savePageLayout(pageManager.getCurrentPage(), json);
+		if (pageManager != null) {
+			pageManager.savePageLayout(pageManager.getCurrentPage(), json);
+		}
 	}
 
 	private void loadCurrentPageLayout() {
@@ -1904,17 +1891,8 @@ public class MainEditorFragment extends Fragment {
 		final androidx.fragment.app.FragmentActivity act = getActivity();
 
 		AppExecutors.io().execute(() -> {
-			// Background: disk read + JSON parse
 			final String json = pageManager.loadPageLayout(pageName);
-			List<Map<String, Object>> parsedTree = null;
-			if (json != null && !"[]".equals(json.trim())) {
-				try {
-					parsedTree = new Gson().fromJson(json,
-						new TypeToken<List<Map<String, Object>>>(){}.getType());
-				} catch (Exception e) {
-					Log.w("MainActivity", "Could not parse page layout: " + e.getMessage());
-				}
-			}
+			final List<Map<String, Object>> parsedTree = PageManager.parseLayoutTree(json);
 
 			final List<Map<String, Object>> finalTree = parsedTree;
 
@@ -1922,13 +1900,16 @@ public class MainEditorFragment extends Fragment {
 			act.runOnUiThread(() -> {
 				if (!isAdded()) return;
 				screen.removeAllViews();
-				if (finalTree != null) {
+				if (finalTree != null && !finalTree.isEmpty()) {
 					for (Map<String, Object> nodeMap : finalTree) {
 						rebuildView(nodeMap, screen);
 					}
+					WidgetCanvasStyler.getInstance(requireContext()).synchronizeCanvas(screen);
 				}
 				setupHierarchyTracker(screen);
-				saveCurrentPageLayout();
+				if (screen.getChildCount() > 0) {
+					saveCurrentPageLayout();
+				}
 				selector.clearSelection();
 				selector.attachTo(screen);
 				textview2.setText("No widget selected");
@@ -1953,28 +1934,93 @@ public class MainEditorFragment extends Fragment {
 			public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 			@Override
 			public void onTextChanged(CharSequence s, int start, int before, int count) {
-				filterWidgetsBySearch(s.toString());
+				String q = s != null ? s.toString() : "";
+				if (btnSearchClear != null) {
+					btnSearchClear.setVisibility(q.isEmpty() ? View.GONE : View.VISIBLE);
+				}
+				filterWidgetsBySearch(q);
 			}
 			@Override
 			public void afterTextChanged(Editable s) {}
 		});
+		if (btnSearchClear != null) {
+			btnSearchClear.setOnClickListener(v -> etSearchWidget.setText(""));
+		}
 	}
 
 	private void filterWidgetsBySearch(String query) {
+		rebuildCategorizedList(query);
+	}
+
+	private void rebuildCategorizedList(String query) {
+		categorizedWidgetItems.clear();
 		filteredWidgets.clear();
-		if (query.isEmpty()) {
-			filteredWidgets.addAll(widgets);
-		} else {
-			String lowerQuery = query.toLowerCase();
-			for (HashMap<String, Object> widget : widgets) {
-				String name = widget.containsKey("name") ? widget.get("name").toString().toLowerCase() : "";
-				String tag = widget.containsKey("tag") ? widget.get("tag").toString().toLowerCase() : "";
-				String category = widget.containsKey("category") ? widget.get("category").toString().toLowerCase() : "";
+
+		String lowerQuery = query != null ? query.trim().toLowerCase() : "";
+
+		ArrayList<HashMap<String, Object>> matching = new ArrayList<>();
+		for (HashMap<String, Object> w : widgets) {
+			if (lowerQuery.isEmpty()) {
+				matching.add(w);
+			} else {
+				String name = w.containsKey("name") && w.get("name") != null ? String.valueOf(w.get("name")).toLowerCase() : "";
+				String tag = w.containsKey("tag") && w.get("tag") != null ? String.valueOf(w.get("tag")).toLowerCase() : "";
+				String category = w.containsKey("category") && w.get("category") != null ? String.valueOf(w.get("category")).toLowerCase() : "";
 				if (name.contains(lowerQuery) || tag.contains(lowerQuery) || category.contains(lowerQuery)) {
-					filteredWidgets.add(widget);
+					matching.add(w);
 				}
 			}
 		}
+
+		filteredWidgets.addAll(matching);
+
+		// Group matching widgets by category
+		Map<String, List<HashMap<String, Object>>> grouped = new LinkedHashMap<>();
+		for (HashMap<String, Object> w : matching) {
+			String catKey = w.containsKey("category") && w.get("category") != null ? String.valueOf(w.get("category")).toLowerCase().trim() : "basic";
+			if (!grouped.containsKey(catKey)) {
+				grouped.put(catKey, new ArrayList<>());
+			}
+			grouped.get(catKey).add(w);
+		}
+
+		// Categories in prioritized order from widget_categories.json
+		List<WidgetRegistry.WidgetCategory> definedCategories = widgetRegistry != null ? widgetRegistry.getWidgetCategories() : new ArrayList<>();
+		Set<String> processedCategories = new HashSet<>();
+
+		for (WidgetRegistry.WidgetCategory catDef : definedCategories) {
+			if (catDef == null || catDef.id == null) continue;
+			String catKey = catDef.id.toLowerCase().trim();
+			if (grouped.containsKey(catKey)) {
+				List<HashMap<String, Object>> catWidgets = grouped.get(catKey);
+				if (catWidgets != null && !catWidgets.isEmpty()) {
+					String headerTitle = (catDef.name != null && !catDef.name.isEmpty()) ? catDef.name : catKey;
+					categorizedWidgetItems.add(CategorizedWidgetItem.createHeader(headerTitle));
+					for (HashMap<String, Object> w : catWidgets) {
+						int globalIdx = widgets.indexOf(w);
+						categorizedWidgetItems.add(CategorizedWidgetItem.createWidget(w, globalIdx));
+					}
+				}
+				processedCategories.add(catKey);
+			}
+		}
+
+		// Add any custom or remaining categories
+		for (Map.Entry<String, List<HashMap<String, Object>>> entry : grouped.entrySet()) {
+			String catKey = entry.getKey();
+			if (!processedCategories.contains(catKey)) {
+				List<HashMap<String, Object>> catWidgets = entry.getValue();
+				if (catWidgets != null && !catWidgets.isEmpty()) {
+					String headerTitle = catKey.length() > 0 ? catKey.substring(0, 1).toUpperCase() + catKey.substring(1) : "Other";
+					categorizedWidgetItems.add(CategorizedWidgetItem.createHeader(headerTitle));
+					for (HashMap<String, Object> w : catWidgets) {
+						int globalIdx = widgets.indexOf(w);
+						categorizedWidgetItems.add(CategorizedWidgetItem.createWidget(w, globalIdx));
+					}
+				}
+			}
+		}
+
 		notifyWidgetAdapters();
 	}
 
@@ -2025,10 +2071,7 @@ public class MainEditorFragment extends Fragment {
 
 	private void refreshWidgetList() {
 		widgets = widgetRegistry.getAllWidgets();
-		filteredWidgets.clear();
-		filteredWidgets.addAll(widgets);
-		notifyWidgetAdapters();
-		populateCategoryChips();
+		rebuildCategorizedList(etSearchWidget != null ? etSearchWidget.getText().toString() : "");
 	}
 
 	private void refreshHierarchy() {
@@ -2241,60 +2284,9 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void setupCanvasDragListener() {
-		screen.setOnDragListener((v, event) -> {
-			int action = event.getAction();
-			switch (action) {
-				case DragEvent.ACTION_DRAG_STARTED:
-					return event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN);
-				case DragEvent.ACTION_DRAG_ENTERED:
-					return true;
-				case DragEvent.ACTION_DRAG_EXITED:
-					return true;
-				case DragEvent.ACTION_DROP:
-					ClipData data = event.getClipData();
-					if (data != null && data.getItemCount() > 0) {
-						try {
-							String dragText = data.getItemAt(0).getText().toString();
-							if (dragText.startsWith("reorder:")) {
-								handleReorderDrop(dragText, event);
-								return true;
-							}
-							int pos = Integer.parseInt(dragText);
-							if (pos < 0 || pos >= filteredWidgets.size()) return false;
-							Map<String, Object> widgetDefinition = filteredWidgets.get(pos);
-							View newWidgetView = engine.createWidget(widgetDefinition.get("tag").toString());
-							if (newWidgetView != null) {
-								applyWidgetDefaults(newWidgetView, widgetDefinition);
-								int targetIndex = findDropIndex(screen, event.getY());
-								if (targetIndex >= 0 && targetIndex <= screen.getChildCount()) {
-									screen.addView(newWidgetView, targetIndex);
-								} else {
-									screen.addView(newWidgetView);
-								}
-								selector.registerView(newWidgetView);
-								setupWidgetReorderDrag(newWidgetView);
-								newWidgetView.performClick();
-								dropZoneManager.registerWidgetAsDropZoneIfContainer(newWidgetView);
-								saveUndoState();
-								refreshHierarchy();
-								updateWidgetSpinnerFromTree();
-							}
-						} catch (NumberFormatException e) {
-							Toast.makeText(requireContext(), "Error parsing widget position.", Toast.LENGTH_SHORT).show();
-						} catch (Exception e) {
-							Toast.makeText(requireContext(), "Error creating widget.", Toast.LENGTH_SHORT).show();
-							Log.e("MainActivity", "Error: " + e.getMessage());
-						}
-					}
-					return true;
-				case DragEvent.ACTION_DRAG_ENDED:
-					return true;
-				case DragEvent.ACTION_DRAG_LOCATION:
-					return true;
-				default:
-					return false;
-			}
-		});
+		if (dropZoneManager != null && screen != null) {
+			dropZoneManager.registerWidgetAsDropZoneIfContainer(screen);
+		}
 	}
 
 	private void applyWidgetDefaults(View newWidgetView, Map<String, Object> widgetDefinition) {
@@ -2670,6 +2662,10 @@ public class MainEditorFragment extends Fragment {
 	@Override
 	public void onPause() {
 		super.onPause();
+		saveCurrentPageLayout();
+		if (pageManager != null) {
+			pageManager.saveAllPages();
+		}
 		syncProjectAssets();
 	}
 
@@ -2784,6 +2780,9 @@ public class MainEditorFragment extends Fragment {
 
 		// Synchronously capture UI state on main thread
 		saveCurrentPageLayout();
+		if (pageManager != null) {
+			pageManager.saveAllPages();
+		}
 
 		final android.content.Context appContext = requireContext().getApplicationContext();
 		final androidx.fragment.app.FragmentActivity activity = getActivity();
@@ -2795,26 +2794,28 @@ public class MainEditorFragment extends Fragment {
 
 			if (activity != null) {
 				activity.runOnUiThread(() -> {
-					if (!isAdded()) return;
-
-					if (progressSave != null) progressSave.setVisibility(View.GONE);
-					if (button4 != null) {
-						button4.setVisibility(View.VISIBLE);
-						if (button4 instanceof com.google.android.material.button.MaterialButton) {
-							((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.rounded_check_24);
-						}
-
-						new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+					if (isAdded()) {
+						if (progressSave != null) progressSave.setVisibility(View.GONE);
+						if (button4 != null) {
+							button4.setVisibility(View.VISIBLE);
 							if (button4 instanceof com.google.android.material.button.MaterialButton) {
-								((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.device_floppy);
+								((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.rounded_check_24);
 							}
-						}, 1500);
+
+							new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+								if (button4 instanceof com.google.android.material.button.MaterialButton) {
+									((com.google.android.material.button.MaterialButton) button4).setIconResource(R.drawable.device_floppy);
+								}
+							}, 1500);
+						}
 					}
 
 					if (onComplete != null) {
 						onComplete.run();
 					}
 				});
+			} else if (onComplete != null) {
+				AppExecutors.mainThread(onComplete);
 			}
 		});
 	}
@@ -2827,10 +2828,9 @@ public class MainEditorFragment extends Fragment {
 	 */
 	private void performFastSaveWork(android.content.Context context) {
 		// Save all cached pages to disk
-		pageManager.saveAllPages();
-
-		// Save main layout (index page for backwards compat)
-		projectDataManager.saveProject(screen, projectId, null);
+		if (pageManager != null) {
+			pageManager.saveAllPages();
+		}
 
 		File extThemeFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/theme.json");
 		File parentDir = extThemeFile.getParentFile();
@@ -2898,16 +2898,8 @@ public class MainEditorFragment extends Fragment {
 			// ---- Background: disk I/O + JSON parsing ----
 			final String pageJson = pageManager.loadPageLayout(currentPageName);
 
-			// Parse widget tree off the UI thread
-			List<Map<String, Object>> parsedTree = null;
-			if (pageJson != null && !"[]".equals(pageJson.trim())) {
-				try {
-					parsedTree = new Gson().fromJson(pageJson,
-						new TypeToken<List<Map<String, Object>>>(){}.getType());
-				} catch (Exception e) {
-					Log.w("MainActivity", "Could not parse page layout: " + e.getMessage());
-				}
-			}
+			// Parse widget tree off the UI thread (supports standard array and Sketchware structure)
+			final List<Map<String, Object>> parsedTree = PageManager.parseLayoutTree(pageJson);
 
 			// Load theme from disk in background
 			final String themeJson;
@@ -2918,7 +2910,6 @@ public class MainEditorFragment extends Fragment {
 			DesignDataManager.initialize(appCtx, projectId, currentPageName);
 
 			final List<Map<String, Object>> finalTree = parsedTree;
-			final boolean hadPageJson = (pageJson != null);
 
 			if (act == null) return;
 			act.runOnUiThread(() -> {
@@ -2927,19 +2918,21 @@ public class MainEditorFragment extends Fragment {
 				// ---- UI thread: view construction ----
 				if (themeJson != null) themeManager.fromJson(themeJson);
 
-				if (hadPageJson) {
-					screen.removeAllViews();
-					if (finalTree != null && !finalTree.isEmpty()) {
-						for (Map<String, Object> nodeMap : finalTree) {
-							rebuildView(nodeMap, screen);
-						}
+				screen.removeAllViews();
+				if (finalTree != null && !finalTree.isEmpty()) {
+					for (Map<String, Object> nodeMap : finalTree) {
+						rebuildView(nodeMap, screen);
 					}
-				} else {
+					WidgetCanvasStyler.getInstance(requireContext()).synchronizeCanvas(screen);
+				} else if (pageJson == null || pageJson.trim().isEmpty() || "[]".equals(pageJson.trim())) {
 					// Fall back to legacy project data
 					projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager, null);
 				}
 
 				registerAllWidgetsForDrag(screen);
+				setupHierarchyTracker(screen);
+				selector.clearSelection();
+				selector.attachTo(screen);
 
 				// Cache the layout now that it is built
 				if (pageManager != null && screen.getChildCount() > 0) {
@@ -2971,6 +2964,7 @@ public class MainEditorFragment extends Fragment {
 	private void saveUndoState() {
 		undoRedoManager.saveState(screen);
 		refreshHierarchy();
+		saveCurrentPageLayout();
 	}
 
 	private void restoreState(List<Map<String, Object>> state) {
@@ -2990,15 +2984,55 @@ public class MainEditorFragment extends Fragment {
 			hierarchyAdapter.setLoading(false);
 		}
 		refreshHierarchy();
+		saveCurrentPageLayout();
 	}
 
 	private void rebuildView(Map<String, Object> nodeMap, ViewGroup parent) {
-		if (!nodeMap.containsKey("tag")) return;
-		String tag = nodeMap.get("tag").toString();
+		if (nodeMap == null) return;
+		String tag = nodeMap.containsKey("tag") && nodeMap.get("tag") != null ? nodeMap.get("tag").toString() : null;
+		if (tag == null || tag.trim().isEmpty()) {
+			if (nodeMap.containsKey("convert") && nodeMap.get("convert") != null) {
+				String conv = nodeMap.get("convert").toString().toLowerCase();
+				if (conv.contains("button")) tag = "button";
+				else if (conv.contains("text")) tag = "p";
+				else if (conv.contains("image")) tag = "img";
+				else if (conv.contains("linear") || conv.contains("layout")) tag = "div";
+				else tag = "div";
+			} else {
+				tag = "div";
+			}
+			nodeMap.put("tag", tag);
+		}
+
 		View newView = engine.createWidget(tag);
 		if (newView != null) {
-			Map<String, Object> newWidgetMap = new HashMap<>(nodeMap);
+			Map<String, Object> newWidgetMap = new LinkedHashMap<>(nodeMap);
 			newWidgetMap.remove("children");
+
+			@SuppressWarnings("unchecked")
+			Map<String, Object> fn = (Map<String, Object>) newWidgetMap.get("function");
+			if (fn == null) {
+				fn = new LinkedHashMap<>();
+				newWidgetMap.put("function", fn);
+			}
+
+			// If Sketchware text is present
+			if (newWidgetMap.containsKey("text")) {
+				Object textObj = newWidgetMap.get("text");
+				if (textObj instanceof Map) {
+					Map<?, ?> textMap = (Map<?, ?>) textObj;
+					if (textMap.containsKey("text") && textMap.get("text") != null) {
+						fn.put("text", textMap.get("text"));
+					}
+				} else if (textObj != null) {
+					fn.put("text", textObj.toString());
+				}
+			}
+
+			if (newWidgetMap.containsKey("id") && (!fn.containsKey("id") || fn.get("id") == null)) {
+				fn.put("id", newWidgetMap.get("id"));
+			}
+
 			engine.applyPropertiesToView(newView, newWidgetMap);
 			newView.setTag(newWidgetMap);
 			parent.addView(newView);
@@ -3012,21 +3046,63 @@ public class MainEditorFragment extends Fragment {
 			}
 
 			if (nodeMap.containsKey("children") && newView instanceof ViewGroup) {
-				List<Map<String, Object>> children = (List<Map<String, Object>>) nodeMap.get("children");
-				for (Map<String, Object> childMap : children) {
-					rebuildView(childMap, (ViewGroup) newView);
+				Object childrenObj = nodeMap.get("children");
+				if (childrenObj instanceof List) {
+					@SuppressWarnings("unchecked")
+					List<Map<String, Object>> children = (List<Map<String, Object>>) childrenObj;
+					for (Map<String, Object> childMap : children) {
+						rebuildView(childMap, (ViewGroup) newView);
+					}
 				}
 			}
 		}
 	}
 
 	private void rebuildViewAt(Map<String, Object> nodeMap, ViewGroup parent, int index) {
-		if (!nodeMap.containsKey("tag")) return;
-		String tag = nodeMap.get("tag").toString();
+		if (nodeMap == null) return;
+		String tag = nodeMap.containsKey("tag") && nodeMap.get("tag") != null ? nodeMap.get("tag").toString() : null;
+		if (tag == null || tag.trim().isEmpty()) {
+			if (nodeMap.containsKey("convert") && nodeMap.get("convert") != null) {
+				String conv = nodeMap.get("convert").toString().toLowerCase();
+				if (conv.contains("button")) tag = "button";
+				else if (conv.contains("text")) tag = "p";
+				else if (conv.contains("image")) tag = "img";
+				else if (conv.contains("linear") || conv.contains("layout")) tag = "div";
+				else tag = "div";
+			} else {
+				tag = "div";
+			}
+			nodeMap.put("tag", tag);
+		}
+
 		View newView = engine.createWidget(tag);
 		if (newView != null) {
 			Map<String, Object> newWidgetMap = new HashMap<>(nodeMap);
 			newWidgetMap.remove("children");
+
+			@SuppressWarnings("unchecked")
+			Map<String, Object> fn = (Map<String, Object>) newWidgetMap.get("function");
+			if (fn == null) {
+				fn = new LinkedHashMap<>();
+				newWidgetMap.put("function", fn);
+			}
+
+			if (newWidgetMap.containsKey("text")) {
+				Object textObj = newWidgetMap.get("text");
+				if (textObj instanceof Map) {
+					Map<?, ?> textMap = (Map<?, ?>) textObj;
+					if (textMap.containsKey("text") && textMap.get("text") != null) {
+						fn.put("text", textMap.get("text"));
+					}
+				} else if (textObj != null) {
+					fn.put("text", textObj.toString());
+				}
+			}
+
+			if (newWidgetMap.containsKey("id") && (!fn.containsKey("id") || fn.get("id") == null)) {
+				fn.put("id", newWidgetMap.get("id"));
+			}
+
 			engine.applyPropertiesToView(newView, newWidgetMap);
 			newView.setTag(newWidgetMap);
 			parent.addView(newView, Math.min(index, parent.getChildCount()));
@@ -3794,6 +3870,7 @@ public class MainEditorFragment extends Fragment {
 				}
 			}
 			map.put("value", value);
+			map.put("iconRes", getDesignPropertyIcon(item));
 			design.add(map);
 		}
 		if (recyclerview3.getLayoutManager() == null) {
@@ -3837,76 +3914,19 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private String getCssKeyFromItem(String item) {
-		switch (item) {
-			case "TextSize": return "fontSize";
-			case "Color": return "color";
-			case "Font": return "fontWeight";
-			case "TextAlign": return "textAlign";
-			case "Background": return "backgroundColor";
-			case "BorderRadius": return "borderRadius";
-			case "BorderWidth": return "borderWidth";
-			case "BorderColor": return "borderColor";
-			case "Padding": return "padding";
-			case "Margin": return "margin";
-			case "Width": return "width";
-			case "Height": return "height";
-			case "Display": return "display";
-			case "Position": return "position";
-			case "FlexDir": return "flexDirection";
-			case "FlexWrap": return "flexWrap";
-			case "JustifyContent": return "justifyContent";
-			case "AlignItems": return "alignItems";
-			case "AlignSelf": return "alignSelf";
-			case "AlignContent": return "alignContent";
-			case "Gap": return "gap";
-			case "RowGap": return "rowGap";
-			case "ColGap": return "columnGap";
-			case "GridCols": return "gridTemplateColumns";
-			case "GridRows": return "gridTemplateRows";
-			case "GridGap": return "gridGap";
-			case "Float": return "float";
-			case "Clear": return "clear";
-			case "Top": return "top";
-			case "Right": return "right";
-			case "Bottom": return "bottom";
-			case "Left": return "left";
-			case "MinWidth": return "minWidth";
-			case "MaxWidth": return "maxWidth";
-			case "MinHeight": return "minHeight";
-			case "MaxHeight": return "maxHeight";
-			case "ObjectFit": return "objectFit";
-			case "AspectRatio": return "aspectRatio";
-			case "Edittext": return "text";
-			case "SetId": return "id";
-			case "SetClass": return "class";
-			case "SetHref": return "href";
-			case "SetTarget": return "target";
-			case "SetPlaceholder": return "placeholder";
-			case "SetType": return "type";
-			case "ImageSrc": return "src";
-			case "ListItems": return "items";
-			case "Elevation": return "elevation";
-			case "Opacity": return "opacity";
-			case "Rotation": return "rotation";
-			case "Overflow": return "overflow";
-			case "BoxShadow": return "boxShadow";
-			case "TextDecor": return "textDecoration";
-			case "FontFamily": return "fontFamily";
-			case "FontWeight": return "fontWeight";
-			case "TextTransform": return "textTransform";
-			case "LineHeight": return "lineHeight";
-			case "LetterSpace": return "letterSpacing";
-			case "ZIndex": return "zIndex";
-			case "BorderTop": return "borderTop";
-			case "BorderRight": return "borderRight";
-			case "BorderBottom": return "borderBottom";
-			case "BorderLeft": return "borderLeft";
-			case "RadiusTL": return "borderTopLeftRadius";
-			case "RadiusTR": return "borderTopRightRadius";
-			case "RadiusBL": return "borderBottomLeftRadius";
-			case "RadiusBR": return "borderBottomRightRadius";
-			default: return item.toLowerCase();
+		if (item == null) return "";
+		if (designPropertiesMap == null || designPropertiesMap.isEmpty()) {
+			if (widgetRegistry != null) {
+				designPropertiesMap = widgetRegistry.loadDesignProperties();
+			}
 		}
+		if (designPropertiesMap != null && designPropertiesMap.containsKey(item)) {
+			Map<String, Object> prop = designPropertiesMap.get(item);
+			if (prop != null && prop.containsKey("cssKey")) {
+				return String.valueOf(prop.get("cssKey"));
+			}
+		}
+		return item.toLowerCase();
 	}
 
 
@@ -4948,7 +4968,7 @@ public class MainEditorFragment extends Fragment {
 				displayValue = value.substring(0, 17) + "...";
 			}
 			textview1.setText(editType + (value.isEmpty() ? "" : ": " + displayValue));
-			int iconRes = getDesignIcon(editType);
+			int iconRes = design.get(position).containsKey("iconRes") ? (int) design.get(position).get("iconRes") : getDesignPropertyIcon(editType);
 			imageview1.setImageResource(iconRes);
 			cardview1.setOnClickListener(v -> handleDesignItemClick(position));
 		}
@@ -4963,111 +4983,127 @@ public class MainEditorFragment extends Fragment {
 		}
 	}
 
-	private int getDesignIcon(String editType) {
-		switch (editType) {
-			case "Edittext": return R.drawable.cursor_text;
-			case "SetId": case "SetClass": return R.drawable.pencil_code;
-			case "SetHref": case "SetTarget": return R.drawable.layers_linked;
-			case "SetPlaceholder": case "SetType": return R.drawable.bulb;
-			case "ImageSrc": return R.drawable.photo;
-			case "PickIcon": return R.drawable.photo;
-			case "TextSize": return R.drawable.text_size;
-			case "TextAlign": return R.drawable.focus_centered;
-			case "Color": return R.drawable.text_color;
-			case "Font": return R.drawable.alphabet_cyrillic;
-			case "Background": return R.drawable.background;
-			case "BorderRadius": case "RadiusTL": case "RadiusTR": case "RadiusBL": case "RadiusBR":
-				return R.drawable.border_radius;
-			case "BorderWidth": case "BorderTop": case "BorderRight": case "BorderBottom": case "BorderLeft":
-				return R.drawable.border_style;
-			case "BorderColor": return R.drawable.table;
-			case "Padding": return R.drawable.box_padding;
-			case "Margin": return R.drawable.box_margin;
-			case "Elevation": case "BoxShadow": return R.drawable.shadow;
-			case "ZIndex": return R.drawable.stack_2;
-			case "Opacity": return R.drawable.droplet;
-			case "Rotation": return R.drawable.refresh;
-			case "Cursor": return R.drawable.cursor_text;
-			case "Width": case "MinWidth": case "MaxWidth": return R.drawable.arrow_autofit_width;
-			case "MinHeight": case "MaxHeight": case "Height": return R.drawable.arrow_autofit_height;
-			case "Display": case "Position": case "Float": case "Clear":
-			case "Top": case "Right": case "Bottom": case "Left":
-				return R.drawable.box_model_2;
-			case "FlexDir": case "FlexWrap": case "JustifyContent": case "AlignItems":
-			case "AlignSelf": case "AlignContent": case "Gap": case "RowGap": case "ColGap":
-			case "GridCols": case "GridRows": case "GridGap":
-				return R.drawable.columns_3;
-			case "ObjectFit": case "AspectRatio": return R.drawable.box_model_2;
-			case "Overflow": return R.drawable.arrows_move_vertical;
-			case "TextDecor": return R.drawable.cursor_text;
-			case "LineHeight": case "LetterSpace": return R.drawable.text_size;
-			case "Gradient": return R.drawable.background;
-			case "CssVar": case "CustomStyle": return R.drawable.code_plus;
-			case "JSEvents": return R.drawable.settings_code;
-			default: return R.drawable.pencil_question;
+	private int getDesignPropertyIcon(String editType) {
+		if (designPropertiesMap == null || designPropertiesMap.isEmpty()) {
+			if (widgetRegistry != null) {
+				designPropertiesMap = widgetRegistry.loadDesignProperties();
+			}
+		}
+		if (designPropertiesMap != null && designPropertiesMap.containsKey(editType)) {
+			Map<String, Object> prop = designPropertiesMap.get(editType);
+			if (prop != null && prop.containsKey("icon")) {
+				return WidgetRegistry.getIconDrawableRes(getContext(), String.valueOf(prop.get("icon")));
+			}
+		}
+		return R.drawable.pencil_question;
+	}
+
+	public static class CategorizedWidgetItem {
+		public static final int TYPE_HEADER = 0;
+		public static final int TYPE_WIDGET = 1;
+
+		public int type;
+		public String headerTitle;
+		public HashMap<String, Object> widgetData;
+		public int globalWidgetIndex;
+
+		public static CategorizedWidgetItem createHeader(String title) {
+			CategorizedWidgetItem item = new CategorizedWidgetItem();
+			item.type = TYPE_HEADER;
+			item.headerTitle = title;
+			return item;
+		}
+
+		public static CategorizedWidgetItem createWidget(HashMap<String, Object> widget, int globalIndex) {
+			CategorizedWidgetItem item = new CategorizedWidgetItem();
+			item.type = TYPE_WIDGET;
+			item.widgetData = widget;
+			item.globalWidgetIndex = globalIndex;
+			return item;
 		}
 	}
 
-	public class Recyclerview1Adapter extends RecyclerView.Adapter<Recyclerview1Adapter.ViewHolder> {
-		ArrayList<HashMap<String, Object>> data;
+	public class Recyclerview1Adapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+		private ArrayList<CategorizedWidgetItem> items;
 
-		public Recyclerview1Adapter(ArrayList<HashMap<String, Object>> arr) {
-			data = arr;
+		public Recyclerview1Adapter(ArrayList<CategorizedWidgetItem> items) {
+			this.items = items;
 		}
 
 		@Override
-		public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-			View v = getLayoutInflater().inflate(R.layout.widgets, parent, false);
-			return new ViewHolder(v);
+		public int getItemViewType(int position) {
+			return items != null && position < items.size() ? items.get(position).type : CategorizedWidgetItem.TYPE_WIDGET;
 		}
 
 		@Override
-		public void onBindViewHolder(ViewHolder holder, final int position) {
-			View view = holder.itemView;
-			TextView textview1 = view.findViewById(R.id.textview1);
-			TextView tvWidgetTag = view.findViewById(R.id.tvWidgetTag);
-			View colorIndicator = view.findViewById(R.id.colorIndicator);
-
-			Map<String, Object> item = data.get(position);
-			String name = item.get("name").toString();
-			String tag = item.get("tag").toString();
-			String color = item.get("color").toString();
-
-			textview1.setText(name);
-			if (tvWidgetTag != null) {
-				tvWidgetTag.setText("<" + tag + ">");
+		public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+			if (viewType == CategorizedWidgetItem.TYPE_HEADER) {
+				View v = getLayoutInflater().inflate(R.layout.item_widget_category_header, parent, false);
+				return new HeaderViewHolder(v);
+			} else {
+				View v = getLayoutInflater().inflate(R.layout.widgets, parent, false);
+				return new WidgetViewHolder(v);
 			}
+		}
 
-			if (colorIndicator != null) {
-				try {
-					colorIndicator.setBackgroundColor(Color.parseColor(color));
-				} catch (Exception e) {
-					colorIndicator.setBackgroundColor(Color.LTGRAY);
+		@Override
+		public void onBindViewHolder(RecyclerView.ViewHolder holder, final int position) {
+			if (items == null || position >= items.size()) return;
+			CategorizedWidgetItem item = items.get(position);
+
+			if (holder instanceof HeaderViewHolder) {
+				HeaderViewHolder hHolder = (HeaderViewHolder) holder;
+				if (hHolder.tvCategoryName != null) {
+					hHolder.tvCategoryName.setText(item.headerTitle);
 				}
+			} else if (holder instanceof WidgetViewHolder) {
+				WidgetViewHolder wHolder = (WidgetViewHolder) holder;
+				HashMap<String, Object> wData = item.widgetData;
+				if (wData == null) return;
+
+				String name = wData.containsKey("name") && wData.get("name") != null ? String.valueOf(wData.get("name")) : "Widget";
+
+				if (wHolder.textview1 != null) {
+					wHolder.textview1.setText(name);
+				}
+				if (wHolder.ivWidgetIcon != null) {
+					String iconName = wData.containsKey("icon") && wData.get("icon") != null ? String.valueOf(wData.get("icon")) : null;
+					wHolder.ivWidgetIcon.setImageResource(WidgetRegistry.getIconDrawableRes(iconName));
+				}
+
+				// Long press to drag - passes JSON representation of widget
+				wHolder.itemView.setOnLongClickListener(v -> {
+					String json = new Gson().toJson(wData);
+					ClipData.Item itemData = new ClipData.Item(json);
+					ClipData dragData = new ClipData("widget", new String[]{"text/plain"}, itemData);
+					View.DragShadowBuilder shadowBuilder = new View.DragShadowBuilder(v);
+					v.startDragAndDrop(dragData, shadowBuilder, v, 0);
+					return true;
+				});
 			}
-
-			// Long press to drag (replaces touch-to-drag)
-			view.setOnLongClickListener(v -> {
-				ClipData.Item itemData = new ClipData.Item(String.valueOf(position));
-				ClipData dragData = new ClipData("widget", new String[]{"text/plain"}, itemData);
-				View.DragShadowBuilder shadowBuilder = new View.DragShadowBuilder(v);
-				v.startDragAndDrop(dragData, shadowBuilder, v, 0);
-				// Auto-close drawer when drag starts
-				androidx.drawerlayout.widget.DrawerLayout drawer = drawerLayout;
-				if (drawer != null) {
-					drawer.closeDrawers();
-				}
-				return true;
-			});
 		}
 
 		@Override
 		public int getItemCount() {
-			return data.size();
+			return items != null ? items.size() : 0;
 		}
 
-		public class ViewHolder extends RecyclerView.ViewHolder {
-			public ViewHolder(View v) { super(v); }
+		public class HeaderViewHolder extends RecyclerView.ViewHolder {
+			TextView tvCategoryName;
+			public HeaderViewHolder(View v) {
+				super(v);
+				tvCategoryName = v.findViewById(R.id.tvCategoryName);
+			}
+		}
+
+		public class WidgetViewHolder extends RecyclerView.ViewHolder {
+			TextView textview1;
+			ImageView ivWidgetIcon;
+			public WidgetViewHolder(View v) {
+				super(v);
+				textview1 = v.findViewById(R.id.textview1);
+				ivWidgetIcon = v.findViewById(R.id.ivWidgetIcon);
+			}
 		}
 	}
 

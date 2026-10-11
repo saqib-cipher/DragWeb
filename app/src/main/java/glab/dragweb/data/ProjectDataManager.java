@@ -138,10 +138,16 @@ public class ProjectDataManager {
         List<Map<String, Object>> widgetTree = serializeViewTree(screen);
         String json = gson.toJson(widgetTree);
 
-        // Save exclusively to .dragweb/projects/{projectId}/pages/index.json
+        File extLayoutsDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/layouts");
+        if (!extLayoutsDir.exists()) extLayoutsDir.mkdirs();
+        FileUtil.writeFile(new File(extLayoutsDir, "index.json").getAbsolutePath(), json);
+
         File extPagesDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages");
         if (!extPagesDir.exists()) extPagesDir.mkdirs();
         FileUtil.writeFile(new File(extPagesDir, "index.json").getAbsolutePath(), json);
+
+        File extLayout = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/layout.json");
+        FileUtil.writeFile(extLayout.getAbsolutePath(), json);
 
         if (onComplete != null) {
             new android.os.Handler(android.os.Looper.getMainLooper()).post(onComplete);
@@ -152,7 +158,10 @@ public class ProjectDataManager {
                             WidgetSelector selector, DropZoneManager dropZoneManager, Runnable onComplete) {
         new Thread(() -> {
             File projectsDir = new File(FileUtil.getDragWebDir(context), "projects");
-            File file = new File(projectsDir, projectId + "/pages/index.json");
+            File file = new File(projectsDir, projectId + "/layouts/index.json");
+            if (!file.exists()) {
+                file = new File(projectsDir, projectId + "/pages/index.json");
+            }
             if (!file.exists()) {
                 file = new File(projectsDir, projectId + "/layout.json");
             }
@@ -170,9 +179,9 @@ public class ProjectDataManager {
                 return;
             }
 
-            try (FileReader reader = new FileReader(file)) {
-                final List<Map<String, Object>> widgetTree = new Gson().fromJson(
-                        reader, new TypeToken<List<Map<String, Object>>>() {}.getType());
+            try {
+                String jsonContent = FileUtil.readFile(file.getAbsolutePath());
+                final List<Map<String, Object>> widgetTree = PageManager.parseLayoutTree(jsonContent);
 
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                     if (screen instanceof ViewGroup) {
@@ -580,20 +589,40 @@ public class ProjectDataManager {
     // -------------------------------------------------------------------------
 
     private List<Map<String, Object>> serializeViewTree(View view) {
+        return serializeViewTree(view, "root");
+    }
+
+    private List<Map<String, Object>> serializeViewTree(View view, String parentId) {
         List<Map<String, Object>> nodes = new ArrayList<>();
         if (!(view instanceof ViewGroup)) return nodes;
 
         ViewGroup vg = (ViewGroup) view;
         for (int i = 0; i < vg.getChildCount(); i++) {
             View child = vg.getChildAt(i);
+            if (child == null || "__drop_indicator__".equals(child.getTag())) continue;
             Object tagObj = child.getTag();
 
             if (tagObj instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> widgetMap = new HashMap<>((Map<String, Object>) tagObj);
+                String tag = widgetMap.containsKey("tag") && widgetMap.get("tag") != null ? widgetMap.get("tag").toString() : "div";
+
+                String id = widgetMap.containsKey("id") && widgetMap.get("id") != null ? widgetMap.get("id").toString() : tag + "_" + (i + 1);
+                widgetMap.put("id", id);
+                widgetMap.put("index", i);
+                widgetMap.put("parent", parentId);
+
+                if (!widgetMap.containsKey("convert") || widgetMap.get("convert") == null) {
+                    String conv = "View";
+                    if (tag.equals("button")) conv = "Button";
+                    else if (tag.equals("p") || tag.equals("h1") || tag.equals("h2") || tag.equals("h3") || tag.equals("span") || tag.equals("a")) conv = "TextView";
+                    else if (tag.equals("img")) conv = "ImageView";
+                    else if (tag.equals("div") || tag.equals("section")) conv = "LinearLayout";
+                    widgetMap.put("convert", conv);
+                }
 
                 if (child instanceof ViewGroup) {
-                    List<Map<String, Object>> children = serializeViewTree(child);
+                    List<Map<String, Object>> children = serializeViewTree(child, id);
                     if (!children.isEmpty()) {
                         widgetMap.put("children", children);
                     }
@@ -607,17 +636,56 @@ public class ProjectDataManager {
     private void buildViewTree(Map<String, Object> nodeMap, ViewGroup parent,
                                WidgetBuilderEngine engine, WidgetSelector selector,
                                DropZoneManager dropZoneManager) {
-        if (!nodeMap.containsKey("tag")) return;
+        if (nodeMap == null) return;
+        String tag = nodeMap.containsKey("tag") && nodeMap.get("tag") != null ? nodeMap.get("tag").toString() : null;
+        if (tag == null || tag.trim().isEmpty()) {
+            if (nodeMap.containsKey("convert") && nodeMap.get("convert") != null) {
+                String conv = nodeMap.get("convert").toString().toLowerCase();
+                if (conv.contains("button")) tag = "button";
+                else if (conv.contains("text")) tag = "p";
+                else if (conv.contains("image")) tag = "img";
+                else if (conv.contains("linear") || conv.contains("layout")) tag = "div";
+                else tag = "div";
+            } else {
+                tag = "div";
+            }
+            nodeMap.put("tag", tag);
+        }
 
-        String tag = nodeMap.get("tag").toString();
         View newView = engine.createWidget(tag);
 
         if (newView != null) {
             Map<String, Object> newWidgetMap = new HashMap<>(nodeMap);
             newWidgetMap.remove("children");
 
+            if (newWidgetMap.containsKey("text")) {
+                Object textObj = newWidgetMap.get("text");
+                if (textObj instanceof Map) {
+                    Map<?, ?> textMap = (Map<?, ?>) textObj;
+                    if (textMap.containsKey("text") && textMap.get("text") != null) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fn = (Map<String, Object>) newWidgetMap.get("function");
+                        if (fn == null) {
+                            fn = new HashMap<>();
+                            newWidgetMap.put("function", fn);
+                        }
+                        fn.put("text", textMap.get("text"));
+                    }
+                }
+            }
+
             engine.applyPropertiesToView(newView, newWidgetMap);
             newView.setTag(newWidgetMap);
+
+            if (selector != null) selector.registerView(newView);
+            if (dropZoneManager != null) dropZoneManager.registerWidgetAsDropZoneIfContainer(newView);
+
+            android.view.ViewGroup.LayoutParams params = engine.generateLayoutParams(newView);
+            if (params != null) {
+                parent.addView(newView, params);
+            } else {
+                parent.addView(newView);
+            }
 
             if (nodeMap.containsKey("children")) {
                 @SuppressWarnings("unchecked")
@@ -633,11 +701,6 @@ public class ProjectDataManager {
                 for (Map<String, Object> childMap : children) {
                     buildViewTree(childMap, newParent, engine, selector, dropZoneManager);
                 }
-            }
-
-            android.view.ViewGroup.LayoutParams params = engine.generateLayoutParams(newView);
-            if (params != null) {
-                parent.addView(newView, params);
             }
         }
     }

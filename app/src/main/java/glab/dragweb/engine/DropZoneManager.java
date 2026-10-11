@@ -31,6 +31,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 public class DropZoneManager {
     public interface OnTreeChangedListener {
@@ -55,6 +57,16 @@ public class DropZoneManager {
         this.widgets = widgets;
         this.engine = engine;
         this.selector = selector;
+    }
+
+    public interface OnWidgetCreatedListener {
+        void onWidgetCreated(View widgetView);
+    }
+
+    private OnWidgetCreatedListener widgetCreatedListener;
+
+    public void setOnWidgetCreatedListener(OnWidgetCreatedListener listener) {
+        this.widgetCreatedListener = listener;
     }
 
     public void setOnTreeChangedListener(OnTreeChangedListener listener) {
@@ -118,14 +130,29 @@ public class DropZoneManager {
                         highlightDropZone(v, true);
                         return true;
 
+                    case DragEvent.ACTION_DRAG_LOCATION:
+                        if (v instanceof ViewGroup) {
+                            updateDropIndicator((ViewGroup) v, event.getX(), event.getY());
+                        }
+                        return true;
+
                     case DragEvent.ACTION_DRAG_EXITED:
                         highlightDropZone(v, false);
+                        removeDropIndicator();
+                        return true;
+
+                    case DragEvent.ACTION_DRAG_ENDED:
+                        highlightDropZone(v, false);
+                        removeDropIndicator();
                         return true;
 
                     case DragEvent.ACTION_DROP:
                         highlightDropZone(v, false);
-                        ClipData data = event.getClipData();
+                        ViewGroup container = (ViewGroup) v;
+                        int targetIdx = findDropIndex(container, event.getX(), event.getY());
+                        removeDropIndicator();
 
+                        ClipData data = event.getClipData();
                         if (data != null && data.getItemCount() > 0) {
                             try {
                                 String dragText = data.getItemAt(0).getText().toString();
@@ -135,14 +162,12 @@ public class DropZoneManager {
                                     int hash = Integer.parseInt(dragText.replace("reorder:", ""));
                                     View draggedView = findViewByHash((ViewGroup) screen, hash);
                                     if (draggedView != null && draggedView.getParent() instanceof ViewGroup) {
-                                        ViewGroup container = (ViewGroup) v;
                                         // Prevent dropping into self or own children
                                         if (draggedView == v || isDescendantOf(container, draggedView)) {
                                             return false;
                                         }
                                         ViewGroup oldParent = (ViewGroup) draggedView.getParent();
                                         oldParent.removeView(draggedView);
-                                        int targetIdx = findDropIndex(container, event.getX(), event.getY());
                                         container.addView(draggedView, Math.min(targetIdx, container.getChildCount()));
                                         WidgetCanvasStyler.getInstance(context).normalizeFlexContainer(oldParent);
                                         WidgetCanvasStyler.getInstance(context).normalizeFlexContainer(container);
@@ -154,17 +179,52 @@ public class DropZoneManager {
                                     return false;
                                 }
 
-                                int pos = Integer.parseInt(dragText);
-                                if (pos < 0 || pos >= widgets.size()) return false;
-                                Map<String, Object> widgetDefinition = widgets.get(pos);
+                                Map<String, Object> widgetDefinition = null;
+                                if (dragText.startsWith("{")) {
+                                    try {
+                                        widgetDefinition = new Gson().fromJson(dragText, new TypeToken<HashMap<String, Object>>(){}.getType());
+                                    } catch (Exception ignored) {}
+                                }
+                                if (widgetDefinition == null) {
+                                    try {
+                                        int pos = Integer.parseInt(dragText);
+                                        if (pos >= 0 && pos < widgets.size()) {
+                                            widgetDefinition = widgets.get(pos);
+                                        }
+                                    } catch (Exception ignored) {}
+                                }
+                                if (widgetDefinition == null) return false;
                                 View newWidgetView = engine.createWidget(widgetDefinition.get("tag").toString());
 
                                 if (newWidgetView != null) {
                                     Map<String, Object> newWidgetMap = (Map<String, Object>) newWidgetView.getTag();
                                     if (newWidgetMap != null) {
+                                        for (Map.Entry<String, Object> entry : widgetDefinition.entrySet()) {
+                                            if (!"function".equals(entry.getKey()) && !"children".equals(entry.getKey())) {
+                                                newWidgetMap.put(entry.getKey(), entry.getValue());
+                                            }
+                                        }
+
                                         String tag = widgetDefinition.get("tag") != null ? widgetDefinition.get("tag").toString() : "div";
                                         int count = countWidgetsWithTag(screen, tag) + 1;
                                         String autoClass = tag + "-" + count;
+                                        String autoId = tag + "_" + count;
+
+                                        newWidgetMap.put("id", autoId);
+                                        newWidgetMap.put("index", targetIdx);
+                                        String parentId = "root";
+                                        if (container != screen && container.getTag() instanceof Map) {
+                                            Object pId = ((Map<?, ?>) container.getTag()).get("id");
+                                            if (pId != null) parentId = pId.toString();
+                                        }
+                                        newWidgetMap.put("parent", parentId);
+
+                                        String convert = "View";
+                                        if (tag.equals("button")) convert = "Button";
+                                        else if (tag.equals("p") || tag.equals("h1") || tag.equals("h2") || tag.equals("h3") || tag.equals("span") || tag.equals("a")) convert = "TextView";
+                                        else if (tag.equals("img")) convert = "ImageView";
+                                        else if (tag.equals("div") || tag.equals("section") || tag.equals("header") || tag.equals("footer")) convert = "LinearLayout";
+                                        newWidgetMap.put("convert", convert);
 
                                         Map<String, Object> defFunction = (Map<String, Object>) widgetDefinition.get("function");
                                         if (defFunction != null) {
@@ -180,6 +240,7 @@ public class DropZoneManager {
                                                 }
                                             }
                                             newFunction.put("class", autoClass);
+                                            newFunction.put("id", autoId);
 
                                             Map<String, Object> defStyle = (Map<String, Object>) defFunction.get("style");
                                             if (defStyle != null) {
@@ -194,11 +255,7 @@ public class DropZoneManager {
                                     }
 
                                     engine.applyPropertiesToView(newWidgetView, newWidgetMap);
-                                    ViewGroup container = (ViewGroup) v;
-
-                                    // horizontal containers the helper compares against X.
-                                    int targetIndex = findDropIndex(container, event.getX(), event.getY());
-                                    container.addView(newWidgetView, Math.min(targetIndex, container.getChildCount()));
+                                    container.addView(newWidgetView, Math.min(targetIdx, container.getChildCount()));
                                     WidgetCanvasStyler.getInstance(context).normalizeFlexContainer(container);
 
                                     selector.registerView(newWidgetView);
@@ -206,6 +263,9 @@ public class DropZoneManager {
 
                                     // Make new view drop target if it is a container
                                     registerWidgetAsDropZoneIfContainer(newWidgetView);
+                                    if (widgetCreatedListener != null) {
+                                        widgetCreatedListener.onWidgetCreated(newWidgetView);
+                                    }
                                     if (treeChangedListener != null) {
                                         treeChangedListener.onTreeChanged();
                                     }
@@ -219,18 +279,70 @@ public class DropZoneManager {
                         }
                         return false;
 
-                    case DragEvent.ACTION_DRAG_ENDED:
-                        highlightDropZone(v, false);
-                        return true;
-
-                    case DragEvent.ACTION_DRAG_LOCATION:
-                        return true;
-
                     default:
                         return false;
                 }
             }
         });
+    }
+
+    private View dropIndicator;
+
+    private boolean isDropIndicator(View view) {
+        return view != null && "__drop_indicator__".equals(view.getTag());
+    }
+
+    private View getOrCreateDropIndicator(ViewGroup parent) {
+        float density = context.getResources().getDisplayMetrics().density;
+        if (dropIndicator == null) {
+            dropIndicator = new View(context);
+            dropIndicator.setTag("__drop_indicator__");
+            GradientDrawable gd = new GradientDrawable();
+            gd.setShape(GradientDrawable.RECTANGLE);
+            gd.setColor(Color.parseColor("#1976D2")); // Material 3 Primary Accent
+            gd.setCornerRadius(3 * density);
+            dropIndicator.setBackground(gd);
+        }
+        boolean horizontal = false;
+        if (parent instanceof LinearLayout) {
+            horizontal = ((LinearLayout) parent).getOrientation() == LinearLayout.HORIZONTAL;
+        }
+        int thickness = (int) (4 * density + 0.5f);
+        if (horizontal) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(thickness, ViewGroup.LayoutParams.MATCH_PARENT);
+            int margin = (int) (4 * density + 0.5f);
+            lp.setMargins(margin, (int) (2 * density + 0.5f), margin, (int) (2 * density + 0.5f));
+            dropIndicator.setLayoutParams(lp);
+        } else {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, thickness);
+            int marginH = (int) (8 * density + 0.5f);
+            int marginV = (int) (4 * density + 0.5f);
+            lp.setMargins(marginH, marginV, marginH, marginV);
+            dropIndicator.setLayoutParams(lp);
+        }
+        return dropIndicator;
+    }
+
+    private void updateDropIndicator(ViewGroup container, float dropX, float dropY) {
+        if (container == null) return;
+        int targetIdx = findDropIndex(container, dropX, dropY);
+        View indicator = getOrCreateDropIndicator(container);
+        if (indicator.getParent() == container) {
+            int currentIdx = container.indexOfChild(indicator);
+            if (currentIdx == targetIdx) {
+                return;
+            }
+            container.removeView(indicator);
+        } else {
+            removeDropIndicator();
+        }
+        container.addView(indicator, Math.min(targetIdx, container.getChildCount()));
+    }
+
+    private void removeDropIndicator() {
+        if (dropIndicator != null && dropIndicator.getParent() instanceof ViewGroup) {
+            ((ViewGroup) dropIndicator.getParent()).removeView(dropIndicator);
+        }
     }
 
     private int findDropIndex(ViewGroup parent, float dropY) {
@@ -248,17 +360,20 @@ public class DropZoneManager {
         if (parent instanceof LinearLayout) {
             horizontal = ((LinearLayout) parent).getOrientation() == LinearLayout.HORIZONTAL;
         }
+        int effectiveIndex = 0;
         for (int i = 0; i < parent.getChildCount(); i++) {
             View child = parent.getChildAt(i);
+            if (isDropIndicator(child)) continue;
             if (horizontal) {
                 float centerX = child.getX() + (child.getWidth() / 2f);
-                if (dropX < centerX) return i;
+                if (dropX < centerX) return effectiveIndex;
             } else {
                 float centerY = child.getY() + (child.getHeight() / 2f);
-                if (dropY < centerY) return i;
+                if (dropY < centerY) return effectiveIndex;
             }
+            effectiveIndex++;
         }
-        return parent.getChildCount();
+        return effectiveIndex;
     }
 
     private boolean isDescendantOf(View parent, View potentialAncestor) {
@@ -287,6 +402,17 @@ public class DropZoneManager {
     }
 
     private void highlightDropZone(View v, boolean highlight) {
+        if (v == screen) {
+            if (highlight) {
+                GradientDrawable border = new GradientDrawable();
+                border.setColor(Color.WHITE);
+                border.setStroke(4, Color.parseColor("#2196F3"));
+                v.setBackground(border);
+            } else {
+                WidgetCanvasStyler.getInstance(context).synchronizeCanvas(screen);
+            }
+            return;
+        }
         if (highlight) {
             GradientDrawable border = new GradientDrawable();
             border.setColor(Color.parseColor("#E3F2FD"));
