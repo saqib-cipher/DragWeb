@@ -65,7 +65,7 @@ public class DesignDataManager {
         ArrayList<MoreBlockData> list = new ArrayList<>();
         if (projectId == null || projectId.isEmpty()) return list;
         File f = getMoreBlocksFile(projectId);
-        if (f.exists()) {
+        if (FileUtil.exists(f)) {
             try {
                 String json = FileUtil.readFile(f.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty()) {
@@ -157,9 +157,7 @@ public class DesignDataManager {
         String cleanPage = getCleanPageName(linkedFile);
         File logicFile = new File(FileUtil.getDragWebDir(),
             "projects/" + projectId + "/" + cleanPage + "_func_" + funcKey + "_logic.json");
-        if (logicFile.exists()) {
-            logicFile.delete();
-        }
+        FileUtil.deleteFile(logicFile.getAbsolutePath());
 
         if (mapFunctions.containsKey(cleanPage)) {
             ArrayList funcs = mapFunctions.get(cleanPage);
@@ -205,7 +203,7 @@ public class DesignDataManager {
         ArrayList<ProjectListData> list = new ArrayList<>();
         if (projectId == null || projectId.isEmpty()) return list;
         File f = getListsFile(projectId);
-        if (f.exists()) {
+        if (FileUtil.exists(f)) {
             try {
                 String json = FileUtil.readFile(f.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty()) {
@@ -963,7 +961,7 @@ public class DesignDataManager {
             "projects/" + projectId + "/" + cleanPage + "_logic.json");
 
         String content = null;
-        if (extLogicFile.exists()) {
+        if (FileUtil.exists(extLogicFile)) {
             content = FileUtil.readFile(extLogicFile.getAbsolutePath());
         }
 
@@ -1249,14 +1247,14 @@ public class DesignDataManager {
         String cleanPage = pageName.replace(".html", "").replace(".css", "").replace(".js", "");
         File dragWebDir = FileUtil.getDragWebDir(context);
         java.io.File file = new java.io.File(dragWebDir, "projects/" + projectId + "/pages/" + cleanPage + ".json");
-        if (!file.exists() && "index".equals(cleanPage)) {
+        if (!FileUtil.exists(file) && "index".equals(cleanPage)) {
             file = new java.io.File(dragWebDir, "projects/" + projectId + "/layout.json");
         }
-        if (!file.exists()) {
+        if (!FileUtil.exists(file)) {
             file = new java.io.File(dragWebDir, "projects/" + projectId + "_" + cleanPage + ".json");
         }
 
-        if (file.exists()) {
+        if (FileUtil.exists(file)) {
             try {
                 String json = FileUtil.readFile(file.getAbsolutePath());
                 if (json != null && !json.isEmpty()) {

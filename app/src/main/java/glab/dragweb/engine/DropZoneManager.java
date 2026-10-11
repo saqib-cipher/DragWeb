@@ -144,6 +144,8 @@ public class DropZoneManager {
                                         oldParent.removeView(draggedView);
                                         int targetIdx = findDropIndex(container, event.getX(), event.getY());
                                         container.addView(draggedView, Math.min(targetIdx, container.getChildCount()));
+                                        WidgetCanvasStyler.getInstance(context).normalizeFlexContainer(oldParent);
+                                        WidgetCanvasStyler.getInstance(context).normalizeFlexContainer(container);
                                         if (treeChangedListener != null) {
                                             treeChangedListener.onTreeChanged();
                                         }
@@ -197,6 +199,7 @@ public class DropZoneManager {
                                     // horizontal containers the helper compares against X.
                                     int targetIndex = findDropIndex(container, event.getX(), event.getY());
                                     container.addView(newWidgetView, Math.min(targetIndex, container.getChildCount()));
+                                    WidgetCanvasStyler.getInstance(context).normalizeFlexContainer(container);
 
                                     selector.registerView(newWidgetView);
                                     newWidgetView.performClick();

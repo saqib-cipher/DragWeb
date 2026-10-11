@@ -699,6 +699,17 @@ public class BlockBase extends RelativeLayout {
                 break;
         }
         super.onDraw(canvas);
+        if (this.isHighlighted) {
+            if (this.highlightPaint == null) {
+                this.highlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                this.highlightPaint.setStyle(Style.STROKE);
+                this.highlightPaint.setStrokeWidth(3.5f * (this.dip > 0 ? this.dip : 1.0f));
+                this.highlightPaint.setColor(0xFFFFB300);
+            }
+            float strokeHalf = 2.0f * (this.dip > 0 ? this.dip : 1.0f);
+            RectF r = new RectF(strokeHalf, strokeHalf, (float) getTotalWidth() - strokeHalf, (float) getTotalHeight() - strokeHalf);
+            canvas.drawRoundRect(r, 6.0f * (this.dip > 0 ? this.dip : 1.0f), 6.0f * (this.dip > 0 ? this.dip : 1.0f), this.highlightPaint);
+        }
     }
 
     protected void onMeasure(int i, int i2) {
@@ -741,5 +752,13 @@ public class BlockBase extends RelativeLayout {
 
     public int substack2y() {
         return ((this.topH + this.substack1H) + this.DividerH) - this.NotchDepth;
+    }
+
+    public boolean isHighlighted = false;
+    private Paint highlightPaint = null;
+
+    public void setHighlighted(boolean highlighted) {
+        this.isHighlighted = highlighted;
+        invalidate();
     }
 }

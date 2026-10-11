@@ -88,14 +88,12 @@
 				tools:listitem="@layout/item_project" />
 
 			<!-- Project list loading indicator -->
-			<com.google.android.material.progressindicator.CircularProgressIndicator
+			<com.google.android.material.loadingindicator.LoadingIndicator
 				android:id="@+id/progressProjects"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:layout_gravity="center"
-				android:visibility="gone"
-				app:indicatorSize="48dp"
-				app:trackThickness="4dp" />
+				android:visibility="gone" />
 
 		</FrameLayout>
 

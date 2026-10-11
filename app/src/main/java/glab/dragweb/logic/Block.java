@@ -550,6 +550,14 @@ public class Block extends BlockBase {
         blockBean.subStack1 = this.subStack1;
         blockBean.subStack2 = this.subStack2;
         blockBean.nextBlock = this.nextBlock;
+        blockBean.x = (int) getX();
+        blockBean.y = (int) getY();
+        try {
+            Block top = topBlock();
+            blockBean.isConnectedToRoot = (this.pane != null && this.pane.getRoot() != null && top == this.pane.getRoot());
+        } catch (Exception ignored) {
+            blockBean.isConnectedToRoot = false;
+        }
         return blockBean;
     }
 

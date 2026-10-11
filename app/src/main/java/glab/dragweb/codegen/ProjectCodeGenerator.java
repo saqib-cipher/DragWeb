@@ -30,7 +30,7 @@ public class ProjectCodeGenerator {
     public static ThemeManager getProjectThemeManager(Context context, String projectId) {
         ThemeManager tm = new ThemeManager();
         File themeFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/theme.json");
-        if (themeFile.exists()) {
+        if (FileUtil.exists(themeFile)) {
             try {
                 String json = FileUtil.readFile(themeFile.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty()) {

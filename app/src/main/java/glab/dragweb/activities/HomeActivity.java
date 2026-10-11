@@ -43,6 +43,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.android.material.loadingindicator.LoadingIndicator;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -74,7 +75,7 @@ public class HomeActivity extends AppCompatActivity {
 	private LinearLayout layoutEmptyState;
 	private TextView tvEmptyState;
 	private ExtendedFloatingActionButton fabNewProject;
-	private com.google.android.material.progressindicator.CircularProgressIndicator progressProjects;
+	private LoadingIndicator progressProjects;
 	private ArrayList<Map<String, String>> projectList = new ArrayList<>();
 	private ProjectListAdapter adapter;
 
@@ -99,13 +100,6 @@ public class HomeActivity extends AppCompatActivity {
 	protected void onCreate(Bundle savedInstanceState) {
 		androidx.core.splashscreen.SplashScreen.installSplashScreen(this);
 		super.onCreate(savedInstanceState);
-		if (!SafStorageUtil.isStorageConfigured(this)) {
-			Intent setupIntent = new Intent(this, StorageSetupActivity.class);
-			setupIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-			startActivity(setupIntent);
-			finish();
-			return;
-		}
 		EdgeToEdge.enable(this);
 		setContentView(R.layout.home);
 		initViews();
@@ -147,13 +141,6 @@ public class HomeActivity extends AppCompatActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
-		if (!SafStorageUtil.isStorageConfigured(this)) {
-			Intent setupIntent = new Intent(this, StorageSetupActivity.class);
-			setupIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-			startActivity(setupIntent);
-			finish();
-			return;
-		}
 		ensureExternalDirectories();
 		loadProjects();
 	}
@@ -419,43 +406,79 @@ public class HomeActivity extends AppCompatActivity {
 	private void performBackup(Uri uri) {
 		File dir = new File(FileUtil.getDragWebDir(this), "projects");
 		File[] projFiles = FileUtil.listFiles(dir);
-		if (!dir.exists() || projFiles == null || projFiles.length == 0) {
+		if (!FileUtil.exists(dir) || projFiles == null || projFiles.length == 0) {
 			Toast.makeText(this, "No projects to backup", Toast.LENGTH_SHORT).show();
 			return;
 		}
-		ProjectDataManager pdm = new ProjectDataManager(this);
-		boolean ok = pdm.exportAllProjectsAsZip(uri);
-		Toast.makeText(this, ok ? "Backup successful" : "Backup failed", Toast.LENGTH_SHORT).show();
+		androidx.appcompat.app.AlertDialog progressDialog = new MaterialAlertDialogBuilder(this)
+			.setTitle("Backing Up")
+			.setMessage("Exporting all projects to backup zip...")
+			.setCancelable(false)
+			.create();
+		progressDialog.show();
+
+		AppExecutors.io().execute(() -> {
+			ProjectDataManager pdm = new ProjectDataManager(this);
+			boolean ok = pdm.exportAllProjectsAsZip(uri);
+			AppExecutors.mainThread(() -> {
+				try { progressDialog.dismiss(); } catch (Exception ignored) {}
+				Toast.makeText(this, ok ? "Backup successful" : "Backup failed", Toast.LENGTH_SHORT).show();
+			});
+		});
 	}
 
 	private void performSingleProjectBackup(Uri uri, String projectId) {
-		ProjectDataManager pdm = new ProjectDataManager(this);
-		boolean ok = pdm.exportSingleProjectAsZip(projectId, uri);
-		Toast.makeText(this, ok ? "Project backup successful" : "Backup failed", Toast.LENGTH_SHORT).show();
+		androidx.appcompat.app.AlertDialog progressDialog = new MaterialAlertDialogBuilder(this)
+			.setTitle("Backing Up")
+			.setMessage("Exporting project to backup zip...")
+			.setCancelable(false)
+			.create();
+		progressDialog.show();
+
+		AppExecutors.io().execute(() -> {
+			ProjectDataManager pdm = new ProjectDataManager(this);
+			boolean ok = pdm.exportSingleProjectAsZip(projectId, uri);
+			AppExecutors.mainThread(() -> {
+				try { progressDialog.dismiss(); } catch (Exception ignored) {}
+				Toast.makeText(this, ok ? "Project backup successful" : "Backup failed", Toast.LENGTH_SHORT).show();
+			});
+		});
 	}
 
 	private void performImport(Uri uri) {
-		ProjectDataManager pdm = new ProjectDataManager(this);
-		ProjectDataManager.ImportResult result = pdm.importProjectsFromZip(uri);
-		if (!result.success) {
-			Toast.makeText(this, "Import failed: " + result.message, Toast.LENGTH_LONG).show();
-			return;
-		}
+		androidx.appcompat.app.AlertDialog progressDialog = new MaterialAlertDialogBuilder(this)
+			.setTitle("Importing Projects")
+			.setMessage("Extracting projects from backup zip...")
+			.setCancelable(false)
+			.create();
+		progressDialog.show();
 
-		loadProjects();
-		Toast.makeText(this, "Projects imported successfully", Toast.LENGTH_SHORT).show();
-
-		if (result.importedProjectIds.size() == 1) {
-			String projectId = result.importedProjectIds.iterator().next();
-			String projectName = projectId;
-			for (Map<String, String> p : projectList) {
-				if (projectId.equals(p.get("id"))) {
-					projectName = p.getOrDefault("name", projectId);
-					break;
+		AppExecutors.io().execute(() -> {
+			ProjectDataManager pdm = new ProjectDataManager(this);
+			ProjectDataManager.ImportResult result = pdm.importProjectsFromZip(uri);
+			AppExecutors.mainThread(() -> {
+				try { progressDialog.dismiss(); } catch (Exception ignored) {}
+				if (!result.success) {
+					Toast.makeText(this, "Import failed: " + result.message, Toast.LENGTH_LONG).show();
+					return;
 				}
-			}
-			openProject(projectId, projectName);
-		}
+
+				loadProjects();
+				Toast.makeText(this, "Projects imported successfully", Toast.LENGTH_SHORT).show();
+
+				if (result.importedProjectIds.size() == 1) {
+					String projectId = result.importedProjectIds.iterator().next();
+					String projectName = projectId;
+					for (Map<String, String> p : projectList) {
+						if (projectId.equals(p.get("id"))) {
+							projectName = p.getOrDefault("name", projectId);
+							break;
+						}
+					}
+					openProject(projectId, projectName);
+				}
+			});
+		});
 	}
 
 	private void setupToolbar() {
@@ -479,16 +502,16 @@ public class HomeActivity extends AppCompatActivity {
 		final File dir = new File(FileUtil.getDragWebDir(this), "projects");
 
 		AppExecutors.io().execute(() -> {
-			if (!dir.exists()) dir.mkdirs();
+			if (!FileUtil.exists(dir)) FileUtil.makeDir(dir.getAbsolutePath());
 
 			final ArrayList<Map<String, String>> loaded = new ArrayList<>();
 
-			if (dir.isDirectory()) {
+			if (FileUtil.isDirectory(dir) || FileUtil.exists(dir)) {
 				File[] files = FileUtil.listFiles(dir);
 				if (files != null) {
 					// Safely remove any legacy loose root files if their project folder exists
 					for (File f : files) {
-						if (!f.isDirectory()) {
+						if (!FileUtil.isDirectory(f)) {
 							String fname = f.getName();
 							if (fname.endsWith(".json") || fname.endsWith(".meta") || fname.endsWith(".meta.txt") || fname.endsWith(".theme") || fname.endsWith(".cblocks") || fname.endsWith(".logic")) {
 								String baseId = fname;
@@ -497,8 +520,8 @@ public class HomeActivity extends AppCompatActivity {
 								int underIdx = baseId.indexOf('_');
 								if (underIdx > 0) baseId = baseId.substring(0, underIdx);
 								File projDir = new File(dir, baseId);
-								if (projDir.exists() && projDir.isDirectory()) {
-									try { f.delete(); } catch (Exception ignored) {}
+								if (FileUtil.exists(projDir) && FileUtil.isDirectory(projDir)) {
+									try { FileUtil.deleteFile(f.getAbsolutePath()); } catch (Exception ignored) {}
 								}
 							}
 						}
@@ -508,7 +531,7 @@ public class HomeActivity extends AppCompatActivity {
 					SimpleDateFormat sdfDisplay = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
 
 					for (File projectFolder : files) {
-						if (!projectFolder.isDirectory()) continue;
+						if (!FileUtil.isDirectory(projectFolder)) continue;
 						String fileId = projectFolder.getName();
 						if (fileId == null || fileId.startsWith(".") || fileId.equalsIgnoreCase("logic") || fileId.equalsIgnoreCase("custom") || fileId.equalsIgnoreCase("templates")) {
 							continue;
@@ -523,7 +546,7 @@ public class HomeActivity extends AppCompatActivity {
 						String metaJson = FileUtil.readFile(new File(projectFolder, "project.meta").getAbsolutePath());
 						File legacyConfigFile = new File(projectFolder, "project.config.json");
 						if (metaJson == null || metaJson.trim().isEmpty()) {
-							if (legacyConfigFile.exists()) {
+							if (FileUtil.exists(legacyConfigFile)) {
 								metaJson = FileUtil.readFile(legacyConfigFile.getAbsolutePath());
 							}
 						}
@@ -544,18 +567,19 @@ public class HomeActivity extends AppCompatActivity {
 							meta.put("id", fileId);
 							meta.put("name", fileId);
 							meta.put("description", "Website Project");
-							meta.put("created", sdfMeta.format(new Date(projectFolder.lastModified())));
+							long mod = FileUtil.getLastModified(projectFolder);
+							meta.put("created", sdfMeta.format(mod > 0 ? new Date(mod) : new Date()));
 							FileUtil.writeFile(new File(projectFolder, "project.meta").getAbsolutePath(), GSON.toJson(meta));
 						}
 
 						// Clean up legacy files if present
-						if (legacyConfigFile.exists()) {
+						if (FileUtil.exists(legacyConfigFile)) {
 							FileUtil.deleteFile(legacyConfigFile.getAbsolutePath());
 						}
 						File legacyLayout = new File(projectFolder, "layout.json");
-						if (legacyLayout.exists()) {
+						if (FileUtil.exists(legacyLayout)) {
 							File indexPage = new File(projectFolder, "pages/index.json");
-							if (!indexPage.exists()) {
+							if (!FileUtil.exists(indexPage)) {
 								String lJson = FileUtil.readFile(legacyLayout.getAbsolutePath());
 								if (lJson != null && !lJson.isEmpty()) {
 									FileUtil.writeFile(indexPage.getAbsolutePath(), lJson);
@@ -564,11 +588,19 @@ public class HomeActivity extends AppCompatActivity {
 							FileUtil.deleteFile(legacyLayout.getAbsolutePath());
 						}
 
-						project.put("lastModified", sdfDisplay.format(new Date(projectFolder.lastModified())));
+						long lastMod = FileUtil.getLastModified(projectFolder);
+						project.put("lastModified", lastMod > 0 ? sdfDisplay.format(new Date(lastMod)) : project.getOrDefault("created", ""));
 						loaded.add(project);
 					}
 				}
 			}
+
+			// Sort projects by ID descending (newest project at the top)
+			java.util.Collections.sort(loaded, (a, b) -> {
+				String idA = a.getOrDefault("id", "");
+				String idB = b.getOrDefault("id", "");
+				return idB.compareToIgnoreCase(idA);
+			});
 
 			// Post results back to UI thread
 			AppExecutors.mainThread(() -> {
@@ -882,39 +914,47 @@ public class HomeActivity extends AppCompatActivity {
 			.setTitle("Delete Project")
 			.setMessage("Are you sure you want to delete \"" + finalName + "\"? This cannot be undone.")
 			.setPositiveButton("Delete", (dialog, which) -> {
-				File dir = new File(FileUtil.getDragWebDir(this), "projects");
-				String[] extensions = {".json", ".meta", ".theme", ".logic"};
-				for (String ext : extensions) {
-					File f = new File(dir, projectId + ext);
-					if (f.exists()) f.delete();
-				}
+				androidx.appcompat.app.AlertDialog progressDialog = new MaterialAlertDialogBuilder(this)
+					.setTitle("Deleting Project")
+					.setMessage("Deleting " + finalName + "...")
+					.setCancelable(false)
+					.create();
+				progressDialog.show();
 
-				// Delete page files (projectId_pageName.json)
-				File[] files = FileUtil.listFiles(dir);
-				if (files != null) {
-					for (File f : files) {
-						if (f.getName().startsWith(projectId + "_")) {
-							f.delete();
+				AppExecutors.io().execute(() -> {
+					File dir = new File(FileUtil.getDragWebDir(this), "projects");
+					String[] extensions = {".json", ".meta", ".theme", ".logic"};
+					for (String ext : extensions) {
+						File f = new File(dir, projectId + ext);
+						FileUtil.deleteFile(f.getAbsolutePath());
+					}
+
+					// Delete page files (projectId_pageName.json)
+					File[] files = FileUtil.listFiles(dir);
+					if (files != null) {
+						for (File f : files) {
+							if (f.getName().startsWith(projectId + "_")) {
+								FileUtil.deleteFile(f.getAbsolutePath());
+							}
 						}
 					}
-				}
 
-				// Delete project subfolder
-				File extDir = new File(dir, projectId);
-				if (extDir.exists()) {
+					// Delete project subfolder
+					File extDir = new File(dir, projectId);
 					FileUtil.deleteFile(extDir.getAbsolutePath());
-				}
 
-				File exportDir = new File(FileUtil.getDragWebDir(this), "exports/" + projectId);
-				if (exportDir.exists()) {
+					File exportDir = new File(FileUtil.getDragWebDir(this), "exports/" + projectId);
 					FileUtil.deleteFile(exportDir.getAbsolutePath());
-				}
 
-				// Reset all in-memory static maps to clear stale cached blocks
-				DesignDataManager.initMaps();
+					// Reset all in-memory static maps to clear stale cached blocks
+					DesignDataManager.initMaps();
 
-				loadProjects();
-				Toast.makeText(this, "Project deleted", Toast.LENGTH_SHORT).show();
+					AppExecutors.mainThread(() -> {
+						try { progressDialog.dismiss(); } catch (Exception ignored) {}
+						loadProjects();
+						Toast.makeText(this, "Project deleted", Toast.LENGTH_SHORT).show();
+					});
+				});
 			})
 			.setNegativeButton("Cancel", null)
 			.show();

@@ -146,6 +146,8 @@ public class EventsFragment extends Fragment {
         rvEvents.setLayoutManager(new LinearLayoutManager(getContext()));
 
         if (navigationRail != null) {
+            navigationRail.setMenuGravity(android.view.Gravity.TOP);
+            navigationRail.setPadding(0, 0, 0, 0);
             navigationRail.setOnItemSelectedListener(item -> {
                 int id = item.getItemId();
                 if (id == R.id.nav_rail_css) {
@@ -189,7 +191,7 @@ public class EventsFragment extends Fragment {
                                 String linkedFile = selectedMb.linkedFile != null ? selectedMb.linkedFile : "js/script.js";
                                 String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
                                 File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanPage + "_logic.json");
-                                if (logicFile.exists()) {
+                                if (FileUtil.exists(logicFile)) {
                                     try {
                                         String json = FileUtil.readFile(logicFile.getAbsolutePath());
                                         if (json != null && !json.trim().isEmpty()) {
@@ -208,9 +210,7 @@ public class EventsFragment extends Fragment {
 
                                 // Delete function's own separate logic file if exists
                                 File funcLogicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanPage + "_func_" + selectedName + "_logic.json");
-                                if (funcLogicFile.exists()) {
-                                    funcLogicFile.delete();
-                                }
+                                FileUtil.deleteFile(funcLogicFile.getAbsolutePath());
                                 
                                 if (DesignDataManager.mapBlocks != null) {
                                     for (HashMap<String, ArrayList<BlockBean>> pageBlocks : DesignDataManager.mapBlocks.values()) {
@@ -241,9 +241,7 @@ public class EventsFragment extends Fragment {
                             .setPositiveButton("Reset", (d, w) -> {
                                 String cleanName = DesignDataManager.getCleanPageName(selected);
                                 File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanName + "_logic.json");
-                                if (logicFile.exists()) {
-                                    logicFile.delete();
-                                }
+                                FileUtil.deleteFile(logicFile.getAbsolutePath());
                                 DesignDataManager.mapBlocks.remove(cleanName);
                                 refreshLogicList();
                                 Toast.makeText(getContext(), "Logic reset successfully", Toast.LENGTH_SHORT).show();
@@ -449,7 +447,7 @@ public class EventsFragment extends Fragment {
         for (String pKey : pagesToCheck) {
             File logicFile = new File(FileUtil.getDragWebDir(getContext()),
                 "projects/" + projectId + "/" + pKey + "_logic.json");
-            if (logicFile.exists()) {
+            if (FileUtil.exists(logicFile)) {
                 try {
                     String json = FileUtil.readFile(logicFile.getAbsolutePath());
                     if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
@@ -486,7 +484,7 @@ public class EventsFragment extends Fragment {
         // 2. Fall back to disk only when the key is absent from memory
         File logicFile = new File(FileUtil.getDragWebDir(getContext()),
             "projects/" + projectId + "/" + cleanName + "_logic.json");
-        if (logicFile.exists()) {
+        if (FileUtil.exists(logicFile)) {
             try {
                 String json = FileUtil.readFile(logicFile.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
@@ -624,9 +622,7 @@ public class EventsFragment extends Fragment {
                             .setPositiveButton("Reset", (d, w) -> {
                                 String cleanName = DesignDataManager.getCleanPageName(item.targetPath);
                                 File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanName + "_logic.json");
-                                if (logicFile.exists()) {
-                                    logicFile.delete();
-                                }
+                                FileUtil.deleteFile(logicFile.getAbsolutePath());
                                 DesignDataManager.mapBlocks.remove(cleanName);
                                 refreshLogicList();
                                 Toast.makeText(getContext(), "Logic reset successfully", Toast.LENGTH_SHORT).show();

@@ -104,7 +104,7 @@
         <item name="android:minHeight">48dp</item>
     </style>
 
-    <style name="RoundedCornersDialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+    <style name="RoundedCornersDialog" parent="ThemeOverlay.Material3Expressive.MaterialAlertDialog.Centered">
         <item name="dialogCornerRadius">16dp</item>
         <item name="android:background">?attr/colorSurfaceContainer</item>
         <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Material3.Corner.Medium</item>

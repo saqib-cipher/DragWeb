@@ -52,15 +52,7 @@
         <item name="shapeAppearance">@style/ShapeAppearance.Material3.Corner.Medium</item>
     </style>
 
-    <style name="ThemeOverlay.Dragweb.ViewEditor" parent="Base.Theme.MaterialComponents.Light" />
 
-    <style name="ThemeOverlay.Dragweb.ViewEditor.Material3.Light" parent="ThemeOverlay.Material3.DynamicColors.Light" />
-
-    <style name="ThemeOverlay.Dragweb.ViewEditor.Material3.Dark" parent="ThemeOverlay.Material3.DynamicColors.Dark" />
-
-    <style name="ThemeOverlay.Dragweb.ViewEditor.Material3.NON_DYNAMIC.Light" parent="Base.Theme.Material3.Light" />
-
-    <style name="ThemeOverlay.Dragweb.ViewEditor.Material3.NON_DYNAMIC.Dark" parent="Base.Theme.Material3.Dark" />
 
     <style name="Preference.Dragweb.SwitchPreferenceCompat" parent="Preference.SwitchPreferenceCompat.Material">
         <item name="widgetLayout">@layout/preference_widget_layout_m3_switch</item>
@@ -121,16 +113,24 @@
         <item name="cardBackgroundColor">?attr/colorSurfaceContainer</item>
     </style>
 
-    <style name="Widget.Dragweb.Chip" parent="Widget.Material3.Chip.Input.Icon.Elevated">
+    <style name="Widget.Dragweb.Chip" parent="Widget.Material3.Chip.Filter">
         <item name="closeIconEnabled">false</item>
         <item name="closeIcon">@null</item>
-        <item name="checkedIconEnabled">true</item>
-        <item name="checkedIconTint">?attr/colorOnSecondary</item>
-        <item name="checkedIcon">@drawable/ic_mtrl_done</item>
-        <item name="chipBackgroundColor">?attr/colorSecondary</item>
-        <item name="chipCornerRadius">90dp</item>
+        <item name="checkedIconEnabled">false</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="checkedIcon">@null</item>
+        <item name="chipIconTint">@color/text_chip_states</item>
+        <item name="chipBackgroundColor">@color/bg_chip_states</item>
+        <item name="chipStrokeColor">@color/stroke_chip_states</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipCornerRadius">14dp</item>
         <item name="android:textAppearance">@style/TextAppearance.Dragweb.Chip</item>
-        <item name="android:textColor">?attr/colorOnSecondary</item>
+        <item name="android:textColor">@color/text_chip_states</item>
+        <item name="chipStartPadding">12dp</item>
+        <item name="chipEndPadding">12dp</item>
+        <item name="textEndPadding">0dp</item>
+        <item name="chipMinTouchTargetSize">32dp</item>
+        <item name="chipMinHeight">32dp</item>
     </style>
 
     <style name="Widget.Dragweb.Chip.ProjectPreview" parent="Widget.Material3.Chip.Suggestion">
@@ -143,6 +143,8 @@
     </style>
 
     <style name="TextAppearance.Dragweb.Chip" parent="TextAppearance.Dragweb.BodyMedium">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
     </style>
 
     <style name="TextAppearance.Dragweb.BodyLargeEmphasized" parent="TextAppearance.Dragweb.BodyLarge">

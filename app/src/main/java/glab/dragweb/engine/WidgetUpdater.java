@@ -15,6 +15,7 @@ import glab.dragweb.colorpicker.*;
 
 import android.content.Context;
 import android.view.View;
+import android.view.ViewGroup;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,8 +39,10 @@ public class WidgetUpdater {
             view.setTag(tagObj);
         }
 
+        @SuppressWarnings("unchecked")
         Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
 
+        @SuppressWarnings("unchecked")
         Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
         if (function == null) {
             function = new HashMap<>();
@@ -62,6 +65,7 @@ public class WidgetUpdater {
 
         // Handle style attributes
         if (!styleUpdates.isEmpty()) {
+            @SuppressWarnings("unchecked")
             Map<String, Object> style = (Map<String, Object>) function.get("style");
             if (style == null) {
                 style = new HashMap<>();
@@ -73,7 +77,17 @@ public class WidgetUpdater {
             }
         }
 
-        // Re-apply all properties to the view
+        // Re-apply all properties to the view via engine
         engine.applyPropertiesToView(view, widgetMap);
+
+        // If the view itself is a flex container, normalize its children (orientation, weights, gap)
+        if (view instanceof ViewGroup) {
+            WidgetCanvasStyler.getInstance(context).normalizeFlexContainer((ViewGroup) view);
+        }
+
+        // If the view's parent is a flex container, normalize parent so siblings adapt immediately
+        if (view.getParent() instanceof ViewGroup) {
+            WidgetCanvasStyler.getInstance(context).normalizeFlexContainer((ViewGroup) view.getParent());
+        }
     }
 }

@@ -13,6 +13,7 @@ import glab.dragweb.models.*;
 import glab.dragweb.util.*;
 import glab.dragweb.colorpicker.*;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -67,7 +68,7 @@ public class TextEditorActivity extends AppCompatActivity {
         relativePath = getIntent().getStringExtra("relative_path");
         isReadOnly = getIntent().getBooleanExtra("read_only", false) || getIntent().getBooleanExtra("is_read_only", false);
 
-        if (filePath == null || filePath.isEmpty()) {
+        if ((filePath == null || filePath.isEmpty()) && !getIntent().hasExtra("content") && !getIntent().hasExtra("code")) {
             Toast.makeText(this, "No file specified", Toast.LENGTH_SHORT).show();
             finish();
             return;
@@ -104,8 +105,9 @@ public class TextEditorActivity extends AppCompatActivity {
         suggestionScroll = findViewById(R.id.suggestion_scroll);
         suggestionContainer = findViewById(R.id.suggestion_container);
 
-        File file = new File(filePath);
-        toolbar.setTitle(file.getName());
+        String customTitle = getIntent().getStringExtra("title");
+        toolbar.setTitle(filePath != null && !filePath.isEmpty() ? new File(filePath).getName() : (customTitle != null ? customTitle : "Code Editor"));
+
         toolbar.setNavigationOnClickListener(v -> handleBackPress());
 
         // Add save icon to toolbar if file is editable
@@ -170,7 +172,8 @@ public class TextEditorActivity extends AppCompatActivity {
 
     private void loadFileContent() {
         try {
-            File file = new File(filePath);
+            if (filePath != null && !filePath.isEmpty()) {
+                File file = new File(filePath);
             if (file.exists()) {
                 String content = FileUtil.readFile(file.getAbsolutePath());
                 initialCode = content != null ? content : "";
@@ -180,6 +183,16 @@ public class TextEditorActivity extends AppCompatActivity {
                 webEditor.loadUrl("file:///android_asset/codemirror/editor.html");
             } else {
                 Toast.makeText(this, "File does not exist", Toast.LENGTH_SHORT).show();
+                finish();
+                }
+            } else if (getIntent().hasExtra("content") || getIntent().hasExtra("code")) {
+                String content = getIntent().getStringExtra("content");
+                if (content == null) content = getIntent().getStringExtra("code");
+                initialCode = content != null ? content : "";
+                currentContent = initialCode;
+                webEditor.loadUrl("file:///android_asset/codemirror/editor.html");
+            } else {
+                Toast.makeText(this, "No file or code specified", Toast.LENGTH_SHORT).show();
                 finish();
             }
         } catch (Exception e) {
@@ -286,6 +299,8 @@ public class TextEditorActivity extends AppCompatActivity {
     }
 
     private String getCodeMirrorMode(String path) {
+        String explicitMode = getIntent().getStringExtra("mode");
+        if (explicitMode != null && !explicitMode.isEmpty()) return explicitMode;
         if (path == null) return "htmlmixed";
         String lower = path.toLowerCase(java.util.Locale.US);
         if (lower.endsWith(".css")) return "css";
@@ -296,17 +311,26 @@ public class TextEditorActivity extends AppCompatActivity {
     private void saveFile() {
         if (isReadOnly) return;
         String content = currentContent;
-        File file = new File(filePath);
+        if (filePath != null && !filePath.isEmpty()) {
+            File file = new File(filePath);
 
         try {
-            FileUtil.writeFile(file.getAbsolutePath(), content);
+                FileUtil.writeFile(file.getAbsolutePath(), content);
+            } catch (Exception e) {
+                Toast.makeText(this, "Failed to save file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
             initialCode = content; // Update initialCode so back press checks work correctly
             Toast.makeText(this, "Saved successfully", Toast.LENGTH_SHORT).show();
-            setResult(RESULT_OK);
+            Intent resultIntent = new Intent();
+            resultIntent.putExtra("content", content);
+            resultIntent.putExtra("code", content);
+            setResult(RESULT_OK, resultIntent);
             finish();
-        } catch (Exception e) {
-            Toast.makeText(this, "Failed to save file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
+
+
+
     }
 
     private void handleBackPress() {

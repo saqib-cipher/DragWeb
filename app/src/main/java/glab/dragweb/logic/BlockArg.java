@@ -270,6 +270,20 @@ public class BlockArg extends BlockBase {
         this.isEditable = var1;
     }
 
+    public void applyArgValueChange(Object val) {
+        setArgValue(val);
+        if (parentBlock != null) {
+            parentBlock.recalcWidthToParent();
+            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
+            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+        }
+        if (getContext() instanceof LogicBlockActivity) {
+            LogicBlockActivity act = (LogicBlockActivity) getContext();
+            act.saveUndoState();
+            act.requestRealtimeLintCheck();
+        }
+    }
+
     public void showPopup() {
         if (this.isEditable) {
             String menuName = this.mMenuName != null ? this.mMenuName.trim() : "";
@@ -291,12 +305,7 @@ public class BlockArg extends BlockBase {
                     @Override
                     public void onText(String value) {
                         String clean = value != null ? value.replaceFirst("^#+", "").trim() : "";
-                        setArgValue(clean);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
+                        applyArgValueChange(clean);
                     }
                 });
                 return;
@@ -315,12 +324,7 @@ public class BlockArg extends BlockBase {
                     @Override
                     public void onText(String value) {
                         String clean = value != null ? value.replaceFirst("^\\.+", "").trim() : "";
-                        setArgValue(clean);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
+                        applyArgValueChange(clean);
                     }
                 });
                 return;
@@ -342,12 +346,7 @@ public class BlockArg extends BlockBase {
                 dialog.showSelectorInput(ids, classes, tags, new UniversalM3Dialog.OnText() {
                     @Override
                     public void onText(String value) {
-                        setArgValue(value);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
+                        applyArgValueChange(value);
                     }
                 });
                 return;
@@ -360,12 +359,7 @@ public class BlockArg extends BlockBase {
                 dialog.showColorInput(new UniversalM3Dialog.OnText() {
                     @Override
                     public void onText(String value) {
-                        setArgValue(value);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
+                        applyArgValueChange(value);
                     }
                 });
                 return;
@@ -378,12 +372,7 @@ public class BlockArg extends BlockBase {
                 dialog.showUnitInput(new UniversalM3Dialog.OnText() {
                     @Override
                     public void onText(String value) {
-                        setArgValue(value);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
+                        applyArgValueChange(value);
                     }
                 });
                 return;
@@ -398,12 +387,7 @@ public class BlockArg extends BlockBase {
                     args.putString("projectId", LogicBlockActivity.projectId);
                     dialog.setArguments(args);
                     dialog.setOnFontsSelectedListener(fonts -> {
-                        setArgValue(fonts);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
+                        applyArgValueChange(fonts);
                     });
                     dialog.show(((androidx.fragment.app.FragmentActivity) getContext()).getSupportFragmentManager(), "font_family_picker");
                 }
@@ -417,12 +401,7 @@ public class BlockArg extends BlockBase {
                 dialog.showArrayListBuilder(this.argValue != null ? this.argValue.toString() : "", new UniversalM3Dialog.OnText() {
                     @Override
                     public void onText(String value) {
-                        setArgValue(value);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
+                        applyArgValueChange(value);
                     }
                 });
                 return;
@@ -474,12 +453,7 @@ public class BlockArg extends BlockBase {
                 dialog.showVariableSelector(LogicBlockActivity.filename, finalFilterKey, isSetter, usedConstVars, new UniversalM3Dialog.OnText() {
                     @Override
                     public void onText(String value) {
-                        setArgValue(value);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
+                        applyArgValueChange(value);
                     }
                 });
                 return;
@@ -490,12 +464,7 @@ public class BlockArg extends BlockBase {
                 dialog.showListSelector(LogicBlockActivity.filename, this.argValue != null ? this.argValue.toString() : "", new UniversalM3Dialog.OnText() {
                     @Override
                     public void onText(String value) {
-                        setArgValue(value);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
+                        applyArgValueChange(value);
                     }
                 });
                 return;
@@ -529,12 +498,33 @@ public class BlockArg extends BlockBase {
                 dialog.showChoiceInput(new UniversalM3Dialog.OnText() {
                     @Override
                     public void onText(String value) {
-                        setArgValue(value);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
+                        applyArgValueChange(value);
+                    }
+                });
+                return;
+            }
+
+            if (isAsdBlock()) {
+                String currentVal = (this.argValue != null && !this.argValue.toString().isEmpty()) 
+                        ? this.argValue.toString() 
+                        : (this.mTextView != null ? this.mTextView.getText().toString() : "");
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Source Code")
+                      .setMultiline(true)
+                      .setHint("Enter source code...")
+                      .setInitialValue(currentVal);
+                dialog.setNeutralButton("Open in Editor", new UniversalM3Dialog.OnNeutralAction() {
+                    @Override
+                    public void onNeutral(String currentText) {
+                        if (getContext() instanceof LogicBlockActivity) {
+                            ((LogicBlockActivity) getContext()).openTextEditorForBlockArg(BlockArg.this, currentText);
                         }
+                    }
+                });
+                dialog.showTextInput(new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        applyArgValueChange(value);
                     }
                 });
                 return;
@@ -549,16 +539,24 @@ public class BlockArg extends BlockBase {
                 dialog.showTextInput(new UniversalM3Dialog.OnText() {
                     @Override
                     public void onText(String value) {
-                        setArgValue(value);
-                        if (parentBlock != null) {
-                            parentBlock.recalcWidthToParent();
-                            if (parentBlock.topBlock() != null) parentBlock.topBlock().fixLayout();
-                            if (parentBlock.pane != null) parentBlock.pane.calculateWidthHeight();
-                        }
+                        applyArgValueChange(value);
                     }
                 });
                 return;
             }
         }
+    }
+
+    public boolean isAsdBlock() {
+        if (parentBlock == null) return false;
+        String op = parentBlock.mOpCode != null ? parentBlock.mOpCode.trim() : "";
+        String spec = parentBlock.mSpec != null ? parentBlock.mSpec.trim() : "";
+        return op.equalsIgnoreCase("asdN") || op.equalsIgnoreCase("asdD") 
+            || op.equalsIgnoreCase("asdS") || op.equalsIgnoreCase("asdB")
+            || op.toLowerCase().startsWith("asd")
+            || op.toLowerCase().contains("sourcedirect")
+            || spec.toLowerCase().contains("source directly")
+            || spec.toLowerCase().contains("add source")
+            || "inputOnly".equalsIgnoreCase(mMenuName);
     }
 }

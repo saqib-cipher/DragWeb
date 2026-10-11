@@ -51,6 +51,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -61,6 +62,9 @@ import java.util.Arrays;
 import android.text.TextWatcher;
 import android.text.Editable;
 import android.content.DialogInterface;
+import android.os.Looper;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class LogicBlockActivity extends AppCompatActivity implements OnClickListener, OnBlockCategorySelectListener, OnTouchListener {
 		public static final String LOGIC_NAME_SEPARATOR = "_";
@@ -138,6 +142,31 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		private final ArrayList<String> undoStack = new ArrayList<>();
 		private final ArrayList<String> redoStack = new ArrayList<>();
 		private boolean isUndoRedoAction = false;
+		private BlockArg pendingTextEditorArg = null;
+		private androidx.activity.result.ActivityResultLauncher<Intent> textEditorLauncher;
+		private List<LogicLinter.LintProblem> currentLintProblems = new ArrayList<>();
+		private LinearLayout btnProblemsPill;
+		private LinearLayout layoutPillAllGood;
+		private TextView tvPillAllGoodCount;
+		private LinearLayout layoutPillErrors;
+		private TextView tvPillErrorsCount;
+		private LinearLayout layoutPillWarnings;
+		private TextView tvPillWarningsCount;
+		private LinearLayout layoutPillSuggestions;
+		private TextView tvPillSuggestionsCount;
+		private Block lastHighlightedBlock = null;
+
+		private com.google.android.material.card.MaterialCardView cardLiveSuggestion;
+		private TextView tvLiveSuggestionTitle;
+		private TextView tvLiveSuggestionDesc;
+		private com.google.android.material.button.MaterialButton btnLiveQuickFix;
+		private ImageView btnCloseLiveSuggestion;
+		private LogicLinter.LintProblem currentActiveProblem = null;
+		private Runnable hideLiveSuggestionRunnable = null;
+
+		private final Handler lintHandler = new Handler(Looper.getMainLooper());
+		private Runnable lintRunnable = null;
+		private final ExecutorService lintExecutor = Executors.newSingleThreadExecutor();
 		
 		//new
 		public int BLOCK_DRAG_X = 0;
@@ -584,11 +613,16 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 
 						Iterator it = blocks.iterator();
 						while (it.hasNext()) {
-								Block makeBlockFromBean = makeBlockFromBean((BlockBean) it.next());
+								BlockBean bBean = (BlockBean) it.next();
+								Block makeBlockFromBean = makeBlockFromBean(bBean);
 								int bId = ((Integer) makeBlockFromBean.getTag()).intValue();
 								hashMap.put(Integer.valueOf(bId), makeBlockFromBean);
 								this.pane.blockId = Math.max(this.pane.blockId, bId + 1);
 								this.pane.addBlock(makeBlockFromBean, 0, 0);
+								if (bBean.x != 0 || bBean.y != 0) {
+										makeBlockFromBean.setX(bBean.x);
+										makeBlockFromBean.setY(bBean.y);
+								}
 								makeBlockFromBean.setOnTouchListener(this);
 						}
 						Iterator it2 = blocks.iterator();
@@ -645,27 +679,50 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 								}
 						}
 
-						// Collect all top-level root statement blocks in their original sorted order
-						ArrayList<Block> rootBlocks = new ArrayList<>();
+						// Connect the root child block if it was originally attached to getRoot()
+						Block rootChild = null;
 						for (Object obj : blocks) {
 								if (obj instanceof BlockBean) {
 										BlockBean bb = (BlockBean) obj;
 										Block b = (Block) hashMap.get(Integer.valueOf(safeParseInt(bb.id)));
 										if (b != null && b.parentBlock == null && !b.isReporter && b != this.pane.getRoot()) {
-												rootBlocks.add(b);
+												if (bb.isConnectedToRoot) {
+														rootChild = b;
+														break;
+												}
 										}
 								}
 						}
 
-						// Stack all top-level root blocks sequentially under getRoot()
-						if (!rootBlocks.isEmpty()) {
-								this.pane.getRoot().insertBlock(rootBlocks.get(0));
-								for (int r = 0; r < rootBlocks.size() - 1; r++) {
-										rootBlocks.get(r).bottomBlock().insertBlock(rootBlocks.get(r + 1));
+						// Fallback for legacy blocks without isConnectedToRoot flag:
+						// Only attach the first block if it had no parent, never forcibly chain unattached blocks!
+						if (rootChild == null && !blocks.isEmpty()) {
+								boolean anyExplicit = false;
+								for (Object obj : blocks) {
+										if (obj instanceof BlockBean && ((BlockBean) obj).isConnectedToRoot) {
+												anyExplicit = true;
+												break;
+										}
+								}
+								if (!anyExplicit) {
+										BlockBean firstBean = (BlockBean) blocks.get(0);
+										Block firstB = (Block) hashMap.get(Integer.valueOf(safeParseInt(firstBean.id)));
+										if (firstB != null && firstB.parentBlock == null && !firstB.isReporter && firstB != this.pane.getRoot()) {
+												rootChild = firstB;
+										}
 								}
 						}
 
+						if (rootChild != null) {
+								this.pane.getRoot().insertBlock(rootChild);
+						}
+
 						this.pane.getRoot().fixLayout();
+						for (Block b : hashMap.values()) {
+								if (b != null && b.parentBlock == null && b != this.pane.getRoot()) {
+										b.fixLayout();
+								}
+						}
 						this.pane.calculateWidthHeight();
 				}
 		}
@@ -1745,77 +1802,99 @@ startActivityForResult(intent, 209);
 				return block;
 		}
 		
-		private void saveAndFinish() {
-			final AlertDialog progressDialog = (!isFinishing()) ? UniversalDialog.loading(this, "Saving logic...") : null;
+		private boolean isSaved = false;
+
+		private synchronized void saveLogicSynchronous() {
 			try {
 				ArrayList<BlockBean> beans = getBlocksWithoutDefinedFunc();
-				DesignDataManager.setBlocks(LogicBlockActivity.filename, this.id + LogicBlockActivity.LOGIC_NAME_SEPARATOR + this.eventName, beans);
-				if ("onPageLoad".equals(this.eventName) || "initializeLogic".equals(this.eventName)) {
-					DesignDataManager.setBlocks(LogicBlockActivity.filename, "onCreate_initializeLogic", beans);
-					DesignDataManager.setBlocks(LogicBlockActivity.filename, "onPageLoad_onPageLoad", beans);
-				}
-				if (this.pageName != null && !this.pageName.isEmpty()) {
-					DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
-					if ("onPageLoad".equals(this.eventName) || "initializeLogic".equals(this.eventName)) {
-						DesignDataManager.setBlocks(this.pageName, "onCreate_initializeLogic", beans);
-						DesignDataManager.setBlocks(this.pageName, "onPageLoad_onPageLoad", beans);
-					}
-				}
-
-				final Context appCtx = getApplicationContext();
-				final String pId = this.projectId;
+				final Context appCtx = getApplicationContext() != null ? getApplicationContext() : this;
+				final String pId = (this.projectId != null && !this.projectId.isEmpty()) ? this.projectId : DesignDataManager.currentProjectId;
 				final String fName = LogicBlockActivity.filename;
 				final String pName = this.pageName;
+				final String baseName = (fName != null && fName.contains("/")) ? fName.substring(fName.lastIndexOf('/') + 1) : "";
 
-				java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-					try {
-						DesignDataManager.saveSavedLogic(appCtx, pId, fName);
-						if (pName != null && !pName.isEmpty() && !pName.equals(fName)) {
-							DesignDataManager.saveSavedLogic(appCtx, pId, pName);
-						}
-						ProjectCodeGenerator.generateAndSaveAssets(appCtx, pId, pName != null ? pName : fName);
-					} catch (Exception e) {
-						e.printStackTrace();
-					} finally {
-						runOnUiThread(() -> {
-							if (progressDialog != null && progressDialog.isShowing()) {
-								try { progressDialog.dismiss(); } catch (Exception ignored) {}
-							}
-							setResult(RESULT_OK);
-							finish();
-						});
+				// 1. Update in-memory block maps
+				if (fName != null && !fName.isEmpty()) {
+					DesignDataManager.setBlocks(fName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
+				}
+				if (pName != null && !pName.isEmpty() && !pName.equals(fName)) {
+					DesignDataManager.setBlocks(pName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
+				}
+				if (!baseName.isEmpty() && !baseName.equals(fName) && !baseName.equals(pName)) {
+					DesignDataManager.setBlocks(baseName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
+				}
+
+				// 2. Normalize and replicate page load event aliases
+				if ("onPageLoad".equals(this.eventName) || "initializeLogic".equals(this.eventName)) {
+					if (fName != null && !fName.isEmpty()) {
+						DesignDataManager.setBlocks(fName, "onCreate_initializeLogic", beans);
+						DesignDataManager.setBlocks(fName, "onPageLoad_onPageLoad", beans);
 					}
-				});
+					if (pName != null && !pName.isEmpty()) {
+						DesignDataManager.setBlocks(pName, "onCreate_initializeLogic", beans);
+						DesignDataManager.setBlocks(pName, "onPageLoad_onPageLoad", beans);
+					}
+					if (!baseName.isEmpty()) {
+						DesignDataManager.setBlocks(baseName, "onCreate_initializeLogic", beans);
+						DesignDataManager.setBlocks(baseName, "onPageLoad_onPageLoad", beans);
+					}
+				}
+
+				// 3. For Functions / MoreBlocks, update both alias keys and project more_blocks
+				if ("func".equals(this.id) || (this.id != null && this.id.startsWith("func")) || "moreBlock".equals(this.eventName)) {
+					if (fName != null && !fName.isEmpty()) {
+						DesignDataManager.setBlocks(fName, "func_" + this.eventName, beans);
+						DesignDataManager.setBlocks(fName, this.eventName + "_moreBlock", beans);
+					}
+					if (pName != null && !pName.isEmpty()) {
+						DesignDataManager.setBlocks(pName, "func_" + this.eventName, beans);
+						DesignDataManager.setBlocks(pName, this.eventName + "_moreBlock", beans);
+					}
+					ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(pId);
+					if (funcs != null) {
+						for (DesignDataManager.MoreBlockData mb : funcs) {
+							if (mb != null && (this.eventName.equals(mb.name) || this.eventName.equals(mb.spec))) {
+								mb.blocks = beans;
+								DesignDataManager.saveProjectMoreBlock(pId, mb);
+								break;
+							}
+						}
+					}
+				}
+
+				// 4. Synchronously write logic JSON files to disk so they are immediately available
+				if (fName != null && !fName.isEmpty()) {
+					DesignDataManager.saveSavedLogic(appCtx, pId, fName);
+				}
+				if (pName != null && !pName.isEmpty() && !pName.equals(fName)) {
+					DesignDataManager.saveSavedLogic(appCtx, pId, pName);
+				}
+				if (!baseName.isEmpty() && !baseName.equals(fName) && !baseName.equals(pName)) {
+					DesignDataManager.saveSavedLogic(appCtx, pId, baseName);
+				}
+
+				// 5. Generate and save compiled assets synchronously
+				try {
+					ProjectCodeGenerator.generateAndSaveAssets(appCtx, pId, (pName != null && !pName.isEmpty()) ? pName : fName);
+				} catch (Exception ignored) {}
+
+				isSaved = true;
 			} catch (Exception e) {
 				e.printStackTrace();
-				if (progressDialog != null && progressDialog.isShowing()) {
-					try { progressDialog.dismiss(); } catch (Exception ignored) {}
-				}
-				setResult(RESULT_OK);
-				finish();
 			}
+		}
+
+		private void saveAndFinish() {
+			saveLogicSynchronous();
+			setResult(RESULT_OK);
+			finish();
 		}
 
 		@Override
 		protected void onPause() {
 				super.onPause();
-				if (isFinishing()) return; // saveAndFinish() already handled persistence
-				try {
-						ArrayList<BlockBean> beans = getBlocksWithoutDefinedFunc();
-						DesignDataManager.setBlocks(LogicBlockActivity.filename, this.id + LogicBlockActivity.LOGIC_NAME_SEPARATOR + this.eventName, beans);
-						if (this.pageName != null && !this.pageName.isEmpty()) {
-							DesignDataManager.setBlocks(this.pageName, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
-						}
-						final Context appCtx = getApplicationContext();
-						final String pId = this.projectId;
-						final String fName = LogicBlockActivity.filename;
-						java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-							try {
-								DesignDataManager.saveSavedLogic(appCtx, pId, fName);
-							} catch (Exception ignored) {}
-						});
-				} catch (Exception e) {
-						e.printStackTrace();
+				if (!isSaved) {
+					saveLogicSynchronous();
 				}
 		}
 
@@ -1825,9 +1904,7 @@ startActivityForResult(intent, 209);
 						openPalette(!this.isPaletteOpened);
 						return;
 				}
-				if (checkValidForever() && checkValidZero()) {
-						saveAndFinish();
-				}
+				saveAndFinish();
 		}
 		
 		public void onBlockCategorySelect(int i, int i2) {
@@ -2229,6 +2306,33 @@ startActivityForResult(intent, 209);
 				androidx.activity.EdgeToEdge.enable(this);
 				super.onCreate(bundle);
 
+				this.textEditorLauncher = registerForActivityResult(
+						new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+						result -> {
+								if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+										String updatedCode = result.getData().getStringExtra("content");
+										if (updatedCode == null) {
+												updatedCode = result.getData().getStringExtra("code");
+										}
+										if (updatedCode != null && pendingTextEditorArg != null) {
+												pendingTextEditorArg.setArgValue(updatedCode);
+												if (pendingTextEditorArg.parentBlock != null) {
+														pendingTextEditorArg.parentBlock.recalcWidthToParent();
+														if (pendingTextEditorArg.parentBlock.topBlock() != null) {
+																pendingTextEditorArg.parentBlock.topBlock().fixLayout();
+														}
+														if (pendingTextEditorArg.parentBlock.pane != null) {
+																pendingTextEditorArg.parentBlock.pane.calculateWidthHeight();
+														}
+												}
+												saveUndoState();
+												runLintCheck();
+										}
+								}
+								pendingTextEditorArg = null;
+						}
+				);
+
 				this.projectId = getIntent().getStringExtra("project_id");
 				this.pageName = getIntent().getStringExtra("page_name");
 
@@ -2248,6 +2352,31 @@ startActivityForResult(intent, 209);
 				}
 
 				setContentView(R.layout.logic_editor);
+
+				this.btnProblemsPill = findViewById(R.id.btn_problems_pill);
+				this.layoutPillAllGood = findViewById(R.id.layout_pill_all_good);
+				this.tvPillAllGoodCount = findViewById(R.id.tv_pill_all_good_count);
+				this.layoutPillErrors = findViewById(R.id.layout_pill_errors);
+				this.tvPillErrorsCount = findViewById(R.id.tv_pill_errors_count);
+				this.layoutPillWarnings = findViewById(R.id.layout_pill_warnings);
+				this.tvPillWarningsCount = findViewById(R.id.tv_pill_warnings_count);
+				this.layoutPillSuggestions = findViewById(R.id.layout_pill_suggestions);
+				this.tvPillSuggestionsCount = findViewById(R.id.tv_pill_suggestions_count);
+				if (this.btnProblemsPill != null) {
+						this.btnProblemsPill.setOnClickListener(v -> showProblemsBottomSheet());
+				}
+				initLiveSuggestionView();
+
+				getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+						@Override
+						public void handleOnBackPressed() {
+								if (isPaletteOpened) {
+										openPalette(false);
+										return;
+								}
+								saveAndFinish();
+						}
+				});
 				
 				View rootLayout = findViewById(R.id.layout);
 				if (rootLayout != null) {
@@ -2388,7 +2517,7 @@ startActivityForResult(intent, 209);
 				finish();
 		}
 		
-		private void saveUndoState() {
+		public void saveUndoState() {
 				if (this.isUndoRedoAction || this.pane == null) return;
 				try {
 						ArrayList<BlockBean> blocks = this.pane.getBlocks();
@@ -2402,6 +2531,7 @@ startActivityForResult(intent, 209);
 						}
 						this.redoStack.clear();
 						updateUndoRedoMenuState();
+						runLintCheck();
 				} catch (Exception e) {
 						e.printStackTrace();
 				}
@@ -2425,18 +2555,17 @@ startActivityForResult(intent, 209);
 						java.util.Map<Integer, Block> blockMap = new java.util.HashMap<>();
 						java.util.Collections.sort(blockBeans, (b1, b2) -> Integer.compare(b1.stackIndex, b2.stackIndex));
 
-						boolean first = true;
 						for (BlockBean bean : blockBeans) {
 								Block block = makeBlockFromBean(bean);
 								int bId = ((Integer) block.getTag()).intValue();
 								blockMap.put(bId, block);
 								this.pane.blockId = Math.max(this.pane.blockId, bId + 1);
 								this.pane.addBlock(block, 0, 0);
-								block.setOnTouchListener(this);
-								if (first) {
-										this.pane.getRoot().insertBlock(block);
-										first = false;
+								if (bean.x != 0 || bean.y != 0) {
+										block.setX(bean.x);
+										block.setY(bean.y);
 								}
+								block.setOnTouchListener(this);
 						}
 
 						for (BlockBean bean : blockBeans) {
@@ -2471,13 +2600,49 @@ startActivityForResult(intent, 209);
 								}
 						}
 
+						// Connect the root child block if it was connected to root
+						Block rootChild = null;
+						for (BlockBean bean : blockBeans) {
+								Block block = blockMap.get(safeParseInt(bean.id));
+								if (block != null && block.parentBlock == null && !block.isReporter && block != this.pane.getRoot()) {
+										if (bean.isConnectedToRoot) {
+												rootChild = block;
+												break;
+										}
+								}
+						}
+						if (rootChild == null && !blockBeans.isEmpty()) {
+								boolean anyExplicit = false;
+								for (BlockBean bean : blockBeans) {
+										if (bean.isConnectedToRoot) {
+												anyExplicit = true;
+												break;
+										}
+								}
+								if (!anyExplicit) {
+										Block firstB = blockMap.get(safeParseInt(blockBeans.get(0).id));
+										if (firstB != null && firstB.parentBlock == null && !firstB.isReporter && firstB != this.pane.getRoot()) {
+												rootChild = firstB;
+										}
+								}
+						}
+						if (rootChild != null) {
+								this.pane.getRoot().insertBlock(rootChild);
+						}
+
 						this.pane.getRoot().fixLayout();
+						for (Block b : blockMap.values()) {
+								if (b != null && b.parentBlock == null && b != this.pane.getRoot()) {
+										b.fixLayout();
+								}
+						}
 						this.pane.calculateWidthHeight();
 				} catch (Exception e) {
 						e.printStackTrace();
 				} finally {
 						this.isUndoRedoAction = false;
 						updateUndoRedoMenuState();
+						runLintCheck();
 				}
 		}
 
@@ -2756,6 +2921,7 @@ startActivityForResult(intent, 209);
 				this.loadLogic();
 				this.allocatePalette(this.getResources().getConfiguration().orientation);
 				saveUndoState();
+				runLintCheck();
 		}
 		
 		protected void onResume() {
@@ -3201,5 +3367,560 @@ startActivityForResult(intent, 209);
 						firstRootBlock.topBlock().fixLayout();
 				}
 				this.pane.calculateWidthHeight();
+		}
+
+		public void openTextEditorForBlockArg(BlockArg arg, String initialValue) {
+				this.pendingTextEditorArg = arg;
+				Intent intent = new Intent(this, TextEditorActivity.class);
+				intent.putExtra("content", initialValue != null ? initialValue : "");
+				intent.putExtra("title", isCssEvent() ? "Edit CSS Source" : "Edit JS Source");
+				intent.putExtra("mode", isCssEvent() ? "css" : "javascript");
+				intent.putExtra("project_id", this.projectId);
+				if (this.textEditorLauncher != null) {
+						this.textEditorLauncher.launch(intent);
+				} else {
+						startActivity(intent);
+				}
+		}
+
+		private void initLiveSuggestionView() {
+				this.cardLiveSuggestion = findViewById(R.id.card_live_suggestion);
+				this.tvLiveSuggestionTitle = findViewById(R.id.tv_live_suggestion_title);
+				this.tvLiveSuggestionDesc = findViewById(R.id.tv_live_suggestion_desc);
+				this.btnLiveQuickFix = findViewById(R.id.btn_live_quick_fix);
+				this.btnCloseLiveSuggestion = findViewById(R.id.btn_close_live_suggestion);
+
+				if (this.btnLiveQuickFix != null) {
+						this.btnLiveQuickFix.setOnClickListener(v -> {
+								if (this.currentActiveProblem != null) {
+										applyQuickFix(this.currentActiveProblem);
+								}
+						});
+				}
+
+				if (this.btnCloseLiveSuggestion != null) {
+						this.btnCloseLiveSuggestion.setOnClickListener(v -> hideLiveSuggestion());
+				}
+		}
+
+		public void showLiveSuggestion(LogicLinter.LintProblem problem) {
+				if (problem == null || this.cardLiveSuggestion == null) return;
+				this.currentActiveProblem = problem;
+
+				if (this.tvLiveSuggestionTitle != null) {
+						this.tvLiveSuggestionTitle.setText(problem.ruleId != null ? problem.ruleId : "Suggestion");
+				}
+				if (this.tvLiveSuggestionDesc != null) {
+						this.tvLiveSuggestionDesc.setText(problem.suggestion != null ? problem.suggestion : problem.message);
+				}
+
+				if (this.btnLiveQuickFix != null) {
+						if (problem.hasQuickFix()) {
+								this.btnLiveQuickFix.setVisibility(View.VISIBLE);
+								this.btnLiveQuickFix.setText(problem.fixTitle != null ? problem.fixTitle : "Quick Fix");
+						} else {
+								this.btnLiveQuickFix.setVisibility(View.GONE);
+						}
+				}
+
+				this.cardLiveSuggestion.setVisibility(View.VISIBLE);
+				this.cardLiveSuggestion.setAlpha(0f);
+				this.cardLiveSuggestion.setTranslationY(60f);
+				this.cardLiveSuggestion.animate()
+								.alpha(1f)
+								.translationY(0f)
+								.setDuration(250)
+								.setInterpolator(new android.view.animation.DecelerateInterpolator())
+								.start();
+
+				if (this.hideLiveSuggestionRunnable != null) {
+						this.lintHandler.removeCallbacks(this.hideLiveSuggestionRunnable);
+				}
+				this.hideLiveSuggestionRunnable = this::hideLiveSuggestion;
+				this.lintHandler.postDelayed(this.hideLiveSuggestionRunnable, 4500);
+		}
+
+		public void hideLiveSuggestion() {
+				if (this.cardLiveSuggestion != null && this.cardLiveSuggestion.getVisibility() == View.VISIBLE) {
+						this.cardLiveSuggestion.animate()
+										.alpha(0f)
+										.translationY(60f)
+										.setDuration(200)
+										.withEndAction(() -> {
+												this.cardLiveSuggestion.setVisibility(View.GONE);
+												this.currentActiveProblem = null;
+										})
+										.start();
+				}
+		}
+
+		public void runLintCheck() {
+				requestRealtimeLintCheck();
+		}
+
+		public void requestRealtimeLintCheck() {
+				if (this.pane == null) return;
+				if (this.lintRunnable != null) {
+						this.lintHandler.removeCallbacks(this.lintRunnable);
+				}
+				this.lintRunnable = () -> {
+						if (this.pane == null) return;
+						final ArrayList<BlockBean> blocks = this.pane.getAllCanvasBlocks();
+						final String currentFile = filename;
+						final String currentProject = this.projectId;
+						final String currentEvent = this.eventName;
+
+						this.lintExecutor.execute(() -> {
+								try {
+										final List<LogicLinter.LintProblem> problems =
+														LogicLinter.lint(LogicBlockActivity.this, currentProject, currentFile, currentEvent, blocks);
+
+										runOnUiThread(() -> {
+												this.currentLintProblems = problems != null ? problems : new ArrayList<>();
+												updateProblemsPill();
+
+												// Check if currently focused block matches any detected problem
+												if (this.lastHighlightedBlock != null) {
+														int bId = -1;
+														if (this.lastHighlightedBlock.getTag() instanceof Integer) {
+																bId = ((Integer) this.lastHighlightedBlock.getTag()).intValue();
+														}
+														LogicLinter.LintProblem match = null;
+														for (LogicLinter.LintProblem p : this.currentLintProblems) {
+																if (p.blockId == bId) {
+																		match = p;
+																		break;
+																}
+														}
+														if (match != null) {
+																showLiveSuggestion(match);
+														}
+												}
+										});
+								} catch (Exception e) {
+										e.printStackTrace();
+								}
+						});
+				};
+				this.lintHandler.postDelayed(this.lintRunnable, 250);
+		}
+
+		private void updateProblemsPill() {
+				runOnUiThread(() -> {
+						int errorCount = 0;
+						int warningCount = 0;
+						int suggestionCount = 0;
+						if (this.currentLintProblems != null) {
+								for (LogicLinter.LintProblem p : this.currentLintProblems) {
+										if (p.severity == LogicLinter.SEVERITY_ERROR) errorCount++;
+										else if (p.severity == LogicLinter.SEVERITY_WARNING) warningCount++;
+										else suggestionCount++;
+								}
+						}
+						int total = errorCount + warningCount + suggestionCount;
+
+						if (this.btnProblemsPill != null) {
+								this.btnProblemsPill.setVisibility(View.VISIBLE);
+
+								if (total == 0) {
+										if (this.layoutPillAllGood != null) this.layoutPillAllGood.setVisibility(View.VISIBLE);
+										if (this.tvPillAllGoodCount != null) this.tvPillAllGoodCount.setText("0");
+										if (this.layoutPillErrors != null) this.layoutPillErrors.setVisibility(View.GONE);
+										if (this.layoutPillWarnings != null) this.layoutPillWarnings.setVisibility(View.GONE);
+										if (this.layoutPillSuggestions != null) this.layoutPillSuggestions.setVisibility(View.GONE);
+								} else {
+										if (this.layoutPillAllGood != null) this.layoutPillAllGood.setVisibility(View.GONE);
+
+										if (this.layoutPillErrors != null) {
+												if (errorCount > 0) {
+														this.layoutPillErrors.setVisibility(View.VISIBLE);
+														if (this.tvPillErrorsCount != null) this.tvPillErrorsCount.setText(String.valueOf(errorCount));
+												} else {
+														this.layoutPillErrors.setVisibility(View.GONE);
+												}
+										}
+
+										if (this.layoutPillWarnings != null) {
+												if (warningCount > 0) {
+														this.layoutPillWarnings.setVisibility(View.VISIBLE);
+														if (this.tvPillWarningsCount != null) this.tvPillWarningsCount.setText(String.valueOf(warningCount));
+												} else {
+														this.layoutPillWarnings.setVisibility(View.GONE);
+												}
+										}
+
+										if (this.layoutPillSuggestions != null) {
+												if (suggestionCount > 0) {
+														this.layoutPillSuggestions.setVisibility(View.VISIBLE);
+														if (this.tvPillSuggestionsCount != null) this.tvPillSuggestionsCount.setText(String.valueOf(suggestionCount));
+												} else {
+														this.layoutPillSuggestions.setVisibility(View.GONE);
+												}
+										}
+								}
+						}
+				});
+		}
+
+		public void showProblemsBottomSheet() {
+				if (this.pane != null) {
+						ArrayList<BlockBean> blocks = this.pane.getAllCanvasBlocks();
+						this.currentLintProblems = LogicLinter.lint(this, this.projectId, filename, this.eventName, blocks);
+						updateProblemsPill();
+				}
+				com.google.android.material.bottomsheet.BottomSheetDialog sheetDialog =
+								new com.google.android.material.bottomsheet.BottomSheetDialog(this, R.style.ThemeOverlay_Dragweb_BottomSheetDialog);
+				View sheetView = getLayoutInflater().inflate(R.layout.bottom_sheet_problems, null);
+				sheetDialog.setContentView(sheetView);
+
+				TextView tvCountBadge = sheetView.findViewById(R.id.tv_count_badge);
+				View layoutEmpty = sheetView.findViewById(R.id.layout_empty_state);
+				TextView tvEmptyText = sheetView.findViewById(R.id.tv_empty_text);
+				androidx.recyclerview.widget.RecyclerView rv = sheetView.findViewById(R.id.rv_problems);
+
+				com.google.android.material.chip.ChipGroup chipGroup = sheetView.findViewById(R.id.chip_group_filter);
+				com.google.android.material.chip.Chip chipAll = sheetView.findViewById(R.id.chip_all);
+				com.google.android.material.chip.Chip chipErrors = sheetView.findViewById(R.id.chip_errors);
+				com.google.android.material.chip.Chip chipWarnings = sheetView.findViewById(R.id.chip_warnings);
+				com.google.android.material.chip.Chip chipSuggestions = sheetView.findViewById(R.id.chip_suggestions);
+
+				final List<LogicLinter.LintProblem> allProblems = this.currentLintProblems != null ? new ArrayList<>(this.currentLintProblems) : new ArrayList<>();
+				final List<LogicLinter.LintProblem> displayedList = new ArrayList<>(allProblems);
+
+				int errorCount = 0;
+				int warningCount = 0;
+				int suggestionCount = 0;
+				for (LogicLinter.LintProblem p : allProblems) {
+						if (p.severity == LogicLinter.SEVERITY_ERROR) errorCount++;
+						else if (p.severity == LogicLinter.SEVERITY_WARNING) warningCount++;
+						else suggestionCount++;
+				}
+				int totalCount = allProblems.size();
+
+				if (tvCountBadge != null) tvCountBadge.setText(String.valueOf(totalCount));
+				if (chipAll != null) chipAll.setText("All (" + totalCount + ")");
+				if (chipErrors != null) chipErrors.setText("Errors (" + errorCount + ")");
+				if (chipWarnings != null) chipWarnings.setText("Warnings (" + warningCount + ")");
+				if (chipSuggestions != null) chipSuggestions.setText("Suggestions (" + suggestionCount + ")");
+
+				ProblemsAdapter adapter = new ProblemsAdapter(
+						displayedList,
+						problem -> {
+								sheetDialog.dismiss();
+								highlightProblemBlock(problem);
+								showLiveSuggestion(problem);
+						},
+						problem -> {
+								showSuggestionDetailDialog(problem);
+						}
+				);
+				if (rv != null) {
+						rv.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+						rv.setAdapter(adapter);
+				}
+
+				Runnable applyFilter = () -> {
+						int checkedId = chipGroup != null ? chipGroup.getCheckedChipId() : R.id.chip_all;
+						displayedList.clear();
+						String emptyMsg = "No problems found";
+						if (checkedId == R.id.chip_errors) {
+								emptyMsg = "No errors found";
+								for (LogicLinter.LintProblem p : allProblems) {
+										if (p.severity == LogicLinter.SEVERITY_ERROR) displayedList.add(p);
+								}
+						} else if (checkedId == R.id.chip_warnings) {
+								emptyMsg = "No warnings found";
+								for (LogicLinter.LintProblem p : allProblems) {
+										if (p.severity == LogicLinter.SEVERITY_WARNING) displayedList.add(p);
+								}
+						} else if (checkedId == R.id.chip_suggestions) {
+								emptyMsg = "No suggestions found";
+								for (LogicLinter.LintProblem p : allProblems) {
+										if (p.severity == LogicLinter.SEVERITY_INFO) displayedList.add(p);
+								}
+						} else {
+								displayedList.addAll(allProblems);
+						}
+
+						adapter.notifyDataSetChanged();
+						if (displayedList.isEmpty()) {
+								if (layoutEmpty != null) layoutEmpty.setVisibility(View.VISIBLE);
+								if (tvEmptyText != null) tvEmptyText.setText(emptyMsg);
+								if (rv != null) rv.setVisibility(View.GONE);
+						} else {
+								if (layoutEmpty != null) layoutEmpty.setVisibility(View.GONE);
+								if (rv != null) rv.setVisibility(View.VISIBLE);
+						}
+				};
+
+				if (chipGroup != null) {
+						chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+								applyFilter.run();
+						});
+				}
+
+				applyFilter.run();
+				sheetDialog.show();
+		}
+
+		public void showSuggestionDetailDialog(LogicLinter.LintProblem problem) {
+				if (problem == null) return;
+				String severityLabel = problem.severity == LogicLinter.SEVERITY_ERROR ? "Error" :
+															 problem.severity == LogicLinter.SEVERITY_WARNING ? "Warning" : "Info";
+
+				com.google.android.material.dialog.MaterialAlertDialogBuilder builder =
+								new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+												.setTitle("Suggestion: " + (problem.ruleId != null ? problem.ruleId : "Code Quality"))
+												.setMessage(problem.message + "\n\n"
+																+ "Location: " + problem.location + "\n\n"
+																+ "Suggestion: " + (problem.suggestion != null ? problem.suggestion : "Follow coding best practices."));
+
+				builder.setNegativeButton("Locate on Canvas", (dialog, which) -> {
+						highlightProblemBlock(problem);
+						showLiveSuggestion(problem);
+				});
+
+				if (problem.hasQuickFix()) {
+						builder.setPositiveButton("Quick Fix: " + problem.fixTitle, (dialog, which) -> {
+								applyQuickFix(problem);
+						});
+						builder.setNeutralButton("Close", null);
+				} else {
+						builder.setPositiveButton("Close", null);
+				}
+				builder.show();
+		}
+
+		public void applyQuickFix(LogicLinter.LintProblem problem) {
+				if (problem == null || this.pane == null) return;
+
+				Block targetBlock = null;
+				if (problem.blockId >= 0) {
+						View v = this.pane.findViewWithTag(Integer.valueOf(problem.blockId));
+						if (v instanceof Block) {
+								targetBlock = (Block) v;
+						}
+				}
+
+				if (targetBlock == null) {
+						for (int i = 0; i < this.pane.getChildCount(); i++) {
+								View child = this.pane.getChildAt(i);
+								if (child instanceof Block) {
+										Block b = (Block) child;
+										if (b.getTag() instanceof Integer && ((Integer) b.getTag()).intValue() == problem.blockId) {
+												targetBlock = b;
+												break;
+										}
+								}
+						}
+				}
+
+				if (targetBlock == null) {
+						Toast.makeText(this, "Target block not found on canvas", Toast.LENGTH_SHORT).show();
+						return;
+				}
+
+				boolean applied = false;
+				if ("REMOVE_BLOCK".equals(problem.fixType)) {
+						this.pane.removeBlock(targetBlock);
+						applied = true;
+				} else if ("ADD_GAP".equals(problem.fixType)) {
+						if (targetBlock.args != null) {
+								for (View argView : targetBlock.args) {
+										if (argView instanceof BlockArg) {
+												BlockArg bArg = (BlockArg) argView;
+												String currentVal = bArg.getArgValue() != null ? bArg.getArgValue().toString() : "";
+												if (currentVal.contains("display: flex") || currentVal.contains("display: grid")
+												 || currentVal.contains("display:flex") || currentVal.contains("display:grid")
+												 || bArg.isAsdBlock()) {
+														bArg.setArgValue(currentVal + (currentVal.isEmpty() ? "" : "\n") + "gap: 8px;");
+														applied = true;
+														break;
+												}
+										}
+								}
+						}
+				} else if (problem.fixNewValue != null) {
+						int paramIdx = problem.fixParamIndex;
+						if (targetBlock.args != null && paramIdx >= 0 && paramIdx < targetBlock.args.size()) {
+								View argView = targetBlock.args.get(paramIdx);
+								if (argView instanceof BlockArg) {
+										((BlockArg) argView).setArgValue(problem.fixNewValue);
+										applied = true;
+								}
+						} else if (targetBlock.args != null) {
+								for (View argView : targetBlock.args) {
+										if (argView instanceof BlockArg) {
+												((BlockArg) argView).setArgValue(problem.fixNewValue);
+												applied = true;
+												break;
+										}
+								}
+						}
+				}
+
+				if (applied) {
+						targetBlock.recalcWidthToParent();
+						if (targetBlock.topBlock() != null) targetBlock.topBlock().fixLayout();
+						this.pane.calculateWidthHeight();
+						saveUndoState();
+						requestRealtimeLintCheck();
+						hideLiveSuggestion();
+						highlightProblemBlock(problem);
+						Toast.makeText(this, "Quick Fix applied: " + (problem.fixTitle != null ? problem.fixTitle : "Success"), Toast.LENGTH_SHORT).show();
+				} else {
+						Toast.makeText(this, "Could not apply automatic fix to this block", Toast.LENGTH_SHORT).show();
+				}
+		}
+
+		public void highlightProblemBlock(LogicLinter.LintProblem problem) {
+				if (problem == null || this.pane == null) return;
+				Block targetBlock = null;
+
+				if (problem.blockId >= 0) {
+						View v = this.pane.findViewWithTag(Integer.valueOf(problem.blockId));
+						if (v instanceof Block) {
+								targetBlock = (Block) v;
+						}
+				}
+
+				if (targetBlock == null) {
+						for (int i = 0; i < this.pane.getChildCount(); i++) {
+								View child = this.pane.getChildAt(i);
+								if (child instanceof Block) {
+										Block b = (Block) child;
+										if (b.getTag() instanceof Integer && ((Integer) b.getTag()).intValue() == problem.blockId) {
+												targetBlock = b;
+												break;
+										}
+								}
+						}
+				}
+
+				if (targetBlock != null) {
+						highlightAndFocusBlock(targetBlock);
+				} else if (this.pane.getRoot() != null) {
+						highlightAndFocusBlock(this.pane.getRoot());
+				}
+		}
+
+		public void highlightAndFocusBlock(Block block) {
+				if (block == null) return;
+
+				if (this.lastHighlightedBlock != null) {
+						this.lastHighlightedBlock.setHighlighted(false);
+				}
+
+				block.setHighlighted(true);
+				this.lastHighlightedBlock = block;
+
+				if (this.editor != null) {
+						int blockCenterX = (int) (block.getX() + block.getWidth() / 2f);
+						int blockCenterY = (int) (block.getY() + block.getHeight() / 2f);
+						int targetScrollX = Math.max(0, blockCenterX - (this.editor.getWidth() / 2));
+						int targetScrollY = Math.max(0, blockCenterY - (this.editor.getHeight() / 2));
+
+						android.animation.ValueAnimator animX = android.animation.ValueAnimator.ofInt(this.editor.getScrollX(), targetScrollX);
+						animX.addUpdateListener(a -> this.editor.scrollTo((int) a.getAnimatedValue(), this.editor.getScrollY()));
+
+						android.animation.ValueAnimator animY = android.animation.ValueAnimator.ofInt(this.editor.getScrollY(), targetScrollY);
+						animY.addUpdateListener(a -> this.editor.scrollTo(this.editor.getScrollX(), (int) a.getAnimatedValue()));
+
+						android.animation.AnimatorSet scrollSet = new android.animation.AnimatorSet();
+						scrollSet.playTogether(animX, animY);
+						scrollSet.setDuration(350);
+						scrollSet.setInterpolator(new android.view.animation.DecelerateInterpolator());
+						scrollSet.start();
+				}
+
+				block.animate()
+								.scaleX(1.10f)
+								.scaleY(1.10f)
+								.setDuration(180)
+								.withEndAction(() -> {
+										block.animate()
+														.scaleX(1.0f)
+														.scaleY(1.0f)
+														.setDuration(180)
+														.start();
+								})
+								.start();
+
+				if (this.vibrator != null && this.useVibrate) {
+						this.vibrator.vibrate(30);
+				}
+
+				this.handler.postDelayed(() -> {
+						if (this.lastHighlightedBlock == block) {
+								block.setHighlighted(false);
+								this.lastHighlightedBlock = null;
+						}
+				}, 3500);
+		}
+
+		private static class ProblemsAdapter extends androidx.recyclerview.widget.RecyclerView.Adapter<ProblemsAdapter.ViewHolder> {
+				public interface OnProblemClick { void onClick(LogicLinter.LintProblem problem); }
+
+				private final List<LogicLinter.LintProblem> items;
+				private final OnProblemClick problemListener;
+				private final OnProblemClick suggestionListener;
+
+				public ProblemsAdapter(List<LogicLinter.LintProblem> items, OnProblemClick problemListener, OnProblemClick suggestionListener) {
+						this.items = items;
+						this.problemListener = problemListener;
+						this.suggestionListener = suggestionListener;
+				}
+
+				@androidx.annotation.NonNull
+				@Override
+				public ViewHolder onCreateViewHolder(@androidx.annotation.NonNull ViewGroup parent, int viewType) {
+						View v = android.view.LayoutInflater.from(parent.getContext()).inflate(R.layout.item_problem, parent, false);
+						return new ViewHolder(v);
+				}
+
+				@Override
+				public void onBindViewHolder(@androidx.annotation.NonNull ViewHolder holder, int position) {
+						LogicLinter.LintProblem p = this.items.get(position);
+						holder.tvMessage.setText(p.message);
+						holder.tvLocation.setText(p.location);
+						if (p.severity == LogicLinter.SEVERITY_ERROR) {
+								holder.ivIcon.setImageResource(R.drawable.ic_lint_error);
+								holder.ivIcon.setColorFilter(android.graphics.Color.parseColor("#EF4444"));
+						} else if (p.severity == LogicLinter.SEVERITY_WARNING) {
+								holder.ivIcon.setImageResource(R.drawable.ic_lint_warning);
+								holder.ivIcon.setColorFilter(android.graphics.Color.parseColor("#F59E0B"));
+						} else {
+								holder.ivIcon.setImageResource(R.drawable.ic_lint_suggestion);
+								holder.ivIcon.setColorFilter(android.graphics.Color.parseColor("#3B82F6"));
+						}
+						holder.itemView.setOnClickListener(v -> {
+								if (this.problemListener != null) this.problemListener.onClick(p);
+						});
+						if (holder.ivLightbulb != null) {
+								holder.ivLightbulb.setOnClickListener(v -> {
+										if (this.suggestionListener != null) this.suggestionListener.onClick(p);
+								});
+						}
+				}
+
+				@Override
+				public int getItemCount() {
+						return this.items != null ? this.items.size() : 0;
+				}
+
+				static class ViewHolder extends androidx.recyclerview.widget.RecyclerView.ViewHolder {
+						final ImageView ivIcon;
+						final TextView tvMessage;
+						final TextView tvLocation;
+						final ImageView ivLightbulb;
+
+						ViewHolder(View itemView) {
+								super(itemView);
+								this.ivIcon = itemView.findViewById(R.id.iv_icon);
+								this.tvMessage = itemView.findViewById(R.id.tv_message);
+								this.tvLocation = itemView.findViewById(R.id.tv_location);
+								this.ivLightbulb = itemView.findViewById(R.id.iv_lightbulb);
+						}
+				}
 		}
 }

@@ -59,7 +59,7 @@
                     android:padding="2dp"
                     android:layout_alignParentBottom="true"
                     android:layout_centerHorizontal="true"
-                    android:background="?attr/colorPrimarySurface">
+                    android:background="?attr/colorSurfaceContainerHighest">
 
                     <ImageView
                         android:layout_width="10dp"

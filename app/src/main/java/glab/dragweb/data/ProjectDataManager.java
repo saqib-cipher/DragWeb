@@ -83,7 +83,7 @@ public class ProjectDataManager {
     public static String generateProjectId(Context context) {
         int maxNum = 0;
         File extDir = new File(FileUtil.getDragWebDir(context), "projects");
-        if (extDir.exists()) {
+        if (FileUtil.exists(extDir)) {
             File[] dirs = FileUtil.listFiles(extDir);
             if (dirs != null) {
                 for (File f : dirs) {
@@ -98,7 +98,7 @@ public class ProjectDataManager {
     public static String generateProjectId(Context context, Set<String> exclude) {
         int maxNum = 0;
         File extDir = new File(FileUtil.getDragWebDir(context), "projects");
-        if (extDir.exists()) {
+        if (FileUtil.exists(extDir)) {
             File[] dirs = FileUtil.listFiles(extDir);
             if (dirs != null) {
                 for (File f : dirs) {
@@ -182,6 +182,7 @@ public class ProjectDataManager {
                             for (Map<String, Object> nodeMap : widgetTree) {
                                 buildViewTree(nodeMap, vg, engine, selector, dropZoneManager);
                             }
+                            WidgetCanvasStyler.getInstance(context).synchronizeCanvas(screen);
                         }
                     }
                     if (onComplete != null) {
@@ -203,9 +204,9 @@ public class ProjectDataManager {
     // -------------------------------------------------------------------------
 
     public boolean exportSingleProjectAsZip(String projectId, Uri outputUri) {
-        File extProjDir = new File(FileUtil.getDragWebDir(), "projects/" + projectId);
+        File extProjDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId);
 
-        if (!extProjDir.exists()) return false;
+        if (!FileUtil.exists(extProjDir) && !FileUtil.isDirectory(extProjDir)) return false;
 
         try (OutputStream fos = context.getContentResolver().openOutputStream(outputUri);
              ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
@@ -236,11 +237,11 @@ public class ProjectDataManager {
         try (OutputStream fos = context.getContentResolver().openOutputStream(outputUri);
              ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
 
-            if (extDir.exists()) {
+            if (FileUtil.exists(extDir) || FileUtil.isDirectory(extDir)) {
                 File[] dirs = FileUtil.listFiles(extDir);
                 if (dirs != null) {
                     for (File d : dirs) {
-                        if (!d.isDirectory()) continue;
+                        if (!FileUtil.isDirectory(d)) continue;
                         String folderName = sanitizeDirName(d.getName());
                         // Add project files (skip project.meta, layout.json, project.config.json — we write a clean version)
                         addDirectoryToZip(zos, d, folderName + "/", "project.meta", "project.config.json", "layout.json");
@@ -266,7 +267,7 @@ public class ProjectDataManager {
     /** Read project.meta and return JSON stripped of the `id` field */
     private String makeCleanMetaJson(File projDir) {
         File metaFile = new File(projDir, "project.meta");
-        if (!metaFile.exists()) return null;
+        if (!FileUtil.exists(metaFile)) return null;
         try {
             String raw = FileUtil.readFile(metaFile.getAbsolutePath());
             if (raw == null || raw.isEmpty()) return null;
@@ -333,7 +334,7 @@ public class ProjectDataManager {
 
         // ── Second pass: extract each project with a fresh ID ──
         File extRoot = new File(extProjectsPath);
-        if (!extRoot.exists()) extRoot.mkdirs();
+        if (!FileUtil.exists(extRoot)) FileUtil.makeDir(extRoot.getAbsolutePath());
 
         try {
             String externalCanonical = extRoot.getCanonicalPath();
@@ -343,7 +344,7 @@ public class ProjectDataManager {
                 String newId = generateProjectId(context, usedInImport);
                 usedInImport.add(newId);
                 File extProjDir = new File(extProjectsPath, newId);
-                if (!extProjDir.exists()) extProjDir.mkdirs();
+                FileUtil.makeDir(extProjDir.getAbsolutePath());
 
                 String prefix = root.isEmpty() ? "" : root + "/";
                 Map<String, String> backupMeta = new HashMap<>();
@@ -388,13 +389,26 @@ public class ProjectDataManager {
                         }
 
                         if (e.isDirectory()) {
-                            target.mkdirs();
+                            FileUtil.makeDir(target.getAbsolutePath());
                         } else {
                             File parent = target.getParentFile();
-                            if (parent != null && !parent.exists()) parent.mkdirs();
-                            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(target))) {
-                                byte[] buf = new byte[4096]; int len;
-                                while ((len = zis.read(buf)) > 0) bos.write(buf, 0, len);
+                            if (parent != null) FileUtil.makeDir(parent.getAbsolutePath());
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            byte[] buf = new byte[4096]; int len;
+                            while ((len = zis.read(buf)) > 0) baos.write(buf, 0, len);
+                            byte[] fileBytes = baos.toByteArray();
+
+                            boolean written = false;
+                            try {
+                                if (parent != null && !parent.exists()) parent.mkdirs();
+                                try (FileOutputStream fos = new FileOutputStream(target)) {
+                                    fos.write(fileBytes);
+                                    written = true;
+                                }
+                            } catch (Exception ignored) {}
+
+                            if (!written) {
+                                SafStorageUtil.writeSafBytes(context, target.getAbsolutePath(), fileBytes);
                             }
                         }
                         zis.closeEntry();
@@ -411,15 +425,15 @@ public class ProjectDataManager {
 
                 // Ensure layout file exists in pages/index.json, and delete legacy files
                 File pagesDir = new File(extProjDir, "pages");
-                if (!pagesDir.exists()) pagesDir.mkdirs();
+                if (!FileUtil.exists(pagesDir)) FileUtil.makeDir(pagesDir.getAbsolutePath());
                 File indexFile = new File(pagesDir, "index.json");
 
                 File layoutFile = new File(extProjDir, "layout.json");
-                if (layoutFile.exists()) {
-                    if (!indexFile.exists()) {
+                if (FileUtil.exists(layoutFile)) {
+                    if (!FileUtil.exists(indexFile)) {
                         try {
                             String json = FileUtil.readFile(layoutFile.getAbsolutePath());
-                            if (json != null) {
+                            if (json != null && !json.isEmpty()) {
                                 FileUtil.writeFile(indexFile.getAbsolutePath(), json);
                             }
                         } catch (Exception ignored) {}
@@ -428,7 +442,7 @@ public class ProjectDataManager {
                 }
 
                 File legacyConfig = new File(extProjDir, "project.config.json");
-                if (legacyConfig.exists()) {
+                if (FileUtil.exists(legacyConfig)) {
                     FileUtil.deleteFile(legacyConfig.getAbsolutePath());
                 }
 
@@ -532,7 +546,7 @@ public class ProjectDataManager {
         if (files == null) return;
         for (File file : files) {
             if (skip.contains(file.getName())) continue;
-            if (file.isDirectory()) {
+            if (FileUtil.isDirectory(file)) {
                 addDirectoryToZip(zos, file, prefix + file.getName() + "/", skipFiles);
             } else {
                 addFileToZip(zos, prefix + file.getName(), file);
@@ -541,13 +555,22 @@ public class ProjectDataManager {
     }
 
     private void addFileToZip(ZipOutputStream zos, String entryName, File file) throws IOException {
-        byte[] buffer = new byte[4096];
-        try (FileInputStream fis = new FileInputStream(file)) {
+        if (file.exists() && file.canRead()) {
+            try (FileInputStream fis = new FileInputStream(file)) {
+                zos.putNextEntry(new ZipEntry(entryName));
+                byte[] buffer = new byte[4096];
+                int length;
+                while ((length = fis.read(buffer)) > 0) {
+                    zos.write(buffer, 0, length);
+                }
+                zos.closeEntry();
+                return;
+            } catch (Exception ignored) {}
+        }
+        byte[] bytes = SafStorageUtil.readSafBytes(context, file.getAbsolutePath());
+        if (bytes != null) {
             zos.putNextEntry(new ZipEntry(entryName));
-            int length;
-            while ((length = fis.read(buffer)) > 0) {
-                zos.write(buffer, 0, length);
-            }
+            zos.write(bytes, 0, bytes.length);
             zos.closeEntry();
         }
     }

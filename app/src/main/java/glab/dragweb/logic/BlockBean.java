@@ -46,6 +46,9 @@ public class BlockBean extends BaseBean implements Parcelable {
     public String code;
     public String blockType;
     public int stackIndex;
+    public boolean isConnectedToRoot = false;
+    public int x = 0;
+    public int y = 0;
 
     public BlockBean() {
         this.parameters = new ArrayList();
@@ -58,6 +61,9 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.blockType = "";
         this.stackIndex = 0;
         this.spec2 = "";
+        this.isConnectedToRoot = false;
+        this.x = 0;
+        this.y = 0;
     }
 
     public BlockBean(Parcel parcel) {
@@ -76,6 +82,9 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.code = parcel.readString();
         this.blockType = parcel.readString();
         this.stackIndex = parcel.readInt();
+        this.isConnectedToRoot = parcel.readByte() != 0;
+        this.x = parcel.readInt();
+        this.y = parcel.readInt();
     }
 
     public BlockBean(String str, String str2, String str3, String str4) {
@@ -93,6 +102,9 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.blockType = str3;
         this.stackIndex = 0;
         this.spec2 = "";
+        this.isConnectedToRoot = false;
+        this.x = 0;
+        this.y = 0;
     }
 
     public static Creator<BlockBean> getCreator() {
@@ -115,6 +127,9 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.blockType = blockBean.blockType;
         this.stackIndex = blockBean.stackIndex;
         this.spec2 = blockBean.spec2;
+        this.isConnectedToRoot = blockBean.isConnectedToRoot;
+        this.x = blockBean.x;
+        this.y = blockBean.y;
     }
 
     public int describeContents() {
@@ -140,5 +155,8 @@ public class BlockBean extends BaseBean implements Parcelable {
         parcel.writeString(this.code);
         parcel.writeString(this.blockType);
         parcel.writeInt(this.stackIndex);
+        parcel.writeByte((byte) (this.isConnectedToRoot ? 1 : 0));
+        parcel.writeInt(this.x);
+        parcel.writeInt(this.y);
     }
 }

@@ -637,6 +637,8 @@ public class MainEditorFragment extends Fragment {
 		codeGenerator.setContext(requireContext());
 		projectDataManager = new ProjectDataManager(requireContext());
 		themeManager = new ThemeManager();
+		WidgetCanvasStyler.getInstance(requireContext()).setThemeManager(themeManager);
+		engine.setThemeManager(themeManager);
 		ProjectAssetManager.getInstance().setThemeManager(themeManager);
 		exportManager = new ExportManager(requireContext(), themeManager);
 		exportManager.setProjectId(projectId);
@@ -2910,7 +2912,7 @@ public class MainEditorFragment extends Fragment {
 			// Load theme from disk in background
 			final String themeJson;
 			File themeFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + projectId + "/theme.json");
-			themeJson = themeFile.exists() ? FileUtil.readFile(themeFile.getAbsolutePath()) : null;
+			themeJson = FileUtil.exists(themeFile) ? FileUtil.readFile(themeFile.getAbsolutePath()) : null;
 
 			// Initialize logic blocks from disk in background (heavy I/O)
 			DesignDataManager.initialize(appCtx, projectId, currentPageName);
@@ -3794,8 +3796,19 @@ public class MainEditorFragment extends Fragment {
 			map.put("value", value);
 			design.add(map);
 		}
-		recyclerview3.setAdapter(new Recyclerview3Adapter(design));
-		recyclerview3.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
+		if (recyclerview3.getLayoutManager() == null) {
+			recyclerview3.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
+		}
+		if (recyclerview3.getAdapter() instanceof Recyclerview3Adapter) {
+			((Recyclerview3Adapter) recyclerview3.getAdapter()).data = design;
+			recyclerview3.getAdapter().notifyDataSetChanged();
+		} else {
+			android.os.Parcelable scrollState = recyclerview3.getLayoutManager() != null ? recyclerview3.getLayoutManager().onSaveInstanceState() : null;
+			recyclerview3.setAdapter(new Recyclerview3Adapter(design));
+			if (scrollState != null && recyclerview3.getLayoutManager() != null) {
+				recyclerview3.getLayoutManager().onRestoreInstanceState(scrollState);
+			}
+		}
 	}
 
 	private Map<String, Object> getWidgetStyle(View v) {

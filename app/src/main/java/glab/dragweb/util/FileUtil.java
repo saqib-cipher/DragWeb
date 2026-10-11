@@ -107,29 +107,19 @@ public class FileUtil {
             return;
         }
 
-        if (file.isFile()) {
-            boolean deleted = file.delete();
-            if (!deleted) {
-                SafStorageUtil.deleteSafFile(path);
-            }
-            return;
-        }
-
-        File[] fileArr = listFiles(file);
-        if (fileArr != null) {
-            for (File subFile : fileArr) {
-                if (subFile.isDirectory()) {
+        if (file.isDirectory() || isDirectory(file)) {
+            File[] fileArr = listFiles(file);
+            if (fileArr != null) {
+                for (File subFile : fileArr) {
                     deleteFile(subFile.getAbsolutePath());
-                } else if (subFile.isFile()) {
-                    boolean d = subFile.delete();
-                    if (!d) {
-                        SafStorageUtil.deleteSafFile(subFile.getAbsolutePath());
-                    }
                 }
             }
         }
-        boolean dirDeleted = file.delete();
-        if (!dirDeleted) {
+
+        boolean deleted = file.delete();
+        if (!deleted) {
+            SafStorageUtil.deleteSafFile(path);
+        } else {
             SafStorageUtil.deleteSafFile(path);
         }
     }

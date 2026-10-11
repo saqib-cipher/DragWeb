@@ -70,21 +70,15 @@ public class PageManager {
         savePageList();
         // Delete layout files
         File layoutFile = getPageLayoutFile(pageName);
-        if (layoutFile.exists()) {
-            layoutFile.delete();
-        }
+        FileUtil.deleteFile(layoutFile.getAbsolutePath());
         File legacyFile = getLegacyPageFile(pageName);
-        if (legacyFile.exists()) {
-            legacyFile.delete();
-        }
+        FileUtil.deleteFile(legacyFile.getAbsolutePath());
         // Delete logic file from .dragweb
         File extLogicFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/" + pageName + "_logic.json");
-        if (extLogicFile.exists()) {
-            extLogicFile.delete();
-        }
+        FileUtil.deleteFile(extLogicFile.getAbsolutePath());
         // Remove page from fontimports.json selectedPages if present
         File fontFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/fontimports.json");
-        if (fontFile.exists()) {
+        if (FileUtil.exists(fontFile)) {
             try {
                 String body = FileUtil.readFile(fontFile.getAbsolutePath());
                 if (body != null && !body.isEmpty()) {
@@ -101,7 +95,7 @@ public class PageManager {
         // Delete generated HTML file from assets directory (left by export sync)
         File generatedHtml = new File(FileUtil.getDragWebDir(context),
             "projects/" + projectId + "/assets/" + pageName + ".html");
-        if (generatedHtml.exists()) generatedHtml.delete();
+        FileUtil.deleteFile(generatedHtml.getAbsolutePath());
     }
 
     public void renamePage(String oldName, String newName) {
@@ -147,7 +141,7 @@ public class PageManager {
 
         // Try external pages/pageName.json first
         File file = getPageLayoutFile(pageName);
-        if (file.exists()) {
+        if (FileUtil.exists(file)) {
             String json = FileUtil.readFile(file.getAbsolutePath());
             if (json != null && !json.isEmpty()) {
                 pageLayoutCache.put(pageName, json);
@@ -158,7 +152,7 @@ public class PageManager {
         // Fallback for "index" page layout to legacy layout.json or projectId.json (one-time migration)
         if ("index".equals(pageName)) {
             File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/layout.json");
-            if (layoutFile.exists()) {
+            if (FileUtil.exists(layoutFile)) {
                 String json = FileUtil.readFile(layoutFile.getAbsolutePath());
                 if (json != null && !json.isEmpty()) {
                     pageLayoutCache.put(pageName, json);
@@ -169,7 +163,7 @@ public class PageManager {
                 }
             }
             File projFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/" + projectId + ".json");
-            if (projFile.exists()) {
+            if (FileUtil.exists(projFile)) {
                 String json = FileUtil.readFile(projFile.getAbsolutePath());
                 if (json != null && !json.isEmpty()) {
                     pageLayoutCache.put(pageName, json);
@@ -179,7 +173,7 @@ public class PageManager {
                 }
             }
             File rootProjFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + ".json");
-            if (rootProjFile.exists()) {
+            if (FileUtil.exists(rootProjFile)) {
                 String json = FileUtil.readFile(rootProjFile.getAbsolutePath());
                 if (json != null && !json.isEmpty()) {
                     pageLayoutCache.put(pageName, json);
@@ -192,7 +186,7 @@ public class PageManager {
 
         // Try legacy projectId_pageName.json in projects dir
         File legacyFile = getLegacyPageFile(pageName);
-        if (legacyFile.exists()) {
+        if (FileUtil.exists(legacyFile)) {
             String json = FileUtil.readFile(legacyFile.getAbsolutePath());
             if (json != null && !json.isEmpty()) {
                 pageLayoutCache.put(pageName, json);
@@ -214,7 +208,7 @@ public class PageManager {
         // Save exclusively to pages/pageName.json
         File extFile = getPageLayoutFile(pageName);
         File extDir = extFile.getParentFile();
-        if (extDir != null && !extDir.exists()) extDir.mkdirs();
+        if (extDir != null && !FileUtil.exists(extDir)) FileUtil.makeDir(extDir.getAbsolutePath());
         FileUtil.writeFile(extFile.getAbsolutePath(), json);
     }
 
@@ -236,7 +230,7 @@ public class PageManager {
         String basePath = FileUtil.getDragWebDir(context).getAbsolutePath()
             + "/projects/" + projectId + "/pages";
         File pagesDir = new File(basePath);
-        if (!pagesDir.exists()) pagesDir.mkdirs();
+        if (!FileUtil.exists(pagesDir)) FileUtil.makeDir(pagesDir.getAbsolutePath());
         return new File(pagesDir, pageName + ".json");
     }
 
@@ -252,7 +246,7 @@ public class PageManager {
         String metaPath = FileUtil.getDragWebDir(context).getAbsolutePath()
             + "/projects/" + projectId + "/pages.json";
         File metaFile = new File(metaPath);
-        if (metaFile.exists()) {
+        if (FileUtil.exists(metaFile)) {
             try {
                 String json = FileUtil.readFile(metaPath);
                 List<String> loaded = new Gson().fromJson(json, new TypeToken<List<String>>(){}.getType());
@@ -272,7 +266,7 @@ public class PageManager {
         String pagesPath = FileUtil.getDragWebDir(context).getAbsolutePath()
             + "/projects/" + projectId + "/pages";
         File pagesDir = new File(pagesPath);
-        if (pagesDir.exists() && pagesDir.isDirectory()) {
+        if (FileUtil.exists(pagesDir) || FileUtil.isDirectory(pagesDir)) {
             File[] pageFiles = FileUtil.listFiles(pagesDir);
             if (pageFiles != null) {
                 for (File f : pageFiles) {

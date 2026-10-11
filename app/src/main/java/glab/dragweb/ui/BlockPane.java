@@ -325,18 +325,98 @@ public class BlockPane extends RelativeLayout {
         }
     }
 
+    /**
+     * Returns ONLY stacked blocks that are attached under the root execution tree.
+     * Blocks that are not stacked are excluded so they do not count as source or get saved.
+     */
     public ArrayList<BlockBean> getBlocks() {
-        ArrayList<BlockBean> arrayList = new ArrayList();
-        Block block = (Block) findViewWithTag(Integer.valueOf(this.root.nextBlock));
-        if (block != null) {
-            Iterator it = block.getAllChildren().iterator();
-            int index = 0;
-            while (it.hasNext()) {
-                BlockBean bean = ((Block) it.next()).getBean();
-                bean.stackIndex = index++;
-                arrayList.add(bean);
+        ArrayList<BlockBean> arrayList = new ArrayList<>();
+        java.util.HashSet<Integer> visitedBlockIds = new java.util.HashSet<>();
+        int index = 0;
+
+        // Collect only blocks connected in the root stack
+        if (this.root != null && this.root.nextBlock != -1) {
+            View rootChildView = findViewWithTag(Integer.valueOf(this.root.nextBlock));
+            if (rootChildView instanceof Block) {
+                Block block = (Block) rootChildView;
+                for (Block b : block.getAllChildren()) {
+                    if (b != null && b.getTag() instanceof Integer) {
+                        int bId = ((Integer) b.getTag()).intValue();
+                        if (visitedBlockIds.add(bId)) {
+                            BlockBean bean = b.getBean();
+                            bean.stackIndex = index++;
+                            bean.isConnectedToRoot = true;
+                            arrayList.add(bean);
+                        }
+                    }
+                }
             }
         }
+
+        return arrayList;
+    }
+
+    /**
+     * Returns all blocks currently present on canvas (both stacked and floating).
+     * Used by LogicLinter to inspect the workspace in real-time.
+     */
+    public ArrayList<BlockBean> getAllCanvasBlocks() {
+        ArrayList<BlockBean> arrayList = new ArrayList<>();
+        java.util.HashSet<Integer> visitedBlockIds = new java.util.HashSet<>();
+        int index = 0;
+
+        // 1. Collect all blocks connected in the root stack
+        if (this.root != null && this.root.nextBlock != -1) {
+            View rootChildView = findViewWithTag(Integer.valueOf(this.root.nextBlock));
+            if (rootChildView instanceof Block) {
+                Block block = (Block) rootChildView;
+                for (Block b : block.getAllChildren()) {
+                    if (b != null && b.getTag() instanceof Integer) {
+                        int bId = ((Integer) b.getTag()).intValue();
+                        if (visitedBlockIds.add(bId)) {
+                            BlockBean bean = b.getBean();
+                            bean.stackIndex = index++;
+                            bean.isConnectedToRoot = true;
+                            arrayList.add(bean);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Collect any remaining blocks on the canvas (unconnected stacks, floating blocks)
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            if (child instanceof Block && child != this.root) {
+                Block b = (Block) child;
+                if (b.getTag() instanceof Integer) {
+                    int bId = ((Integer) b.getTag()).intValue();
+                    if (!visitedBlockIds.contains(bId)) {
+                        if (b.parentBlock == null) {
+                            for (Block sub : b.getAllChildren()) {
+                                if (sub != null && sub.getTag() instanceof Integer) {
+                                    int subId = ((Integer) sub.getTag()).intValue();
+                                    if (visitedBlockIds.add(subId)) {
+                                        BlockBean bean = sub.getBean();
+                                        bean.stackIndex = index++;
+                                        bean.isConnectedToRoot = false;
+                                        arrayList.add(bean);
+                                    }
+                                }
+                            }
+                        } else {
+                            if (visitedBlockIds.add(bId)) {
+                                BlockBean bean = b.getBean();
+                                bean.stackIndex = index++;
+                                bean.isConnectedToRoot = false;
+                                arrayList.add(bean);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         return arrayList;
     }
 

@@ -30,9 +30,21 @@ import java.util.Map;
 
 public class WidgetBuilderEngine {
     private Context context;
+    private WidgetCanvasStyler styler;
 
     public WidgetBuilderEngine(Context context) {
         this.context = context;
+        this.styler = WidgetCanvasStyler.getInstance(context);
+    }
+
+    public void setThemeManager(ThemeManager tm) {
+        if (this.styler != null) {
+            this.styler.setThemeManager(tm);
+        }
+    }
+
+    public WidgetCanvasStyler getStyler() {
+        return this.styler;
     }
 
     private int dpToPx(float dp) {
@@ -173,126 +185,24 @@ public class WidgetBuilderEngine {
             tagData.put("function", new HashMap<String, Object>());
             view.setTag(tagData);
 
-            // Set default layout params
-            LinearLayout.LayoutParams defaultParams;
-            if ("hr".equals(tag)) {
-                defaultParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(2));
-                defaultParams.setMargins(0, dpToPx(12), 0, dpToPx(12));
-            } else if (isBlockTag(tag)) {
-                defaultParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
-                if (isLayoutTag(tag)) {
-                    defaultParams.setMargins(0, dpToPx(4), 0, dpToPx(4));
-                    view.setMinimumHeight(dpToPx(60));
-                } else {
-                    defaultParams.setMargins(0, dpToPx(2), 0, dpToPx(2));
-                }
-            } else {
-                defaultParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
-            }
-            view.setLayoutParams(defaultParams);
+            // Apply default initial styles & LayoutParams via styler
+            styler.applyProperties(view, tagData);
         }
 
         return view;
     }
 
-    private boolean isBlockTag(String tag) {
-        switch (tag) {
-            case "p":
-            case "h1":
-            case "h2":
-            case "h3":
-            case "h4":
-            case "h5":
-            case "h6":
-            case "div":
-            case "section":
-            case "nav":
-            case "header":
-            case "footer":
-            case "main":
-            case "article":
-            case "aside":
-            case "form":
-            case "ul":
-            case "ol":
-            case "li":
-            case "blockquote":
-            case "pre":
-            case "hr":
-            case "table":
-                return true;
-            default:
-                return false;
-        }
+    public boolean isBlockTag(String tag) {
+        return styler != null ? styler.isBlockTag(tag) : false;
+    }
+
+    public boolean isLayoutTag(String tag) {
+        return styler != null ? styler.isLayoutContainer(tag) : false;
     }
 
     public void applyPropertiesToView(View view, Map<String, Object> widgetMap) {
         if (view == null || widgetMap == null) return;
-
-        Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
-        if (function == null) return;
-
-        // Apply base attributes
-        if (view instanceof TextView) {
-            TextView tv = (TextView) view;
-            if (function.containsKey("text")) {
-                tv.setText(function.get("text").toString());
-            } else if ("i".equals(widgetMap.get("tag")) && function.containsKey("class")) {
-                tv.setText("[" + function.get("class").toString() + "]");
-            }
-        }
-
-        if (view instanceof ImageView) {
-            ImageView iv = (ImageView) view;
-            if (function.containsKey("src")) {
-                String src = function.get("src").toString();
-                if (src.startsWith("data:")) {
-                    try {
-                        String base64 = src.substring(src.indexOf(",") + 1);
-                        byte[] decoded = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
-                        android.graphics.Bitmap bmp = decodeSampledBitmapFromByteArray(decoded, 1024, 1024);
-                        if (bmp != null) {
-                            iv.setImageBitmap(bmp);
-                        } else {
-                            iv.setImageResource(R.drawable.photo);
-                        }
-                    } catch (Exception e) {
-                        iv.setImageResource(R.drawable.photo);
-                    }
-                } else {
-                    try {
-                        android.graphics.Bitmap bmp = decodeSampledBitmapFromFile(src, 1024, 1024);
-                        if (bmp != null) {
-                            iv.setImageBitmap(bmp);
-                        } else {
-                            iv.setImageResource(R.drawable.photo);
-                        }
-                    } catch (Exception e) {
-                        iv.setImageResource(R.drawable.photo);
-                    }
-                }
-            } else {
-                iv.setImageResource(R.drawable.photo);
-            }
-        }
-
-        if (view instanceof TextInputEditText) {
-            TextInputEditText input = (TextInputEditText) view;
-            if (function.containsKey("placeholder")) {
-                input.setHint(function.get("placeholder").toString());
-            }
-        }
-
-        // Apply styles
-        Map<String, Object> style = (Map<String, Object>) function.get("style");
-        if (style != null) {
-            applyStyles(view, style);
-        }
+        styler.applyProperties(view, widgetMap);
     }
 
     public ViewGroup.LayoutParams generateLayoutParams(View view) {
@@ -305,415 +215,24 @@ public class WidgetBuilderEngine {
         return params;
     }
 
-    private void applyStyles(View view, Map<String, Object> style) {
-        // Create a copy of style map with !important stripped from values to prevent Android view parse exceptions
-        Map<String, Object> cleanStyle = new HashMap<>();
-        for (Map.Entry<String, Object> entry : style.entrySet()) {
-            Object val = entry.getValue();
-            if (val != null) {
-                String valStr = val.toString().replaceAll("(?i)\\s*!\\s*important\\s*$", "").trim();
-                cleanStyle.put(entry.getKey(), valStr);
-            } else {
-                cleanStyle.put(entry.getKey(), null);
-            }
-        }
-        style = cleanStyle;
-
-        // Layout params
-        ViewGroup.LayoutParams params = view.getLayoutParams();
-        if (params == null) {
-            params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
-
-        if (style.containsKey("width")) {
-            String widthStr = style.get("width").toString();
-            if ("100%".equals(widthStr) || "match_parent".equals(widthStr)) {
-                params.width = ViewGroup.LayoutParams.MATCH_PARENT;
-            } else if ("auto".equals(widthStr) || "wrap_content".equals(widthStr)) {
-                params.width = ViewGroup.LayoutParams.WRAP_CONTENT;
-            } else {
-                params.width = parseDimension(widthStr);
-            }
-        }
-
-        if (style.containsKey("height")) {
-            String heightStr = style.get("height").toString();
-            if ("100%".equals(heightStr) || "match_parent".equals(heightStr)) {
-                params.height = ViewGroup.LayoutParams.MATCH_PARENT;
-            } else if ("auto".equals(heightStr) || "wrap_content".equals(heightStr)) {
-                params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-            } else {
-                params.height = parseDimension(heightStr);
-            }
-        }
-
-        if (params instanceof ViewGroup.MarginLayoutParams) {
-            ViewGroup.MarginLayoutParams marginParams = (ViewGroup.MarginLayoutParams) params;
-            if (style.containsKey("margin")) {
-                String marginStr = style.get("margin").toString().trim();
-                int[] margins = parseShorthandDimension(marginStr);
-                marginParams.setMargins(margins[3], margins[0], margins[1], margins[2]); // left, top, right, bottom
-            }
-        }
-
-        view.setLayoutParams(params);
-
-        // Build GradientDrawable for background with border and radius
-        GradientDrawable shape = new GradientDrawable();
-
-        // Extract widget tag
+    public void applyStyles(View view, Map<String, Object> style) {
+        if (view == null || style == null) return;
         String tag = "";
         if (view.getTag() instanceof Map) {
-            Map<?, ?> tagData = (Map<?, ?>) view.getTag();
-            if (tagData.containsKey("tag")) {
-                tag = tagData.get("tag").toString();
+            Map<?, ?> map = (Map<?, ?>) view.getTag();
+            if (map.containsKey("tag") && map.get("tag") != null) {
+                tag = map.get("tag").toString();
             }
         }
-
-        int defaultBgColor = Color.TRANSPARENT;
-        int defaultBorderWidth = 0;
-        int defaultBorderColor = Color.TRANSPARENT;
-        float defaultCornerRadius = 0;
-
-        boolean isLayoutContainer = "div".equalsIgnoreCase(tag) || "section".equalsIgnoreCase(tag) || "header".equalsIgnoreCase(tag)
-                || "footer".equalsIgnoreCase(tag) || "nav".equalsIgnoreCase(tag) || "main".equalsIgnoreCase(tag)
-                || "aside".equalsIgnoreCase(tag) || "form".equalsIgnoreCase(tag) || "article".equalsIgnoreCase(tag);
-
-        if ("button".equalsIgnoreCase(tag)) {
-            defaultBgColor = Color.parseColor("#EFEFEF");
-            defaultBorderWidth = dpToPx(1);
-            defaultBorderColor = Color.parseColor("#B0BEC5");
-            defaultCornerRadius = dpToPx(4);
-        } else if ("input".equalsIgnoreCase(tag) || "textarea".equalsIgnoreCase(tag)) {
-            defaultBgColor = Color.parseColor("#FFFFFF");
-            defaultBorderWidth = dpToPx(1);
-            defaultBorderColor = Color.parseColor("#B0BEC5");
-            defaultCornerRadius = dpToPx(4);
-        } else if (isLayoutContainer) {
-            defaultBorderWidth = dpToPx(1);
-            defaultBorderColor = Color.parseColor("#CCCCCC");
-        }
-
-        // Background color
-        int bgColor = defaultBgColor;
-        if (style.containsKey("backgroundColor")) {
-            try {
-                String bgStr = style.get("backgroundColor").toString();
-                if (!bgStr.startsWith("var(")) {
-                    bgColor = Color.parseColor(bgStr);
-                }
-            } catch (Exception e) {
-                // ignore invalid color
-            }
-        }
-        shape.setColor(bgColor);
-
-        // Border radius
-        float radius = defaultCornerRadius;
-        if (style.containsKey("borderRadius")) {
-            radius = parseDimension(style.get("borderRadius").toString());
-        }
-        shape.setCornerRadius(radius);
-
-        // Per-corner radius
-        if (style.containsKey("borderTopLeftRadius") || style.containsKey("borderTopRightRadius")
-            || style.containsKey("borderBottomLeftRadius") || style.containsKey("borderBottomRightRadius")) {
-            float tl = style.containsKey("borderTopLeftRadius") ? parseDimension(style.get("borderTopLeftRadius").toString()) : radius;
-            float tr = style.containsKey("borderTopRightRadius") ? parseDimension(style.get("borderTopRightRadius").toString()) : radius;
-            float br = style.containsKey("borderBottomRightRadius") ? parseDimension(style.get("borderBottomRightRadius").toString()) : radius;
-            float bl = style.containsKey("borderBottomLeftRadius") ? parseDimension(style.get("borderBottomLeftRadius").toString()) : radius;
-            shape.setCornerRadii(new float[]{tl, tl, tr, tr, br, br, bl, bl});
-        }
-
-        // Border width and color
-        int borderWidth = defaultBorderWidth;
-        int borderColor = defaultBorderColor;
-        if (style.containsKey("borderWidth")) {
-            borderWidth = parseDimension(style.get("borderWidth").toString());
-        }
-        if (style.containsKey("borderColor")) {
-            try {
-                String bc = style.get("borderColor").toString();
-                if (!bc.startsWith("var(")) {
-                    borderColor = Color.parseColor(bc);
-                }
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-
-        if (isLayoutContainer && !style.containsKey("border") && !style.containsKey("borderWidth")) {
-            shape.setStroke(borderWidth, borderColor, dpToPx(4), dpToPx(3));
-        } else {
-            shape.setStroke(borderWidth, borderColor);
-        }
-
-        view.setBackground(shape);
-
-        // Padding
-        if (style.containsKey("padding")) {
-            String paddingStr = style.get("padding").toString().trim();
-            int[] paddings = parseShorthandDimension(paddingStr);
-            view.setPadding(paddings[3], paddings[0], paddings[1], paddings[2]); // left, top, right, bottom
-        } else {
-            // Respect tag-specific default paddings when no custom padding is defined
-            if ("button".equals(tag)) {
-                view.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
-            } else if ("input".equals(tag)) {
-                view.setPadding(dpToPx(8), dpToPx(6), dpToPx(8), dpToPx(6));
-            } else if ("textarea".equals(tag)) {
-                view.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
-            } else {
-                int defaultPadding = dpToPx(8);
-                view.setPadding(defaultPadding, defaultPadding, defaultPadding, defaultPadding);
-            }
-        }
-
-        // Opacity
-        if (style.containsKey("opacity")) {
-            try {
-                float opacity = Float.parseFloat(style.get("opacity").toString());
-                view.setAlpha(opacity);
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-
-        // Elevation (shadow)
-        if (style.containsKey("elevation")) {
-            try {
-                float elevation = Float.parseFloat(style.get("elevation").toString());
-                view.setElevation(elevation);
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-
-        // Rotation
-        if (style.containsKey("transform")) {
-            String transform = style.get("transform").toString();
-            if (transform.contains("rotate(")) {
-                try {
-                    String deg = transform.replaceAll("[^0-9.-]", "");
-                    view.setRotation(Float.parseFloat(deg));
-                } catch (Exception e) {
-                    // ignore
-                }
-            }
-        }
-
-        // LinearLayout orientation for flex containers
-        if (view instanceof LinearLayout && style.containsKey("flexDirection")) {
-            String dir = style.get("flexDirection").toString();
-            if ("row".equals(dir) || "row-reverse".equals(dir)) {
-                ((LinearLayout) view).setOrientation(LinearLayout.HORIZONTAL);
-            } else {
-                ((LinearLayout) view).setOrientation(LinearLayout.VERTICAL);
-            }
-        }
-
-        // LinearLayout gravity for justify/align
-        if (view instanceof LinearLayout) {
-            int gravity = Gravity.NO_GRAVITY;
-            if (style.containsKey("justifyContent")) {
-                String jc = style.get("justifyContent").toString();
-                switch (jc) {
-                    case "center": gravity |= Gravity.CENTER; break;
-                    case "flex-end": gravity |= Gravity.END; break;
-                    case "space-between":
-                    case "space-around":
-                    case "space-evenly":
-                    case "flex-start":
-                    default: gravity |= Gravity.START; break;
-                }
-            }
-            if (style.containsKey("alignItems")) {
-                String ai = style.get("alignItems").toString();
-                switch (ai) {
-                    case "center": gravity |= Gravity.CENTER_VERTICAL; break;
-                    case "flex-end": gravity |= Gravity.BOTTOM; break;
-                    default: gravity |= Gravity.TOP; break;
-                }
-            }
-            if (gravity != Gravity.NO_GRAVITY) {
-                ((LinearLayout) view).setGravity(gravity);
-            }
-        }
-
-        // TextView specific styles
-        if (view instanceof TextView) {
-            TextView tv = (TextView) view;
-
-            if (style.containsKey("color")) {
-                try {
-                    String color = style.get("color").toString();
-                    if (!color.startsWith("var(")) {
-                        tv.setTextColor(Color.parseColor(color));
-                    } else {
-                        tv.setTextColor(Color.parseColor("#37474F"));
-                    }
-                } catch (Exception e) {
-                    tv.setTextColor(Color.parseColor("#37474F"));
-                }
-            } else {
-                tv.setTextColor(Color.parseColor("#37474F"));
-            }
-
-            if (style.containsKey("fontSize")) {
-                try {
-                    float size = parseDimension(style.get("fontSize").toString());
-                    if (size > 0 && size < dpToPx(200)) {
-                        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, size);
-                    } else {
-                        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-                    }
-                } catch (Exception e) {
-                    tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-                }
-            } else {
-                tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-            }
-
-            if (style.containsKey("fontWeight")) {
-                String weight = style.get("fontWeight").toString();
-                if ("bold".equals(weight) || "700".equals(weight) || "800".equals(weight) || "900".equals(weight)) {
-                    tv.setTypeface(null, android.graphics.Typeface.BOLD);
-                } else if ("italic".equals(weight)) {
-                    tv.setTypeface(null, android.graphics.Typeface.ITALIC);
-                } else {
-                    tv.setTypeface(null, android.graphics.Typeface.NORMAL);
-                }
-            }
-
-            if (style.containsKey("textAlign")) {
-                String align = style.get("textAlign").toString();
-                switch (align) {
-                    case "center": tv.setGravity(Gravity.CENTER); break;
-                    case "right": tv.setGravity(Gravity.END); break;
-                    case "justify":
-                    default: tv.setGravity(Gravity.START); break;
-                }
-            }
-
-            if (style.containsKey("textDecoration")) {
-                String decor = style.get("textDecoration").toString();
-                if ("underline".equals(decor)) {
-                    tv.setPaintFlags(tv.getPaintFlags() | android.graphics.Paint.UNDERLINE_TEXT_FLAG);
-                } else if ("line-through".equals(decor)) {
-                    tv.setPaintFlags(tv.getPaintFlags() | android.graphics.Paint.STRIKE_THRU_TEXT_FLAG);
-                }
-            }
-
-            if (style.containsKey("lineHeight")) {
-                try {
-                    float lineHeight = Float.parseFloat(style.get("lineHeight").toString());
-                    tv.setLineSpacing(0, lineHeight);
-                } catch (Exception e) {
-                    // ignore
-                }
-            }
-
-            if (style.containsKey("letterSpacing")) {
-                try {
-                    float spacing = parseDimension(style.get("letterSpacing").toString());
-                    tv.setLetterSpacing(spacing / tv.getTextSize());
-                } catch (Exception e) {
-                    // ignore
-                }
-            }
-        }
+        styler.applyStyles(view, tag, style);
     }
 
-    private boolean isLayoutTag(String tag) {
-        switch (tag) {
-            case "div": case "section": case "nav": case "header": case "footer":
-            case "main": case "article": case "aside": case "form":
-            case "ul": case "ol": case "li": case "a": case "table":
-                return true;
-            default:
-                return false;
-        }
+    public int parseDimension(String dimStr) {
+        return styler != null ? styler.parseDimension(dimStr, 0, 0) : 0;
     }
 
-    private int parseDimension(String dimStr) {
-        dimStr = dimStr.replaceAll("[^0-9.]", "");
-        try {
-            float val = Float.parseFloat(dimStr);
-            return dpToPx(val);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    private int[] parseShorthandDimension(String shStr) {
-        // Returns [top, right, bottom, left]
-        int[] result = new int[4];
-        if (shStr == null || shStr.trim().isEmpty()) {
-            return result;
-        }
-        String[] parts = shStr.trim().split("\\s+");
-        if (parts.length == 1) {
-            int val = parseDimension(parts[0]);
-            result[0] = val; // top
-            result[1] = val; // right
-            result[2] = val; // bottom
-            result[3] = val; // left
-        } else if (parts.length == 2) {
-            int valV = parseDimension(parts[0]); // top & bottom
-            int valH = parseDimension(parts[1]); // left & right
-            result[0] = valV;
-            result[1] = valH;
-            result[2] = valV;
-            result[3] = valH;
-        } else if (parts.length == 3) {
-            int top = parseDimension(parts[0]);
-            int lr = parseDimension(parts[1]);
-            int bottom = parseDimension(parts[2]);
-            result[0] = top;
-            result[1] = lr;
-            result[2] = bottom;
-            result[3] = lr;
-        } else if (parts.length >= 4) {
-            result[0] = parseDimension(parts[0]); // top
-            result[1] = parseDimension(parts[1]); // right
-            result[2] = parseDimension(parts[2]); // bottom
-            result[3] = parseDimension(parts[3]); // left
-        }
-        return result;
-    }
-
-    private static android.graphics.Bitmap decodeSampledBitmapFromFile(String path, int reqWidth, int reqHeight) {
-        android.graphics.BitmapFactory.Options options = new android.graphics.BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        android.graphics.BitmapFactory.decodeFile(path, options);
-        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-        options.inJustDecodeBounds = false;
-        return android.graphics.BitmapFactory.decodeFile(path, options);
-    }
-
-    private static android.graphics.Bitmap decodeSampledBitmapFromByteArray(byte[] data, int reqWidth, int reqHeight) {
-        android.graphics.BitmapFactory.Options options = new android.graphics.BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        android.graphics.BitmapFactory.decodeByteArray(data, 0, data.length, options);
-        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-        options.inJustDecodeBounds = false;
-        return android.graphics.BitmapFactory.decodeByteArray(data, 0, data.length, options);
-    }
-
-    private static int calculateInSampleSize(android.graphics.BitmapFactory.Options options, int reqWidth, int reqHeight) {
-        final int height = options.outHeight;
-        final int width = options.outWidth;
-        int inSampleSize = 1;
-        if (height > reqHeight || width > reqWidth) {
-            final int halfHeight = height / 2;
-            final int halfWidth = width / 2;
-            while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
-                inSampleSize *= 2;
-            }
-        }
-        return inSampleSize;
+    public int[] parseShorthandDimension(String shStr) {
+        return styler != null ? styler.parseShorthandDimensions(shStr, 0) : new int[4];
     }
 }
 

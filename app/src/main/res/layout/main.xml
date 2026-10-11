@@ -35,7 +35,7 @@
 					android:id="@+id/button4"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					style="?attr/materialIconButtonFilledStyle"
+					style="@style/Widget.Material3.Button.IconButton.Filled"
 					app:icon="@drawable/device_floppy" />
 
 				<com.google.android.material.progressindicator.CircularProgressIndicator
@@ -50,14 +50,14 @@
 				android:id="@+id/btnExport"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				style="?attr/materialIconButtonFilledStyle"
+				style="@style/Widget.Material3.Button.IconButton.Filled"
 				app:icon="@drawable/file_export" />
 
 			<Button
 				android:id="@+id/btnTheme"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				style="?attr/materialIconButtonStyle"
+				style="@style/Widget.Material3.Button.IconButton"
 				app:icon="@drawable/menu_2"
 				app:iconTint="?attr/colorOnSurface" />
 

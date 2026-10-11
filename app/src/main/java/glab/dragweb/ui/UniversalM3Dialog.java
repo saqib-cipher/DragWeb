@@ -32,7 +32,7 @@ import android.widget.TextView;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.ArrayList;
@@ -49,6 +49,15 @@ public final class UniversalM3Dialog {
     public interface OnText { void onText(String value); }
     public interface OnUnit { void onUnit(String value); }
     public interface OnTextValidate { String validate(String value); }
+    public interface OnNeutralAction { void onNeutral(String currentText); }
+    private String neutralText = null;
+    private OnNeutralAction onNeutralAction = null;
+
+    public UniversalM3Dialog setNeutralButton(String text, OnNeutralAction action) {
+        this.neutralText = text;
+        this.onNeutralAction = action;
+        return this;
+    }
 
     private final Context context;
     private String title = "";
@@ -171,8 +180,19 @@ public final class UniversalM3Dialog {
         }
         
         // Do not force numeric IME; let it be a text input so anything can be entered
-        final MaterialAutoCompleteTextView edit = createEditor(til, numericPart, null);
+        final TextInputEditText edit = createEditor(til, numericPart);
         til.addView(edit);
+
+        setupUnitSwitcherEndIcon(til, edit, unitList, selectedUnit, () -> {
+            til.setSuffixText(selectedUnit[0]);
+            for (int i = 0; i < unitGroup.getChildCount(); i++) {
+                Chip chip = (Chip) unitGroup.getChildAt(i);
+                if (chip.getText().toString().equalsIgnoreCase(selectedUnit[0])) {
+                    chip.setChecked(true);
+                    break;
+                }
+            }
+        });
 
         final android.widget.HorizontalScrollView finalUnitScroll = unitScroll;
 
@@ -296,7 +316,7 @@ public final class UniversalM3Dialog {
 
         // 3. Free-form text input
         TextInputLayout til = createTextInputLayout(hint != null ? hint : "class1 class2");
-        final MaterialAutoCompleteTextView edit = createEditor(til, joinSpace(selected), suggestions);
+        final TextInputEditText edit = createEditor(til, joinSpace(selected));
         til.addView(edit);
         LinearLayout.LayoutParams editLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -417,7 +437,7 @@ public final class UniversalM3Dialog {
 
         // 1. Custom Input
         TextInputLayout til = createTextInputLayout(inputHint);
-        final MaterialAutoCompleteTextView edit = createEditor(til, currentValue, presets);
+        final TextInputEditText edit = createEditor(til, currentValue);
         til.addView(edit);
         
         // 2. Chips
@@ -489,6 +509,13 @@ public final class UniversalM3Dialog {
                 if (cb != null) cb.onText(edit.getText().toString().trim());
             })
             .setNegativeButton("Cancel", null);
+        if (neutralText != null && !neutralText.isEmpty()) {
+            builder.setNeutralButton(neutralText, (d, w) -> {
+                if (onNeutralAction != null) {
+                    onNeutralAction.onNeutral(edit.getText() != null ? edit.getText().toString() : "");
+                }
+            });
+        }
         showAndFocusKeyboard(builder, edit);
     }
 
@@ -509,7 +536,7 @@ public final class UniversalM3Dialog {
 
         // 1. Search/Type Input
         TextInputLayout til = createTextInputLayout("Type or select icon name");
-        final MaterialAutoCompleteTextView edit = createEditor(til, "", null);
+        final TextInputEditText edit = createEditor(til, "");
         til.addView(edit);
         root.addView(til);
 
@@ -1023,7 +1050,7 @@ public final class UniversalM3Dialog {
 
         // 3. Input
         TextInputLayout til = createTextInputLayout("Name");
-        final MaterialAutoCompleteTextView edit = createEditor(til, "", null);
+        final TextInputEditText edit = createEditor(til, "");
         til.addView(edit);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = dp(4);
@@ -1044,7 +1071,6 @@ public final class UniversalM3Dialog {
                     if (s.equalsIgnoreCase(current)) chip.setChecked(true);
                     suggestionChips.addView(chip);
                 }
-                edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, active));
                 isInternal[0] = false;
             }
         };
@@ -1123,7 +1149,7 @@ public final class UniversalM3Dialog {
         }
 
         TextInputLayout til = createTextInputLayout("Element ID");
-        final MaterialAutoCompleteTextView edit = createEditor(til, "", null);
+        final TextInputEditText edit = createEditor(til, "");
         til.addView(edit);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = dp(4);
@@ -1157,7 +1183,6 @@ public final class UniversalM3Dialog {
                     }
                 }
             }
-            edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, cleanList));
             isInternal[0] = false;
         }
 
@@ -1222,7 +1247,7 @@ public final class UniversalM3Dialog {
         }
 
         TextInputLayout til = createTextInputLayout("Class Name");
-        final MaterialAutoCompleteTextView edit = createEditor(til, "", null);
+        final TextInputEditText edit = createEditor(til, "");
         til.addView(edit);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = dp(4);
@@ -1246,7 +1271,6 @@ public final class UniversalM3Dialog {
                     suggestionChips.addView(chip);
                 }
             }
-            edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, cleanList));
             isInternal[0] = false;
         }
 
@@ -1302,43 +1326,273 @@ public final class UniversalM3Dialog {
         root.setPadding(pad, dp(12), pad, dp(20));
         scroll.addView(root);
 
-        final MaterialAutoCompleteTextView[] edits = new MaterialAutoCompleteTextView[4];
-
-        // 1. Unit Chips
+        final List<String> spacingUnits = new ArrayList<>();
         if (units != null && units.length > 0) {
-            android.widget.HorizontalScrollView cs = createChipScroll();
-            ChipGroup cg = createChipGroup();
-            for (String u : units) {
-                Chip chip = createPresetChip(u);
-                chip.setOnClickListener(v -> {
-                    for (MaterialAutoCompleteTextView e : edits) {
-                        String t = e.getText().toString().replaceAll("[^0-9.-]", "");
-                        if (t.isEmpty()) t = "0";
-                        e.setText(t + u);
-                    }
-                });
-                cg.addView(chip);
-            }
-            cs.addView(cg);
-            root.addView(cs);
+            spacingUnits.addAll(Arrays.asList(units));
+        } else {
+            spacingUnits.addAll(Arrays.asList("px", "%", "rem", "em", "auto"));
         }
 
-        String[] parts = (initial == null ? "" : initial).split("\\s+");
-        String[] labels = {"Top", "Right", "Bottom", "Left"};
-        for (int k = 0; k < 4; k++) {
-            TextInputLayout til = createTextInputLayout(labels[k]);
-            String val = parts.length > k ? parts[k] : (parts.length > 0 ? parts[0] : "0px");
-            edits[k] = createEditor(til, val, units != null ? Arrays.asList(units) : null);
-            til.addView(edits[k]);
-            root.addView(til, new LinearLayout.LayoutParams(-1, -2) {{ bottomMargin = dp(12); }});
+        String initialVal = initial != null ? initial.trim() : "";
+        String[] parts = initialVal.isEmpty() ? new String[0] : initialVal.split("\\s+");
+
+        int initialPreset = 0; // 0 = All (default), 1 = Top|Bottom & Left|Right, 2 = Top, Left|Right, Bottom, 3 = Individuals
+        if (parts.length == 2) {
+            initialPreset = 1;
+        } else if (parts.length == 3) {
+            initialPreset = 2;
+        } else if (parts.length >= 4) {
+            initialPreset = 3;
         }
+
+        final String[] values = new String[4]; // [top, right, bottom, left]
+        if (parts.length == 0) {
+            values[0] = values[1] = values[2] = values[3] = "0px";
+        } else if (parts.length == 1) {
+            values[0] = values[1] = values[2] = values[3] = parts[0];
+        } else if (parts.length == 2) {
+            values[0] = values[2] = parts[0]; // vertical
+            values[1] = values[3] = parts[1]; // horizontal
+        } else if (parts.length == 3) {
+            values[0] = parts[0]; // top
+            values[1] = values[3] = parts[1]; // horizontal
+            values[2] = parts[2]; // bottom
+        } else {
+            values[0] = parts[0];
+            values[1] = parts[1];
+            values[2] = parts[2];
+            values[3] = parts[3];
+        }
+
+        // 1. Preset Selector Header
+        android.widget.TextView labelPresets = new android.widget.TextView(context);
+        labelPresets.setText("Layout Preset");
+        labelPresets.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        labelPresets.setPadding(0, 0, 0, dp(6));
+        root.addView(labelPresets);
+
+        android.widget.HorizontalScrollView presetScroll = createChipScroll();
+        final ChipGroup presetGroup = createChipGroup();
+        presetGroup.setSingleSelection(true);
+        presetGroup.setSelectionRequired(true);
+
+        final Chip chipAll = createPresetChip("All (Default)");
+        final Chip chip2 = createPresetChip("Top|Bottom & Left|Right");
+        final Chip chip3 = createPresetChip("Top, Left|Right, Bottom");
+        final Chip chip4 = createPresetChip("Individuals");
+
+        presetGroup.addView(chipAll);
+        presetGroup.addView(chip2);
+        presetGroup.addView(chip3);
+        presetGroup.addView(chip4);
+
+        if (initialPreset == 0) chipAll.setChecked(true);
+        else if (initialPreset == 1) chip2.setChecked(true);
+        else if (initialPreset == 2) chip3.setChecked(true);
+        else if (initialPreset == 3) chip4.setChecked(true);
+
+        presetScroll.addView(presetGroup);
+        root.addView(presetScroll);
+
+        // 2. Unit Chips Row
+        android.widget.TextView labelUnits = new android.widget.TextView(context);
+        labelUnits.setText("Apply Unit");
+        labelUnits.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        labelUnits.setPadding(0, dp(10), 0, dp(6));
+        root.addView(labelUnits);
+
+        android.widget.HorizontalScrollView unitScroll = createChipScroll();
+        final ChipGroup unitGroup = createChipGroup();
+        unitGroup.setSingleSelection(false);
+        final List<TextInputEditText> currentFieldEdits = new ArrayList<>();
+
+        for (final String u : spacingUnits) {
+            Chip chip = createPresetChip(u);
+            chip.setCheckable(false);
+            chip.setOnClickListener(v -> {
+                for (TextInputEditText e : currentFieldEdits) {
+                    String raw = e.getText() != null ? e.getText().toString().trim() : "";
+                    String num = raw.replaceAll("[^0-9.-]", "");
+                    if ("auto".equalsIgnoreCase(u)) {
+                        e.setText("auto");
+                    } else if ("auto".equalsIgnoreCase(raw)) {
+                        e.setText((num.isEmpty() ? "0" : num) + u);
+                    } else if (!num.isEmpty()) {
+                        e.setText(num + u);
+                    } else {
+                        e.setText("0" + u);
+                    }
+                    if (e.getText() != null) {
+                        e.setSelection(e.getText().length());
+                    }
+                }
+            });
+            unitGroup.addView(chip);
+        }
+        unitScroll.addView(unitGroup);
+        root.addView(unitScroll);
+
+        // 3. Dynamic Fields Container
+        final LinearLayout fieldsContainer = new LinearLayout(context);
+        fieldsContainer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams fclp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        fclp.topMargin = dp(14);
+        root.addView(fieldsContainer, fclp);
+
+        final int[] currentPresetHolder = new int[]{ -1 };
+
+        final Runnable renderFieldsRunnable = new Runnable() {
+            @Override
+            public void run() {
+                int targetPreset = 0;
+                int checkedId = presetGroup.getCheckedChipId();
+                if (checkedId == chip2.getId()) targetPreset = 1;
+                else if (checkedId == chip3.getId()) targetPreset = 2;
+                else if (checkedId == chip4.getId()) targetPreset = 3;
+
+                // Save current edits into values cache before switching
+                int prev = currentPresetHolder[0];
+                if (prev == 0 && currentFieldEdits.size() == 1) {
+                    String v = currentFieldEdits.get(0).getText().toString().trim();
+                    if (!v.isEmpty()) values[0] = values[1] = values[2] = values[3] = v;
+                } else if (prev == 1 && currentFieldEdits.size() == 2) {
+                    String vVert = currentFieldEdits.get(0).getText().toString().trim();
+                    String vHoriz = currentFieldEdits.get(1).getText().toString().trim();
+                    if (!vVert.isEmpty()) { values[0] = vVert; values[2] = vVert; }
+                    if (!vHoriz.isEmpty()) { values[1] = vHoriz; values[3] = vHoriz; }
+                } else if (prev == 2 && currentFieldEdits.size() == 3) {
+                    String vTop = currentFieldEdits.get(0).getText().toString().trim();
+                    String vHoriz = currentFieldEdits.get(1).getText().toString().trim();
+                    String vBot = currentFieldEdits.get(2).getText().toString().trim();
+                    if (!vTop.isEmpty()) values[0] = vTop;
+                    if (!vHoriz.isEmpty()) { values[1] = vHoriz; values[3] = vHoriz; }
+                    if (!vBot.isEmpty()) values[2] = vBot;
+                } else if (prev == 3 && currentFieldEdits.size() == 4) {
+                    String v0 = currentFieldEdits.get(0).getText().toString().trim();
+                    String v1 = currentFieldEdits.get(1).getText().toString().trim();
+                    String v2 = currentFieldEdits.get(2).getText().toString().trim();
+                    String v3 = currentFieldEdits.get(3).getText().toString().trim();
+                    if (!v0.isEmpty()) values[0] = v0;
+                    if (!v1.isEmpty()) values[1] = v1;
+                    if (!v2.isEmpty()) values[2] = v2;
+                    if (!v3.isEmpty()) values[3] = v3;
+                }
+
+                currentPresetHolder[0] = targetPreset;
+                fieldsContainer.removeAllViews();
+                currentFieldEdits.clear();
+
+                if (targetPreset == 0) {
+                    addSpacingField(fieldsContainer, "All Sides", values[0], spacingUnits, currentFieldEdits);
+                } else if (targetPreset == 1) {
+                    addSpacingField(fieldsContainer, "Top & Bottom (Vertical)", values[0], spacingUnits, currentFieldEdits);
+                    addSpacingField(fieldsContainer, "Left & Right (Horizontal)", values[1], spacingUnits, currentFieldEdits);
+                } else if (targetPreset == 2) {
+                    addSpacingField(fieldsContainer, "Top", values[0], spacingUnits, currentFieldEdits);
+                    addSpacingField(fieldsContainer, "Left & Right (Horizontal)", values[1], spacingUnits, currentFieldEdits);
+                    addSpacingField(fieldsContainer, "Bottom", values[2], spacingUnits, currentFieldEdits);
+                } else {
+                    addSpacingField(fieldsContainer, "Top", values[0], spacingUnits, currentFieldEdits);
+                    addSpacingField(fieldsContainer, "Right", values[1], spacingUnits, currentFieldEdits);
+                    addSpacingField(fieldsContainer, "Bottom", values[2], spacingUnits, currentFieldEdits);
+                    addSpacingField(fieldsContainer, "Left", values[3], spacingUnits, currentFieldEdits);
+                }
+            }
+        };
+
+        renderFieldsRunnable.run();
+
+        presetGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.isEmpty()) return;
+            renderFieldsRunnable.run();
+        });
 
         MaterialAlertDialogBuilder builder = createBuilder()
-            .setTitle(title).setView(scroll)
+            .setTitle(title != null && !title.isEmpty() ? title : (prop != null ? Character.toUpperCase(prop.charAt(0)) + prop.substring(1) : "Spacing"))
+            .setView(scroll)
             .setPositiveButton("Done", (d, w) -> {
-                if (cb != null) cb.onText(edits[0].getText().toString().trim() + " " + edits[1].getText().toString().trim() + " " + edits[2].getText().toString().trim() + " " + edits[3].getText().toString().trim());
-            }).setNegativeButton("Cancel", null);
-        showAndFocusKeyboard(builder, edits[0]);
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < currentFieldEdits.size(); i++) {
+                    String val = currentFieldEdits.get(i).getText() != null ? currentFieldEdits.get(i).getText().toString().trim() : "";
+                    if (val.isEmpty()) val = "0px";
+                    if (i > 0) sb.append(" ");
+                    sb.append(val);
+                }
+                if (cb != null) cb.onText(sb.toString().trim());
+            })
+            .setNegativeButton("Cancel", null);
+
+        showAndFocusKeyboard(builder, currentFieldEdits.isEmpty() ? null : currentFieldEdits.get(0));
+    }
+
+    private void addSpacingField(ViewGroup container, String hint, String val, List<String> spacingUnits, List<TextInputEditText> editsHolder) {
+        TextInputLayout til = createTextInputLayout(hint);
+        TextInputEditText edit = createEditor(til, val);
+        til.addView(edit);
+        setupUnitSwitcherEndIcon(til, edit, spacingUnits, null, null);
+        editsHolder.add(edit);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = dp(10);
+        container.addView(til, lp);
+    }
+
+    private void setupUnitSwitcherEndIcon(final TextInputLayout til, final TextInputEditText edit, final List<String> unitList, final String[] selectedUnitHolder, final Runnable onUnitSwitched) {
+        if (unitList == null || unitList.isEmpty()) return;
+        til.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);
+        til.setEndIconDrawable(R.drawable.ic_unit_switch);
+        til.setEndIconContentDescription("Switch unit");
+        til.setEndIconOnClickListener(v -> {
+            String current = (selectedUnitHolder != null && selectedUnitHolder.length > 0 && selectedUnitHolder[0] != null && !selectedUnitHolder[0].isEmpty())
+                ? selectedUnitHolder[0]
+                : extractUnit(edit.getText() != null ? edit.getText().toString() : "", unitList);
+
+            int idx = -1;
+            for (int i = 0; i < unitList.size(); i++) {
+                if (unitList.get(i).equalsIgnoreCase(current)) {
+                    idx = i;
+                    break;
+                }
+            }
+            int nextIdx = (idx + 1) % unitList.size();
+            String nextUnit = unitList.get(nextIdx);
+
+            if (selectedUnitHolder != null && selectedUnitHolder.length > 0) {
+                selectedUnitHolder[0] = nextUnit;
+            }
+
+            if (selectedUnitHolder != null || (til.getSuffixText() != null && til.getSuffixText().length() > 0)) {
+                til.setSuffixText(nextUnit);
+            } else {
+                String raw = edit.getText() != null ? edit.getText().toString().trim() : "";
+                String num = raw.replaceAll("[^0-9.-]", "");
+                if ("auto".equalsIgnoreCase(nextUnit)) {
+                    edit.setText("auto");
+                } else if ("auto".equalsIgnoreCase(raw)) {
+                    edit.setText((num.isEmpty() ? "0" : num) + nextUnit);
+                } else if (!num.isEmpty()) {
+                    edit.setText(num + nextUnit);
+                } else {
+                    edit.setText("0" + nextUnit);
+                }
+                if (edit.getText() != null) {
+                    edit.setSelection(edit.getText().length());
+                }
+            }
+
+            if (onUnitSwitched != null) {
+                onUnitSwitched.run();
+            }
+        });
+    }
+
+    private String extractUnit(String text, List<String> unitList) {
+        if (text == null || text.trim().isEmpty() || unitList == null || unitList.isEmpty()) return "px";
+        String t = text.trim().toLowerCase();
+        if (t.equals("auto")) return "auto";
+        for (String u : unitList) {
+            if (t.endsWith(u.toLowerCase())) return u;
+        }
+        return unitList.get(0);
     }
 
     private void showAndFocusKeyboard(MaterialAlertDialogBuilder builder, final View inputView) {
@@ -1410,12 +1664,17 @@ public final class UniversalM3Dialog {
         return til;
     }
 
-    private MaterialAutoCompleteTextView createEditor(TextInputLayout til, String value, List<String> presets) {
-        MaterialAutoCompleteTextView edit = new MaterialAutoCompleteTextView(til.getContext());
+    private TextInputEditText createEditor(TextInputLayout til, String value) {
+        return createEditor(til, value, null);
+    }
+
+    private TextInputEditText createEditor(TextInputLayout til, String value, List<String> presets) {
+        TextInputEditText edit = new TextInputEditText(til.getContext());
         if (multiline) {
             edit.setSingleLine(false);
             edit.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-            edit.setMinLines(8);
+            edit.setMinLines(10);
+            edit.setTypeface(android.graphics.Typeface.MONOSPACE);
             edit.setMaxLines(15);
             edit.setGravity(Gravity.TOP | Gravity.START);
         } else {
@@ -1425,12 +1684,10 @@ public final class UniversalM3Dialog {
             }
         }
         edit.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        edit.setText(value);
-        edit.setThreshold(1);
+        if (value != null) edit.setText(value);
         edit.setMinimumHeight(dp(multiline ? 160 : 56));
         int hp = dp(16), vp = dp(12);
         edit.setPadding(hp, vp, hp, vp);
-        if (presets != null) edit.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_1, presets));
         return edit;
     }
 

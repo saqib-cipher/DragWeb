@@ -47,7 +47,10 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             app:menu="@menu/events_nav_rail_menu"
+            app:menuGravity="top"
             app:headerLayout="@null"
+            android:paddingTop="0dp"
+            app:paddingTopSystemWindowInsets="false"
             android:background="?attr/colorSurfaceContainerLow"/>
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_events"
