@@ -143,7 +143,7 @@ public class PageManager {
         File layoutsFile = getLayoutsPageFile(pageName);
         if (FileUtil.exists(layoutsFile)) {
             String json = FileUtil.readFile(layoutsFile.getAbsolutePath());
-            if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
+            if (json != null && !json.trim().isEmpty()) {
                 pageLayoutCache.put(pageName, json);
                 FileUtil.writeFile(getPageLayoutFile(pageName).getAbsolutePath(), json);
                 return json;
@@ -154,7 +154,7 @@ public class PageManager {
         File file = getPageLayoutFile(pageName);
         if (FileUtil.exists(file)) {
             String json = FileUtil.readFile(file.getAbsolutePath());
-            if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
+            if (json != null && !json.trim().isEmpty()) {
                 pageLayoutCache.put(pageName, json);
                 FileUtil.writeFile(layoutsFile.getAbsolutePath(), json);
                 return json;

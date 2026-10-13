@@ -9,6 +9,8 @@
   "ImageSrc": { "icon": "photo", "cssKey": "src", "category": "common" },
   "PickIcon": { "icon": "photo", "cssKey": "class", "category": "common" },
   "ListItems": { "icon": "ic_list_view", "cssKey": "items", "category": "common" },
+  "ListType": { "icon": "ic_list_view", "cssKey": "type", "category": "common" },
+  "StylePreset": { "icon": "palette", "cssKey": "preset", "category": "common" },
   "Background": { "icon": "background", "cssKey": "backgroundColor", "category": "common" },
   "Color": { "icon": "text_color", "cssKey": "color", "category": "common" },
   "Opacity": { "icon": "droplet", "cssKey": "opacity", "category": "common" },

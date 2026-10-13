@@ -8,7 +8,8 @@
       "text": "Hello, world!",
       "style": {
         "fontSize": "16px",
-        "color": "#333333"
+        "color": "#333333",
+        "lineHeight": "1.5"
       }
     }
   },
@@ -22,7 +23,9 @@
       "style": {
         "fontSize": "32px",
         "fontWeight": "bold",
-        "textAlign": "center"
+        "textAlign": "center",
+        "color": "#0F172A",
+        "margin": "16px 0"
       }
     }
   },
@@ -35,7 +38,9 @@
       "text": "Section Title",
       "style": {
         "fontSize": "24px",
-        "fontWeight": "bold"
+        "fontWeight": "bold",
+        "color": "#1E293B",
+        "margin": "12px 0"
       }
     }
   },
@@ -48,7 +53,9 @@
       "text": "Sub Section",
       "style": {
         "fontSize": "20px",
-        "fontWeight": "bold"
+        "fontWeight": "600",
+        "color": "#334155",
+        "margin": "8px 0"
       }
     }
   },
@@ -60,13 +67,69 @@
     "function": {
       "text": "Click Me",
       "style": {
-        "padding": "10px 20px",
-        "backgroundColor": "#FFBB33",
+        "padding": "10px 22px",
+        "backgroundColor": "#6366F1",
+        "color": "#FFFFFF",
         "border": "none",
-        "borderRadius": "5px",
-        "fontSize": "16px",
-        "cursor": "pointer"
-      }
+        "borderRadius": "8px",
+        "fontSize": "15px",
+        "fontWeight": "600",
+        "cursor": "pointer",
+        "boxShadow": "0 2px 8px rgba(99, 102, 241, 0.25)"
+      },
+      "stylePresets": [
+        {
+          "name": "Primary Indigo Glow",
+          "style": {
+            "padding": "12px 24px",
+            "backgroundColor": "#6366F1",
+            "color": "#FFFFFF",
+            "borderRadius": "8px",
+            "border": "none",
+            "fontWeight": "600",
+            "boxShadow": "0 4px 14px rgba(99, 102, 241, 0.35)",
+            "cursor": "pointer"
+          }
+        },
+        {
+          "name": "Gradient Vibrant",
+          "style": {
+            "padding": "12px 26px",
+            "backgroundImage": "linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%)",
+            "color": "#FFFFFF",
+            "borderRadius": "25px",
+            "border": "none",
+            "fontWeight": "600",
+            "boxShadow": "0 6px 20px rgba(236, 72, 153, 0.35)",
+            "cursor": "pointer"
+          }
+        },
+        {
+          "name": "Dark Minimalist",
+          "style": {
+            "padding": "10px 22px",
+            "backgroundColor": "#0F172A",
+            "color": "#F8FAFC",
+            "borderRadius": "6px",
+            "border": "1px solid #334155",
+            "fontWeight": "500",
+            "cursor": "pointer"
+          }
+        },
+        {
+          "name": "Glass Outline",
+          "style": {
+            "padding": "11px 22px",
+            "backgroundColor": "rgba(255, 255, 255, 0.1)",
+            "backdropFilter": "blur(8px)",
+            "color": "#1E293B",
+            "border": "1.5px solid #6366F1",
+            "borderRadius": "10px",
+            "fontWeight": "600",
+            "cursor": "pointer"
+          }
+        }
+      ]
     }
   },
   {
@@ -75,10 +138,12 @@
     "icon": "photo",
     "category": "basic",
     "function": {
-      "src": "https://via.placeholder.com/300x200",
+      "src": "https://via.placeholder.com/600x400",
       "style": {
         "width": "100%",
-        "height": "auto"
+        "height": "auto",
+        "borderRadius": "8px",
+        "objectFit": "cover"
       }
     }
   },
@@ -91,9 +156,10 @@
       "text": "Visit Link",
       "href": "https://example.com",
       "style": {
-        "color": "#2196F3",
+        "color": "#6366F1",
         "textDecoration": "none",
-        "fontSize": "16px"
+        "fontSize": "15px",
+        "fontWeight": "500"
       }
     }
   },
@@ -106,8 +172,88 @@
       "class": "ti ti-pointer-2",
       "style": {
         "fontSize": "24px",
-        "color": "#333333",
+        "color": "#6366F1",
         "display": "inline-block"
+      }
+    }
+  },
+  {
+    "name": "List",
+    "tag": "ul",
+    "icon": "ic_list_view",
+    "category": "basic",
+    "function": {
+      "type": "ul",
+      "items": [
+        "Interactive Drag & Drop Editor",
+        "Material 3 Expressive UI Design",
+        "Full Web Preview & Export",
+        "Advanced Logic Block Palette"
+      ],
+      "style": {
+        "paddingLeft": "24px",
+        "margin": "10px 0",
+        "display": "flex",
+        "flexDirection": "column",
+        "gap": "8px",
+        "color": "#334155",
+        "fontSize": "15px"
+      },
+      "script": "function addListItem(listId, text) {\n  const list = document.getElementById(listId);\n  if (!list) return;\n  const li = document.createElement('li');\n  li.textContent = text;\n  list.appendChild(li);\n}\nfunction removeListItem(listId, index) {\n  const list = document.getElementById(listId);\n  if (!list || !list.children[index]) return;\n  list.removeChild(list.children[index]);\n}\nfunction clearList(listId) {\n  const list = document.getElementById(listId);\n  if (list) list.innerHTML = '';\n}",
+      "stylePresets": [
+        {
+          "name": "Bullet Minimal",
+          "style": {
+            "listStyleType": "disc",
+            "paddingLeft": "24px",
+            "margin": "8px 0",
+            "color": "#334155",
+            "fontSize": "15px"
+          }
+        },
+        {
+          "name": "Numbered Cards (OL)",
+          "style": {
+            "listStyleType": "decimal",
+            "paddingLeft": "28px",
+            "margin": "10px 0",
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "8px",
+            "fontSize": "15px",
+            "fontWeight": "500",
+            "color": "#1E293B"
+          }
+        },
+        {
+          "name": "Checklist Modern",
+          "style": {
+            "listStyleType": "none",
+            "paddingLeft": "0",
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "10px",
+            "fontSize": "15px",
+            "color": "#0F172A"
+          }
+        },
+        {
+          "name": "Badge Chips (Horizontal)",
+          "style": {
+            "listStyleType": "none",
+            "display": "flex",
+            "flexDirection": "row",
+            "flexWrap": "wrap",
+            "gap": "8px",
+            "paddingLeft": "0",
+            "margin": "8px 0"
+          }
+        }
+      ],
+      "customProperties": {
+        "type": { "type": "dropdown", "options": ["ul", "ol"], "default": "ul" },
+        "items": { "type": "setupList", "dialog": "dialog_setup_list" },
+        "preset": { "type": "presetSelector" }
       }
     }
   },
@@ -118,13 +264,16 @@
     "category": "form",
     "function": {
       "type": "text",
-      "placeholder": "Enter text",
+      "placeholder": "Enter text...",
       "style": {
         "width": "100%",
-        "padding": "10px",
-        "border": "1px solid #ccc",
-        "borderRadius": "4px",
-        "fontSize": "14px"
+        "padding": "12px 14px",
+        "border": "1.5px solid #CBD5E1",
+        "borderRadius": "8px",
+        "fontSize": "15px",
+        "color": "#1E293B",
+        "backgroundColor": "#FFFFFF",
+        "outline": "none"
       }
     }
   },
@@ -138,11 +287,14 @@
       "style": {
         "width": "100%",
         "height": "120px",
-        "padding": "10px",
-        "border": "1px solid #ccc",
-        "borderRadius": "4px",
-        "fontSize": "14px",
-        "resize": "vertical"
+        "padding": "12px 14px",
+        "border": "1.5px solid #CBD5E1",
+        "borderRadius": "8px",
+        "fontSize": "15px",
+        "color": "#1E293B",
+        "backgroundColor": "#FFFFFF",
+        "resize": "vertical",
+        "outline": "none"
       }
     }
   },
@@ -152,11 +304,78 @@
     "icon": "pencil_code",
     "category": "form",
     "function": {
+      "action": "#",
+      "method": "POST",
       "style": {
         "display": "flex",
         "flexDirection": "column",
-        "gap": "12px",
-        "padding": "16px"
+        "gap": "16px",
+        "padding": "28px",
+        "backgroundColor": "#FFFFFF",
+        "borderRadius": "16px",
+        "boxShadow": "0 6px 20px rgba(0, 0, 0, 0.06)",
+        "border": "1px solid #E2E8F0"
+      },
+      "script": "function submitForm(formId) {\n  const form = document.getElementById(formId);\n  if (!form) return;\n  form.dispatchEvent(new Event('submit', { cancelable: true }));\n}\nfunction resetForm(formId) {\n  const form = document.getElementById(formId);\n  if (form) form.reset();\n}\nfunction getFormFieldValue(formId, fieldName) {\n  const form = document.getElementById(formId);\n  if (!form || !form.elements[fieldName]) return '';\n  return form.elements[fieldName].value;\n}\nfunction setFormFieldValue(formId, fieldName, val) {\n  const form = document.getElementById(formId);\n  if (form && form.elements[fieldName]) {\n    form.elements[fieldName].value = val;\n  }\n}",
+      "stylePresets": [
+        {
+          "name": "Elevated Card Form",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "16px",
+            "padding": "32px",
+            "backgroundColor": "#FFFFFF",
+            "borderRadius": "18px",
+            "boxShadow": "0 10px 30px rgba(0, 0, 0, 0.08)",
+            "border": "1px solid #E2E8F0"
+          }
+        },
+        {
+          "name": "Dark Sleek Form",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "18px",
+            "padding": "28px",
+            "backgroundColor": "#1E293B",
+            "color": "#F8FAFC",
+            "borderRadius": "14px",
+            "border": "1px solid #334155",
+            "boxShadow": "0 8px 24px rgba(0, 0, 0, 0.25)"
+          }
+        },
+        {
+          "name": "Minimalist Outline",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "14px",
+            "padding": "20px",
+            "backgroundColor": "transparent",
+            "border": "1.5px solid #CBD5E1",
+            "borderRadius": "12px"
+          }
+        },
+        {
+          "name": "Frosted Glass Form",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "20px",
+            "padding": "32px",
+            "backgroundColor": "rgba(255, 255, 255, 0.8)",
+            "backdropFilter": "blur(14px)",
+            "borderRadius": "24px",
+            "border": "1px solid rgba(255, 255, 255, 0.4)",
+            "boxShadow": "0 12px 35px rgba(0, 0, 0, 0.07)"
+          }
+        }
+      ],
+      "customProperties": {
+        "action": { "type": "string", "default": "#" },
+        "method": { "type": "dropdown", "options": ["POST", "GET"], "default": "POST" },
+        "preset": { "type": "presetSelector" }
       }
     }
   },
@@ -166,24 +385,28 @@
     "icon": "pencil_code",
     "category": "form",
     "function": {
-      "text": "Label:",
+      "text": "Field Label:",
       "style": {
         "fontSize": "14px",
-        "fontWeight": "bold",
-        "color": "#333"
+        "fontWeight": "600",
+        "color": "#334155",
+        "marginBottom": "4px",
+        "display": "inline-block"
       }
     }
   },
   {
     "name": "Checkbox",
     "tag": "input",
-    "icon": "check_bg",
+    "icon": "square_check",
     "category": "form",
     "function": {
       "type": "checkbox",
       "style": {
         "width": "20px",
-        "height": "20px"
+        "height": "20px",
+        "accentColor": "#6366F1",
+        "cursor": "pointer"
       }
     }
   },
@@ -195,7 +418,8 @@
     "function": {
       "style": {
         "padding": "16px",
-        "backgroundColor": "#F5F5F5"
+        "backgroundColor": "#F8FAFC",
+        "borderRadius": "8px"
       }
     }
   },
@@ -206,8 +430,9 @@
     "category": "layout",
     "function": {
       "style": {
-        "padding": "24px",
-        "margin": "8px 0"
+        "padding": "32px 16px",
+        "margin": "12px 0",
+        "width": "100%"
       }
     }
   },
@@ -218,9 +443,10 @@
     "category": "layout",
     "function": {
       "style": {
-        "padding": "16px",
-        "backgroundColor": "#1976D2",
-        "color": "#FFFFFF"
+        "padding": "20px 24px",
+        "backgroundColor": "#0F172A",
+        "color": "#FFFFFF",
+        "width": "100%"
       }
     }
   },
@@ -231,10 +457,12 @@
     "category": "layout",
     "function": {
       "style": {
-        "padding": "16px",
-        "backgroundColor": "#37474F",
-        "color": "#FFFFFF",
-        "textAlign": "center"
+        "padding": "24px 16px",
+        "backgroundColor": "#0F172A",
+        "color": "#94A3B8",
+        "textAlign": "center",
+        "width": "100%",
+        "fontSize": "14px"
       }
     }
   },
@@ -247,9 +475,10 @@
       "style": {
         "display": "flex",
         "flexDirection": "row",
-        "gap": "8px",
-        "padding": "8px",
-        "alignItems": "center"
+        "gap": "12px",
+        "padding": "12px",
+        "alignItems": "center",
+        "width": "100%"
       }
     }
   },
@@ -262,8 +491,9 @@
       "style": {
         "display": "flex",
         "flexDirection": "column",
-        "gap": "8px",
-        "padding": "8px"
+        "gap": "12px",
+        "padding": "12px",
+        "width": "100%"
       }
     }
   },
@@ -276,8 +506,9 @@
       "style": {
         "display": "grid",
         "gridTemplateColumns": "1fr 1fr",
-        "gap": "12px",
-        "padding": "12px"
+        "gap": "16px",
+        "padding": "16px",
+        "width": "100%"
       }
     }
   },
@@ -288,10 +519,11 @@
     "category": "layout",
     "function": {
       "style": {
-        "padding": "16px",
+        "padding": "24px",
         "backgroundColor": "#FFFFFF",
-        "borderRadius": "8px",
-        "boxShadow": "0 2px 8px rgba(0,0,0,0.1)"
+        "borderRadius": "14px",
+        "boxShadow": "0 4px 18px rgba(0, 0, 0, 0.06)",
+        "border": "1px solid #E2E8F0"
       }
     }
   },
@@ -301,48 +533,99 @@
     "icon": "layout_list",
     "category": "layout",
     "function": {
+      "brand": "DragWeb",
+      "items": [
+        "Home",
+        "Features",
+        "Pricing",
+        "Docs",
+        "Contact"
+      ],
+      "icons": [
+        "home",
+        "sparkles",
+        "tag",
+        "book",
+        "mail"
+      ],
       "style": {
         "display": "flex",
         "flexDirection": "row",
         "justifyContent": "space-between",
         "alignItems": "center",
-        "padding": "12px 24px",
-        "backgroundColor": "#1565C0",
-        "color": "#FFFFFF"
-      }
-    }
-  },
-  {
-    "name": "List (UL)",
-    "tag": "ul",
-    "icon": "ic_list_view",
-    "category": "basic",
-    "function": {
-      "style": {
-        "paddingLeft": "20px"
-      }
-    }
-  },
-  {
-    "name": "List (OL)",
-    "tag": "ol",
-    "icon": "ic_list_view",
-    "category": "basic",
-    "function": {
-      "style": {
-        "paddingLeft": "20px"
-      }
-    }
-  },
-  {
-    "name": "ListItem",
-    "tag": "li",
-    "icon": "ic_list_view",
-    "category": "basic",
-    "function": {
-      "text": "List Item",
-      "style": {
-        "marginBottom": "4px"
+        "padding": "16px 28px",
+        "backgroundColor": "#0F172A",
+        "color": "#F8FAFC",
+        "boxShadow": "0 2px 10px rgba(0, 0, 0, 0.15)",
+        "width": "100%"
+      },
+      "script": "function toggleNavbarMenu(navId) {\n  const nav = document.getElementById(navId);\n  if (!nav) return;\n  const menu = nav.querySelector('.nav-menu') || nav;\n  menu.classList.toggle('active');\n  if (menu.style.display === 'flex') {\n    menu.style.display = 'none';\n  } else {\n    menu.style.display = 'flex';\n  }\n}\nfunction setNavbarBrand(navId, brandText) {\n  const nav = document.getElementById(navId);\n  if (!nav) return;\n  const brand = nav.querySelector('.nav-brand');\n  if (brand) brand.textContent = brandText;\n}",
+      "stylePresets": [
+        {
+          "name": "Glassmorphism Frosted",
+          "style": {
+            "display": "flex",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "alignItems": "center",
+            "padding": "16px 32px",
+            "backgroundColor": "rgba(255, 255, 255, 0.8)",
+            "backdropFilter": "blur(12px)",
+            "borderBottom": "1px solid rgba(255, 255, 255, 0.4)",
+            "color": "#0F172A",
+            "boxShadow": "0 8px 30px rgba(0, 0, 0, 0.06)",
+            "position": "sticky",
+            "top": "0",
+            "zIndex": "100"
+          }
+        },
+        {
+          "name": "Dark Minimal Slate",
+          "style": {
+            "display": "flex",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "alignItems": "center",
+            "padding": "16px 28px",
+            "backgroundColor": "#0F172A",
+            "color": "#F8FAFC",
+            "borderBottom": "1px solid #334155",
+            "boxShadow": "0 4px 12px rgba(0, 0, 0, 0.2)"
+          }
+        },
+        {
+          "name": "Vibrant Gradient Glow",
+          "style": {
+            "display": "flex",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "alignItems": "center",
+            "padding": "16px 30px",
+            "backgroundImage": "linear-gradient(135deg, #6366F1 0%, #A855F7 100%)",
+            "color": "#FFFFFF",
+            "boxShadow": "0 6px 24px rgba(99, 102, 241, 0.35)",
+            "borderRadius": "0 0 16px 16px"
+          }
+        },
+        {
+          "name": "Clean Modern Light",
+          "style": {
+            "display": "flex",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "alignItems": "center",
+            "padding": "14px 24px",
+            "backgroundColor": "#FFFFFF",
+            "color": "#334155",
+            "borderBottom": "1px solid #E2E8F0",
+            "boxShadow": "0 1px 3px rgba(0, 0, 0, 0.05)"
+          }
+        }
+      ],
+      "customProperties": {
+        "brand": { "type": "string", "default": "DragWeb" },
+        "items": { "type": "setupList", "dialog": "dialog_setup_list" },
+        "preset": { "type": "presetSelector" }
       }
     }
   },
@@ -353,8 +636,10 @@
     "category": "basic",
     "function": {
       "style": {
-        "border": "1px solid #ccc",
-        "margin": "12px 0"
+        "border": "none",
+        "borderTop": "1px solid #E2E8F0",
+        "margin": "16px 0",
+        "width": "100%"
       }
     }
   },
@@ -365,7 +650,8 @@
     "category": "layout",
     "function": {
       "style": {
-        "height": "20px"
+        "height": "24px",
+        "width": "100%"
       }
     }
   },
@@ -379,7 +665,7 @@
       "controls": "true",
       "style": {
         "width": "100%",
-        "borderRadius": "8px"
+        "borderRadius": "10px"
       }
     }
   },
@@ -405,8 +691,9 @@
       "style": {
         "width": "300px",
         "height": "200px",
-        "border": "1px solid #ccc",
-        "backgroundColor": "#FFFFFF"
+        "border": "1px solid #CBD5E1",
+        "backgroundColor": "#FFFFFF",
+        "borderRadius": "8px"
       }
     }
   },
@@ -431,9 +718,9 @@
       "src": "https://example.com",
       "style": {
         "width": "100%",
-        "height": "300px",
-        "border": "1px solid #ccc",
-        "borderRadius": "4px"
+        "height": "320px",
+        "border": "1px solid #CBD5E1",
+        "borderRadius": "8px"
       }
     }
   },
@@ -443,15 +730,16 @@
     "icon": "code_xml_24px",
     "category": "advanced",
     "function": {
-      "text": "console.log('Hello');",
+      "text": "console.log('Welcome to DragWeb!');",
       "style": {
-        "padding": "16px",
-        "backgroundColor": "#263238",
-        "color": "#A5D6A7",
-        "borderRadius": "8px",
+        "padding": "18px 20px",
+        "backgroundColor": "#0F172A",
+        "color": "#38BDF8",
+        "borderRadius": "10px",
         "fontFamily": "monospace",
         "fontSize": "14px",
-        "overflowX": "auto"
+        "overflowX": "auto",
+        "border": "1px solid #1E293B"
       }
     }
   },
@@ -461,13 +749,15 @@
     "icon": "cursor_text",
     "category": "advanced",
     "function": {
-      "text": "This is a quote.",
+      "text": "The fastest visual drag and drop web builder powered by Material 3.",
       "style": {
-        "borderLeft": "4px solid #2196F3",
-        "padding": "12px 20px",
-        "margin": "8px 0",
-        "backgroundColor": "#E3F2FD",
-        "fontStyle": "italic"
+        "borderLeft": "4px solid #6366F1",
+        "padding": "14px 22px",
+        "margin": "12px 0",
+        "backgroundColor": "#F8FAFC",
+        "fontStyle": "italic",
+        "color": "#334155",
+        "borderRadius": "0 8px 8px 0"
       }
     }
   },
@@ -477,10 +767,78 @@
     "icon": "table",
     "category": "advanced",
     "function": {
+      "headers": [
+        "#",
+        "Title",
+        "Category",
+        "Status",
+        "Actions"
+      ],
+      "rows": [
+        ["1", "Navigation Header", "Layout", "Active", "Edit"],
+        ["2", "Interactive Form", "Forms", "Pending", "View"],
+        ["3", "Data Table Component", "Advanced", "Active", "Manage"],
+        ["4", "Progress Indicator", "Widgets", "Complete", "Check"]
+      ],
       "style": {
         "width": "100%",
         "borderCollapse": "collapse",
-        "border": "1px solid #ddd"
+        "backgroundColor": "#FFFFFF",
+        "borderRadius": "10px",
+        "overflow": "hidden",
+        "boxShadow": "0 2px 10px rgba(0, 0, 0, 0.05)"
+      },
+      "script": "function filterTable(tableId, query) {\n  const table = document.getElementById(tableId);\n  if (!table) return;\n  const rows = table.querySelectorAll('tbody tr');\n  rows.forEach(row => {\n    row.style.display = row.innerText.toLowerCase().includes(query.toLowerCase()) ? '' : 'none';\n  });\n}\nfunction sortTable(tableId, colIndex) {\n  const table = document.getElementById(tableId);\n  if (!table) return;\n  const tbody = table.querySelector('tbody') || table;\n  const rows = Array.from(tbody.querySelectorAll('tr'));\n  rows.sort((a, b) => a.cells[colIndex].innerText.localeCompare(b.cells[colIndex].innerText));\n  rows.forEach(r => tbody.appendChild(r));\n}",
+      "stylePresets": [
+        {
+          "name": "Zebra Striped Modern",
+          "style": {
+            "width": "100%",
+            "borderCollapse": "collapse",
+            "backgroundColor": "#FFFFFF",
+            "borderRadius": "12px",
+            "overflow": "hidden",
+            "boxShadow": "0 4px 14px rgba(0, 0, 0, 0.06)"
+          }
+        },
+        {
+          "name": "Clean Bordered Minimal",
+          "style": {
+            "width": "100%",
+            "borderCollapse": "collapse",
+            "border": "1px solid #E2E8F0",
+            "backgroundColor": "#FFFFFF",
+            "borderRadius": "8px"
+          }
+        },
+        {
+          "name": "Dark Tech Table",
+          "style": {
+            "width": "100%",
+            "borderCollapse": "collapse",
+            "backgroundColor": "#0F172A",
+            "color": "#F8FAFC",
+            "borderRadius": "10px",
+            "overflow": "hidden",
+            "boxShadow": "0 6px 18px rgba(0, 0, 0, 0.3)"
+          }
+        },
+        {
+          "name": "Translucent Glass Table",
+          "style": {
+            "width": "100%",
+            "borderCollapse": "collapse",
+            "backgroundColor": "rgba(255, 255, 255, 0.75)",
+            "backdropFilter": "blur(10px)",
+            "borderRadius": "14px",
+            "overflow": "hidden",
+            "border": "1px solid rgba(255, 255, 255, 0.3)"
+          }
+        }
+      ],
+      "customProperties": {
+        "headers": { "type": "setupList", "dialog": "dialog_setup_list" },
+        "preset": { "type": "presetSelector" }
       }
     }
   },
@@ -490,12 +848,868 @@
     "icon": "box",
     "category": "advanced",
     "function": {
+      "value": "70",
+      "max": "100",
       "style": {
         "width": "100%",
-        "height": "8px",
-        "backgroundColor": "#E0E0E0",
-        "borderRadius": "4px",
-        "overflow": "hidden"
+        "height": "14px",
+        "backgroundColor": "#E2E8F0",
+        "borderRadius": "10px",
+        "overflow": "hidden",
+        "position": "relative",
+        "margin": "10px 0"
+      },
+      "script": "function setProgress(barId, percent) {\n  const el = barId && (barId.startsWith('#') || barId.startsWith('.')) ? document.querySelector(barId) : (document.getElementById(barId) || document.querySelector(barId));\n  if (!el) return;\n  const fill = el.querySelector('.progress-fill') || el;\n  fill.style.width = Math.min(100, Math.max(0, percent)) + '%';\n}\nfunction incrementProgress(barId, amount) {\n  const el = barId && (barId.startsWith('#') || barId.startsWith('.')) ? document.querySelector(barId) : (document.getElementById(barId) || document.querySelector(barId));\n  if (!el) return;\n  const fill = el.querySelector('.progress-fill') || el;\n  const current = parseFloat(fill.style.width) || 0;\n  setProgress(barId, current + amount);\n}",
+      "stylePresets": [
+        {
+          "name": "Neon Gradient Glow",
+          "style": {
+            "width": "100%",
+            "height": "14px",
+            "backgroundColor": "#1E293B",
+            "borderRadius": "8px",
+            "overflow": "hidden",
+            "boxShadow": "0 2px 8px rgba(99, 102, 241, 0.25)"
+          }
+        },
+        {
+          "name": "Striped Modern Track",
+          "style": {
+            "width": "100%",
+            "height": "18px",
+            "backgroundColor": "#EEF2F6",
+            "borderRadius": "12px",
+            "overflow": "hidden",
+            "boxShadow": "inset 0 1px 3px rgba(0, 0, 0, 0.1)"
+          }
+        },
+        {
+          "name": "Slim Expressive (Material 3)",
+          "style": {
+            "width": "100%",
+            "height": "6px",
+            "backgroundColor": "#E2E8F0",
+            "borderRadius": "3px",
+            "overflow": "hidden"
+          }
+        },
+        {
+          "name": "Pill Rounded Shimmer",
+          "style": {
+            "width": "100%",
+            "height": "22px",
+            "backgroundColor": "#F1F5F9",
+            "borderRadius": "25px",
+            "overflow": "hidden",
+            "boxShadow": "inset 0 2px 4px rgba(0, 0, 0, 0.08)"
+          }
+        }
+      ],
+      "customProperties": {
+        "value": { "type": "number", "default": 70 },
+        "max": { "type": "number", "default": 100 },
+        "preset": { "type": "presetSelector" }
+      }
+    }
+  },
+  {
+    "name": "Accordion",
+    "tag": "div",
+    "icon": "layout_list",
+    "category": "advanced",
+    "function": {
+      "title": "Collapsible Accordion Title",
+      "content": "Expandable content goes here. You can place details, answers, or widgets inside.",
+      "style": {
+        "width": "100%",
+        "backgroundColor": "#FFFFFF",
+        "border": "1px solid #E2E8F0",
+        "borderRadius": "10px",
+        "overflow": "hidden",
+        "margin": "8px 0"
+      },
+      "script": "function toggleAccordion(accId) {\n  const acc = document.getElementById(accId);\n  if (!acc) return;\n  const body = acc.querySelector('.accordion-body');\n  const icon = acc.querySelector('.accordion-icon');\n  if (body) {\n    const isOpen = body.style.display !== 'none';\n    body.style.display = isOpen ? 'none' : 'block';\n    if (icon) icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';\n  }\n}",
+      "stylePresets": [
+        {
+          "name": "Modern Card Accordion",
+          "style": {
+            "width": "100%",
+            "backgroundColor": "#FFFFFF",
+            "borderRadius": "12px",
+            "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.06)",
+            "border": "1px solid #E2E8F0",
+            "margin": "8px 0"
+          }
+        },
+        {
+          "name": "Dark Flush Panel",
+          "style": {
+            "width": "100%",
+            "backgroundColor": "#1E293B",
+            "color": "#F8FAFC",
+            "borderRadius": "8px",
+            "border": "1px solid #334155",
+            "margin": "8px 0"
+          }
+        },
+        {
+          "name": "Minimalist Underline",
+          "style": {
+            "width": "100%",
+            "backgroundColor": "transparent",
+            "borderBottom": "1.5px solid #E2E8F0",
+            "borderRadius": "0",
+            "margin": "8px 0"
+          }
+        },
+        {
+          "name": "Frosted Glass Accordion",
+          "style": {
+            "width": "100%",
+            "backgroundColor": "rgba(255, 255, 255, 0.75)",
+            "backdropFilter": "blur(10px)",
+            "borderRadius": "14px",
+            "border": "1px solid rgba(255, 255, 255, 0.4)",
+            "margin": "8px 0"
+          }
+        }
+      ],
+      "customProperties": {
+        "title": { "type": "string", "default": "Accordion Title" },
+        "preset": { "type": "presetSelector" }
+      }
+    }
+  },
+  {
+    "name": "Modal Dialog",
+    "tag": "div",
+    "icon": "box",
+    "category": "advanced",
+    "function": {
+      "title": "Interactive Dialog",
+      "style": {
+        "position": "fixed",
+        "top": "50%",
+        "left": "50%",
+        "transform": "translate(-50%, -50%)",
+        "backgroundColor": "#FFFFFF",
+        "padding": "28px",
+        "borderRadius": "18px",
+        "boxShadow": "0 20px 40px rgba(0, 0, 0, 0.2)",
+        "maxWidth": "480px",
+        "width": "90%",
+        "zIndex": "1000",
+        "display": "none"
+      },
+      "script": "function openModal(modalId) {\n  const m = document.getElementById(modalId);\n  if (m) m.style.display = 'block';\n}\nfunction closeModal(modalId) {\n  const m = document.getElementById(modalId);\n  if (m) m.style.display = 'none';\n}",
+      "stylePresets": [
+        {
+          "name": "Glass Blur Modal",
+          "style": {
+            "position": "fixed",
+            "top": "50%",
+            "left": "50%",
+            "transform": "translate(-50%, -50%)",
+            "backgroundColor": "rgba(255, 255, 255, 0.85)",
+            "backdropFilter": "blur(16px)",
+            "padding": "32px",
+            "borderRadius": "24px",
+            "border": "1px solid rgba(255, 255, 255, 0.4)",
+            "boxShadow": "0 25px 50px rgba(0, 0, 0, 0.15)",
+            "maxWidth": "480px",
+            "width": "90%",
+            "zIndex": "1000",
+            "display": "none"
+          }
+        },
+        {
+          "name": "Dark Cyber Dialog",
+          "style": {
+            "position": "fixed",
+            "top": "50%",
+            "left": "50%",
+            "transform": "translate(-50%, -50%)",
+            "backgroundColor": "#0F172A",
+            "color": "#F8FAFC",
+            "padding": "28px",
+            "borderRadius": "16px",
+            "border": "1px solid #334155",
+            "boxShadow": "0 20px 40px rgba(0, 0, 0, 0.5)",
+            "maxWidth": "480px",
+            "width": "90%",
+            "zIndex": "1000",
+            "display": "none"
+          }
+        },
+        {
+          "name": "Clean Elevated Card",
+          "style": {
+            "position": "fixed",
+            "top": "50%",
+            "left": "50%",
+            "transform": "translate(-50%, -50%)",
+            "backgroundColor": "#FFFFFF",
+            "padding": "28px",
+            "borderRadius": "16px",
+            "boxShadow": "0 10px 30px rgba(0, 0, 0, 0.12)",
+            "maxWidth": "480px",
+            "width": "90%",
+            "zIndex": "1000",
+            "display": "none"
+          }
+        },
+        {
+          "name": "Bottom Sheet Style",
+          "style": {
+            "position": "fixed",
+            "bottom": "0",
+            "left": "0",
+            "width": "100%",
+            "backgroundColor": "#FFFFFF",
+            "padding": "24px",
+            "borderRadius": "20px 20px 0 0",
+            "boxShadow": "0 -10px 30px rgba(0, 0, 0, 0.15)",
+            "zIndex": "1000",
+            "display": "none"
+          }
+        }
+      ],
+      "customProperties": {
+        "title": { "type": "string", "default": "Modal Dialog" },
+        "preset": { "type": "presetSelector" }
+      }
+    }
+  },
+  {
+    "name": "Hero Banner",
+    "tag": "section",
+    "icon": "layout_grid_add",
+    "category": "layout",
+    "function": {
+      "headline": "Build Stunning Websites Visually",
+      "subheadline": "Drag and drop responsive widgets with Material 3 expressive design.",
+      "style": {
+        "display": "flex",
+        "flexDirection": "column",
+        "alignItems": "center",
+        "justifyContent": "center",
+        "textAlign": "center",
+        "padding": "60px 24px",
+        "backgroundColor": "#0F172A",
+        "color": "#FFFFFF",
+        "borderRadius": "16px",
+        "margin": "12px 0",
+        "width": "100%"
+      },
+      "stylePresets": [
+        {
+          "name": "Vibrant Gradient Sunset",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "textAlign": "center",
+            "padding": "70px 24px",
+            "backgroundImage": "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)",
+            "color": "#FFFFFF",
+            "borderRadius": "20px",
+            "boxShadow": "0 10px 30px rgba(79, 70, 229, 0.35)",
+            "width": "100%"
+          }
+        },
+        {
+          "name": "Dark Tech Minimal",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "textAlign": "center",
+            "padding": "64px 20px",
+            "backgroundColor": "#090D16",
+            "color": "#F8FAFC",
+            "border": "1px solid #1E293B",
+            "borderRadius": "14px",
+            "width": "100%"
+          }
+        },
+        {
+          "name": "Clean Light Elevated",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "textAlign": "center",
+            "padding": "60px 24px",
+            "backgroundColor": "#F8FAFC",
+            "color": "#0F172A",
+            "border": "1px solid #E2E8F0",
+            "borderRadius": "16px",
+            "width": "100%"
+          }
+        },
+        {
+          "name": "Glassmorphic Glow",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "textAlign": "center",
+            "padding": "64px 24px",
+            "backgroundColor": "rgba(255, 255, 255, 0.8)",
+            "backdropFilter": "blur(14px)",
+            "color": "#0F172A",
+            "borderRadius": "22px",
+            "border": "1px solid rgba(255, 255, 255, 0.4)",
+            "boxShadow": "0 12px 35px rgba(0, 0, 0, 0.07)",
+            "width": "100%"
+          }
+        }
+      ],
+      "customProperties": {
+        "headline": { "type": "string", "default": "Hero Headline" },
+        "subheadline": { "type": "string", "default": "Subheadline description text" },
+        "preset": { "type": "presetSelector" }
+      }
+    }
+  },
+  {
+    "name": "Feature Card",
+    "tag": "div",
+    "icon": "bulb",
+    "category": "basic",
+    "function": {
+      "title": "Lightning Fast",
+      "text": "Instant zero-lag drag and drop with optimized reactive rendering.",
+      "style": {
+        "display": "flex",
+        "flexDirection": "column",
+        "gap": "10px",
+        "padding": "24px",
+        "backgroundColor": "#FFFFFF",
+        "borderRadius": "14px",
+        "boxShadow": "0 4px 16px rgba(0, 0, 0, 0.06)",
+        "border": "1px solid #E2E8F0"
+      },
+      "stylePresets": [
+        {
+          "name": "Modern White Elevated",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "10px",
+            "padding": "26px",
+            "backgroundColor": "#FFFFFF",
+            "borderRadius": "16px",
+            "boxShadow": "0 6px 20px rgba(0, 0, 0, 0.08)",
+            "border": "1px solid #E2E8F0"
+          }
+        },
+        {
+          "name": "Dark Slate Glow",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "10px",
+            "padding": "24px",
+            "backgroundColor": "#1E293B",
+            "color": "#F8FAFC",
+            "borderRadius": "12px",
+            "border": "1px solid #334155",
+            "boxShadow": "0 4px 14px rgba(0, 0, 0, 0.25)"
+          }
+        },
+        {
+          "name": "Gradient Border Glass",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "10px",
+            "padding": "26px",
+            "backgroundColor": "rgba(255, 255, 255, 0.8)",
+            "backdropFilter": "blur(10px)",
+            "borderRadius": "18px",
+            "border": "1.5px solid rgba(99, 102, 241, 0.3)",
+            "boxShadow": "0 8px 24px rgba(99, 102, 241, 0.08)"
+          }
+        },
+        {
+          "name": "Pastel Accent",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "10px",
+            "padding": "24px",
+            "backgroundColor": "#F0FDF4",
+            "border": "1px solid #BBF7D0",
+            "borderRadius": "14px",
+            "color": "#166534"
+          }
+        }
+      ],
+      "customProperties": {
+        "title": { "type": "string", "default": "Feature Title" },
+        "text": { "type": "string", "default": "Feature description text" },
+        "preset": { "type": "presetSelector" }
+      }
+    }
+  },
+  {
+    "name": "Carousel",
+    "tag": "div",
+    "icon": "photo",
+    "category": "media",
+    "function": {
+      "slides": [
+        "https://via.placeholder.com/600x300?text=Slide+1",
+        "https://via.placeholder.com/600x300?text=Slide+2",
+        "https://via.placeholder.com/600x300?text=Slide+3"
+      ],
+      "style": {
+        "width": "100%",
+        "height": "240px",
+        "backgroundColor": "#0F172A",
+        "borderRadius": "14px",
+        "overflow": "hidden",
+        "position": "relative",
+        "display": "flex",
+        "alignItems": "center",
+        "justifyContent": "center"
+      },
+      "script": "function carouselNext(cId) {\n  const c = document.getElementById(cId);\n  if (!c) return;\n  const slides = c.querySelectorAll('.carousel-slide');\n  let cur = Array.from(slides).findIndex(s => s.classList.contains('active'));\n  if (cur >= 0) {\n    slides[cur].classList.remove('active');\n    slides[(cur + 1) % slides.length].classList.add('active');\n  }\n}\nfunction carouselPrev(cId) {\n  const c = document.getElementById(cId);\n  if (!c) return;\n  const slides = c.querySelectorAll('.carousel-slide');\n  let cur = Array.from(slides).findIndex(s => s.classList.contains('active'));\n  if (cur >= 0) {\n    slides[cur].classList.remove('active');\n    slides[(cur - 1 + slides.length) % slides.length].classList.add('active');\n  }\n}",
+      "stylePresets": [
+        {
+          "name": "Rounded Card Slider",
+          "style": {
+            "width": "100%",
+            "height": "250px",
+            "backgroundColor": "#1E293B",
+            "borderRadius": "16px",
+            "overflow": "hidden",
+            "boxShadow": "0 8px 24px rgba(0, 0, 0, 0.15)"
+          }
+        },
+        {
+          "name": "Dark Cyber Slider",
+          "style": {
+            "width": "100%",
+            "height": "260px",
+            "backgroundColor": "#090D16",
+            "borderRadius": "12px",
+            "border": "1px solid #334155",
+            "overflow": "hidden"
+          }
+        },
+        {
+          "name": "Clean Border Minimal",
+          "style": {
+            "width": "100%",
+            "height": "240px",
+            "backgroundColor": "#F8FAFC",
+            "border": "1px solid #E2E8F0",
+            "borderRadius": "12px",
+            "overflow": "hidden"
+          }
+        },
+        {
+          "name": "Full Bleed Banner",
+          "style": {
+            "width": "100%",
+            "height": "280px",
+            "borderRadius": "0",
+            "overflow": "hidden"
+          }
+        }
+      ],
+      "customProperties": {
+        "slides": { "type": "setupList", "dialog": "dialog_setup_list" },
+        "preset": { "type": "presetSelector" }
+      }
+    }
+  },
+  {
+    "name": "Toast Alert",
+    "tag": "div",
+    "icon": "bulb",
+    "category": "advanced",
+    "function": {
+      "message": "Operation completed successfully!",
+      "style": {
+        "display": "flex",
+        "flexDirection": "row",
+        "alignItems": "center",
+        "justifyContent": "space-between",
+        "padding": "14px 20px",
+        "backgroundColor": "#059669",
+        "color": "#FFFFFF",
+        "borderRadius": "10px",
+        "boxShadow": "0 4px 14px rgba(5, 150, 105, 0.3)",
+        "margin": "8px 0",
+        "width": "100%",
+        "fontSize": "15px",
+        "fontWeight": "500"
+      },
+      "script": "function showToast(toastId, msg) {\n  const t = document.getElementById(toastId);\n  if (!t) return;\n  if (msg) {\n    const textEl = t.querySelector('.toast-text') || t;\n    textEl.textContent = msg;\n  }\n  t.style.display = 'flex';\n  setTimeout(() => { t.style.display = 'none'; }, 3500);\n}\nfunction hideToast(toastId) {\n  const t = document.getElementById(toastId);\n  if (t) t.style.display = 'none';\n}",
+      "stylePresets": [
+        {
+          "name": "Success Emerald",
+          "style": {
+            "display": "flex",
+            "flexDirection": "row",
+            "alignItems": "center",
+            "justifyContent": "space-between",
+            "padding": "14px 20px",
+            "backgroundColor": "#059669",
+            "color": "#FFFFFF",
+            "borderRadius": "10px",
+            "boxShadow": "0 4px 14px rgba(5, 150, 105, 0.3)",
+            "margin": "8px 0"
+          }
+        },
+        {
+          "name": "Warning Amber",
+          "style": {
+            "display": "flex",
+            "flexDirection": "row",
+            "alignItems": "center",
+            "justifyContent": "space-between",
+            "padding": "14px 20px",
+            "backgroundColor": "#D97706",
+            "color": "#FFFFFF",
+            "borderRadius": "10px",
+            "boxShadow": "0 4px 14px rgba(217, 119, 6, 0.3)",
+            "margin": "8px 0"
+          }
+        },
+        {
+          "name": "Info Sky Blue",
+          "style": {
+            "display": "flex",
+            "flexDirection": "row",
+            "alignItems": "center",
+            "justifyContent": "space-between",
+            "padding": "14px 20px",
+            "backgroundColor": "#0284C7",
+            "color": "#FFFFFF",
+            "borderRadius": "10px",
+            "boxShadow": "0 4px 14px rgba(2, 132, 199, 0.3)",
+            "margin": "8px 0"
+          }
+        },
+        {
+          "name": "Danger Crimson Glass",
+          "style": {
+            "display": "flex",
+            "flexDirection": "row",
+            "alignItems": "center",
+            "justifyContent": "space-between",
+            "padding": "14px 20px",
+            "backgroundColor": "rgba(225, 29, 72, 0.9)",
+            "backdropFilter": "blur(8px)",
+            "color": "#FFFFFF",
+            "borderRadius": "12px",
+            "boxShadow": "0 6px 18px rgba(225, 29, 72, 0.35)",
+            "margin": "8px 0"
+          }
+        }
+      ],
+      "customProperties": {
+        "message": { "type": "string", "default": "Alert message" },
+        "preset": { "type": "presetSelector" }
+      }
+    }
+  },
+  {
+    "name": "Dropdown Menu",
+    "tag": "div",
+    "icon": "columns_3",
+    "category": "basic",
+    "function": {
+      "label": "Select Option",
+      "items": ["Profile", "Settings", "Billing", "Logout"],
+      "style": {
+        "position": "relative",
+        "display": "inline-block",
+        "margin": "6px 0"
+      },
+      "script": "function toggleDropdown(ddId) {\n  const dd = document.getElementById(ddId);\n  if (!dd) return;\n  const menu = dd.querySelector('.dropdown-menu');\n  if (menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';\n}",
+      "stylePresets": [
+        {
+          "name": "Floating Card Dropdown",
+          "style": {
+            "position": "relative",
+            "display": "inline-block"
+          }
+        },
+        {
+          "name": "Dark Sleek Dropdown",
+          "style": {
+            "position": "relative",
+            "display": "inline-block",
+            "color": "#F8FAFC"
+          }
+        },
+        {
+          "name": "Glass Frosted Menu",
+          "style": {
+            "position": "relative",
+            "display": "inline-block"
+          }
+        },
+        {
+          "name": "Minimalist Bordered",
+          "style": {
+            "position": "relative",
+            "display": "inline-block"
+          }
+        }
+      ],
+      "customProperties": {
+        "label": { "type": "string", "default": "Select Option" },
+        "items": { "type": "setupList", "dialog": "dialog_setup_list" },
+        "preset": { "type": "presetSelector" }
+      }
+    }
+  },
+  {
+    "name": "Rating Stars",
+    "tag": "div",
+    "icon": "bulb",
+    "category": "basic",
+    "function": {
+      "rating": "5",
+      "style": {
+        "display": "inline-flex",
+        "flexDirection": "row",
+        "gap": "6px",
+        "color": "#F59E0B",
+        "fontSize": "22px",
+        "cursor": "pointer"
+      },
+      "script": "function setRating(ratingId, stars) {\n  const r = document.getElementById(ratingId);\n  if (!r) return;\n  r.setAttribute('data-rating', stars);\n  const starEls = r.querySelectorAll('.star');\n  starEls.forEach((s, idx) => {\n    s.style.color = idx < stars ? '#F59E0B' : '#CBD5E1';\n  });\n}",
+      "stylePresets": [
+        {
+          "name": "Golden Star Glow",
+          "style": {
+            "display": "inline-flex",
+            "flexDirection": "row",
+            "gap": "6px",
+            "color": "#F59E0B",
+            "fontSize": "22px",
+            "cursor": "pointer"
+          }
+        },
+        {
+          "name": "Amber Badge Pill",
+          "style": {
+            "display": "inline-flex",
+            "flexDirection": "row",
+            "alignItems": "center",
+            "gap": "6px",
+            "backgroundColor": "#FEF3C7",
+            "padding": "6px 14px",
+            "borderRadius": "20px",
+            "color": "#D97706",
+            "fontSize": "16px",
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "name": "Dark Neon Stars",
+          "style": {
+            "display": "inline-flex",
+            "flexDirection": "row",
+            "gap": "6px",
+            "backgroundColor": "#0F172A",
+            "padding": "8px 16px",
+            "borderRadius": "10px",
+            "color": "#FBBF24",
+            "fontSize": "20px"
+          }
+        },
+        {
+          "name": "Minimal Clean Stars",
+          "style": {
+            "display": "inline-flex",
+            "flexDirection": "row",
+            "gap": "4px",
+            "color": "#F59E0B",
+            "fontSize": "18px"
+          }
+        }
+      ],
+      "customProperties": {
+        "rating": { "type": "number", "default": 5 },
+        "preset": { "type": "presetSelector" }
+      }
+    }
+  },
+  {
+    "name": "Stat Card",
+    "tag": "div",
+    "icon": "stack_2",
+    "category": "basic",
+    "function": {
+      "number": "99.9%",
+      "label": "System Uptime Guaranteed",
+      "style": {
+        "display": "flex",
+        "flexDirection": "column",
+        "alignItems": "center",
+        "justifyContent": "center",
+        "padding": "24px",
+        "backgroundColor": "#FFFFFF",
+        "borderRadius": "14px",
+        "boxShadow": "0 4px 16px rgba(0, 0, 0, 0.06)",
+        "border": "1px solid #E2E8F0",
+        "textAlign": "center"
+      },
+      "script": "function animateCounter(counterId, target) {\n  const el = document.getElementById(counterId);\n  if (!el) return;\n  let cur = 0;\n  const step = Math.ceil(target / 40);\n  const timer = setInterval(() => {\n    cur += step;\n    if (cur >= target) { cur = target; clearInterval(timer); }\n    el.textContent = cur.toLocaleString();\n  }, 25);\n}",
+      "stylePresets": [
+        {
+          "name": "Gradient Number Glow",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "padding": "28px",
+            "backgroundColor": "#FFFFFF",
+            "borderRadius": "18px",
+            "boxShadow": "0 8px 24px rgba(99, 102, 241, 0.12)",
+            "border": "1px solid #E2E8F0",
+            "textAlign": "center"
+          }
+        },
+        {
+          "name": "Dark Dashboard Stat",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "padding": "24px",
+            "backgroundColor": "#0F172A",
+            "color": "#F8FAFC",
+            "borderRadius": "14px",
+            "border": "1px solid #334155",
+            "textAlign": "center",
+            "boxShadow": "0 4px 16px rgba(0, 0, 0, 0.3)"
+          }
+        },
+        {
+          "name": "Glassmorphic Metric Card",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "padding": "26px",
+            "backgroundColor": "rgba(255, 255, 255, 0.8)",
+            "backdropFilter": "blur(12px)",
+            "borderRadius": "20px",
+            "border": "1px solid rgba(255, 255, 255, 0.4)",
+            "boxShadow": "0 10px 25px rgba(0, 0, 0, 0.06)",
+            "textAlign": "center"
+          }
+        },
+        {
+          "name": "Pastel Highlight Card",
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "padding": "24px",
+            "backgroundColor": "#EEF2FF",
+            "borderRadius": "14px",
+            "border": "1px solid #C7D2FE",
+            "textAlign": "center"
+          }
+        }
+      ],
+      "customProperties": {
+        "number": { "type": "string", "default": "99.9%" },
+        "label": { "type": "string", "default": "Metric description" },
+        "preset": { "type": "presetSelector" }
+      }
+    }
+  },
+  {
+    "name": "Badge Chip",
+    "tag": "span",
+    "icon": "droplet",
+    "category": "basic",
+    "function": {
+      "text": "New Release",
+      "style": {
+        "display": "inline-block",
+        "padding": "5px 12px",
+        "backgroundColor": "#EEF2FF",
+        "color": "#4F46E5",
+        "borderRadius": "20px",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "letterSpacing": "0.3px"
+      },
+      "stylePresets": [
+        {
+          "name": "Primary Indigo Pill",
+          "style": {
+            "display": "inline-block",
+            "padding": "5px 14px",
+            "backgroundColor": "#EEF2FF",
+            "color": "#4F46E5",
+            "borderRadius": "20px",
+            "fontSize": "13px",
+            "fontWeight": "600"
+          }
+        },
+        {
+          "name": "Success Green Soft",
+          "style": {
+            "display": "inline-block",
+            "padding": "5px 14px",
+            "backgroundColor": "#DCFCE7",
+            "color": "#15803D",
+            "borderRadius": "20px",
+            "fontSize": "13px",
+            "fontWeight": "600"
+          }
+        },
+        {
+          "name": "Dark Tech Badge",
+          "style": {
+            "display": "inline-block",
+            "padding": "5px 14px",
+            "backgroundColor": "#0F172A",
+            "color": "#38BDF8",
+            "borderRadius": "8px",
+            "fontSize": "13px",
+            "fontWeight": "600",
+            "border": "1px solid #1E293B"
+          }
+        },
+        {
+          "name": "Minimal Outlined Chip",
+          "style": {
+            "display": "inline-block",
+            "padding": "4px 12px",
+            "backgroundColor": "transparent",
+            "border": "1.5px solid #6366F1",
+            "color": "#6366F1",
+            "borderRadius": "20px",
+            "fontSize": "13px",
+            "fontWeight": "600"
+          }
+        }
+      ],
+      "customProperties": {
+        "text": { "type": "string", "default": "Badge" },
+        "preset": { "type": "presetSelector" }
       }
     }
   }

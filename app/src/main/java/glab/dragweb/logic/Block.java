@@ -317,6 +317,18 @@ public class Block extends BlockBase {
             int var5 = this.getResources().getIdentifier(var4, "string", this.getContext().getPackageName());
             if(var5 > 0) {
                 this.mSpec = this.getResources().getString(var5);
+            } else {
+                if ("setVarBoolean".equals(this.mOpCode)) {
+                    this.mSpec = "set %var.b to %b";
+                } else if ("setVarInt".equals(this.mOpCode)) {
+                    this.mSpec = "set %var.d to %d";
+                } else if ("increaseInt".equals(this.mOpCode)) {
+                    this.mSpec = "increase %var.d ++";
+                } else if ("decreaseInt".equals(this.mOpCode)) {
+                    this.mSpec = "decrease %var.d --";
+                } else if ("setVarString".equals(this.mOpCode)) {
+                    this.mSpec = "set %var.s to %s";
+                }
             }
         }
 
@@ -802,6 +814,19 @@ public class Block extends BlockBase {
 
     public void setSpec(String str, Object[] objArr) {
         this.mSpec = str;
+        if ((this.mSpec == null || this.mSpec.trim().isEmpty()) && this.mOpCode != null) {
+            if ("setVarBoolean".equals(this.mOpCode)) {
+                this.mSpec = "set %var.b to %b";
+            } else if ("setVarInt".equals(this.mOpCode)) {
+                this.mSpec = "set %var.d to %d";
+            } else if ("increaseInt".equals(this.mOpCode)) {
+                this.mSpec = "increase %var.d ++";
+            } else if ("decreaseInt".equals(this.mOpCode)) {
+                this.mSpec = "decrease %var.d --";
+            } else if ("setVarString".equals(this.mOpCode)) {
+                this.mSpec = "set %var.s to %s";
+            }
+        }
         removeAllViews();
         addLabelsAndArgs(this.mSpec, this.mColor);
         Iterator it = this.labelsAndArgs.iterator();
@@ -827,6 +852,26 @@ public class Block extends BlockBase {
             }
         }
         collectArgs();
+        Object[] defaultValues = null;
+        if (objArr != null) {
+            if (objArr.length > 1 && objArr[1] instanceof Object[]) {
+                defaultValues = (Object[]) objArr[1];
+            } else if (objArr.length > 0 && objArr[0] instanceof Object[]) {
+                defaultValues = (Object[]) objArr[0];
+            }
+        }
+        if (defaultValues == null && this.defaultArgValues != null) {
+            defaultValues = this.defaultArgValues;
+        }
+        if (defaultValues != null && defaultValues.length > 0) {
+            this.defaultArgValues = defaultValues;
+            for (int k = 0; k < defaultValues.length && k < this.args.size(); k++) {
+                View argView = this.args.get(k);
+                if (argView instanceof BlockArg && defaultValues[k] != null) {
+                    ((BlockArg) argView).setArgValue(defaultValues[k]);
+                }
+            }
+        }
         fixLayout();
     }
 

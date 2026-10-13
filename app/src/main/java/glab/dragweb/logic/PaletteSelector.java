@@ -116,7 +116,7 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
         }
 
         // 4. Single "Collection" palette category tab
-        CategoryItem colCat = new CategoryItem(index, "Collection", Color.parseColor("#FF2196F3"), 3);
+        CategoryItem colCat = new CategoryItem(index, "Collection", Color.parseColor("#00BFA5"), 3);
         categoriesList.add(colCat);
         addCategoryItem(index++, colCat.name, colCat.color);
 

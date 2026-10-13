@@ -4,15 +4,15 @@
     "type": "APK",
     "kind": "Directory"
   },
-  "applicationId": "sketchweb.gl",
+  "applicationId": "glab.dragweb",
   "variantName": "release",
   "elements": [
     {
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 2,
-      "versionName": "1.0 release",
+      "versionCode": 5,
+      "versionName": "1.3",
       "outputFile": "app-release.apk"
     }
   ],

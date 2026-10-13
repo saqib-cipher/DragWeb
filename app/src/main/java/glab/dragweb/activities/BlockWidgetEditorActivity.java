@@ -41,7 +41,7 @@ import com.google.gson.reflect.TypeToken;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.List;
+import java.util.Map;
 
 public class BlockWidgetEditorActivity extends AppCompatActivity {
 
@@ -248,10 +248,20 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
                     etId.setText(String.valueOf(widget.get("name")));
                     String cat = String.valueOf(widget.get("category"));
                     boolean isStandardCat = false;
-                    for (WidgetRegistry.WidgetCategory wc : widgetRegistry.getWidgetCategories()) {
-                        if (wc != null && wc.id != null && wc.id.equalsIgnoreCase(cat) && !"custom".equalsIgnoreCase(wc.id)) {
-                            isStandardCat = true;
-                            break;
+                    List<?> widgetCats = widgetRegistry != null ? widgetRegistry.getWidgetCategories() : null;
+                    if (widgetCats != null) {
+                        for (Object catObj : widgetCats) {
+                            String wcId = null;
+                            if (catObj instanceof WidgetRegistry.WidgetCategory) {
+                                wcId = ((WidgetRegistry.WidgetCategory) catObj).id;
+                            } else if (catObj instanceof Map) {
+                                Object idVal = ((Map<?, ?>) catObj).get("id");
+                                wcId = idVal != null ? String.valueOf(idVal) : null;
+                            }
+                            if (wcId != null && wcId.equalsIgnoreCase(cat) && !"custom".equalsIgnoreCase(wcId)) {
+                                isStandardCat = true;
+                                break;
+                            }
                         }
                     }
                     if (isStandardCat) {
@@ -334,11 +344,20 @@ public class BlockWidgetEditorActivity extends AppCompatActivity {
                 categories = set.toArray(new String[0]);
             }
         } else {
-            List<WidgetRegistry.WidgetCategory> widgetCats = widgetRegistry.getWidgetCategories();
+            List<?> widgetCats = widgetRegistry != null ? widgetRegistry.getWidgetCategories() : null;
             java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<>();
-            for (WidgetRegistry.WidgetCategory c : widgetCats) {
-                if (c.id != null && !c.id.trim().isEmpty()) {
-                    set.add(c.id.trim());
+            if (widgetCats != null) {
+                for (Object cObj : widgetCats) {
+                    String cId = null;
+                    if (cObj instanceof WidgetRegistry.WidgetCategory) {
+                        cId = ((WidgetRegistry.WidgetCategory) cObj).id;
+                    } else if (cObj instanceof Map) {
+                        Object idVal = ((Map<?, ?>) cObj).get("id");
+                        cId = idVal != null ? String.valueOf(idVal) : null;
+                    }
+                    if (cId != null && !cId.trim().isEmpty()) {
+                        set.add(cId.trim());
+                    }
                 }
             }
             if (set.isEmpty()) {

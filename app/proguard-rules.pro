@@ -52,16 +52,11 @@
 
 # Keep all models, logic beans, and data entities serialized with GSON
 -keep class glab.dragweb.models.** { *; }
--keep class glab.dragweb.logic.BlockBean { *; }
--keep class glab.dragweb.logic.BlockDef { *; }
--keep class glab.dragweb.logic.CategoryDef { *; }
--keep class glab.dragweb.logic.LogicBlock { *; }
--keep class glab.dragweb.logic.ManageBlocksWidgets$** { *; }
--keep class glab.dragweb.data.DesignDataManager$** { *; }
--keep class glab.dragweb.data.ProjectDataManager$** { *; }
--keep class glab.dragweb.data.GoogleFontsManager$** { *; }
+-keep class glab.dragweb.logic.** { *; }
+-keep class glab.dragweb.data.** { *; }
+-keep class glab.dragweb.engine.** { *; }
 -keep class glab.dragweb.fragments.EventsFragment$** { *; }
--keep class glab.dragweb.engine.HtmlCssImporter$** { *; }
+-keep class glab.dragweb.fragments.MainEditorFragment$** { *; }
 
 # Keep serialized fields
 -keepclassmembers class * {

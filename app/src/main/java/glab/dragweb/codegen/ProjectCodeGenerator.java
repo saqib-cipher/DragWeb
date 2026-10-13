@@ -70,8 +70,20 @@ public class ProjectCodeGenerator {
         // 2. Compile & save JS (always to script.js — HTML always links js/script.js)
         {
             String compiledJs = compileJsForFile(context, projectId, cleanPage);
+            StringBuilder finalJs = new StringBuilder();
+            finalJs.append("/* ==========================================================\n");
+            finalJs.append(" * DragWeb generated runtime\n");
+            finalJs.append(" * ========================================================== */\n\n");
+            if (compiledJs != null && !compiledJs.trim().isEmpty()) {
+                finalJs.append(compiledJs.trim()).append("\n\n");
+            }
+            finalJs.append("document.addEventListener('DOMContentLoaded', function() {\n");
+            finalJs.append("  if (window.feather) try { feather.replace(); } catch (e) {}\n");
+            finalJs.append("  if (window.lucide)  try { lucide.createIcons(); } catch (e) {}\n");
+            finalJs.append("});\n");
+
             File jsTargetFile = new File(jsDir, "script.js");
-            FileUtil.writeFile(jsTargetFile.getAbsolutePath(), compiledJs);
+            FileUtil.writeFile(jsTargetFile.getAbsolutePath(), finalJs.toString());
         }
 
         // 3. Compile & save CSS (always to style.css — HTML always links css/style.css)
@@ -250,21 +262,75 @@ public class ProjectCodeGenerator {
         compiledFuncs.add(funcName);
     }
 
+    public static boolean isSystemEvent(String key) {
+        if (key == null) return false;
+        return "onPageLoad_onPageLoad".equals(key)
+                || "onCreate_initializeLogic".equals(key)
+                || "initializeLogic_initializeLogic".equals(key)
+                || key.startsWith("page_")
+                || key.startsWith("window_")
+                || key.startsWith("document_");
+    }
+
+    public static java.util.Set<String> collectWidgetIdentifiers(Context context, String projectId, String cleanPage) {
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        if (context == null || projectId == null || cleanPage == null) return ids;
+        try {
+            File pageFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages/" + cleanPage + ".json");
+            if (!pageFile.exists()) {
+                pageFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages/" + cleanPage.replace(".html", "") + ".json");
+            }
+            if (pageFile.exists()) {
+                String json = FileUtil.readFile(pageFile.getAbsolutePath());
+                List<Map<String, Object>> tree = PageManager.parseLayoutTree(json);
+                collectIdentifiersFromTree(tree, ids);
+            }
+        } catch (Exception ignored) {}
+        return ids;
+    }
+
+    public static void collectIdentifiersFromTree(List<Map<String, Object>> tree, java.util.Set<String> ids) {
+        if (tree == null || ids == null) return;
+        for (Map<String, Object> node : tree) {
+            if (node == null) continue;
+            if (node.get("id") != null) ids.add(node.get("id").toString().trim());
+            if (node.get("tag") != null) ids.add(node.get("tag").toString().trim());
+            if (node.get("class") != null) {
+                for (String cls : node.get("class").toString().trim().split("\\s+")) {
+                    if (!cls.isEmpty()) {
+                        ids.add(cls);
+                        ids.add("." + cls);
+                    }
+                }
+            }
+            if (node.get("function") instanceof Map) {
+                Map<?, ?> fn = (Map<?, ?>) node.get("function");
+                if (fn.get("id") != null) ids.add(fn.get("id").toString().trim());
+                if (fn.get("class") != null) {
+                    for (String cls : fn.get("class").toString().trim().split("\\s+")) {
+                        if (!cls.isEmpty()) {
+                            ids.add(cls);
+                            ids.add("." + cls);
+                        }
+                    }
+                }
+            }
+            if (node.get("children") instanceof List) {
+                collectIdentifiersFromTree((List<Map<String, Object>>) node.get("children"), ids);
+            }
+        }
+    }
+
     public static String compileJsForFile(Context context, String projectId, String cleanPage) {
         BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
         StringBuilder sb = new StringBuilder();
 
         DesignDataManager.loadSavedLogic(context, projectId, cleanPage);
 
-        // 1. Emit all registered MoreBlock functions
-        ArrayList<String> mbCodes = addMoreBlockCodes(context, projectId, compiler);
-        for (String mbCode : mbCodes) {
-            if (mbCode != null && !mbCode.trim().isEmpty()) {
-                sb.append(mbCode);
-            }
-        }
+        java.util.Set<String> validIds = collectWidgetIdentifiers(context, projectId, cleanPage);
+        StringBuilder eventsSb = new StringBuilder();
 
-        // 2. Collect event blocks from target page (without duplicating alias events)
+        // 1. Collect event blocks from target page (without duplicating alias events)
         HashMap<String, ArrayList<BlockBean>> blocksMap = DesignDataManager.mapBlocks.get(cleanPage);
         if (blocksMap != null && !blocksMap.isEmpty()) {
             java.util.Set<String> processedEvents = new java.util.HashSet<>();
@@ -280,10 +346,31 @@ public class ProjectCodeGenerator {
                 }
                 if (!processedEvents.add(normalizedKey)) continue;
 
-                // Filter out HTML blocks — they go into the body, not JS
+                if (!isSystemEvent(normalizedKey) && validIds != null && !validIds.isEmpty()) {
+                    int lastUnder = normalizedKey.lastIndexOf('_');
+                    if (lastUnder > 0) {
+                        String widgetId = normalizedKey.substring(0, lastUnder);
+                        if (!validIds.contains(widgetId)) {
+                            continue; // Skip orphaned event from deleted widget
+                        }
+                    }
+                }
+
+                // Filter out non-JS blocks (exclude CSS blocks and HTML blocks)
                 ArrayList<BlockBean> jsBlocks = new ArrayList<>();
                 for (BlockBean b : entry.getValue()) {
-                    if (b != null && !"html".equals(b.category)) {
+                    if (b != null && ExportManager.isJsCategory(b.category)) {
+                        if (validIds != null && !validIds.isEmpty()) {
+                            if (("widgets".equalsIgnoreCase(b.category) || (b.spec != null && (b.spec.contains("%selector") || b.spec.contains("%m.selector")))) && b.parameters != null && !b.parameters.isEmpty()) {
+                                String sel = b.parameters.get(0) != null ? b.parameters.get(0).trim() : "";
+                                if (!sel.isEmpty()) {
+                                    String target = sel.startsWith("#") ? sel.substring(1) : sel;
+                                    if (!validIds.contains(target) && !validIds.contains(sel)) {
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
                         jsBlocks.add(b);
                     }
                 }
@@ -291,9 +378,33 @@ public class ProjectCodeGenerator {
 
                 String code = compiler.getSource(0, jsBlocks);
                 if (code != null && !code.trim().isEmpty()) {
-                    sb.append(code).append("\n\n");
+                    eventsSb.append(code).append("\n\n");
                 }
             }
+        }
+
+        String eventCode = eventsSb.toString();
+
+        // 2. Emit registered MoreBlock functions (only if referenced in events)
+        ArrayList<String> mbCodes = addMoreBlockCodes(context, projectId, compiler);
+        for (String mbCode : mbCodes) {
+            if (mbCode != null && !mbCode.trim().isEmpty()) {
+                String cleanDef = mbCode.trim();
+                String fName = "";
+                if (cleanDef.startsWith("function ")) {
+                    int parenIdx = cleanDef.indexOf('(');
+                    if (parenIdx > 9) {
+                        fName = cleanDef.substring(9, parenIdx).trim();
+                    }
+                }
+                if (!fName.isEmpty() && eventCode.contains(fName)) {
+                    sb.append(mbCode);
+                }
+            }
+        }
+
+        if (eventsSb.length() > 0) {
+            sb.append(eventsSb);
         }
 
         return sb.toString().trim();
@@ -336,9 +447,10 @@ public class ProjectCodeGenerator {
             }
         }
 
-        // 2. Compile visual layout styles if inline styles are toggled off
+        // 2. Compile visual layout and widget preset styles into CSS
         ThemeManager themeManager = getProjectThemeManager(context, projectId);
-        if (themeManager != null && !themeManager.isUseInlineStyles()) {
+        boolean noStyles = (themeManager != null && themeManager.isDisableAllStyling());
+        if (!noStyles) {
             File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages/" + cleanPage + ".json");
             if (layoutFile.exists()) {
                 try {

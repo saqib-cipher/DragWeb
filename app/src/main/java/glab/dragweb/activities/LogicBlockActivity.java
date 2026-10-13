@@ -344,15 +344,15 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				}
 				
 				if (!bools.isEmpty()) {
-						addBlockToPalette("", " ", "setVarBoolean", -1147626, new Object[0]);
+						addBlockToPalette("set %var.b to %b", " ", "setVarBoolean", -1147626, bools.get(0), "true");
 				}
 				if (!nums.isEmpty()) {
-						addBlockToPalette("", " ", "setVarInt", -1147626, new Object[0]);
-						addBlockToPalette("", " ", "increaseInt", -1147626, new Object[0]);
-						addBlockToPalette("", " ", "decreaseInt", -1147626, new Object[0]);
+						addBlockToPalette("set %var.d to %d", " ", "setVarInt", -1147626, nums.get(0), "0");
+						addBlockToPalette("increase %var.d ++", " ", "increaseInt", -1147626, nums.get(0));
+						addBlockToPalette("decrease %var.d --", " ", "decreaseInt", -1147626, nums.get(0));
 				}
 				if (!strs.isEmpty()) {
-						addBlockToPalette("", " ", "setVarString", -1147626, new Object[0]);
+						addBlockToPalette("set %var.s to %s", " ", "setVarString", -1147626, strs.get(0), "");
 				}
 		}
 		
@@ -1786,7 +1786,19 @@ startActivityForResult(intent, 209);
 				}
 
 				if (spec == null || spec.isEmpty()) {
-						spec = blockBean.opCode != null ? blockBean.opCode : "block";
+						if ("setVarBoolean".equals(blockBean.opCode)) {
+								spec = "set %var.b to %b";
+						} else if ("setVarInt".equals(blockBean.opCode)) {
+								spec = "set %var.d to %d";
+						} else if ("increaseInt".equals(blockBean.opCode)) {
+								spec = "increase %var.d ++";
+						} else if ("decreaseInt".equals(blockBean.opCode)) {
+								spec = "decrease %var.d --";
+						} else if ("setVarString".equals(blockBean.opCode)) {
+								spec = "set %var.s to %s";
+						} else {
+								spec = blockBean.opCode != null ? blockBean.opCode : "block";
+						}
 				}
 				if (type == null || type.isEmpty() || "normal".equalsIgnoreCase(type) || "stack".equalsIgnoreCase(type) || "command".equalsIgnoreCase(type)) {
 						type = " ";
@@ -1887,6 +1899,210 @@ startActivityForResult(intent, 209);
 				}
 				saveAndFinish();
 		}
+
+		public static class DroppedWidget {
+				public String id;
+				public String tag;
+				public String name;
+				public String className;
+
+				public DroppedWidget(String id, String tag, String name, String className) {
+						this.id = id;
+						this.tag = tag;
+						this.name = name;
+						this.className = className;
+				}
+		}
+
+		private List<DroppedWidget> getDroppedWidgetsForCurrentPage() {
+				List<DroppedWidget> result = new ArrayList<>();
+				String proj = (this.projectId != null && !this.projectId.isEmpty()) ? this.projectId : DesignDataManager.currentProjectId;
+				if (proj == null || proj.isEmpty()) proj = DesignActivity.getScId();
+
+				String page = this.pageName;
+				if (page != null && (page.contains("/") || page.endsWith(".js") || page.endsWith(".css"))) {
+						page = null;
+				}
+				if ((page == null || page.isEmpty()) && filename != null && !filename.contains("/") && !filename.endsWith(".js") && !filename.endsWith(".css")) {
+						page = filename;
+				}
+				if ((page == null || page.isEmpty()) && DesignDataManager.currentPageName != null && !DesignDataManager.currentPageName.isEmpty() && !DesignDataManager.currentPageName.contains("/")) {
+						page = DesignDataManager.currentPageName;
+				}
+				if (page == null || page.isEmpty()) {
+						page = "index";
+				}
+				String cleanPage = page.replace(".html", "").replace(".css", "").replace(".js", "").trim();
+
+				Context ctx = this.context != null ? this.context : this;
+				File dragWebDir = FileUtil.getDragWebDir(ctx);
+
+				File file = new File(dragWebDir, "projects/" + proj + "/pages/" + cleanPage + ".json");
+				if (!file.exists()) {
+						file = new File(dragWebDir, "projects/" + proj + "/layouts/" + cleanPage + ".json");
+				}
+
+				String json = null;
+				if (file.exists()) {
+						json = FileUtil.readFile(file.getAbsolutePath());
+				} else {
+						try {
+								if (proj != null && !proj.isEmpty()) {
+										PageManager pm = new PageManager(ctx, proj);
+										json = pm.loadPageLayout(cleanPage);
+								}
+						} catch (Exception ignored) {}
+
+						if (json == null || json.trim().isEmpty()) {
+								if ("index".equals(cleanPage)) {
+										File legacy = new File(dragWebDir, "projects/" + proj + "/layout.json");
+										if (legacy.exists()) {
+												json = FileUtil.readFile(legacy.getAbsolutePath());
+										}
+								}
+						}
+				}
+
+				if (json != null && !json.trim().isEmpty()) {
+						try {
+								List<Map<String, Object>> tree = PageManager.parseLayoutTree(json);
+								extractDroppedWidgets(tree, result, new java.util.HashSet<String>());
+						} catch (Exception e) {
+								e.printStackTrace();
+						}
+				}
+				return result;
+		}
+
+		private void extractDroppedWidgets(List<Map<String, Object>> nodes, List<DroppedWidget> out, java.util.Set<String> seenIds) {
+				if (nodes == null) return;
+				for (Map<String, Object> node : nodes) {
+						if (node == null) continue;
+						String tag = node.containsKey("tag") && node.get("tag") != null ? node.get("tag").toString() : "div";
+						String name = node.containsKey("name") && node.get("name") != null ? node.get("name").toString() : formatTagName(tag);
+
+						String id = null;
+						String className = "";
+						if (node.containsKey("id") && node.get("id") != null && !node.get("id").toString().trim().isEmpty()) {
+								id = node.get("id").toString().trim();
+						}
+						if (node.get("function") instanceof Map) {
+								Map<?, ?> fn = (Map<?, ?>) node.get("function");
+								if ((id == null || id.isEmpty()) && fn.get("id") != null && !fn.get("id").toString().trim().isEmpty()) {
+										id = fn.get("id").toString().trim();
+								}
+								if (fn.get("class") != null) {
+										className = fn.get("class").toString().trim();
+								}
+						}
+						if (id == null || id.isEmpty()) {
+								id = tag + "_" + (out.size() + 1);
+						}
+
+						if (!seenIds.contains(id)) {
+								seenIds.add(id);
+								out.add(new DroppedWidget(id, tag, name, className));
+						}
+
+						if (node.containsKey("children") && node.get("children") instanceof List) {
+								extractDroppedWidgets((List<Map<String, Object>>) node.get("children"), out, seenIds);
+						}
+				}
+		}
+
+		private String formatTagName(String tag) {
+				if (tag == null || tag.isEmpty()) return "Widget";
+				return Character.toUpperCase(tag.charAt(0)) + (tag.length() > 1 ? tag.substring(1) : "");
+		}
+
+		private boolean matchesWidget(BlockDef def, DroppedWidget w) {
+				String lw = def.getLinkedWidget();
+				if (lw == null || lw.trim().isEmpty()) {
+						return false;
+				}
+				String lwLower = lw.trim().toLowerCase();
+				if (lwLower.equals("*") || lwLower.equals("all")) {
+						return true;
+				}
+				String normTag = w.tag != null ? w.tag.toLowerCase().trim() : "";
+				String normName = w.name != null ? w.name.toLowerCase().replace(" ", "").replace("-", "").replace("_", "") : "";
+				String normId = w.id != null ? w.id.toLowerCase().trim() : "";
+				String normClass = w.className != null ? w.className.toLowerCase() : "";
+
+				String[] parts = lwLower.split("[,|/\\s]+");
+				for (String p : parts) {
+						p = p.trim().replace("-", "").replace("_", "");
+						if (p.isEmpty()) continue;
+						if (!normTag.isEmpty() && normTag.equals(p)) return true;
+						if (!normName.isEmpty() && (normName.equals(p) || normName.contains(p) || p.contains(normName))) return true;
+						if (!normId.isEmpty() && (normId.equals(p) || normId.startsWith(p) || normId.contains(p))) return true;
+						if (!normClass.isEmpty() && normClass.contains(p)) return true;
+						if (("nav".equals(p) || "navbar".equals(p)) && ("nav".equals(normTag) || normName.contains("nav"))) return true;
+						if (("list".equals(p) || "ul".equals(p) || "ol".equals(p)) && ("ul".equals(normTag) || "ol".equals(normTag) || normName.contains("list"))) return true;
+						if (("modal".equals(p) || "dialog".equals(p)) && ("dialog".equals(normTag) || normName.contains("modal") || normName.contains("dialog"))) return true;
+						if (("accordion".equals(p) || "details".equals(p)) && ("details".equals(normTag) || normName.contains("accordion"))) return true;
+						if (("toast".equals(p) || "alert".equals(p)) && (normName.contains("toast") || normName.contains("alert") || normClass.contains("toast"))) return true;
+						if (("button".equals(p) || "btn".equals(p)) && ("button".equals(normTag) || normName.contains("button") || normName.contains("btn"))) return true;
+						if (("input".equals(p) || "field".equals(p)) && ("input".equals(normTag) || "textarea".equals(normTag) || normName.contains("input") || normName.contains("textarea"))) return true;
+						if (("image".equals(p) || "img".equals(p)) && ("img".equals(normTag) || normName.contains("image") || normName.contains("img"))) return true;
+						if ("video".equals(p) && ("video".equals(normTag) || normName.contains("video"))) return true;
+				}
+				return false;
+		}
+
+		private void loadWidgetsPalette(int fallbackColor) {
+				List<DroppedWidget> dropped = getDroppedWidgetsForCurrentPage();
+				if (dropped == null || dropped.isEmpty()) {
+						addButtonToPalette("No widgets dropped on canvas", "label_no_widgets");
+						return;
+				}
+
+				boolean isCss = isCssEvent();
+				boolean isHtml = isHtmlEvent();
+				boolean isJs = !isCss && !isHtml;
+
+				List<BlockDef> allDefs = BlockDef.getDefinitions(this.context);
+				boolean anyAdded = false;
+
+				for (DroppedWidget w : dropped) {
+						List<BlockDef> widgetBlocks = new ArrayList<>();
+						for (BlockDef def : allDefs) {
+								if (matchesWidget(def, w)) {
+										String et = def.getEventType();
+										if (isCss && "css".equalsIgnoreCase(et)) {
+												widgetBlocks.add(def);
+										} else if (isHtml && "html".equalsIgnoreCase(et)) {
+												widgetBlocks.add(def);
+										} else if (isJs && ("js".equalsIgnoreCase(et) || "common".equalsIgnoreCase(et))) {
+												widgetBlocks.add(def);
+										}
+								}
+						}
+
+						if (!widgetBlocks.isEmpty()) {
+								anyAdded = true;
+								String headerTitle = w.name + " (" + w.id + ")";
+								addButtonToPalette(headerTitle, "label_widget_" + w.id);
+
+								for (BlockDef def : widgetBlocks) {
+										int blockColor;
+										try {
+												blockColor = (def.color != null && !def.color.isEmpty())
+																? android.graphics.Color.parseColor(def.color)
+																: (fallbackColor != 0 ? fallbackColor : android.graphics.Color.parseColor("#00BFA5"));
+										} catch (Exception ex) {
+												blockColor = fallbackColor != 0 ? fallbackColor : android.graphics.Color.parseColor("#00BFA5");
+										}
+										addBlockToPalette(def.getSpec(), def.getType(), def.getOpCode(), blockColor, new Object[0]);
+								}
+						}
+				}
+
+				if (!anyAdded) {
+						String mode = isCss ? "CSS" : (isHtml ? "HTML" : "JS");
+						addButtonToPalette("No " + mode + " blocks for dropped widgets", "label_no_blocks");
+				}
+		}
 		
 		public void onBlockCategorySelect(int i, int i2) {
 				if (this.paletteSelector != null) {
@@ -1915,7 +2131,10 @@ startActivityForResult(intent, 209);
 						addButtonToPalette(getString(R.string.logic_btn_make_block), "blockAdd");
 						addFunctions();
 				} else if (selectedCat.type == 2) {
-						for (BlockDef def : BlockDef.getDefinitions(this.context)) {
+						if ("widgets".equalsIgnoreCase(selectedCat.originalCategory)) {
+								loadWidgetsPalette(selectedCat.color);
+						} else {
+								for (BlockDef def : BlockDef.getDefinitions(this.context)) {
 								if (def.category != null && def.category.equalsIgnoreCase(selectedCat.originalCategory)) {
 										int blockColor;
 										try {
@@ -1926,6 +2145,7 @@ startActivityForResult(intent, 209);
 										addBlockToPalette(def.getSpec(), def.getType(), def.getOpCode(), blockColor, new Object[0]);
 								}
 						}
+				}
 				} else if (selectedCat.type == 3) {
 						collectionBlocksMap.clear();
 						java.io.File listFile = new java.io.File(FileUtil.getDragWebDir(), "collection/blocks/list.json");
@@ -3379,6 +3599,14 @@ startActivityForResult(intent, 209);
 						});
 				}
 
+				if (this.cardLiveSuggestion != null) {
+						this.cardLiveSuggestion.setOnClickListener(v -> {
+								if (this.currentActiveProblem != null) {
+										highlightProblemBlock(this.currentActiveProblem);
+								}
+						});
+				}
+
 				if (this.btnCloseLiveSuggestion != null) {
 						this.btnCloseLiveSuggestion.setOnClickListener(v -> hideLiveSuggestion());
 				}
@@ -3778,21 +4006,32 @@ startActivityForResult(intent, 209);
 						}
 				}
 
+				int tintColor = 0xFFE53935; // Material Red for Errors
+				if (problem.severity == LogicLinter.SEVERITY_WARNING) {
+						tintColor = 0xFFFF9100; // Material Amber / Orange for Warnings
+				} else if (problem.severity == LogicLinter.SEVERITY_INFO) {
+						tintColor = 0xFF29B6F6; // Material Light Blue for Suggestions
+				}
+
 				if (targetBlock != null) {
-						highlightAndFocusBlock(targetBlock);
+						highlightAndFocusBlock(targetBlock, tintColor);
 				} else if (this.pane.getRoot() != null) {
-						highlightAndFocusBlock(this.pane.getRoot());
+						highlightAndFocusBlock(this.pane.getRoot(), tintColor);
 				}
 		}
 
 		public void highlightAndFocusBlock(Block block) {
+				highlightAndFocusBlock(block, 0xFFE53935);
+		}
+
+		public void highlightAndFocusBlock(Block block, int tintColor) {
 				if (block == null) return;
 
-				if (this.lastHighlightedBlock != null) {
-						this.lastHighlightedBlock.setHighlighted(false);
+				if (this.lastHighlightedBlock != null && this.lastHighlightedBlock != block) {
+						this.lastHighlightedBlock.cancelBlink();
 				}
 
-				block.setHighlighted(true);
+				block.blinkWithTint(tintColor);
 				this.lastHighlightedBlock = block;
 
 				if (this.editor != null) {
@@ -3833,7 +4072,7 @@ startActivityForResult(intent, 209);
 
 				this.handler.postDelayed(() -> {
 						if (this.lastHighlightedBlock == block) {
-								block.setHighlighted(false);
+								block.cancelBlink();
 								this.lastHighlightedBlock = null;
 						}
 				}, 3500);

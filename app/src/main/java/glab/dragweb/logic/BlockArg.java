@@ -530,7 +530,21 @@ public class BlockArg extends BlockBase {
                 return;
             }
 
-            if (this.mType.equals("b") || this.mType.equals("d") || this.mType.equals("s")) {
+            if (this.mType.equals("b")) {
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Select Boolean")
+                      .setOptions(new String[]{"true", "false"})
+                      .setInitialValue(this.mTextView != null ? this.mTextView.getText().toString() : "true");
+                dialog.showChoiceInput(new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        applyArgValueChange(value);
+                    }
+                });
+                return;
+            }
+
+            if (this.mType.equals("d") || this.mType.equals("s")) {
                 boolean isNumber = this.mType.equals("d");
                 UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
                 dialog.setTitle(isNumber ? "Input Number Value" : "Input String Value")

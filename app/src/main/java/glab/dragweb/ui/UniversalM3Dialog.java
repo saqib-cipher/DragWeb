@@ -524,46 +524,92 @@ public final class UniversalM3Dialog {
     private static String lastSelectedIconLib = "Tabler";
 
     public void showIconPicker(OnText cb) {
+        showIconPicker("", cb);
+    }
+
+    public void showIconPicker(String currentIcon, OnText cb) {
+        final String[][] libs = {
+            {"Tabler", "ti ti-", ""},
+            {"FontAwesome", "fa-solid fa-", ""},
+            {"Lucide", "lucide-", ""},
+            {"Bootstrap", "bi bi-", ""},
+            {"Phosphor", "ph ph-", ""},
+            {"Remix", "ri-", "-line"},
+            {"Material", "material-icons mi-", ""}
+        };
+
+        String initialBase = "";
+        String detectedLib = lastSelectedIconLib != null ? lastSelectedIconLib : "Tabler";
+        if (currentIcon != null && !currentIcon.trim().isEmpty()) {
+            String trimmed = currentIcon.trim();
+            for (String[] lib : libs) {
+                if (!lib[1].isEmpty() && trimmed.startsWith(lib[1])) {
+                    detectedLib = lib[0];
+                    initialBase = trimmed.substring(lib[1].length());
+                    if (!lib[2].isEmpty() && initialBase.endsWith(lib[2])) {
+                        initialBase = initialBase.substring(0, initialBase.length() - lib[2].length());
+                    }
+                    break;
+                }
+            }
+            if (initialBase.isEmpty() && !trimmed.isEmpty()) {
+                initialBase = trimmed;
+            }
+        }
+        lastSelectedIconLib = detectedLib;
+
         final String[] selectedLibPrefix = {""};
         final String[] selectedLibSuffix = {""};
+        for (String[] lib : libs) {
+            if (lib[0].equals(lastSelectedIconLib)) {
+                selectedLibPrefix[0] = lib[1];
+                selectedLibSuffix[0] = lib[2];
+                break;
+            }
+        }
+        if (selectedLibPrefix[0].isEmpty() && libs.length > 0) {
+            selectedLibPrefix[0] = libs[0][1];
+            selectedLibSuffix[0] = libs[0][2];
+        }
 
-        int pad = dp(24);
+        int pad = dp(20);
         ScrollView scroll = new ScrollView(context);
         LinearLayout root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(pad, dp(12), pad, dp(20));
         scroll.addView(root);
 
-        // 1. Search/Type Input
-        TextInputLayout til = createTextInputLayout("Type or select icon name");
-        final TextInputEditText edit = createEditor(til, "");
-        til.addView(edit);
-        root.addView(til);
-
-        // 2. Results Container
-        final LinearLayout results = new LinearLayout(context);
-        results.setOrientation(LinearLayout.VERTICAL);
-        root.addView(results);
-
-        // 3. Library Selection (Required)
-        android.widget.TextView label = new android.widget.TextView(context);
-        label.setText("Step 2: Select Library (Required)");
-        label.setPadding(0, dp(16), 0, dp(8));
-        label.setTypeface(null, android.graphics.Typeface.BOLD);
-        root.addView(label);
+        // 1. Library Selection (At top so user sees library choices first)
+        TextView labelLib = new TextView(context);
+        labelLib.setText("Step 1: Choose Icon Library");
+        labelLib.setTextSize(13);
+        labelLib.setPadding(0, dp(4), 0, dp(6));
+        labelLib.setTypeface(null, android.graphics.Typeface.BOLD);
+        root.addView(labelLib);
 
         android.widget.HorizontalScrollView libScroll = createChipScroll();
         final ChipGroup libGroup = createChipGroup();
         libGroup.setSingleSelection(true);
         libGroup.setSelectionRequired(true);
 
-        String[][] libs = {
-            {"Tabler", "ti ti-", ""},
-            {"Phosphor", "ph ph-", ""},
-            {"FontAwesome", "fa-solid fa-", ""},
-            {"Material", "material-icons mi-", ""},
-            {"Bootstrap", "bi bi-", ""},
-            {"Remix", "ri-", "-line"}
+        final TextView previewText = new TextView(context);
+        previewText.setTextSize(12);
+        previewText.setPadding(dp(8), dp(6), dp(8), dp(8));
+        previewText.setTextColor(com.google.android.material.color.MaterialColors.getColor(context, android.R.attr.colorPrimary, 0xFF3B82F6));
+
+        // 2. Search / Type Input
+        TextInputLayout til = createTextInputLayout("Search or enter icon name");
+        final TextInputEditText edit = createEditor(til, initialBase);
+        til.addView(edit);
+
+        final Runnable[] updatePreview = new Runnable[1];
+        updatePreview[0] = () -> {
+            String name = edit.getText() != null ? edit.getText().toString().trim() : "";
+            if (!name.isEmpty()) {
+                previewText.setText("Selected Icon: " + selectedLibPrefix[0] + name + selectedLibSuffix[0]);
+            } else {
+                previewText.setText("Select an icon below or type name above");
+            }
         };
 
         for (final String[] lib : libs) {
@@ -578,20 +624,96 @@ public final class UniversalM3Dialog {
                 lastSelectedIconLib = lib[0];
                 selectedLibPrefix[0] = lib[1];
                 selectedLibSuffix[0] = lib[2];
+                if (updatePreview[0] != null) updatePreview[0].run();
             });
             libGroup.addView(c);
         }
         libScroll.addView(libGroup);
         root.addView(libScroll);
 
-        final com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+        root.addView(til);
+        root.addView(previewText);
+
+        // 3. Quick / Popular Icon Presets
+        TextView labelQuick = new TextView(context);
+        labelQuick.setText("Popular Icons:");
+        labelQuick.setTextSize(12);
+        labelQuick.setPadding(0, dp(8), 0, dp(4));
+        labelQuick.setTypeface(null, android.graphics.Typeface.BOLD);
+        root.addView(labelQuick);
+
+        android.widget.HorizontalScrollView quickScroll = createChipScroll();
+        final ChipGroup quickGroup = createChipGroup();
+        String[] quickIcons = {"home", "user", "settings", "search", "bell", "mail", "heart", "star", "shopping-cart", "check", "plus", "x", "camera", "file", "folder", "lock", "share", "download", "trash", "sparkles"};
+        for (final String qi : quickIcons) {
+            Chip qc = createPresetChip(qi);
+            qc.setOnClickListener(v -> {
+                edit.setText(qi);
+                edit.setSelection(qi.length());
+                if (updatePreview[0] != null) updatePreview[0].run();
+            });
+            quickGroup.addView(qc);
+        }
+        quickScroll.addView(quickGroup);
+        root.addView(quickScroll);
+
+        // 4. Search Results Container
+        TextView labelResults = new TextView(context);
+        labelResults.setText("Icon Library Catalogue:");
+        labelResults.setTextSize(12);
+        labelResults.setPadding(0, dp(12), 0, dp(4));
+        labelResults.setTypeface(null, android.graphics.Typeface.BOLD);
+        root.addView(labelResults);
+
+        final LinearLayout results = new LinearLayout(context);
+        results.setOrientation(LinearLayout.VERTICAL);
+        root.addView(results);
+
+        final Runnable populateResults = () -> {
+            String q = edit.getText() != null ? edit.getText().toString().trim() : "";
+            results.removeAllViews();
+            List<String> matches = IconSearchProvider.search(q);
+            int limit = q.isEmpty() ? 10 : 15;
+            for (int i = 0; i < Math.min(matches.size(), limit); i++) {
+                final String name = matches.get(i);
+                TextView tv = new TextView(context);
+                tv.setText(selectedLibPrefix[0] + name + selectedLibSuffix[0]);
+                tv.setPadding(dp(12), dp(8), dp(12), dp(8));
+                tv.setTextSize(13);
+                tv.setClickable(true);
+                tv.setFocusable(true);
+
+                android.util.TypedValue outValue = new android.util.TypedValue();
+                context.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
+                tv.setBackgroundResource(outValue.resourceId);
+
+                tv.setOnClickListener(v -> {
+                    edit.setText(name);
+                    edit.setSelection(name.length());
+                    if (updatePreview[0] != null) updatePreview[0].run();
+                });
+                results.addView(tv);
+            }
+        };
+
+        populateResults.run();
+        updatePreview[0].run();
+
+        final MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
             .setTitle(title.isEmpty() ? "Pick an Icon" : title)
             .setView(scroll)
+            .setNeutralButton("No Icon", (d, w) -> {
+                if (cb != null) cb.onText("");
+            })
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Select", (d, w) -> {
-                String name = edit.getText().toString().trim();
-                if (cb != null && !name.isEmpty() && !selectedLibPrefix[0].isEmpty()) {
-                    cb.onText(selectedLibPrefix[0] + name + selectedLibSuffix[0]);
+                String name = edit.getText() != null ? edit.getText().toString().trim() : "";
+                if (cb != null) {
+                    if (name.isEmpty()) {
+                        cb.onText("");
+                    } else {
+                        cb.onText(selectedLibPrefix[0] + name + selectedLibSuffix[0]);
+                    }
                 }
             });
 
@@ -601,30 +723,8 @@ public final class UniversalM3Dialog {
             @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
             @Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
             @Override public void afterTextChanged(android.text.Editable s) {
-                String q = s.toString().trim();
-                results.removeAllViews();
-                if (q.length() >= 1) {
-                    List<String> matches = IconSearchProvider.search(q);
-                    for (int i = 0; i < Math.min(matches.size(), 10); i++) {
-                        final String name = matches.get(i);
-                        android.widget.TextView tv = new android.widget.TextView(context);
-                        tv.setText(name);
-                        tv.setPadding(dp(16), dp(8), dp(16), dp(8));
-                        tv.setClickable(true);
-                        tv.setFocusable(true);
-                        
-                        android.util.TypedValue outValue = new android.util.TypedValue();
-                        context.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
-                        tv.setBackgroundResource(outValue.resourceId);
-
-                        tv.setOnClickListener(v -> {
-                            edit.setText(name);
-                            edit.setSelection(name.length());
-                            results.removeAllViews();
-                        });
-                        results.addView(tv);
-                    }
-                }
+                populateResults.run();
+                if (updatePreview[0] != null) updatePreview[0].run();
             }
         });
 
@@ -878,6 +978,205 @@ public final class UniversalM3Dialog {
                 if (cb != null) cb.onText(sb.toString());
             })
             .setNegativeButton("Cancel", null);
+
+        builder.show();
+    }
+
+    public interface OnWidgetItemsChanged {
+        void onChanged(List<String> items, List<String> icons);
+    }
+
+    public interface OnWidgetItemsConfirmed {
+        void onConfirmed(List<String> items, List<String> icons);
+    }
+
+    public static class WidgetItemRow {
+        public String text = "";
+        public String icon = "";
+        public View rowView;
+        public EditText etText;
+        public com.google.android.material.button.MaterialButton btnIcon;
+    }
+
+    public interface WidgetItemRowAdder {
+        void add(WidgetItemRow row);
+    }
+
+    public void showWidgetListItemsBuilder(
+            String dialogTitle,
+            final List<String> initialItems,
+            final List<String> initialIcons,
+            final boolean supportsIcons,
+            final OnWidgetItemsChanged liveCallback,
+            final OnWidgetItemsConfirmed confirmCallback) {
+
+        View root = android.view.LayoutInflater.from(context).inflate(R.layout.dialog_setup_widget_items, null);
+        final LinearLayout itemsContainer = root.findViewById(R.id.items_container);
+        final TextView tvHint = root.findViewById(R.id.tv_setup_hint);
+        final com.google.android.material.button.MaterialButton btnAddItem = root.findViewById(R.id.btn_add_item);
+
+        if (tvHint != null) {
+            tvHint.setText(supportsIcons 
+                ? "Configure items and optional icons for this component:" 
+                : "Configure items for this component:");
+        }
+
+        final ArrayList<WidgetItemRow> rows = new ArrayList<>();
+
+        final Runnable syncLiveUpdate = () -> {
+            if (liveCallback != null) {
+                List<String> currentItems = new ArrayList<>();
+                List<String> currentIcons = new ArrayList<>();
+                for (WidgetItemRow r : rows) {
+                    String t = r.etText != null ? r.etText.getText().toString().trim() : r.text;
+                    currentItems.add(t);
+                    currentIcons.add(r.icon != null ? r.icon : "");
+                }
+                liveCallback.onChanged(currentItems, currentIcons);
+            }
+        };
+
+        final Runnable refreshIndices = () -> {
+            for (int i = 0; i < rows.size(); i++) {
+                View rootV = rows.get(i).rowView;
+                if (rootV != null) {
+                    TextView tvIdx = rootV.findViewById(1001);
+                    if (tvIdx != null) tvIdx.setText("[" + (i + 1) + "]");
+                }
+            }
+        };
+
+        final WidgetItemRowAdder adder = new WidgetItemRowAdder() {
+            @Override
+            public void add(final WidgetItemRow row) {
+                final LinearLayout rowLayout = new LinearLayout(context);
+                rowLayout.setOrientation(LinearLayout.HORIZONTAL);
+                rowLayout.setGravity(Gravity.CENTER_VERTICAL);
+                rowLayout.setPadding(dp(4), dp(4), dp(4), dp(4));
+
+                TextView tvIdx = new TextView(context);
+                tvIdx.setId(1001);
+                tvIdx.setText("[" + (rows.size() + 1) + "]");
+                tvIdx.setTextSize(12);
+                tvIdx.setTypeface(null, android.graphics.Typeface.BOLD);
+                tvIdx.setPadding(0, 0, dp(6), 0);
+                rowLayout.addView(tvIdx);
+
+                com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(context, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+                til.setHint("Item Label");
+                til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+                lp.setMargins(dp(2), dp(2), dp(2), dp(2));
+                til.setLayoutParams(lp);
+
+                com.google.android.material.textfield.TextInputEditText etInput = new com.google.android.material.textfield.TextInputEditText(til.getContext());
+                etInput.setTextSize(13);
+                if (row.text != null && !row.text.isEmpty()) etInput.setText(row.text);
+                til.addView(etInput);
+                rowLayout.addView(til);
+                row.etText = etInput;
+
+                etInput.addTextChangedListener(new android.text.TextWatcher() {
+                    @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                    @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+                    @Override public void afterTextChanged(android.text.Editable s) {
+                        syncLiveUpdate.run();
+                    }
+                });
+
+                if (supportsIcons) {
+                    final com.google.android.material.button.MaterialButton btnIcon = new com.google.android.material.button.MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+                    LinearLayout.LayoutParams lpBtn = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    lpBtn.setMargins(dp(4), 0, dp(4), 0);
+                    btnIcon.setLayoutParams(lpBtn);
+                    btnIcon.setTextSize(11);
+                    btnIcon.setAllCaps(false);
+                    btnIcon.setCornerRadius(dp(8));
+                    String currentIcon = row.icon != null ? row.icon.trim() : "";
+                    btnIcon.setText(currentIcon.isEmpty() ? "+ Icon" : currentIcon);
+
+                    btnIcon.setOnClickListener(v -> {
+                        showIconPicker(row.icon, libIcon -> {
+                            row.icon = libIcon != null ? libIcon.trim() : "";
+                            btnIcon.setText(!row.icon.isEmpty() ? row.icon : "+ Icon");
+                            syncLiveUpdate.run();
+                        });
+                    });
+
+                    row.btnIcon = btnIcon;
+                    rowLayout.addView(btnIcon);
+                }
+
+                ImageView btnDel = new ImageView(context);
+                btnDel.setImageResource(R.drawable.trash);
+                btnDel.setImageTintList(com.google.android.material.color.MaterialColors.getColorStateList(context, android.R.attr.colorError, android.content.res.ColorStateList.valueOf(0xFFB00020)));
+                btnDel.setPadding(dp(6), dp(6), dp(6), dp(6));
+                btnDel.setOnClickListener(v -> {
+                    itemsContainer.removeView(rowLayout);
+                    rows.remove(row);
+                    refreshIndices.run();
+                    syncLiveUpdate.run();
+                });
+                rowLayout.addView(btnDel);
+
+                row.rowView = rowLayout;
+                rows.add(row);
+                itemsContainer.addView(rowLayout);
+            }
+        };
+
+        if (initialItems != null && !initialItems.isEmpty()) {
+            for (int i = 0; i < initialItems.size(); i++) {
+                WidgetItemRow r = new WidgetItemRow();
+                r.text = initialItems.get(i);
+                if (initialIcons != null && i < initialIcons.size()) {
+                    r.icon = initialIcons.get(i);
+                }
+                adder.add(r);
+            }
+        }
+        if (rows.isEmpty()) {
+            WidgetItemRow r = new WidgetItemRow();
+            r.text = "";
+            adder.add(r);
+        }
+
+        if (btnAddItem != null) {
+            btnAddItem.setOnClickListener(v -> {
+                WidgetItemRow r = new WidgetItemRow();
+                r.text = "";
+                adder.add(r);
+                refreshIndices.run();
+                syncLiveUpdate.run();
+                if (r.etText != null) {
+                    r.etText.requestFocus();
+                }
+            });
+        }
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
+            .setTitle(dialogTitle != null && !dialogTitle.isEmpty() ? dialogTitle : "Configure Items")
+            .setView(root)
+            .setPositiveButton("Save", (dialogInterface, which) -> {
+                List<String> currentItems = new ArrayList<>();
+                List<String> currentIcons = new ArrayList<>();
+                for (WidgetItemRow r : rows) {
+                    String t = r.etText != null ? r.etText.getText().toString().trim() : r.text;
+                    if (!t.isEmpty()) {
+                        currentItems.add(t);
+                        currentIcons.add(r.icon != null ? r.icon : "");
+                    }
+                }
+                if (confirmCallback != null) {
+                    confirmCallback.onConfirmed(currentItems, currentIcons);
+                }
+            })
+            .setNegativeButton("Cancel", (dialogInterface, which) -> {
+                if (liveCallback != null) {
+                    liveCallback.onChanged(initialItems != null ? initialItems : new ArrayList<>(), 
+                                           initialIcons != null ? initialIcons : new ArrayList<>());
+                }
+            });
 
         builder.show();
     }

@@ -130,5 +130,11 @@
         "name": "HTTP & Network",
         "catColor": "#00897B",
         "type": "js"
+    },
+    {
+        "id": "widgets",
+        "name": "Widgets",
+        "catColor": "#00BFA5",
+        "type": "common"
     }
 ]

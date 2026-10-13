@@ -654,19 +654,26 @@ public class DesignDataManager {
                     }
                     switch (i) {
                         case VAR_TYPE_BOOLEAN:
-                            if (!blockBean.spec.equals(str2)) {
-                                break;
+                            if (blockBean.spec != null && blockBean.spec.equals(str2)) {
+                                return true;
                             }
-                            return true;
+                            if (blockBean.parameters != null && !blockBean.parameters.isEmpty() && blockBean.parameters.get(0) != null) {
+                                if (blockBean.parameters.get(0).equals(str2)) {
+                                    return true;
+                                }
+                            }
+                            break;
                         case VAR_TYPE_INT:
                         case VAR_TYPE_STRING:
                         case 3:
                         case 4:
                         case 5:
-                            if (!((String) blockBean.parameters.get(VAR_TYPE_BOOLEAN)).equals(str2)) {
-                                break;
+                            if (blockBean.parameters != null && !blockBean.parameters.isEmpty() && blockBean.parameters.get(VAR_TYPE_BOOLEAN) != null) {
+                                if (blockBean.parameters.get(VAR_TYPE_BOOLEAN).equals(str2)) {
+                                    return true;
+                                }
                             }
-                            return true;
+                            break;
                         default:
                             break;
                     }

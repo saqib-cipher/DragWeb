@@ -43,10 +43,179 @@ public class ExportManager {
      * into {@code css/style.css} instead of being baked inline on the element.
      */
     private final StringBuilder elementCssBuffer = new StringBuilder();
+    private final java.util.Set<String> collectedWidgetScripts = new java.util.LinkedHashSet<>();
 
     public ExportManager(Context context, ThemeManager themeManager) {
         this.context = context;
         this.themeManager = themeManager;
+    }
+
+    public void collectWidgetScript(Map<String, Object> function) {
+        if (function == null) return;
+        String s = function.containsKey("script:js") && function.get("script:js") != null
+                ? String.valueOf(function.get("script:js"))
+                : (function.containsKey("script") && function.get("script") != null ? String.valueOf(function.get("script")) : null);
+        if (s != null && !s.trim().isEmpty()) {
+            collectedWidgetScripts.add(s.trim());
+        }
+    }
+
+    public static boolean isInternalFunctionKey(String key, Object value) {
+        if (key == null || key.trim().isEmpty()) return true;
+        String k = key.trim();
+        if (k.equals("id") || k.equals("class") || k.equals("style")
+            || k.equals("tag") || k.equals("children") || k.equals("text")
+            || k.equals("href") || k.equals("src") || k.equals("placeholder")
+            || k.equals("type") || k.equals("alt") || k.equals("controls")
+            || k.startsWith("on")) {
+            return true;
+        }
+        if (k.equalsIgnoreCase("customProperties")
+            || k.equalsIgnoreCase("script")
+            || k.equalsIgnoreCase("script:js")
+            || k.equalsIgnoreCase("style:css")
+            || k.equalsIgnoreCase("stylePresets")
+            || k.equalsIgnoreCase("items")
+            || k.equalsIgnoreCase("icons")
+            || k.equalsIgnoreCase("brand")
+            || k.equalsIgnoreCase("headers")
+            || k.equalsIgnoreCase("rows")
+            || k.equalsIgnoreCase("options")
+            || k.equalsIgnoreCase("slides")
+            || k.equalsIgnoreCase("blocks")
+            || k.equalsIgnoreCase("preset")
+            || k.equalsIgnoreCase("convert")
+            || k.equalsIgnoreCase("locked")
+            || k.equalsIgnoreCase("hidden")
+            || k.equalsIgnoreCase("name")
+            || k.equalsIgnoreCase("category")
+            || k.equalsIgnoreCase("tag")
+            || k.equalsIgnoreCase("children")) {
+            return true;
+        }
+        if (value instanceof Map || value instanceof List || value instanceof java.util.Collection) {
+            return true;
+        }
+        if (value != null) {
+            String valStr = value.toString().trim();
+            if (valStr.startsWith("{") || valStr.startsWith("[")
+                || valStr.contains("function ") || valStr.contains("function(")
+                || valStr.contains("const ") || valStr.contains("let ")
+                || valStr.contains("document.") || valStr.contains("\n")) {
+                return true;
+            }
+        }
+        return !k.matches("^[a-zA-Z_:][a-zA-Z0-9_.:-]*$");
+    }
+
+    private void appendGeneratedChildrenForItems(StringBuilder html, String tag, Map<String, Object> function, String indent) {
+        if (function == null) return;
+        if ("ul".equals(tag) || "ol".equals(tag)) {
+            if (function.containsKey("items") && function.get("items") instanceof List) {
+                List<?> items = (List<?>) function.get("items");
+                if (!items.isEmpty()) {
+                    html.append("\n");
+                    for (Object item : items) {
+                        if (item != null) {
+                            html.append(indent).append("  <li>").append(escapeHtml(item.toString())).append("</li>\n");
+                        }
+                    }
+                    html.append(indent);
+                }
+            }
+        } else if ("select".equals(tag)) {
+            if (function.containsKey("items") && function.get("items") instanceof List) {
+                List<?> items = (List<?>) function.get("items");
+                if (!items.isEmpty()) {
+                    html.append("\n");
+                    for (Object item : items) {
+                        if (item != null) {
+                            String v = item.toString().toLowerCase().replace(" ", "-");
+                            html.append(indent).append("  <option value=\"").append(escapeHtml(v)).append("\">")
+                                .append(escapeHtml(item.toString())).append("</option>\n");
+                        }
+                    }
+                    html.append(indent);
+                }
+            }
+        } else if ("nav".equals(tag)) {
+            if (function.containsKey("items") && function.get("items") instanceof List) {
+                List<?> items = (List<?>) function.get("items");
+                if (!items.isEmpty()) {
+                    html.append("\n");
+                    String brand = function.containsKey("brand") && function.get("brand") != null ? function.get("brand").toString() : "";
+                    if (!brand.isEmpty()) {
+                        html.append(indent).append("  <span class=\"nav-brand\" style=\"font-weight:bold;font-size:18px;\">")
+                            .append(escapeHtml(brand)).append("</span>\n");
+                    }
+                    html.append(indent).append("  <div class=\"nav-menu\" style=\"display:flex;gap:12px;align-items:center;\">\n");
+                    List<?> icons = (function.containsKey("icons") && function.get("icons") instanceof List)
+                        ? (List<?>) function.get("icons") : null;
+                    List<?> hrefs = (function.containsKey("hrefs") && function.get("hrefs") instanceof List)
+                        ? (List<?>) function.get("hrefs") : ((function.containsKey("links") && function.get("links") instanceof List) ? (List<?>) function.get("links") : null);
+                    for (int i = 0; i < items.size(); i++) {
+                        Object item = items.get(i);
+                        if (item != null) {
+                            String targetHref = "#";
+                            if (hrefs != null && i < hrefs.size() && hrefs.get(i) != null) {
+                                String h = hrefs.get(i).toString().trim();
+                                if (!h.isEmpty()) targetHref = h;
+                            }
+                            String iconName = (icons != null && i < icons.size() && icons.get(i) != null)
+                                ? icons.get(i).toString().trim() : "";
+                            if (!iconName.isEmpty()) {
+                                html.append(indent).append("    <a href=\"").append(escapeHtml(targetHref)).append("\" class=\"nav-item\" style=\"color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:6px;\">");
+                                if (iconName.startsWith("ti ti-") || iconName.startsWith("ph ph-") || iconName.startsWith("fa-")
+                                    || iconName.startsWith("material-") || iconName.startsWith("bi bi-") || iconName.startsWith("ri-")) {
+                                    html.append("<i class=\"").append(escapeHtml(iconName)).append("\"></i> ");
+                                } else {
+                                    String lucideName = iconName.startsWith("lucide-") ? iconName.substring("lucide-".length()) : iconName;
+                                    html.append("<i data-lucide=\"").append(escapeHtml(lucideName)).append("\" style=\"width:16px;height:16px;\"></i> ");
+                                }
+                                html.append(escapeHtml(item.toString())).append("</a>\n");
+                            } else {
+                                html.append(indent).append("    <a href=\"").append(escapeHtml(targetHref)).append("\" class=\"nav-item\" style=\"color:inherit;text-decoration:none;\">")
+                                    .append(escapeHtml(item.toString())).append("</a>\n");
+                            }
+                        }
+                    }
+                    html.append(indent).append("  </div>\n");
+                    html.append(indent);
+                }
+            }
+        } else if ("table".equals(tag)) {
+            if (function.containsKey("headers") && function.get("headers") instanceof List) {
+                List<?> headers = (List<?>) function.get("headers");
+                if (!headers.isEmpty()) {
+                    html.append("\n").append(indent).append("  <thead>\n").append(indent).append("    <tr>\n");
+                    for (Object h : headers) {
+                        if (h != null) {
+                            html.append(indent).append("      <th style=\"border:1px solid #E2E8F0;padding:8px 12px;\">")
+                                .append(escapeHtml(h.toString())).append("</th>\n");
+                        }
+                    }
+                    html.append(indent).append("    </tr>\n").append(indent).append("  </thead>\n");
+                }
+            }
+            if (function.containsKey("rows") && function.get("rows") instanceof List) {
+                List<?> rows = (List<?>) function.get("rows");
+                if (!rows.isEmpty()) {
+                    html.append(indent).append("  <tbody>\n");
+                    for (Object r : rows) {
+                        if (r instanceof List) {
+                            html.append(indent).append("    <tr>\n");
+                            for (Object c : (List<?>) r) {
+                                html.append(indent).append("      <td style=\"border:1px solid #E2E8F0;padding:8px 12px;\">")
+                                    .append(escapeHtml(c != null ? c.toString() : "")).append("</td>\n");
+                            }
+                            html.append(indent).append("    </tr>\n");
+                        }
+                    }
+                    html.append(indent).append("  </tbody>\n");
+                }
+                html.append(indent);
+            }
+        }
     }
 
     public void setIconLibraryManager(IconLibraryManager m) {
@@ -70,15 +239,25 @@ public class ExportManager {
         this.projectId = projectId;
     }
 
-    private String compileBlocksFromLogicFile(String cleanPage) {
-        return compileBlocksFromLogicFile(cleanPage, null);
+    public static boolean isCssCategory(String category) {
+        if (category == null) return false;
+        String cat = category.toLowerCase().trim();
+        return cat.equals("css") || cat.startsWith("css") || cat.startsWith("css_")
+            || cat.equals("responsive") || cat.equals("comment") || cat.equals("animation");
     }
 
-    private String compileBlocksFromLogicFile(String cleanPage, String categoryPrefix) {
-        return compileBlocksFromLogicFile(cleanPage, categoryPrefix, null);
+    public static boolean isHtmlCategory(String category) {
+        if (category == null) return false;
+        String cat = category.toLowerCase().trim();
+        return cat.equals("html") || cat.startsWith("html");
     }
 
-    private String compileBlocksFromLogicFile(String cleanPage, String categoryPrefix, String excludePrefix) {
+    public static boolean isJsCategory(String category) {
+        if (category == null) return false;
+        return !isCssCategory(category) && !isHtmlCategory(category);
+    }
+
+    public String compileBlocksForMode(String cleanPage, String mode) {
         File logicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + cleanPage + "_logic.json");
         if (!logicFile.exists()) return "";
         try {
@@ -88,37 +267,46 @@ public class ExportManager {
             if (data == null || data.blocks == null || data.blocks.isEmpty()) return "";
             BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
             StringBuilder sb = new StringBuilder();
+            java.util.Set<String> validIds = ProjectCodeGenerator.collectWidgetIdentifiers(context, projectId, cleanPage);
             for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
                 String key = entry.getKey();
-                ArrayList<BlockBean> filtered = entry.getValue();
-                if (categoryPrefix != null) {
-                    filtered = new ArrayList<>();
-                    for (BlockBean b : entry.getValue()) {
-                        if (b != null && b.category != null && b.category.startsWith(categoryPrefix)) {
-                            filtered.add(b);
+                if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
+                if (key != null && validIds != null && !validIds.isEmpty() && !ProjectCodeGenerator.isSystemEvent(key)) {
+                    int lastUnder = key.lastIndexOf('_');
+                    if (lastUnder > 0) {
+                        String widgetId = key.substring(0, lastUnder);
+                        if (!validIds.contains(widgetId)) {
+                            continue; // Orphaned event from deleted widget
                         }
                     }
-                    if (filtered.isEmpty()) continue;
-                } else {
-                    // No prefix filter — include blocks but skip special entries
-                    filtered = new ArrayList<>();
-                    for (BlockBean b : entry.getValue()) {
-                        if (b == null) continue;
-                        // Skip function definition entries — emitted by addMoreBlockCodes
-                        if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
+                }
+
+                ArrayList<BlockBean> filtered = new ArrayList<>();
+                for (BlockBean b : entry.getValue()) {
+                    if (b == null) continue;
+                    String cat = b.category != null ? b.category : "";
+                    if (validIds != null && !validIds.isEmpty()) {
+                        if (("widgets".equalsIgnoreCase(cat) || (b.spec != null && (b.spec.contains("%selector") || b.spec.contains("%m.selector")))) && b.parameters != null && !b.parameters.isEmpty()) {
+                            String sel = b.parameters.get(0) != null ? b.parameters.get(0).trim() : "";
+                            if (!sel.isEmpty()) {
+                                String target = sel.startsWith("#") ? sel.substring(1) : sel;
+                                if (!validIds.contains(target) && !validIds.contains(sel)) {
+                                    continue; // Target widget does not exist on page
+                                }
+                            }
+                        }
+                    }
+                    if ("css".equalsIgnoreCase(mode)) {
+                        if (isCssCategory(cat)) filtered.add(b);
+                    } else if ("html".equalsIgnoreCase(mode)) {
+                        if (isHtmlCategory(cat)) filtered.add(b);
+                    } else if ("js".equalsIgnoreCase(mode)) {
+                        if (isJsCategory(cat)) filtered.add(b);
+                    } else {
                         filtered.add(b);
                     }
                 }
-                if (excludePrefix != null) {
-                    ArrayList<BlockBean> temp = new ArrayList<>();
-                    for (BlockBean b : filtered) {
-                        if (b.category == null || !b.category.startsWith(excludePrefix)) {
-                            temp.add(b);
-                        }
-                    }
-                    filtered = temp;
-                    if (filtered.isEmpty()) continue;
-                }
+                if (filtered.isEmpty()) continue;
                 String code = compiler.getSource(0, filtered);
                 if (code != null && !code.trim().isEmpty()) {
                     sb.append(code).append("\n\n");
@@ -129,6 +317,21 @@ public class ExportManager {
             e.printStackTrace();
             return "";
         }
+    }
+
+    private String compileBlocksFromLogicFile(String cleanPage) {
+        return compileBlocksForMode(cleanPage, "all");
+    }
+
+    private String compileBlocksFromLogicFile(String cleanPage, String categoryPrefix) {
+        return compileBlocksForMode(cleanPage, categoryPrefix);
+    }
+
+    private String compileBlocksFromLogicFile(String cleanPage, String categoryPrefix, String excludePrefix) {
+        if ("html".equalsIgnoreCase(excludePrefix)) {
+            return compileBlocksForMode(cleanPage, "js");
+        }
+        return compileBlocksForMode(cleanPage, categoryPrefix != null ? categoryPrefix : "all");
     }
 
     public static class ExportResult {
@@ -192,13 +395,15 @@ public class ExportManager {
         Map<String, String> pageHtmlMap = new HashMap<>();
         StringBuilder accumulatedCssBuffer = new StringBuilder();
         StringBuilder accumulatedJsBuffer = new StringBuilder();
+        elementCssBuffer.setLength(0);
+        collectedWidgetScripts.clear();
 
         // 1. Theme variables, presets, and common styles in CSS
         accumulatedCssBuffer.append("/* Generated by DragWeb */\n\n");
 
         // Load default global CSS stylesheet blocks and append (BlockCodeCompiler)
         String globalCssClean = DesignDataManager.getCleanPageName("css/style.css");
-        String cssBlockCode = compileBlocksFromLogicFile(globalCssClean);
+        String cssBlockCode = compileBlocksForMode(globalCssClean, "css");
         if (!cssBlockCode.isEmpty()) {
             accumulatedCssBuffer.append("\n/* Global Stylesheet Styles */\n").append(cssBlockCode).append("\n");
         }
@@ -228,7 +433,7 @@ public class ExportManager {
 
         // Load default global JS script blocks and append (BlockCodeCompiler)
         String globalJsClean = DesignDataManager.getCleanPageName("js/script.js");
-        String jsBlockCode = compileBlocksFromLogicFile(globalJsClean, null, "html");
+        String jsBlockCode = compileBlocksForMode(globalJsClean, "js");
         if (!jsBlockCode.isEmpty()) {
             accumulatedJsBuffer.append(jsBlockCode).append("\n");
         }
@@ -247,8 +452,6 @@ public class ExportManager {
                 Log.w("ExportManager", "Error parsing global JS ASD blocks: " + e.getMessage());
             }
         }
-
-        elementCssBuffer.setLength(0);
 
         for (String pageName : allPages) {
             String htmlContent = "";
@@ -286,7 +489,7 @@ public class ExportManager {
             // Compile HTML blocks (category "html") and inject into body
             if (pageLogic != null) {
                 String cleanName = DesignDataManager.getCleanPageName(pageName);
-                String pageHtmlBlocks = compileBlocksFromLogicFile(cleanName, "html");
+                String pageHtmlBlocks = compileBlocksForMode(cleanName, "html");
                 if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
                     htmlContent = htmlContent.replace("</body>",
                         "\n  <!-- HTML Blocks -->\n  " + pageHtmlBlocks.replace("\n", "\n  ") + "\n</body>");
@@ -301,7 +504,7 @@ public class ExportManager {
                 if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
                     accumulatedCssBuffer.append(pseudoRules).append("\n");
                 }
-                String pageCssBlocks = compileBlocksFromLogicFile(DesignDataManager.getCleanPageName(pageName), "css");
+                String pageCssBlocks = compileBlocksForMode(DesignDataManager.getCleanPageName(pageName), "css");
                 if (!pageCssBlocks.isEmpty()) {
                     accumulatedCssBuffer.append(pageCssBlocks).append("\n");
                 }
@@ -310,8 +513,8 @@ public class ExportManager {
                     accumulatedCssBuffer.append(asdCss).append("\n");
                 }
 
-                // Accumulate page-specific JS rules (exclude HTML blocks — they go into the body)
-                String pageJsBlocks = compileBlocksFromLogicFile(DesignDataManager.getCleanPageName(pageName), null, "html");
+                // Accumulate page-specific JS rules (only JS blocks!)
+                String pageJsBlocks = compileBlocksForMode(DesignDataManager.getCleanPageName(pageName), "js");
                 if (!pageJsBlocks.isEmpty()) {
                     accumulatedJsBuffer.append(pageJsBlocks).append("\n");
                 }
@@ -322,14 +525,32 @@ public class ExportManager {
             }
         }
 
-        // MoreBlock function definitions (from ALL project pages, not just current)
+        StringBuilder allHtmlSb = new StringBuilder();
+        for (String htmlVal : pageHtmlMap.values()) {
+            if (htmlVal != null) allHtmlSb.append(htmlVal).append(" ");
+        }
+        String allHtml = allHtmlSb.toString();
+
+        // MoreBlock function definitions (only include if referenced in project JS or HTML)
         {
             BlockCodeCompiler funcCompiler = new BlockCodeCompiler(context, projectId);
             ArrayList<String> funcDefs = ProjectCodeGenerator.addMoreBlockCodes(context, projectId, funcCompiler);
             StringBuilder funcSb = new StringBuilder();
+            String currentJs = accumulatedJsBuffer.toString();
+
             for (String def : funcDefs) {
                 if (def != null && !def.trim().isEmpty()) {
-                    funcSb.append(def).append("\n");
+                    String cleanDef = def.trim();
+                    String fName = "";
+                    if (cleanDef.startsWith("function ")) {
+                        int parenIdx = cleanDef.indexOf('(');
+                        if (parenIdx > 9) {
+                            fName = cleanDef.substring(9, parenIdx).trim();
+                        }
+                    }
+                    if (!fName.isEmpty() && (currentJs.contains(fName) || allHtml.contains(fName))) {
+                        funcSb.append(def).append("\n");
+                    }
                 }
             }
             if (funcSb.length() > 0) {
@@ -350,6 +571,20 @@ public class ExportManager {
         accumulatedCssBuffer.append("/* Element Styles */\n");
         if (elementCssBuffer.length() > 0) {
             accumulatedCssBuffer.append(elementCssBuffer);
+        }
+
+        if (!collectedWidgetScripts.isEmpty()) {
+            StringBuilder wsSb = new StringBuilder();
+            String curJs = accumulatedJsBuffer.toString();
+            for (String script : collectedWidgetScripts) {
+                if (script == null || script.trim().isEmpty()) continue;
+                if (isScriptReferenced(script, curJs, allHtml)) {
+                    wsSb.append(script).append("\n\n");
+                }
+            }
+            if (wsSb.length() > 0) {
+                accumulatedJsBuffer.append("\n/* Widget Scripts */\n").append(wsSb);
+            }
         }
 
         // Common JS footer
@@ -536,6 +771,7 @@ public class ExportManager {
         String tag = widgetMap.containsKey("tag") ? widgetMap.get("tag").toString() : "div";
         Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
         if (function == null) return "";
+        collectWidgetScript(function);
 
         String indentStr = repeat("  ", indent);
         StringBuilder html = new StringBuilder();
@@ -583,7 +819,17 @@ public class ExportManager {
             }
         }
 
-        if (useInline && !noStyles) {
+        // Output custom attributes (data-*, role, aria-*, target, etc.)
+        for (Map.Entry<String, Object> entry : function.entrySet()) {
+            String key = entry.getKey();
+            if (!isInternalFunctionKey(key, entry.getValue())) {
+                if (entry.getValue() != null) {
+                    html.append(" ").append(key).append("=\"").append(escapeHtml(entry.getValue().toString())).append("\"");
+                }
+            }
+        }
+
+        if (!noStyles) {
             Map<String, Object> style = (Map<String, Object>) function.get("style");
             if (style != null && !style.isEmpty()) {
                 String selectorPrefix = (function.containsKey("class") && !String.valueOf(function.get("class")).trim().isEmpty()) ? "." : "";
@@ -633,18 +879,23 @@ public class ExportManager {
             html.append(escapeHtml(function.get("text").toString()));
         }
 
+        StringBuilder childrenHtml = new StringBuilder();
         if (widgetMap.containsKey("children")) {
             Object childrenObj = widgetMap.get("children");
             if (childrenObj instanceof List) {
                 List<Map<String, Object>> children = (List<Map<String, Object>>) childrenObj;
-                if (!children.isEmpty()) {
-                    html.append("\n");
-                    for (Map<String, Object> child : children) {
-                        html.append(generateElementHtmlFromNode(child, indent + 1));
+                for (Map<String, Object> child : children) {
+                    String ch = generateElementHtmlFromNode(child, indent + 1);
+                    if (ch != null && !ch.trim().isEmpty()) {
+                        childrenHtml.append(ch);
                     }
-                    html.append(indentStr);
                 }
             }
+        }
+        if (childrenHtml.length() > 0) {
+            html.append("\n").append(childrenHtml).append(indentStr);
+        } else {
+            appendGeneratedChildrenForItems(html, tag, function, indentStr);
         }
 
         html.append("</").append(tag).append(">\n");
@@ -826,6 +1077,7 @@ public class ExportManager {
         String tag = widgetMap.containsKey("tag") ? widgetMap.get("tag").toString() : "div";
         Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
         if (function == null) return "";
+        collectWidgetScript(function);
 
         String indentStr = repeat("  ", indent);
         StringBuilder html = new StringBuilder();
@@ -878,11 +1130,11 @@ public class ExportManager {
         // Output custom / other attributes (data-*, role, target, etc.)
         for (Map.Entry<String, Object> entry : function.entrySet()) {
             String key = entry.getKey();
-            if (!"id".equals(key) && !"class".equals(key) && !"style".equals(key)
-                && !"tag".equals(key) && !"children".equals(key) && !"text".equals(key)
+            if (!isInternalFunctionKey(key, entry.getValue()) /*
+
                 && !"href".equals(key) && !"src".equals(key) && !"placeholder".equals(key)
                 && !"type".equals(key) && !"alt".equals(key) && !"controls".equals(key)
-                && !key.startsWith("on")) {
+                */ ) {
                 if (entry.getValue() != null) {
                     html.append(" ").append(key).append("=\"").append(escapeHtml(entry.getValue().toString())).append("\"");
                 }
@@ -903,8 +1155,8 @@ public class ExportManager {
             }
         }
 
-        // Output element styles to CSS only if inline styles are disabled
-        if (!useInline && !noStyles) {
+        // Output element and preset styles to CSS
+        if (!noStyles) {
             Map<String, Object> style = (Map<String, Object>) function.get("style");
             if (style != null && !style.isEmpty()) {
                 String selector = "";
@@ -966,15 +1218,20 @@ public class ExportManager {
         }
 
         // Children
+        StringBuilder childrenHtml = new StringBuilder();
         if (view instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) view;
-            if (vg.getChildCount() > 0) {
-                html.append("\n");
-                for (int i = 0; i < vg.getChildCount(); i++) {
-                    html.append(generateElementHtml(vg.getChildAt(i), indent + 1));
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                String ch = generateElementHtml(vg.getChildAt(i), indent + 1);
+                if (ch != null && !ch.trim().isEmpty()) {
+                    childrenHtml.append(ch);
                 }
-                html.append(indentStr);
             }
+        }
+        if (childrenHtml.length() > 0) {
+            html.append("\n").append(childrenHtml).append(indentStr);
+        } else {
+            appendGeneratedChildrenForItems(html, tag, function, indentStr);
         }
 
         html.append("</").append(tag).append(">\n");
@@ -1266,6 +1523,33 @@ public class ExportManager {
             }
         }
         return "  <link rel=\"stylesheet\" href=\"css/style.css\">\n";
+    }
+
+    public static boolean isScriptReferenced(String script, String curJs, String allHtml) {
+        if (script == null || script.trim().isEmpty()) return false;
+        String cur = (curJs != null ? curJs : "") + " " + (allHtml != null ? allHtml : "");
+        String s = script.toLowerCase();
+        if (s.contains("setprogress") && !cur.toLowerCase().contains("progress")) return false;
+        if (s.contains("togglenavbarmenu") && !cur.toLowerCase().contains("nav")) return false;
+        if (s.contains("submitform") && !cur.toLowerCase().contains("form")) return false;
+        if (s.contains("filtertable") && !cur.toLowerCase().contains("table")) return false;
+        if (s.contains("openmodal") && !cur.toLowerCase().contains("modal")) return false;
+        if (s.contains("toggleaccordion") && !cur.toLowerCase().contains("accordion")) return false;
+        if (s.contains("carouselnext") && !cur.toLowerCase().contains("carousel")) return false;
+        if (s.contains("showtoast") && !cur.toLowerCase().contains("toast")) return false;
+        if (s.contains("toggledropdown") && !cur.toLowerCase().contains("dropdown")) return false;
+        if (s.contains("setrating") && !cur.toLowerCase().contains("rating")) return false;
+        if (s.contains("animatecounter") && !cur.toLowerCase().contains("counter")) return false;
+
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("function\\s+([a-zA-Z0-9_$]+)\\s*\\(").matcher(script);
+        boolean hasFunc = false;
+        while (m.find()) {
+            hasFunc = true;
+            String fName = m.group(1);
+            if (curJs != null && curJs.contains(fName)) return true;
+            if (allHtml != null && allHtml.contains(fName)) return true;
+        }
+        return !hasFunc;
     }
 
     private String escapeHtml(String text) {

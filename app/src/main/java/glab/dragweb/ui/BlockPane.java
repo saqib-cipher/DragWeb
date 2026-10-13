@@ -181,6 +181,18 @@ public class BlockPane extends RelativeLayout {
             objArr[INSERT_NORMAL] = Integer.valueOf(block.mColor);
             objArr[INSERT_ABOVE] = block.defaultArgValues;
             block2 = new Block(context, i3, str, str2, str3, objArr);
+            if (block.args != null && block2.args != null) {
+                for (int a = 0; a < block.args.size() && a < block2.args.size(); a++) {
+                    View oldArg = block.args.get(a);
+                    View newArg = block2.args.get(a);
+                    if (oldArg instanceof BlockArg && newArg instanceof BlockArg) {
+                        Object val = ((BlockArg) oldArg).getArgValue();
+                        if (val != null && !val.toString().isEmpty()) {
+                            ((BlockArg) newArg).setArgValue(val);
+                        }
+                    }
+                }
+            }
         } else {
             block2 = block;
         }
@@ -529,19 +541,26 @@ public class BlockPane extends RelativeLayout {
                 }
                 switch (i2) {
                     case INSERT_NORMAL /*0*/:
-                        if (!bean.spec.equals(str)) {
-                            break;
+                        if (bean.spec != null && bean.spec.equals(str)) {
+                            return true;
                         }
-                        return true;
+                        if (bean.parameters != null && !bean.parameters.isEmpty() && bean.parameters.get(INSERT_NORMAL) != null) {
+                            if (bean.parameters.get(INSERT_NORMAL).equals(str)) {
+                                return true;
+                            }
+                        }
+                        break;
                     case INSERT_ABOVE /*1*/:
                     case INSERT_SUB1 /*2*/:
                     case INSERT_SUB2 /*3*/:
                     case INSERT_WRAP /*4*/:
                     case INSERT_PARAM /*5*/:
-                        if (!((String) bean.parameters.get(INSERT_NORMAL)).equals(str)) {
-                            break;
+                        if (bean.parameters != null && !bean.parameters.isEmpty() && bean.parameters.get(INSERT_NORMAL) != null) {
+                            if (bean.parameters.get(INSERT_NORMAL).equals(str)) {
+                                return true;
+                            }
                         }
-                        return true;
+                        break;
                     default:
                         continue;
                 }

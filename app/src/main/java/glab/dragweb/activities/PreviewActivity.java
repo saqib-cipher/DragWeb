@@ -16,6 +16,8 @@ import glab.dragweb.colorpicker.*;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Environment;
@@ -368,12 +370,28 @@ public class PreviewActivity extends AppCompatActivity {
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                String url = request.getUrl().toString();
-                // Let in-app links (page-to-page navigation served by the
-                // local HTTP server) load naturally.
-                if (isLocalPreviewUrl(url)) return false;
-                if (url.startsWith("file://")) return false;
-                // Block external URLs from loading inside the preview
+                if (request == null || request.getUrl() == null) return false;
+                return handleUrlLoading(view, request.getUrl().toString());
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return handleUrlLoading(view, url);
+            }
+
+            private boolean handleUrlLoading(WebView view, String url) {
+                if (url == null || url.trim().isEmpty() || url.equals("#") || url.startsWith("javascript:")) {
+                    return false;
+                }
+                if (isLocalPreviewUrl(url) || url.startsWith("http://") || url.startsWith("https://") || url.startsWith("file://")) {
+                    return false;
+                }
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Log.w(TAG, "Cannot launch external URI: " + url, e);
+                }
                 return true;
             }
 

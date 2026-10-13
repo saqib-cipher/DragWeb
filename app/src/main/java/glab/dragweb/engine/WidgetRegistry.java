@@ -129,12 +129,20 @@ public class WidgetRegistry {
         public String id;
         public String name;
         public String icon;
+
+        public WidgetCategory() {}
+
+        public WidgetCategory(String id, String name, String icon) {
+            this.id = id;
+            this.name = name;
+            this.icon = icon;
+        }
     }
 
     public static final String[] AVAILABLE_ICONS = new String[] {
         "box", "columns_3", "stack_2", "layout_grid", "layout_list", "arrows_move_vertical",
         "cursor_text", "puzzle", "photo", "world", "pencil", "pencil_code",
-        "check_bg", "video", "file_music", "source_code", "ic_list_view", "table",
+        "square_check", "video", "file_music", "source_code", "ic_list_view", "table",
         "palette", "bulb", "blocks", "layout_grid_add", "file_code", "code_plus",
         "droplet", "shadow", "folder"
     };
@@ -164,7 +172,7 @@ public class WidgetRegistry {
             case "world": return R.drawable.world;
             case "pencil": return R.drawable.pencil;
             case "pencil_code": return R.drawable.pencil_code;
-            case "check_bg": return R.drawable.check_bg;
+            case "square_check": return R.drawable.square_check;
             case "video": return R.drawable.video;
             case "file_music": return R.drawable.file_music;
             case "source_code": return R.drawable.source_code;
@@ -234,17 +242,78 @@ public class WidgetRegistry {
     }
 
     public List<WidgetCategory> getWidgetCategories() {
+        List<WidgetCategory> categories = new ArrayList<>();
         try {
             InputStream is = context.getAssets().open("widget_categories.json");
             byte[] buffer = new byte[is.available()];
             is.read(buffer);
             is.close();
             String json = new String(buffer, "UTF-8");
-            return new Gson().fromJson(json, new TypeToken<List<WidgetCategory>>(){}.getType());
+            JsonElement root = JsonParser.parseString(json);
+            if (root != null && root.isJsonArray()) {
+                for (JsonElement elem : root.getAsJsonArray()) {
+                    if (elem != null && elem.isJsonObject()) {
+                        JsonObject obj = elem.getAsJsonObject();
+                        WidgetCategory wc = new WidgetCategory();
+                        if (obj.has("id") && !obj.get("id").isJsonNull()) {
+                            wc.id = obj.get("id").getAsString();
+                        }
+                        if (obj.has("name") && !obj.get("name").isJsonNull()) {
+                            wc.name = obj.get("name").getAsString();
+                        }
+                        if (obj.has("icon") && !obj.get("icon").isJsonNull()) {
+                            wc.icon = obj.get("icon").getAsString();
+                        }
+                        categories.add(wc);
+                    }
+                }
+            }
         } catch (Exception e) {
             Log.w("WidgetRegistry", "Could not load widget categories: " + e.getMessage());
         }
-        return new ArrayList<>();
+
+        File customFile = new File(FileUtil.getDragWebDir(context), "custom/widget_categories.json");
+        if (customFile.exists() && customFile.length() > 0) {
+            try {
+                String json = FileUtil.readFile(customFile.getAbsolutePath());
+                if (json != null && !json.trim().isEmpty()) {
+                    JsonElement root = JsonParser.parseString(json);
+                    if (root != null && root.isJsonArray()) {
+                        for (JsonElement elem : root.getAsJsonArray()) {
+                            if (elem != null && elem.isJsonObject()) {
+                                JsonObject obj = elem.getAsJsonObject();
+                                WidgetCategory wc = new WidgetCategory();
+                                if (obj.has("id") && !obj.get("id").isJsonNull()) {
+                                    wc.id = obj.get("id").getAsString();
+                                }
+                                if (obj.has("name") && !obj.get("name").isJsonNull()) {
+                                    wc.name = obj.get("name").getAsString();
+                                }
+                                if (obj.has("icon") && !obj.get("icon").isJsonNull()) {
+                                    wc.icon = obj.get("icon").getAsString();
+                                }
+                                if (wc.id != null && !wc.id.trim().isEmpty()) {
+                                    boolean replaced = false;
+                                    for (int i = 0; i < categories.size(); i++) {
+                                        if (wc.id.equalsIgnoreCase(categories.get(i).id)) {
+                                            categories.set(i, wc);
+                                            replaced = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!replaced) {
+                                        categories.add(wc);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.w("WidgetRegistry", "Could not load custom widget categories: " + e.getMessage());
+            }
+        }
+        return categories;
     }
 
     public ArrayList<HashMap<String, Object>> loadOnlyCustomWidgets() {

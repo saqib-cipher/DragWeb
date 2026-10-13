@@ -34,6 +34,7 @@ public class PageCodeGenerator {
     private GoogleFontsManager googleFontsManager;
     private String currentPageName = "";
     private ThemeManager themeManager;
+    private final java.util.Set<String> collectedScripts = new java.util.LinkedHashSet<>();
 
     public PageCodeGenerator() {}
 
@@ -79,6 +80,7 @@ public class PageCodeGenerator {
                                    LogicBlockManager logicBlockManager,
                                    ManageBlocksWidgets customBlockManager) {
         this.themeManager = themeManager;
+        collectedScripts.clear();
         StringBuilder bodyBuilder = new StringBuilder();
 
         if (screen instanceof ViewGroup) {
@@ -140,6 +142,7 @@ public class PageCodeGenerator {
                                            LogicBlockManager logicBlockManager,
                                            ManageBlocksWidgets customBlockManager) {
         this.themeManager = themeManager;
+        collectedScripts.clear();
         StringBuilder bodyBuilder = new StringBuilder();
 
         if (widgetTree != null) {
@@ -324,7 +327,7 @@ public class PageCodeGenerator {
 
         htmlBuilder.append("  </style>\n");
 
-        // Logic blocks and user JS
+        // Logic blocks and widget scripts
         if (logicBlockManager != null) {
             String jsCode = logicBlockManager.generateJavaScript();
             if (jsCode == null || jsCode.trim().isEmpty()) {
@@ -335,6 +338,19 @@ public class PageCodeGenerator {
             }
             if (jsCode != null && !jsCode.trim().isEmpty()) {
                 htmlBuilder.append("\n  <script>\n").append(jsCode).append("\n  </script>\n");
+            }
+        }
+        if (!collectedScripts.isEmpty()) {
+            StringBuilder wsSb = new StringBuilder();
+            String curDoc = htmlBuilder.toString();
+            for (String wScript : collectedScripts) {
+                if (wScript == null || wScript.trim().isEmpty()) continue;
+                if (ExportManager.isScriptReferenced(wScript, curDoc, curDoc)) {
+                    wsSb.append(wScript).append("\n\n");
+                }
+            }
+            if (wsSb.length() > 0) {
+                htmlBuilder.append("\n  <script>\n").append(wsSb).append("  </script>\n");
             }
         }
 
@@ -353,6 +369,7 @@ public class PageCodeGenerator {
 
         Map<String, Object> function = nodeMap.containsKey("function") ? (Map<String, Object>) nodeMap.get("function") : null;
         if (function == null) return "";
+        collectWidgetScript(function);
 
         StringBuilder html = new StringBuilder();
         html.append(indent).append("<").append(tag);
@@ -436,18 +453,23 @@ public class PageCodeGenerator {
         }
 
         // Recursive children
+        StringBuilder childrenHtml = new StringBuilder();
         if (nodeMap.containsKey("children")) {
             Object childrenObj = nodeMap.get("children");
             if (childrenObj instanceof List) {
                 List<Map<String, Object>> children = (List<Map<String, Object>>) childrenObj;
-                if (!children.isEmpty()) {
-                    html.append("\n");
-                    for (Map<String, Object> child : children) {
-                        html.append(generateHtmlForNode(child, indentLevel + 1));
+                for (Map<String, Object> child : children) {
+                    String ch = generateHtmlForNode(child, indentLevel + 1);
+                    if (ch != null && !ch.trim().isEmpty()) {
+                        childrenHtml.append(ch);
                     }
-                    html.append(indent);
                 }
             }
+        }
+        if (childrenHtml.length() > 0) {
+            html.append("\n").append(childrenHtml).append(indent);
+        } else {
+            appendGeneratedChildrenForItems(html, tag, function, indent);
         }
 
         html.append("</").append(tag).append(">\n");
@@ -469,6 +491,7 @@ public class PageCodeGenerator {
 
         Map<String, Object> function = (Map<String, Object>) widgetMap.get("function");
         if (function == null) return "";
+        collectWidgetScript(function);
 
         StringBuilder html = new StringBuilder();
         html.append(indent).append("<").append(tag);
@@ -552,17 +575,20 @@ public class PageCodeGenerator {
         }
 
         // Recursive children
-        boolean hasChildren = false;
+        StringBuilder childrenHtml = new StringBuilder();
         if (view instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) view;
-            if (vg.getChildCount() > 0) {
-                html.append("\n");
-                hasChildren = true;
-                for (int i = 0; i < vg.getChildCount(); i++) {
-                    html.append(generateHtmlForView(vg.getChildAt(i), indentLevel + 1));
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                String ch = generateHtmlForView(vg.getChildAt(i), indentLevel + 1);
+                if (ch != null && !ch.trim().isEmpty()) {
+                    childrenHtml.append(ch);
                 }
-                html.append(indent);
             }
+        }
+        if (childrenHtml.length() > 0) {
+            html.append("\n").append(childrenHtml).append(indent);
+        } else {
+            appendGeneratedChildrenForItems(html, tag, function, indent);
         }
 
         html.append("</").append(tag).append(">\n");
@@ -595,6 +621,110 @@ public class PageCodeGenerator {
     }
 
 
+
+    private void collectWidgetScript(Map<String, Object> function) {
+        if (function == null) return;
+        String s = function.containsKey("script:js") && function.get("script:js") != null
+                ? String.valueOf(function.get("script:js"))
+                : (function.containsKey("script") && function.get("script") != null ? String.valueOf(function.get("script")) : null);
+        if (s != null && !s.trim().isEmpty()) {
+            collectedScripts.add(s.trim());
+        }
+    }
+
+    private void appendGeneratedChildrenForItems(StringBuilder html, String tag, Map<String, Object> function, String indent) {
+        if (function == null) return;
+        if ("ul".equals(tag) || "ol".equals(tag)) {
+            if (function.containsKey("items") && function.get("items") instanceof List) {
+                List<?> items = (List<?>) function.get("items");
+                if (!items.isEmpty()) {
+                    html.append("\n");
+                    for (Object item : items) {
+                        if (item != null) {
+                            html.append(indent).append("  <li>").append(escapeHtml(item.toString())).append("</li>\n");
+                        }
+                    }
+                    html.append(indent);
+                }
+            }
+        } else if ("select".equals(tag)) {
+            if (function.containsKey("items") && function.get("items") instanceof List) {
+                List<?> items = (List<?>) function.get("items");
+                if (!items.isEmpty()) {
+                    html.append("\n");
+                    for (Object item : items) {
+                        if (item != null) {
+                            String v = item.toString().toLowerCase().replace(" ", "-");
+                            html.append(indent).append("  <option value=\"").append(escapeAttr(v)).append("\">")
+                                .append(escapeHtml(item.toString())).append("</option>\n");
+                        }
+                    }
+                    html.append(indent);
+                }
+            }
+        } else if ("nav".equals(tag)) {
+            if (function.containsKey("items") && function.get("items") instanceof List) {
+                html.append("\n");
+                if (function.containsKey("brand") && function.get("brand") != null) {
+                    html.append(indent).append("  <span class=\"nav-brand\" style=\"font-weight: bold;\">")
+                        .append(escapeHtml(String.valueOf(function.get("brand")))).append("</span>\n");
+                }
+                List<?> items = (List<?>) function.get("items");
+                List<?> icons = (function.containsKey("icons") && function.get("icons") instanceof List)
+                    ? (List<?>) function.get("icons") : null;
+                List<?> hrefs = (function.containsKey("hrefs") && function.get("hrefs") instanceof List)
+                    ? (List<?>) function.get("hrefs") : ((function.containsKey("links") && function.get("links") instanceof List) ? (List<?>) function.get("links") : null);
+                for (int i = 0; i < items.size(); i++) {
+                    Object item = items.get(i);
+                    if (item != null) {
+                        String targetHref = "#";
+                        if (hrefs != null && i < hrefs.size() && hrefs.get(i) != null) {
+                            String h = hrefs.get(i).toString().trim();
+                            if (!h.isEmpty()) targetHref = h;
+                        }
+                        String iconName = (icons != null && i < icons.size() && icons.get(i) != null)
+                            ? icons.get(i).toString().trim() : "";
+                        if (!iconName.isEmpty()) {
+                            html.append(indent).append("  <a href=\"").append(escapeAttr(targetHref)).append("\" class=\"nav-item\" style=\"margin: 0 8px; text-decoration: none; color: inherit; display: inline-flex; align-items: center; gap: 6px;\">")
+                                .append("<i data-lucide=\"").append(escapeHtml(iconName)).append("\" style=\"width: 16px; height: 16px;\"></i> ")
+                                .append(escapeHtml(item.toString())).append("</a>\n");
+                        } else {
+                            html.append(indent).append("  <a href=\"").append(escapeAttr(targetHref)).append("\" class=\"nav-item\" style=\"margin: 0 8px; text-decoration: none; color: inherit;\">")
+                                .append(escapeHtml(item.toString())).append("</a>\n");
+                        }
+                    }
+                }
+                html.append(indent);
+            }
+        } else if ("table".equals(tag)) {
+            if (function.containsKey("headers") && function.get("headers") instanceof List) {
+                List<?> headers = (List<?>) function.get("headers");
+                html.append("\n").append(indent).append("  <thead>\n").append(indent).append("    <tr>\n");
+                for (Object h : headers) {
+                    if (h != null) {
+                        html.append(indent).append("      <th style=\"padding: 8px 12px; border: 1px solid #E2E8F0;\">")
+                            .append(escapeHtml(h.toString())).append("</th>\n");
+                    }
+                }
+                html.append(indent).append("    </tr>\n").append(indent).append("  </thead>\n");
+            }
+            if (function.containsKey("rows") && function.get("rows") instanceof List) {
+                List<?> rows = (List<?>) function.get("rows");
+                html.append(indent).append("  <tbody>\n");
+                for (Object rObj : rows) {
+                    if (rObj instanceof List) {
+                        html.append(indent).append("    <tr>\n");
+                        for (Object cell : (List<?>) rObj) {
+                            html.append(indent).append("      <td style=\"padding: 8px 12px; border: 1px solid #E2E8F0;\">")
+                                .append(escapeHtml(cell != null ? cell.toString() : "")).append("</td>\n");
+                        }
+                        html.append(indent).append("    </tr>\n");
+                    }
+                }
+                html.append(indent).append("  </tbody>\n").append(indent);
+            }
+        }
+    }
 
     private String resolveAssetPath(String rawSrc) {
         if (rawSrc == null) return "";

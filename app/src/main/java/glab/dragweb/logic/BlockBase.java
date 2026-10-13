@@ -23,6 +23,11 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.view.View.MeasureSpec;
 import android.widget.RelativeLayout;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
+import android.graphics.Color;
+import android.view.animation.AccelerateDecelerateInterpolator;
 //import com.besome.sketch.lib.utils.LayoutUtil;
 
 public class BlockBase extends RelativeLayout {
@@ -669,7 +674,11 @@ public class BlockBase extends RelativeLayout {
     }
 
     protected void onDraw(Canvas canvas) {
-        this.mPaint.setColor(this.mColor);
+        int drawColor = this.mColor;
+        if (this.tintFraction > 0.0f) {
+            drawColor = blendColors(this.mColor, this.tintColor, this.tintFraction);
+        }
+        this.mPaint.setColor(drawColor);
         switch (this.mShapeType) {
             case RectShape /*1*/:
                 drawRectShape(canvas);
@@ -699,17 +708,6 @@ public class BlockBase extends RelativeLayout {
                 break;
         }
         super.onDraw(canvas);
-        if (this.isHighlighted) {
-            if (this.highlightPaint == null) {
-                this.highlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                this.highlightPaint.setStyle(Style.STROKE);
-                this.highlightPaint.setStrokeWidth(3.5f * (this.dip > 0 ? this.dip : 1.0f));
-                this.highlightPaint.setColor(0xFFFFB300);
-            }
-            float strokeHalf = 2.0f * (this.dip > 0 ? this.dip : 1.0f);
-            RectF r = new RectF(strokeHalf, strokeHalf, (float) getTotalWidth() - strokeHalf, (float) getTotalHeight() - strokeHalf);
-            canvas.drawRoundRect(r, 6.0f * (this.dip > 0 ? this.dip : 1.0f), 6.0f * (this.dip > 0 ? this.dip : 1.0f), this.highlightPaint);
-        }
     }
 
     protected void onMeasure(int i, int i2) {
@@ -755,10 +753,80 @@ public class BlockBase extends RelativeLayout {
     }
 
     public boolean isHighlighted = false;
-    private Paint highlightPaint = null;
+    private int tintColor = 0xFFE53935;
+    private float tintFraction = 0.0f;
+    private ValueAnimator tintAnimator = null;
 
     public void setHighlighted(boolean highlighted) {
-        this.isHighlighted = highlighted;
+        if (highlighted) {
+            blinkWithTint(this.tintColor);
+        } else {
+            cancelBlink();
+        }
+    }
+
+    public void blinkWithTint(int color) {
+        cancelBlink();
+        this.tintColor = color;
+        this.isHighlighted = true;
+        this.tintAnimator = ValueAnimator.ofFloat(0.0f, 0.85f);
+        this.tintAnimator.setDuration(280);
+        this.tintAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        this.tintAnimator.setRepeatCount(7);
+        this.tintAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        this.tintAnimator.addUpdateListener(animation -> {
+            this.tintFraction = (float) animation.getAnimatedValue();
+            invalidate();
+        });
+        this.tintAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                tintFraction = 0.0f;
+                isHighlighted = false;
+                tintAnimator = null;
+                invalidate();
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                tintFraction = 0.0f;
+                isHighlighted = false;
+                tintAnimator = null;
+                invalidate();
+            }
+        });
+        this.tintAnimator.start();
+    }
+
+    public void cancelBlink() {
+        if (this.tintAnimator != null) {
+            this.tintAnimator.cancel();
+            this.tintAnimator = null;
+        }
+        this.tintFraction = 0.0f;
+        this.isHighlighted = false;
         invalidate();
+    }
+
+    public static int blendColors(int from, int to, float ratio) {
+        if (ratio <= 0.0f) return from;
+        if (ratio >= 1.0f) return to;
+        float inverseRatio = 1.0f - ratio;
+        int a = Math.round((Color.alpha(from) * inverseRatio) + (Color.alpha(to) * ratio));
+        int r = Math.round((Color.red(from) * inverseRatio) + (Color.red(to) * ratio));
+        int g = Math.round((Color.green(from) * inverseRatio) + (Color.green(to) * ratio));
+        int b = Math.round((Color.blue(from) * inverseRatio) + (Color.blue(to) * ratio));
+        return Color.argb(
+            Math.min(255, Math.max(0, a)),
+            Math.min(255, Math.max(0, r)),
+            Math.min(255, Math.max(0, g)),
+            Math.min(255, Math.max(0, b))
+        );
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        cancelBlink();
     }
 }

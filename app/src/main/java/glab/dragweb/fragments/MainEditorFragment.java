@@ -483,13 +483,7 @@ public class MainEditorFragment extends Fragment {
 		delete.setOnClickListener(v -> {
 			View selected = selector.getSelectedView();
 			if (selected != null) {
-				((ViewGroup) selected.getParent()).removeView(selected);
-				selector.clearSelection();
-				textview2.setText("No widget selected");
-				delete.setEnabled(false);
-				saveUndoState();
-				refreshHierarchy();
-				updateWidgetSpinnerFromTree();
+				deleteWidget(selected);
 			}
 		});
 
@@ -653,7 +647,10 @@ public class MainEditorFragment extends Fragment {
 			updateWidgetSpinnerFromTree();
 			refreshHierarchy();
 		});
-		dropZoneManager.setOnWidgetCreatedListener(this::setupWidgetReorderDrag);
+		dropZoneManager.setOnWidgetCreatedListener(w -> {
+			setupWidgetReorderDrag(w);
+			checkAndRebuildListWidget(w);
+		});
 
 		setupHierarchyTracker(screen);
 		setupCanvasDragListener();
@@ -799,8 +796,81 @@ public class MainEditorFragment extends Fragment {
 		}
 	}
 
+	private void purgeWidgetBlocksRecursively(View view, String cleanPage) {
+		if (view == null) return;
+		Object tagObj = view.getTag();
+		if (tagObj instanceof Map) {
+			Map<?, ?> wm = (Map<?, ?>) tagObj;
+			String widgetId = wm.containsKey("id") && wm.get("id") != null ? wm.get("id").toString().trim() : null;
+			if (widgetId == null || widgetId.isEmpty()) {
+				if (wm.get("function") instanceof Map) {
+					Map<?, ?> fn = (Map<?, ?>) wm.get("function");
+					if (fn.get("id") != null) widgetId = fn.get("id").toString().trim();
+				}
+			}
+			String widgetClass = null;
+			if (wm.containsKey("class") && wm.get("class") != null) {
+				widgetClass = wm.get("class").toString().trim();
+			}
+			if (wm.get("function") instanceof Map) {
+				Map<?, ?> fn = (Map<?, ?>) wm.get("function");
+				if (widgetClass == null && fn.get("class") != null) {
+					widgetClass = fn.get("class").toString().trim();
+				}
+			}
+			final String targetId = widgetId;
+			final String dotClass = widgetClass != null && !widgetClass.isEmpty() ? ("." + widgetClass.split("\\s+")[0]) : null;
+			final String hashId = widgetId != null && !widgetId.isEmpty() ? ("#" + widgetId) : null;
+
+			if (DesignDataManager.mapBlocks != null) {
+				HashMap<String, ArrayList<BlockBean>> pageBlocks = DesignDataManager.mapBlocks.get(cleanPage);
+				if (pageBlocks != null) {
+					List<String> toRemove = new ArrayList<>();
+					for (String k : pageBlocks.keySet()) {
+						if (k != null && targetId != null && (k.startsWith(targetId + "_") || k.equals(targetId))) {
+							toRemove.add(k);
+						}
+					}
+					for (String k : toRemove) {
+						pageBlocks.remove(k);
+					}
+					for (ArrayList<BlockBean> blockList : pageBlocks.values()) {
+						if (blockList != null) {
+							blockList.removeIf(b -> {
+								if (b == null || b.parameters == null) return false;
+								for (String p : b.parameters) {
+									if (p != null) {
+										String trimmedP = p.trim();
+										if ((targetId != null && trimmedP.equals(targetId))
+											|| (hashId != null && trimmedP.equals(hashId))
+											|| (dotClass != null && trimmedP.equals(dotClass))) {
+											return true;
+										}
+									}
+								}
+								return false;
+							});
+						}
+					}
+				}
+			}
+		}
+		if (view instanceof ViewGroup) {
+			ViewGroup vg = (ViewGroup) view;
+			for (int i = 0; i < vg.getChildCount(); i++) {
+				purgeWidgetBlocksRecursively(vg.getChildAt(i), cleanPage);
+			}
+		}
+	}
+
 	private void deleteWidget(View widgetView) {
-		if (widgetView.getParent() instanceof ViewGroup) {
+		if (widgetView != null && widgetView.getParent() instanceof ViewGroup) {
+			String curPage = pageManager != null ? pageManager.getCurrentPage() : "index";
+			String cleanPage = DesignDataManager.getCleanPageName(curPage);
+			purgeWidgetBlocksRecursively(widgetView, cleanPage);
+			if (DesignDataManager.mapBlocks != null && DesignDataManager.mapBlocks.containsKey(cleanPage)) {
+				DesignDataManager.saveSavedLogic(requireContext(), projectId, cleanPage);
+			}
 			((ViewGroup) widgetView.getParent()).removeView(widgetView);
 			selector.clearSelection();
 			textview2.setText("No widget selected");
@@ -808,6 +878,10 @@ public class MainEditorFragment extends Fragment {
 			saveUndoState();
 			refreshHierarchy();
 			updateWidgetSpinnerFromTree();
+			saveCurrentPageLayout(true);
+			try {
+				ProjectCodeGenerator.generateAndSaveAssets(requireContext(), projectId, cleanPage);
+			} catch (Exception ignored) {}
 		}
 	}
 
@@ -1868,9 +1942,13 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void saveCurrentPageLayout() {
+		saveCurrentPageLayout(false);
+	}
+
+	private void saveCurrentPageLayout(boolean allowEmpty) {
 		if (screen == null) return;
 		List<Map<String, Object>> widgetTree = serializeChildren(screen);
-		if (widgetTree.isEmpty()) {
+		if (widgetTree.isEmpty() && !allowEmpty) {
 			String cached = pageManager != null ? pageManager.loadPageLayout(pageManager.getCurrentPage()) : null;
 			if (cached != null && !cached.trim().isEmpty() && !"[]".equals(cached.trim())) {
 				// Safety: Canvas is momentarily empty during loading/fragment transition, do not wipe disk layout!
@@ -1985,23 +2063,37 @@ public class MainEditorFragment extends Fragment {
 		}
 
 		// Categories in prioritized order from widget_categories.json
-		List<WidgetRegistry.WidgetCategory> definedCategories = widgetRegistry != null ? widgetRegistry.getWidgetCategories() : new ArrayList<>();
+		List<?> definedCategories = widgetRegistry != null ? widgetRegistry.getWidgetCategories() : new ArrayList<>();
 		Set<String> processedCategories = new HashSet<>();
 
-		for (WidgetRegistry.WidgetCategory catDef : definedCategories) {
-			if (catDef == null || catDef.id == null) continue;
-			String catKey = catDef.id.toLowerCase().trim();
-			if (grouped.containsKey(catKey)) {
-				List<HashMap<String, Object>> catWidgets = grouped.get(catKey);
-				if (catWidgets != null && !catWidgets.isEmpty()) {
-					String headerTitle = (catDef.name != null && !catDef.name.isEmpty()) ? catDef.name : catKey;
-					categorizedWidgetItems.add(CategorizedWidgetItem.createHeader(headerTitle));
-					for (HashMap<String, Object> w : catWidgets) {
-						int globalIdx = widgets.indexOf(w);
-						categorizedWidgetItems.add(CategorizedWidgetItem.createWidget(w, globalIdx));
-					}
+		if (definedCategories != null) {
+			for (Object catObj : definedCategories) {
+				if (catObj == null) continue;
+				String catId = null;
+				String catName = null;
+				if (catObj instanceof WidgetRegistry.WidgetCategory) {
+					WidgetRegistry.WidgetCategory catDef = (WidgetRegistry.WidgetCategory) catObj;
+					catId = catDef.id;
+					catName = catDef.name;
+				} else if (catObj instanceof Map) {
+					Map<?, ?> map = (Map<?, ?>) catObj;
+					catId = map.get("id") != null ? String.valueOf(map.get("id")) : null;
+					catName = map.get("name") != null ? String.valueOf(map.get("name")) : null;
 				}
-				processedCategories.add(catKey);
+				if (catId == null || catId.trim().isEmpty()) continue;
+				String catKey = catId.toLowerCase().trim();
+				if (grouped.containsKey(catKey)) {
+					List<HashMap<String, Object>> catWidgets = grouped.get(catKey);
+					if (catWidgets != null && !catWidgets.isEmpty()) {
+						String headerTitle = (catName != null && !catName.isEmpty()) ? catName : catKey;
+						categorizedWidgetItems.add(CategorizedWidgetItem.createHeader(headerTitle));
+						for (HashMap<String, Object> w : catWidgets) {
+							int globalIdx = widgets.indexOf(w);
+							categorizedWidgetItems.add(CategorizedWidgetItem.createWidget(w, globalIdx));
+						}
+					}
+					processedCategories.add(catKey);
+				}
 			}
 		}
 
@@ -2839,6 +2931,14 @@ public class MainEditorFragment extends Fragment {
 
 		// Save all logic blocks to .dragweb
 		DesignDataManager.saveAllSavedLogic(context, projectId);
+
+		// Keep project assets (CSS & JS) updated on fast save
+		try {
+			String curPage = pageManager != null ? pageManager.getCurrentPage() : "index";
+			ProjectCodeGenerator.generateAndSaveAssets(context, projectId, curPage);
+		} catch (Exception e) {
+			Log.w("MainEditor", "Failed to compile assets on fast save: " + e.getMessage());
+		}
 	}
 
 	/**
@@ -3054,6 +3154,8 @@ public class MainEditorFragment extends Fragment {
 						rebuildView(childMap, (ViewGroup) newView);
 					}
 				}
+			} else if (newView instanceof ViewGroup) {
+				checkAndRebuildListWidget(newView);
 			}
 		}
 	}
@@ -3115,6 +3217,8 @@ public class MainEditorFragment extends Fragment {
 				for (Map<String, Object> childMap : children) {
 					rebuildView(childMap, (ViewGroup) newView);
 				}
+			} else if (newView instanceof ViewGroup) {
+				checkAndRebuildListWidget(newView);
 			}
 		}
 	}
@@ -3710,8 +3814,14 @@ public class MainEditorFragment extends Fragment {
 			items.add("SetPlaceholder");
 			items.add("SetType");
 		}
-		if ("select".equals(tag)) {
+		if ("select".equals(tag) || "ul".equals(tag) || "ol".equals(tag) || "nav".equals(tag) || currentFunction.containsKey("items")) {
 			items.add("ListItems");
+		}
+		if ("ul".equals(tag) || "ol".equals(tag)) {
+			items.add("ListType");
+		}
+		if (hasStylePresets(selected)) {
+			items.add("StylePreset");
 		}
 		if ("i".equals(tag)) {
 			items.add("PickIcon");
@@ -3853,6 +3963,26 @@ public class MainEditorFragment extends Fragment {
 			}
 			else if (item.equals("SetHref")) value = currentFunction.containsKey("href") ? currentFunction.get("href").toString() : "";
 			else if (item.equals("SetPlaceholder")) value = currentFunction.containsKey("placeholder") ? currentFunction.get("placeholder").toString() : "";
+			else if (item.equals("ListItems")) {
+				Object itemsObj = currentFunction.get("items");
+				if (itemsObj instanceof List) {
+					value = "[" + ((List<?>) itemsObj).size() + " items]";
+				} else if (itemsObj != null) {
+					value = itemsObj.toString();
+				}
+			}
+			else if (item.equals("ListType")) {
+				View sel = selector.getSelectedView();
+				if (sel != null && sel.getTag() instanceof Map) {
+					Object t = ((Map<?, ?>) sel.getTag()).get("tag");
+					value = t != null ? t.toString() : "ul";
+				} else {
+					value = "ul";
+				}
+			}
+			else if (item.equals("StylePreset")) {
+				value = "Select Preset";
+			}
 			else if (item.equals("JSEvents")) {
 				int count = 0;
 				for (String key : currentFunction.keySet()) {
@@ -4013,7 +4143,8 @@ public class MainEditorFragment extends Fragment {
 				&& !editType.equals("JSEvents") && !editType.equals("PickIcon")
 				&& !editType.equals("SetHref") && !editType.equals("SetTarget")
 				&& !editType.equals("SetPlaceholder") && !editType.equals("SetType")
-				&& !editType.equals("ImageSrc") && !editType.equals("ListItems");
+				&& !editType.equals("ImageSrc") && !editType.equals("ListItems")
+				&& !editType.equals("ListType") && !editType.equals("StylePreset");
 
 		if (isStyleProperty) {
 			Map<String, Object> function = getWidgetFunction(selected);
@@ -4114,6 +4245,12 @@ public class MainEditorFragment extends Fragment {
 				break;
 			case "ListItems":
 				showListItemsDialog(selected);
+				break;
+			case "ListType":
+				showListTypeDialog(selected);
+				break;
+			case "StylePreset":
+				showStylePresetsDialog(selected);
 				break;
 			case "JSEvents":
 				showJsEventsDialog(selected);
@@ -4693,22 +4830,135 @@ public class MainEditorFragment extends Fragment {
 	 * configured items.
 	 */
 	private void rebuildListWidget(View selected, List<String> items) {
+		rebuildListWidget(selected, items, null);
+	}
+
+	private void rebuildListWidget(View selected, List<String> items, List<String> icons) {
 		if (!(selected instanceof ViewGroup)) return;
 		ViewGroup vg = (ViewGroup) selected;
 		vg.removeAllViews();
-		boolean ordered = false;
+		if (items == null || items.isEmpty()) return;
+
+		String parentTag = "ul";
+		Map<?, ?> fn = null;
 		Object t = selected.getTag();
 		if (t instanceof Map) {
 			Object tag = ((Map<?, ?>) t).get("tag");
-			ordered = "ol".equals(String.valueOf(tag));
+			parentTag = tag != null ? tag.toString() : "ul";
+			if (((Map<?, ?>) t).get("function") instanceof Map) {
+				fn = (Map<?, ?>) ((Map<?, ?>) t).get("function");
+			}
 		}
-		for (int i = 0; i < items.size(); i++) {
-			TextView tv = new TextView(requireContext());
-			String prefix = ordered ? (i + 1) + ". " : "• ";
-			tv.setText(prefix + items.get(i));
-			tv.setTextColor(Color.parseColor("#222222"));
-			tv.setPadding(8, 4, 8, 4);
-			vg.addView(tv);
+
+		if (icons == null && fn != null && fn.get("icons") instanceof List) {
+			icons = new ArrayList<>();
+			for (Object ic : (List<?>) fn.get("icons")) {
+				icons.add(ic != null ? ic.toString() : "");
+			}
+		}
+
+		boolean isNav = "nav".equalsIgnoreCase(parentTag);
+		boolean ordered = "ol".equalsIgnoreCase(parentTag);
+		boolean isSelect = "select".equalsIgnoreCase(parentTag);
+
+		int textColor = Color.parseColor("#222222");
+		if (isNav) {
+			textColor = Color.parseColor("#FFFFFF");
+		}
+		if (fn != null && fn.get("style") instanceof Map) {
+			Map<?, ?> style = (Map<?, ?>) fn.get("style");
+			if (style.get("color") != null) {
+				try {
+					textColor = Color.parseColor(style.get("color").toString().trim());
+				} catch (Exception ignored) {}
+			}
+		}
+
+		if (isNav) {
+			if (vg instanceof LinearLayout) {
+				((LinearLayout) vg).setOrientation(LinearLayout.HORIZONTAL);
+				((LinearLayout) vg).setGravity(Gravity.CENTER_VERTICAL);
+			}
+			String brand = (fn != null && fn.get("brand") != null) ? fn.get("brand").toString() : "Brand";
+			TextView tvBrand = new TextView(requireContext());
+			tvBrand.setText(brand);
+			tvBrand.setTextSize(15);
+			tvBrand.setTypeface(null, android.graphics.Typeface.BOLD);
+			tvBrand.setTextColor(textColor);
+			tvBrand.setPadding(12, 8, 20, 8);
+			vg.addView(tvBrand);
+
+			LinearLayout linksRow = new LinearLayout(requireContext());
+			linksRow.setOrientation(LinearLayout.HORIZONTAL);
+			linksRow.setGravity(Gravity.CENTER_VERTICAL);
+
+			for (int i = 0; i < items.size(); i++) {
+				String itemText = items.get(i);
+				String iconName = (icons != null && i < icons.size() && icons.get(i) != null) ? icons.get(i).trim() : "";
+				TextView tvItem = new TextView(requireContext());
+				String display = !iconName.isEmpty() ? ("[" + iconName + "] " + itemText) : itemText;
+				tvItem.setText(display);
+				tvItem.setTextSize(13);
+				tvItem.setTextColor(textColor);
+				tvItem.setPadding(10, 8, 10, 8);
+
+				Map<String, Object> childMap = new HashMap<>();
+				childMap.put("tag", "a");
+				Map<String, Object> childFn = new HashMap<>();
+				childFn.put("text", itemText);
+				childFn.put("href", "#");
+				if (!iconName.isEmpty()) childFn.put("icon", iconName);
+				childMap.put("function", childFn);
+				tvItem.setTag(childMap);
+
+				linksRow.addView(tvItem);
+			}
+			vg.addView(linksRow);
+		} else {
+			for (int i = 0; i < items.size(); i++) {
+				TextView tv = new TextView(requireContext());
+				String itemText = items.get(i);
+				String prefix = ordered ? (i + 1) + ". " : (isSelect ? "  ▼ " : "• ");
+				tv.setText(prefix + itemText);
+				tv.setTextColor(textColor);
+				tv.setPadding(8, 4, 8, 4);
+
+				Map<String, Object> childMap = new HashMap<>();
+				String childTag = isSelect ? "option" : "li";
+				childMap.put("tag", childTag);
+				Map<String, Object> childFn = new HashMap<>();
+				childFn.put("text", itemText);
+				if ("option".equals(childTag)) childFn.put("value", itemText.toLowerCase().replace(" ", "-"));
+				childMap.put("function", childFn);
+				tv.setTag(childMap);
+
+				vg.addView(tv);
+			}
+		}
+	}
+
+	private void checkAndRebuildListWidget(View view) {
+		if (view == null) return;
+		Object tagObj = view.getTag();
+		if (tagObj instanceof Map) {
+			Map<?, ?> wm = (Map<?, ?>) tagObj;
+			if (wm.get("function") instanceof Map) {
+				Map<?, ?> fn = (Map<?, ?>) wm.get("function");
+				if (fn.containsKey("items") && fn.get("items") instanceof List) {
+					List<String> items = new ArrayList<>();
+					for (Object o : (List<?>) fn.get("items")) {
+						if (o != null) items.add(o.toString());
+					}
+					List<String> icons = null;
+					if (fn.containsKey("icons") && fn.get("icons") instanceof List) {
+						icons = new ArrayList<>();
+						for (Object o : (List<?>) fn.get("icons")) {
+							icons.add(o != null ? o.toString() : "");
+						}
+					}
+					rebuildListWidget(view, items, icons);
+				}
+			}
 		}
 	}
 
@@ -4876,6 +5126,7 @@ public class MainEditorFragment extends Fragment {
 
 	@SuppressWarnings("unchecked")
 	private void showListItemsDialog(View selected) {
+		if (selected == null) return;
 		Object tagObj = selected.getTag();
 		if (!(tagObj instanceof Map)) return;
 		Map<String, Object> wm = (Map<String, Object>) tagObj;
@@ -4885,52 +5136,229 @@ public class MainEditorFragment extends Fragment {
 			wm.put("function", fn);
 		}
 
-		Object existing = fn.get("items");
-		StringBuilder seed = new StringBuilder();
-		if (existing instanceof List) {
-			for (Object o : (List<?>) existing) {
-				if (o != null) seed.append(o.toString()).append("\n");
+		String tag = wm.containsKey("tag") && wm.get("tag") != null ? wm.get("tag").toString() : "ul";
+		final boolean supportsIcons = "nav".equalsIgnoreCase(tag);
+
+		List<String> initialItems = new ArrayList<>();
+		Object existingItems = fn.get("items");
+		if (existingItems instanceof List) {
+			for (Object o : (List<?>) existingItems) {
+				if (o != null) initialItems.add(o.toString());
 			}
 		}
 
-		LinearLayout container = new LinearLayout(requireContext());
-		container.setOrientation(LinearLayout.VERTICAL);
-		container.setPadding(48, 16, 48, 0);
-
-		TextView help = new TextView(requireContext());
-		help.setText("Enter one item per line:");
-		help.setTextSize(12);
-		container.addView(help);
-
-		TextInputLayout til = new TextInputLayout(requireContext());
-		til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-		TextInputEditText input = new TextInputEditText(requireContext());
-		input.setText(seed.toString());
-		input.setMinLines(5);
-		input.setMaxLines(15);
-		input.setGravity(Gravity.TOP | Gravity.START);
-		til.addView(input);
-		container.addView(til);
+		List<String> initialIcons = new ArrayList<>();
+		if (supportsIcons) {
+			Object existingIcons = fn.get("icons");
+			if (existingIcons instanceof List) {
+				for (Object o : (List<?>) existingIcons) {
+					if (o != null) initialIcons.add(o.toString());
+				}
+			}
+		}
 
 		final Map<String, Object> fnRef = fn;
-		new MaterialAlertDialogBuilder(requireContext())
-			.setTitle("Edit list items")
-			.setView(container)
-			.setPositiveButton("Save", (d, w) -> {
-				String raw = input.getText() != null ? input.getText().toString() : "";
-				List<String> parsed = new ArrayList<>();
-				for (String line : raw.split("\\r?\\n")) {
-					String t = line.trim();
-					if (!t.isEmpty()) parsed.add(t);
+		String dialogTitle = supportsIcons ? "Setup Navbar Links" : ("select".equalsIgnoreCase(tag) ? "Setup Options" : "Setup List Items");
+		UniversalM3Dialog m3Dialog = new UniversalM3Dialog(requireContext());
+		m3Dialog.showWidgetListItemsBuilder(
+			dialogTitle,
+			initialItems,
+			initialIcons,
+			supportsIcons,
+			(liveItems, liveIcons) -> {
+				fnRef.put("items", new ArrayList<>(liveItems));
+				if (supportsIcons) {
+					fnRef.put("icons", new ArrayList<>(liveIcons));
 				}
-				fnRef.put("items", parsed);
 				selected.setTag(wm);
-				rebuildListWidget(selected, parsed);
+				rebuildListWidget(selected, liveItems, liveIcons);
+			},
+			(confirmedItems, confirmedIcons) -> {
+				fnRef.put("items", new ArrayList<>(confirmedItems));
+				if (supportsIcons) {
+					fnRef.put("icons", new ArrayList<>(confirmedIcons));
+				}
+				selected.setTag(wm);
+				rebuildListWidget(selected, confirmedItems, confirmedIcons);
 				saveUndoState();
 				refreshHierarchy();
+				refreshActiveDesignList();
+				saveCurrentPageLayout(true);
+				Toast.makeText(requireContext(), "Updated (" + confirmedItems.size() + ") items", Toast.LENGTH_SHORT).show();
+			}
+		);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void showListTypeDialog(View selected) {
+		if (selected == null) return;
+		Object tagObj = selected.getTag();
+		if (!(tagObj instanceof Map)) return;
+		Map<String, Object> wm = (Map<String, Object>) tagObj;
+		String curTag = wm.containsKey("tag") && wm.get("tag") != null ? wm.get("tag").toString() : "ul";
+
+		String[] options = new String[]{"Unordered List (ul - Bullets)", "Ordered List (ol - Numbers)"};
+		int curIndex = "ol".equalsIgnoreCase(curTag) ? 1 : 0;
+
+		new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+			.setTitle("Select List Type")
+			.setSingleChoiceItems(options, curIndex, (d, which) -> {
+				String newTag = (which == 1) ? "ol" : "ul";
+				wm.put("tag", newTag);
+				selected.setTag(wm);
+
+				Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+				if (fn != null && fn.containsKey("items")) {
+					Object itemsObj = fn.get("items");
+					if (itemsObj instanceof List) {
+						List<String> itemsList = new ArrayList<>();
+						for (Object item : (List<?>) itemsObj) {
+							if (item != null) itemsList.add(item.toString());
+						}
+						rebuildListWidget(selected, itemsList);
+					}
+				}
+				saveUndoState();
+				refreshHierarchy();
+				refreshActiveDesignList();
+				d.dismiss();
+				Toast.makeText(requireContext(), "Changed to <" + newTag + "> list", Toast.LENGTH_SHORT).show();
 			})
 			.setNegativeButton("Cancel", null)
 			.show();
+	}
+
+	@SuppressWarnings("unchecked")
+	private List<Map<String, Object>> getWidgetStylePresets(View selected) {
+		if (selected == null) return null;
+		Object tagObj = selected.getTag();
+		if (!(tagObj instanceof Map)) return null;
+		Map<String, Object> wm = (Map<String, Object>) tagObj;
+		if (wm.containsKey("stylePresets")) {
+			Object p = wm.get("stylePresets");
+			if (p instanceof List && !((List<?>) p).isEmpty()) {
+				return (List<Map<String, Object>>) p;
+			}
+		}
+		Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+		if (fn != null && fn.containsKey("stylePresets")) {
+			Object p = fn.get("stylePresets");
+			if (p instanceof List && !((List<?>) p).isEmpty()) {
+				return (List<Map<String, Object>>) p;
+			}
+		}
+		if (widgetRegistry != null) {
+			String name = wm.containsKey("name") && wm.get("name") != null ? wm.get("name").toString() : "";
+			String tag = wm.containsKey("tag") && wm.get("tag") != null ? wm.get("tag").toString() : "";
+			for (HashMap<String, Object> w : widgetRegistry.getAllWidgets()) {
+				if ((!name.isEmpty() && name.equalsIgnoreCase(String.valueOf(w.get("name"))))
+					|| (!tag.isEmpty() && tag.equalsIgnoreCase(String.valueOf(w.get("tag"))))) {
+					if (w.containsKey("stylePresets")) {
+						Object p = w.get("stylePresets");
+						if (p instanceof List && !((List<?>) p).isEmpty()) {
+							return (List<Map<String, Object>>) p;
+						}
+					}
+					if (w.containsKey("function") && w.get("function") instanceof Map) {
+						Map<?, ?> wfn = (Map<?, ?>) w.get("function");
+						if (wfn.containsKey("stylePresets")) {
+							Object p = wfn.get("stylePresets");
+							if (p instanceof List && !((List<?>) p).isEmpty()) {
+								return (List<Map<String, Object>>) p;
+							}
+						}
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	private boolean hasStylePresets(View selected) {
+		List<Map<String, Object>> presets = getWidgetStylePresets(selected);
+		return presets != null && !presets.isEmpty();
+	}
+
+	private void showStylePresetsDialog(View selected) {
+		if (selected == null) return;
+		List<Map<String, Object>> presets = getWidgetStylePresets(selected);
+		if (presets == null || presets.isEmpty()) {
+			Toast.makeText(requireContext(), "No style presets available for this widget", Toast.LENGTH_SHORT).show();
+			return;
+		}
+
+		String[] names = new String[presets.size()];
+		for (int i = 0; i < presets.size(); i++) {
+			Map<String, Object> p = presets.get(i);
+			names[i] = p.containsKey("name") && p.get("name") != null ? String.valueOf(p.get("name")) : ("Preset " + (i + 1));
+		}
+
+		new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+			.setTitle("Choose Style Preset")
+			.setItems(names, (dialog, which) -> {
+				applyStylePreset(selected, presets.get(which));
+			})
+			.setNegativeButton("Cancel", null)
+			.show();
+	}
+
+	@SuppressWarnings("unchecked")
+	private void applyStylePreset(View selected, Map<String, Object> preset) {
+		if (selected == null || preset == null) return;
+		Object tagObj = selected.getTag();
+		if (!(tagObj instanceof Map)) return;
+		Map<String, Object> wm = (Map<String, Object>) tagObj;
+		Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+		if (fn == null) {
+			fn = new HashMap<>();
+			wm.put("function", fn);
+		}
+
+		// Apply preset styles
+		if (preset.containsKey("style") && preset.get("style") instanceof Map) {
+			Map<String, Object> presetStyle = (Map<String, Object>) preset.get("style");
+			Map<String, Object> curStyle = (Map<String, Object>) fn.get("style");
+			if (curStyle == null) {
+				curStyle = new HashMap<>();
+				fn.put("style", curStyle);
+			}
+			curStyle.putAll(presetStyle);
+
+			// Build inline CSS string
+			StringBuilder cssSb = new StringBuilder();
+			for (Map.Entry<String, Object> entry : presetStyle.entrySet()) {
+				if (entry.getValue() != null) {
+					String cssProp = entry.getKey().replaceAll("([a-z])([A-Z])", "$1-$2").toLowerCase();
+					cssSb.append(cssProp).append(": ").append(entry.getValue().toString()).append("; ");
+				}
+			}
+			fn.put("style:css", cssSb.toString().trim());
+
+			// Update view visually on canvas
+			widgetUpdater.updateWidget(selected, "", curStyle);
+		}
+
+		// Apply preset script if present
+		if (preset.containsKey("script") && preset.get("script") != null) {
+			String script = String.valueOf(preset.get("script")).trim();
+			if (!script.isEmpty()) {
+				fn.put("script", script);
+				fn.put("script:js", script);
+			}
+		}
+
+		selected.setTag(wm);
+		saveUndoState();
+		refreshHierarchy();
+		refreshActiveDesignList();
+		saveCurrentPageLayout(true);
+		try {
+			String curPage = pageManager != null ? pageManager.getCurrentPage() : "index";
+			ProjectCodeGenerator.generateAndSaveAssets(requireContext(), projectId, curPage);
+		} catch (Exception ignored) {}
+
+		String presetName = preset.containsKey("name") ? String.valueOf(preset.get("name")) : "Style";
+		Toast.makeText(requireContext(), "Applied " + presetName + " preset", Toast.LENGTH_SHORT).show();
 	}
 
 	

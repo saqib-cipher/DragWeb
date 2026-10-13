@@ -61,6 +61,26 @@ public class BlockDef {
     public String palette;
     public String type;
     public String blockType;
+    public String linkedWidget;
+    public String linkedWIdget;
+    public String eventType;
+
+    public String getLinkedWidget() {
+        if (linkedWidget != null && !linkedWidget.trim().isEmpty()) return linkedWidget.trim();
+        if (linkedWIdget != null && !linkedWIdget.trim().isEmpty()) return linkedWIdget.trim();
+        return "";
+    }
+
+    public String getEventType() {
+        if (eventType != null && !eventType.trim().isEmpty()) return eventType.trim().toLowerCase();
+        if (category != null) {
+            String c = category.trim().toLowerCase();
+            if (c.startsWith("css")) return "css";
+            if (c.equals("html")) return "html";
+            if (c.startsWith("js")) return "js";
+        }
+        return "js";
+    }
 
     public String getOpCode() {
         return name != null && !name.isEmpty() ? name : id;
@@ -301,7 +321,120 @@ public class BlockDef {
         if (custom != null) {
             result.addAll(custom);
         }
+        List<BlockDef> widgetBlocks = loadWidgetBlocks(context);
+        if (widgetBlocks != null) {
+            result.addAll(widgetBlocks);
+        }
         sCachedDefinitions = result;
         return result;
+    }
+
+    public static List<BlockDef> loadWidgetBlocks(android.content.Context context) {
+        if (context == null) return new ArrayList<>();
+        List<BlockDef> list = new ArrayList<>();
+        try (java.io.InputStream is = context.getAssets().open("widgets.json")) {
+            java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+            String json = s.hasNext() ? s.next() : "";
+            if (json != null && !json.trim().isEmpty()) {
+                parseWidgetBlocksJson(json, list);
+            }
+        } catch (Exception ignored) {}
+
+        java.io.File customWidgets = new java.io.File(FileUtil.getDragWebDir(context), "custom/widgets.json");
+        if (customWidgets.exists() && customWidgets.length() > 0) {
+            String json = FileUtil.readFile(customWidgets.getAbsolutePath());
+            if (json != null && !json.trim().isEmpty()) {
+                parseWidgetBlocksJson(json, list);
+            }
+        }
+        return list;
+    }
+
+    private static void parseWidgetBlocksJson(String json, List<BlockDef> outList) {
+        try {
+            com.google.gson.JsonElement root = com.google.gson.JsonParser.parseString(json);
+            if (!root.isJsonArray()) return;
+            for (com.google.gson.JsonElement el : root.getAsJsonArray()) {
+                if (!el.isJsonObject()) continue;
+                com.google.gson.JsonObject wObj = el.getAsJsonObject();
+                com.google.gson.JsonArray blocksArr = null;
+                if (wObj.has("blocks") && wObj.get("blocks").isJsonArray()) {
+                    blocksArr = wObj.getAsJsonArray("blocks");
+                } else if (wObj.has("function") && wObj.get("function").isJsonObject()) {
+                    com.google.gson.JsonObject fnObj = wObj.getAsJsonObject("function");
+                    if (fnObj.has("blocks") && fnObj.get("blocks").isJsonArray()) {
+                        blocksArr = fnObj.getAsJsonArray("blocks");
+                    }
+                }
+                if (blocksArr != null) {
+                    for (com.google.gson.JsonElement bEl : blocksArr) {
+                        if (bEl.isJsonObject()) {
+                            BlockDef bDef = new com.google.gson.Gson().fromJson(bEl, BlockDef.class);
+                            if (bDef != null) {
+                                if (bDef.category == null || bDef.category.isEmpty()) bDef.category = "widgets";
+                                if (bDef.color == null || bDef.color.isEmpty()) bDef.color = "#00BFA5";
+                                String wTag = wObj.has("tag") && !wObj.get("tag").isJsonNull() ? wObj.get("tag").getAsString() : "widget";
+                                String wName = wObj.has("name") && !wObj.get("name").isJsonNull() ? wObj.get("name").getAsString() : "";
+                                if (bDef.getLinkedWidget().isEmpty()) {
+                                    bDef.linkedWidget = !wName.isEmpty() ? (wTag + "," + wName) : wTag;
+                                }
+                                outList.add(bDef);
+                            }
+                        }
+                    }
+                } else if (wObj.has("function") && wObj.get("function").isJsonObject()) {
+                    com.google.gson.JsonObject fnObj = wObj.getAsJsonObject("function");
+                    String wName = wObj.has("name") && !wObj.get("name").isJsonNull() ? wObj.get("name").getAsString() : "Widget";
+                    String tag = wObj.has("tag") && !wObj.get("tag").isJsonNull() ? wObj.get("tag").getAsString() : "widget";
+                    String slug = (tag + "_" + wName).toLowerCase().replaceAll("[^a-z0-9_]+", "_");
+
+                    if (fnObj.has("script") || fnObj.has("script:js")) {
+                        String sCode = fnObj.has("script") ? fnObj.get("script").getAsString() : fnObj.get("script:js").getAsString();
+                        if (sCode != null && !sCode.trim().isEmpty()) {
+                            String blockId = "script_" + slug;
+                            boolean exists = false;
+                            for (BlockDef existing : outList) {
+                                if (blockId.equals(existing.id)) { exists = true; break; }
+                            }
+                            if (!exists) {
+                                BlockDef bDef = new BlockDef();
+                                bDef.id = blockId;
+                                bDef.spec = "Run " + wName + " Script";
+                                bDef.type = "c";
+                                bDef.category = "widgets";
+                                bDef.color = "#00BFA5";
+                                bDef.code = sCode;
+                                bDef.linkedWidget = tag + (wName.isEmpty() ? "" : ("," + wName));
+                                bDef.eventType = "js";
+                                outList.add(bDef);
+                            }
+                        }
+                    }
+
+                    if (fnObj.has("style:css")) {
+                        String cCode = fnObj.get("style:css").getAsString();
+                        if (cCode != null && !cCode.trim().isEmpty()) {
+                            String blockId = "style_" + slug;
+                            boolean exists = false;
+                            for (BlockDef existing : outList) {
+                                if (blockId.equals(existing.id)) { exists = true; break; }
+                            }
+                            if (!exists) {
+                                BlockDef bDef = new BlockDef();
+                                bDef.id = blockId;
+                                bDef.spec = "Apply " + wName + " Style";
+                                bDef.type = "c";
+                                bDef.category = "widgets";
+                                bDef.color = "#00BFA5";
+                                bDef.code = cCode;
+                                bDef.linkedWidget = tag + (wName.isEmpty() ? "" : ("," + wName));
+                                bDef.eventType = "css";
+                                outList.add(bDef);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
     }
 }
