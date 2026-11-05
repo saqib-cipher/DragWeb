@@ -155,6 +155,7 @@ public class MainEditorFragment extends Fragment {
 
 	// Track if a dialog is currently showing to avoid duplicates
 	private boolean isDialogShowing = false;
+	private boolean isProjectLoaded = false;
 
 	public PageManager getPageManager() {
 		return pageManager;
@@ -677,7 +678,6 @@ public class MainEditorFragment extends Fragment {
 
 		loadClipboardFromDisk();
 		buildDesignList();
-		saveUndoState();
 		refreshHierarchy();
 		updateWidgetSpinnerFromTree();
 	}
@@ -917,67 +917,75 @@ public class MainEditorFragment extends Fragment {
 			View child = parent.getChildAt(i);
 			if (child == null || "__drop_indicator__".equals(child.getTag())) continue;
 			Object tagObj = child.getTag();
+			Map<String, Object> widgetMap;
 			if (tagObj instanceof Map) {
 				@SuppressWarnings("unchecked")
-				Map<String, Object> widgetMap = new LinkedHashMap<>((Map<String, Object>) tagObj);
-				String tag = widgetMap.containsKey("tag") && widgetMap.get("tag") != null ? widgetMap.get("tag").toString() : "div";
-
-				@SuppressWarnings("unchecked")
-				Map<String, Object> fn = (Map<String, Object>) widgetMap.get("function");
-				if (fn == null) {
-					fn = new LinkedHashMap<>();
-					widgetMap.put("function", fn);
-				}
-
-				String widgetId = null;
-				if (widgetMap.get("id") != null && !widgetMap.get("id").toString().trim().isEmpty()) {
-					widgetId = widgetMap.get("id").toString().trim();
-				} else if (fn.get("id") != null && !fn.get("id").toString().trim().isEmpty()) {
-					widgetId = fn.get("id").toString().trim();
-				} else {
-					widgetId = tag + "_" + (i + 1);
-				}
-
-				// Sync live text from view if applicable
-				if (child instanceof TextView) {
-					String liveText = ((TextView) child).getText().toString();
-					if (!liveText.startsWith("[") || !liveText.endsWith("]")) {
-						fn.put("text", liveText);
-					}
-				} else if (child instanceof com.google.android.material.textfield.TextInputEditText) {
-					fn.put("value", ((com.google.android.material.textfield.TextInputEditText) child).getText().toString());
-				}
-
-				widgetMap.put("id", widgetId);
-				widgetMap.put("index", i);
-				widgetMap.put("parent", parentId);
-				if (!fn.containsKey("id") || fn.get("id") == null || fn.get("id").toString().trim().isEmpty()) {
-					fn.put("id", widgetId);
-				}
-
-				// Convert tag for Sketchware compatibility
-				if (!widgetMap.containsKey("convert") || widgetMap.get("convert") == null || widgetMap.get("convert").toString().isEmpty()) {
-					String conv = "View";
-					if (tag.equals("button")) conv = "Button";
-					else if (tag.equals("p") || tag.equals("h1") || tag.equals("h2") || tag.equals("h3") || tag.equals("span") || tag.equals("a")) conv = "TextView";
-					else if (tag.equals("img")) conv = "ImageView";
-					else if (tag.equals("div") || tag.equals("section") || tag.equals("header") || tag.equals("footer")) conv = "LinearLayout";
-					widgetMap.put("convert", conv);
-				}
-
-				// Synchronize view tag so in-memory view is always in sync with serialized attributes
-				child.setTag(widgetMap);
-
-				if (child instanceof ViewGroup) {
-					List<Map<String, Object>> children = serializeChildren((ViewGroup) child, widgetId);
-					if (!children.isEmpty()) {
-						widgetMap.put("children", children);
-					} else {
-						widgetMap.remove("children");
-					}
-				}
-				nodes.add(widgetMap);
+				Map<String, Object> casted = (Map<String, Object>) tagObj;
+				widgetMap = new LinkedHashMap<>(casted);
+			} else {
+				widgetMap = new LinkedHashMap<>();
+				String fallbackTag = (tagObj != null && !tagObj.toString().trim().isEmpty()) ? tagObj.toString().trim() : "div";
+				widgetMap.put("tag", fallbackTag);
+				widgetMap.put("function", new LinkedHashMap<String, Object>());
 			}
+
+			String tag = widgetMap.containsKey("tag") && widgetMap.get("tag") != null ? widgetMap.get("tag").toString() : "div";
+
+			@SuppressWarnings("unchecked")
+			Map<String, Object> fn = (Map<String, Object>) widgetMap.get("function");
+			if (fn == null) {
+				fn = new LinkedHashMap<>();
+				widgetMap.put("function", fn);
+			}
+
+			String widgetId = null;
+			if (widgetMap.get("id") != null && !widgetMap.get("id").toString().trim().isEmpty()) {
+				widgetId = widgetMap.get("id").toString().trim();
+			} else if (fn.get("id") != null && !fn.get("id").toString().trim().isEmpty()) {
+				widgetId = fn.get("id").toString().trim();
+			} else {
+				widgetId = tag + "_" + (i + 1);
+			}
+
+			// Sync live text from view if applicable
+			if (child instanceof TextView) {
+				String liveText = ((TextView) child).getText().toString();
+				if (!liveText.startsWith("[") || !liveText.endsWith("]")) {
+					fn.put("text", liveText);
+				}
+			} else if (child instanceof com.google.android.material.textfield.TextInputEditText) {
+				fn.put("value", ((com.google.android.material.textfield.TextInputEditText) child).getText().toString());
+			}
+
+			widgetMap.put("id", widgetId);
+			widgetMap.put("index", i);
+			widgetMap.put("parent", parentId);
+			if (!fn.containsKey("id") || fn.get("id") == null || fn.get("id").toString().trim().isEmpty()) {
+				fn.put("id", widgetId);
+			}
+
+			// Convert tag for Sketchware compatibility
+			if (!widgetMap.containsKey("convert") || widgetMap.get("convert") == null || widgetMap.get("convert").toString().isEmpty()) {
+				String conv = "View";
+				if (tag.equals("button")) conv = "Button";
+				else if (tag.equals("p") || tag.equals("h1") || tag.equals("h2") || tag.equals("h3") || tag.equals("span") || tag.equals("a")) conv = "TextView";
+				else if (tag.equals("img")) conv = "ImageView";
+				else if (tag.equals("div") || tag.equals("section") || tag.equals("header") || tag.equals("footer")) conv = "LinearLayout";
+				widgetMap.put("convert", conv);
+			}
+
+			// Synchronize view tag so in-memory view is always in sync with serialized attributes
+			child.setTag(widgetMap);
+
+			if (child instanceof ViewGroup) {
+				List<Map<String, Object>> children = serializeChildren((ViewGroup) child, widgetId);
+				if (!children.isEmpty()) {
+					widgetMap.put("children", children);
+				} else {
+					widgetMap.remove("children");
+				}
+			}
+			nodes.add(widgetMap);
 		}
 		return nodes;
 	}
@@ -1157,14 +1165,11 @@ public class MainEditorFragment extends Fragment {
 		codeGenerator.setCurrentPageName(selectedPage);
 		DesignDataManager.initialize(requireContext(), projectId, selectedPage);
 
-		// Load the new page layout
+		// Load the new page layout (handles view reconstruction and undo state asynchronously)
 		loadCurrentPageLayout();
 
 		// Logic blocks are loaded by DesignDataManager.initialize above
 		refreshLogicBlocksUI();
-
-		saveUndoState();
-		refreshHierarchy();
 		updatePageSpinner();
 	}
 
@@ -1985,12 +1990,9 @@ public class MainEditorFragment extends Fragment {
 				codeGenerator.setCurrentPageName(pageName);
 				DesignDataManager.initialize(requireContext(), projectId, pageName);
 
-				// Load current page layout
+				// Load current page layout (handles view reconstruction and undo state asynchronously)
 				loadCurrentPageLayout();
 				refreshLogicBlocksUI();
-
-				saveUndoState();
-				refreshHierarchy();
 				updatePageSpinner();
 				Toast.makeText(requireContext(), "Page '" + pageName + "' created", Toast.LENGTH_SHORT).show();
 			})
@@ -2003,14 +2005,12 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void saveCurrentPageLayout(boolean allowEmpty) {
-		if (screen == null) return;
+		if (screen == null || !isProjectLoaded) return;
 		List<Map<String, Object>> widgetTree = serializeChildren(screen);
 		if (widgetTree.isEmpty() && !allowEmpty) {
-			String cached = pageManager != null ? pageManager.loadPageLayout(pageManager.getCurrentPage()) : null;
-			if (cached != null && !cached.trim().isEmpty() && !"[]".equals(cached.trim())) {
-				// Safety: Canvas is momentarily empty during loading/fragment transition, do not wipe disk layout!
-				return;
-			}
+			// Canvas has no widgets, but empty was not explicitly requested.
+			// Do not wipe disk layout!
+			return;
 		}
 		String json = new Gson().toJson(widgetTree);
 		if (pageManager != null) {
@@ -2019,14 +2019,15 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void loadCurrentPageLayout() {
+		isProjectLoaded = false;
 		// Show loading immediately on the UI thread
 		if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
 
-		String pageName = pageManager.getCurrentPage();
+		String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
 		final androidx.fragment.app.FragmentActivity act = getActivity();
 
 		AppExecutors.io().execute(() -> {
-			final String json = pageManager.loadPageLayout(pageName);
+			final String json = pageManager != null ? pageManager.loadPageLayout(pageName) : "[]";
 			final List<Map<String, Object>> parsedTree = PageManager.parseLayoutTree(json);
 
 			final List<Map<String, Object>> finalTree = parsedTree;
@@ -2041,16 +2042,15 @@ public class MainEditorFragment extends Fragment {
 					}
 					WidgetCanvasStyler.getInstance(requireContext()).synchronizeCanvas(screen);
 				}
+				registerAllWidgetsForDrag(screen);
 				setupHierarchyTracker(screen);
-				if (screen.getChildCount() > 0) {
-					saveCurrentPageLayout();
-				}
 				selector.clearSelection();
 				selector.attachTo(screen);
 				textview2.setText("No widget selected");
 				delete.setEnabled(false);
+				isProjectLoaded = true;
 				undoRedoManager.clear();
-				saveUndoState();
+				undoRedoManager.saveState(screen);
 				refreshHierarchy();
 				updateWidgetSpinnerFromTree();
 				if (layoutLoading != null) {
@@ -2809,6 +2809,16 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	@Override
+	public void onDestroyView() {
+		saveCurrentPageLayout();
+		if (pageManager != null) {
+			pageManager.saveAllPages();
+		}
+		isProjectLoaded = false;
+		super.onDestroyView();
+	}
+
+	@Override
 	public void onPause() {
 		super.onPause();
 		saveCurrentPageLayout();
@@ -3043,6 +3053,7 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void loadProject() {
+		isProjectLoaded = false;
 		// Show loading overlay immediately so the UI stays responsive
 		if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
 		if (hierarchyAdapter != null) hierarchyAdapter.setLoading(true);
@@ -3053,7 +3064,7 @@ public class MainEditorFragment extends Fragment {
 
 		AppExecutors.io().execute(() -> {
 			// ---- Background: disk I/O + JSON parsing ----
-			final String pageJson = pageManager.loadPageLayout(currentPageName);
+			final String pageJson = pageManager != null ? pageManager.loadPageLayout(currentPageName) : "[]";
 
 			// Parse widget tree off the UI thread (supports standard array and Sketchware structure)
 			final List<Map<String, Object>> parsedTree = PageManager.parseLayoutTree(pageJson);
@@ -3081,31 +3092,38 @@ public class MainEditorFragment extends Fragment {
 						rebuildView(nodeMap, screen);
 					}
 					WidgetCanvasStyler.getInstance(requireContext()).synchronizeCanvas(screen);
+					finishLoadingProject();
 				} else if (pageJson == null || pageJson.trim().isEmpty() || "[]".equals(pageJson.trim())) {
 					// Fall back to legacy project data
-					projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager, null);
-				}
-
-				registerAllWidgetsForDrag(screen);
-				setupHierarchyTracker(screen);
-				selector.clearSelection();
-				selector.attachTo(screen);
-
-				// Cache the layout now that it is built
-				if (pageManager != null && screen.getChildCount() > 0) {
-					saveCurrentPageLayout();
-				}
-
-				if (hierarchyAdapter != null) hierarchyAdapter.setLoading(false);
-				refreshHierarchy();
-				updateWidgetSpinnerFromTree();
-
-				// Dismiss loading overlay
-				if (layoutLoading != null) {
-					layoutLoading.postDelayed(() -> layoutLoading.setVisibility(View.GONE), 200);
+					projectDataManager.loadProject(screen, projectId, engine, selector, dropZoneManager, () -> {
+						if (!isAdded()) return;
+						finishLoadingProject();
+					});
+				} else {
+					finishLoadingProject();
 				}
 			});
 		});
+	}
+
+	private void finishLoadingProject() {
+		registerAllWidgetsForDrag(screen);
+		setupHierarchyTracker(screen);
+		selector.clearSelection();
+		selector.attachTo(screen);
+
+		isProjectLoaded = true;
+		undoRedoManager.clear();
+		undoRedoManager.saveState(screen);
+
+		if (hierarchyAdapter != null) hierarchyAdapter.setLoading(false);
+		refreshHierarchy();
+		updateWidgetSpinnerFromTree();
+
+		// Dismiss loading overlay
+		if (layoutLoading != null) {
+			layoutLoading.postDelayed(() -> layoutLoading.setVisibility(View.GONE), 200);
+		}
 	}
 
 	private void registerAllWidgetsForDrag(ViewGroup parent) {

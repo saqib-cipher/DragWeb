@@ -131,46 +131,56 @@ public class PageManager {
     }
 
     public String loadPageLayout(String pageName) {
-        // Check in-memory cache first for unsaved changes
+        // Check in-memory cache first for unsaved changes if non-empty
         if (pageLayoutCache.containsKey(pageName)) {
             String cached = pageLayoutCache.get(pageName);
-            if (cached != null && !cached.isEmpty()) {
+            if (cached != null && !cached.trim().isEmpty() && !"[]".equals(cached.trim())) {
                 return cached;
             }
         }
 
-        // 1. Try external layouts/pageName.json first
+        // 1. Try external pages/pageName.json first (authoritative page storage)
+        File pagesFile = getPageLayoutFile(pageName);
+        if (FileUtil.exists(pagesFile)) {
+            String json = FileUtil.readFile(pagesFile.getAbsolutePath());
+            if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
+                pageLayoutCache.put(pageName, json);
+                // Keep layouts/ mirror updated
+                File layoutsFile = getLayoutsPageFile(pageName);
+                FileUtil.writeFile(layoutsFile.getAbsolutePath(), json);
+                if ("index".equals(pageName)) {
+                    File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/layout.json");
+                    FileUtil.writeFile(layoutFile.getAbsolutePath(), json);
+                }
+                return json;
+            }
+        }
+
+        // 2. Try external layouts/pageName.json second
         File layoutsFile = getLayoutsPageFile(pageName);
         if (FileUtil.exists(layoutsFile)) {
             String json = FileUtil.readFile(layoutsFile.getAbsolutePath());
-            if (json != null && !json.trim().isEmpty()) {
+            if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
                 pageLayoutCache.put(pageName, json);
-                FileUtil.writeFile(getPageLayoutFile(pageName).getAbsolutePath(), json);
+                // Restore to primary pages/ file
+                FileUtil.writeFile(pagesFile.getAbsolutePath(), json);
+                if ("index".equals(pageName)) {
+                    File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/layout.json");
+                    FileUtil.writeFile(layoutFile.getAbsolutePath(), json);
+                }
                 return json;
             }
         }
 
-        // 2. Try external pages/pageName.json
-        File file = getPageLayoutFile(pageName);
-        if (FileUtil.exists(file)) {
-            String json = FileUtil.readFile(file.getAbsolutePath());
-            if (json != null && !json.trim().isEmpty()) {
-                pageLayoutCache.put(pageName, json);
-                FileUtil.writeFile(layoutsFile.getAbsolutePath(), json);
-                return json;
-            }
-        }
-
-        // Fallback for "index" page layout to layout.json or projectId.json
+        // 3. Fallback for "index" page layout to layout.json or projectId.json
         if ("index".equals(pageName)) {
             File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/layout.json");
             if (FileUtil.exists(layoutFile)) {
                 String json = FileUtil.readFile(layoutFile.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
                     pageLayoutCache.put(pageName, json);
-                    File extFile = getPageLayoutFile(pageName);
-                    FileUtil.writeFile(extFile.getAbsolutePath(), json);
-                    FileUtil.writeFile(getLayoutsPageFile(pageName).getAbsolutePath(), json);
+                    FileUtil.writeFile(pagesFile.getAbsolutePath(), json);
+                    FileUtil.writeFile(layoutsFile.getAbsolutePath(), json);
                     return json;
                 }
             }
@@ -179,9 +189,8 @@ public class PageManager {
                 String json = FileUtil.readFile(projFile.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
                     pageLayoutCache.put(pageName, json);
-                    File extFile = getPageLayoutFile(pageName);
-                    FileUtil.writeFile(extFile.getAbsolutePath(), json);
-                    FileUtil.writeFile(getLayoutsPageFile(pageName).getAbsolutePath(), json);
+                    FileUtil.writeFile(pagesFile.getAbsolutePath(), json);
+                    FileUtil.writeFile(layoutsFile.getAbsolutePath(), json);
                     return json;
                 }
             }
@@ -190,22 +199,36 @@ public class PageManager {
                 String json = FileUtil.readFile(rootProjFile.getAbsolutePath());
                 if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
                     pageLayoutCache.put(pageName, json);
-                    File extFile = getPageLayoutFile(pageName);
-                    FileUtil.writeFile(extFile.getAbsolutePath(), json);
-                    FileUtil.writeFile(getLayoutsPageFile(pageName).getAbsolutePath(), json);
+                    FileUtil.writeFile(pagesFile.getAbsolutePath(), json);
+                    FileUtil.writeFile(layoutsFile.getAbsolutePath(), json);
                     return json;
                 }
             }
         }
 
-        // Try legacy projectId_pageName.json in projects dir
+        // 4. Try legacy projectId_pageName.json in projects dir
         File legacyFile = getLegacyPageFile(pageName);
         if (FileUtil.exists(legacyFile)) {
             String json = FileUtil.readFile(legacyFile.getAbsolutePath());
-            if (json != null && !json.isEmpty()) {
+            if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
+                pageLayoutCache.put(pageName, json);
+                FileUtil.writeFile(pagesFile.getAbsolutePath(), json);
+                FileUtil.writeFile(layoutsFile.getAbsolutePath(), json);
+                return json;
+            }
+        }
+
+        // 5. If pagesFile exists (even if empty "[]"), return it
+        if (FileUtil.exists(pagesFile)) {
+            String json = FileUtil.readFile(pagesFile.getAbsolutePath());
+            if (json != null && !json.trim().isEmpty()) {
                 pageLayoutCache.put(pageName, json);
                 return json;
             }
+        }
+
+        if (pageLayoutCache.containsKey(pageName)) {
+            return pageLayoutCache.get(pageName);
         }
 
         return "[]";
@@ -325,7 +348,16 @@ public class PageManager {
         for (Map.Entry<String, String> entry : pageLayoutCache.entrySet()) {
             String pageName = entry.getKey();
             String json = entry.getValue();
-            if (json != null && !json.isEmpty()) {
+            if (json != null && !json.trim().isEmpty()) {
+                if ("[]".equals(json.trim())) {
+                    File diskFile = getPageLayoutFile(pageName);
+                    if (FileUtil.exists(diskFile)) {
+                        String diskContent = FileUtil.readFile(diskFile.getAbsolutePath());
+                        if (diskContent != null && !diskContent.trim().isEmpty() && !"[]".equals(diskContent.trim())) {
+                            continue; // Protect non-empty disk file from empty cache!
+                        }
+                    }
+                }
                 savePageLayout(pageName, json);
             }
         }

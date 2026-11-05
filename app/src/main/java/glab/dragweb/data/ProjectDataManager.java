@@ -158,9 +158,16 @@ public class ProjectDataManager {
                             WidgetSelector selector, DropZoneManager dropZoneManager, Runnable onComplete) {
         new Thread(() -> {
             File projectsDir = new File(FileUtil.getDragWebDir(context), "projects");
-            File file = new File(projectsDir, projectId + "/layouts/index.json");
-            if (!file.exists()) {
-                file = new File(projectsDir, projectId + "/pages/index.json");
+            File file = new File(projectsDir, projectId + "/pages/index.json");
+            String checkContent = file.exists() ? FileUtil.readFile(file.getAbsolutePath()) : null;
+            if (checkContent == null || checkContent.trim().isEmpty() || "[]".equals(checkContent.trim())) {
+                File layoutsFile = new File(projectsDir, projectId + "/layouts/index.json");
+                if (layoutsFile.exists()) {
+                    String layoutsContent = FileUtil.readFile(layoutsFile.getAbsolutePath());
+                    if (layoutsContent != null && !layoutsContent.trim().isEmpty() && !"[]".equals(layoutsContent.trim())) {
+                        file = layoutsFile;
+                    }
+                }
             }
             if (!file.exists()) {
                 file = new File(projectsDir, projectId + "/layout.json");
