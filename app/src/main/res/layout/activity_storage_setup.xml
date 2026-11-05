@@ -96,18 +96,32 @@
         android:background="?attr/colorSurface">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSelectFolder"
+            android:id="@+id/btnGrantAllFiles"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="Select .dragweb Folder"
+            android:text="Grant Storage Permission (1-Tap)"
             android:textSize="15sp"
             android:textStyle="bold"
-            app:icon="@drawable/folder"
+            app:icon="@drawable/folder_check"
             app:iconSize="20dp"
             app:iconGravity="textStart"
             app:iconPadding="10dp"
             app:cornerRadius="16dp"
+            android:layout_marginBottom="8dp"
             app:elevation="0dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSelectFolder"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="Choose Folder via SAF (Alternative)"
+            android:textSize="14sp"
+            app:icon="@drawable/folder"
+            app:iconSize="18dp"
+            app:iconGravity="textStart"
+            app:iconPadding="10dp"
+            app:cornerRadius="16dp" />
 
         <TextView
             android:id="@+id/tvCurrentPath"

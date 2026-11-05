@@ -31,6 +31,7 @@ public final class BlockCategoryPalette {
             case "event":     return "#FF9800";
             case "css":       return "#2196F3";
             case "html":      return "#4CAF50";
+            case "html_attr": return "#78909C";
             case "logic":     return "#E91E63";
             case "variable":  return "#00BCD4";
             case "animation": return "#9C27B0";

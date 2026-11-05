@@ -126,6 +126,12 @@
         "type": "html"
     },
     {
+        "id": "html_attr",
+        "name": "HTML Attributes",
+        "catColor": "#78909C",
+        "type": "html"
+    },
+    {
         "id": "js_network",
         "name": "HTTP & Network",
         "catColor": "#00897B",

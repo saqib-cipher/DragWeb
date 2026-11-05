@@ -133,6 +133,15 @@ public class PageCodeGenerator {
      * Generate full HTML code from a serialized widget tree (JSON data).
      * This allows generating code for pages that aren't currently loaded on screen.
      */
+    public String generateBodyHtmlFromTree(List<Map<String, Object>> widgetTree) {
+        if (widgetTree == null || widgetTree.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (Map<String, Object> nodeMap : widgetTree) {
+            sb.append(generateHtmlForNode(nodeMap, 0));
+        }
+        return sb.toString().trim();
+    }
+
     public String generateFullCodeFromTree(List<Map<String, Object>> widgetTree, ThemeManager themeManager, LogicBlockManager logicBlockManager) {
         return generateFullCodeFromTree(widgetTree, themeManager, logicBlockManager, null);
     }

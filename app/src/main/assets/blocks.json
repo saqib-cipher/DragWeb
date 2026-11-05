@@ -1938,6 +1938,39 @@
         "code": "list-style: %1$s;\n"
     },
     {
+        "id": "html_convert",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "< %m.htmlTag >",
+        "code": "<%1$s%2$s>\n%3$s\n</%1$s>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "html_convert_leaf",
+        "category": "html",
+        "blockType": "c",
+        "color": "#607D8B",
+        "spec": "< %m.htmlTag />",
+        "code": "<%1$s%2$s />\n"
+    },
+    {
+        "id": "htmlText",
+        "category": "html",
+        "blockType": "normal",
+        "color": "#607D8B",
+        "spec": "text %s.inputOnly",
+        "code": "%1$s\n"
+    },
+    {
+        "id": "asdHtml",
+        "category": "html",
+        "blockType": "normal",
+        "color": "#607D8B",
+        "spec": "Add source directly %s.inputOnly",
+        "code": "%1$s\n"
+    },
+    {
         "id": "htmlComment",
         "category": "html",
         "blockType": "normal",
@@ -1948,98 +1981,29 @@
     {
         "id": "htmlDiv",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<div>",
-        "code": "<div>\n%1$s\n</div>\n"
+        "code": "<div%1$s>\n%2$s\n</div>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlSpan",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<span>",
-        "code": "<span>\n%1$s\n</span>\n"
-    },
-    {
-        "id": "htmlMain",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<main>",
-        "code": "<main>\n%1$s\n</main>\n"
-    },
-    {
-        "id": "htmlSection",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<section>",
-        "code": "<section>\n%1$s\n</section>\n"
-    },
-    {
-        "id": "htmlArticle",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<article>",
-        "code": "<article>\n%1$s\n</article>\n"
-    },
-    {
-        "id": "htmlAside",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<aside>",
-        "code": "<aside>\n%1$s\n</aside>\n"
-    },
-    {
-        "id": "htmlHeader",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<header>",
-        "code": "<header>\n%1$s\n</header>\n"
-    },
-    {
-        "id": "htmlFooter",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<footer>",
-        "code": "<footer>\n%1$s\n</footer>\n"
-    },
-    {
-        "id": "htmlNav",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<nav>",
-        "code": "<nav>\n%1$s\n</nav>\n"
-    },
-    {
-        "id": "htmlAnchor",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<a href=\" %s.inputOnly \">",
-        "code": "<a href=\"%1$s\">%2$s</a>\n"
-    },
-    {
-        "id": "htmlImage",
-        "category": "html",
-        "blockType": "normal",
-        "color": "#607D8B",
-        "spec": "<img src=\" %s.inputOnly \" alt=\" %s.inputOnly \"",
-        "code": "<img src=\"%1$s\" alt=\"%2$s\" loading=\"lazy\">\n"
+        "code": "<span%1$s>\n%2$s\n</span>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlParagraph",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<p>",
-        "code": "<p>\n%1$s\n</p>\n"
+        "code": "<p%1$s>\n%2$s\n</p>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlHeading",
@@ -2050,132 +2014,209 @@
         "code": "<h%1$s>%2$s</h%1$s>\n"
     },
     {
-        "id": "htmlStrong",
+        "id": "htmlH1",
         "category": "html",
-        "blockType": "normal",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<strong> %s.inputOnly",
-        "code": "<strong>%1$s</strong>\n"
+        "spec": "<h1>",
+        "code": "<h1%1$s>\n%2$s\n</h1>\n",
+        "spec2": "children"
     },
     {
-        "id": "htmlEm",
+        "id": "htmlH2",
         "category": "html",
-        "blockType": "normal",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<em> %s.inputOnly",
-        "code": "<em>%1$s</em>\n"
+        "spec": "<h2>",
+        "code": "<h2%1$s>\n%2$s\n</h2>\n",
+        "spec2": "children"
     },
     {
-        "id": "htmlMark",
+        "id": "htmlH3",
         "category": "html",
-        "blockType": "normal",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<mark> %s.inputOnly",
-        "code": "<mark>%1$s</mark>\n"
+        "spec": "<h3>",
+        "code": "<h3%1$s>\n%2$s\n</h3>\n",
+        "spec2": "children"
     },
     {
-        "id": "htmlCode",
+        "id": "htmlH4",
         "category": "html",
-        "blockType": "normal",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<code> %s.inputOnly",
-        "code": "<code>%1$s</code>\n"
+        "spec": "<h4>",
+        "code": "<h4%1$s>\n%2$s\n</h4>\n",
+        "spec2": "children"
     },
     {
-        "id": "htmlSmall",
+        "id": "htmlH5",
         "category": "html",
-        "blockType": "normal",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<small> %s.inputOnly",
-        "code": "<small>%1$s</small>\n"
+        "spec": "<h5>",
+        "code": "<h5%1$s>\n%2$s\n</h5>\n",
+        "spec2": "children"
     },
     {
-        "id": "htmlUnorderedList",
+        "id": "htmlH6",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<ul>",
-        "code": "<ul>\n%1$s\n</ul>\n"
+        "spec": "<h6>",
+        "code": "<h6%1$s>\n%2$s\n</h6>\n",
+        "spec2": "children"
     },
     {
-        "id": "htmlOrderedList",
+        "id": "htmlAnchor",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<ol>",
-        "code": "<ol>\n%1$s\n</ol>\n"
-    },
-    {
-        "id": "htmlListItem",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<li>",
-        "code": "<li>%1$s</li>\n"
+        "spec": "<a>",
+        "code": "<a%1$s>\n%2$s\n</a>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlButton",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<button>",
-        "code": "<button>\n%1$s\n</button>\n"
+        "code": "<button%1$s>\n%2$s\n</button>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlMain",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<main>",
+        "code": "<main%1$s>\n%2$s\n</main>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlSection",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<section>",
+        "code": "<section%1$s>\n%2$s\n</section>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlArticle",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<article>",
+        "code": "<article%1$s>\n%2$s\n</article>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlAside",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<aside>",
+        "code": "<aside%1$s>\n%2$s\n</aside>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlHeader",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<header>",
+        "code": "<header%1$s>\n%2$s\n</header>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlFooter",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<footer>",
+        "code": "<footer%1$s>\n%2$s\n</footer>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlNav",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<nav>",
+        "code": "<nav%1$s>\n%2$s\n</nav>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlImage",
+        "category": "html",
+        "blockType": "c",
+        "color": "#607D8B",
+        "spec": "<img />",
+        "code": "<img%1$s />\n"
     },
     {
         "id": "htmlInput",
         "category": "html",
-        "blockType": "normal",
+        "blockType": "c",
         "color": "#607D8B",
-        "spec": "<input type=\" %m.inputType \" name=\" %s.inputOnly \" placeholder=\" %s.inputOnly \"",
-        "code": "<input type=\"%1$s\" name=\"%2$s\" placeholder=\"%3$s\">\n"
+        "spec": "<input />",
+        "code": "<input%1$s />\n"
     },
     {
         "id": "htmlForm",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<form action=\" %s.inputOnly \" method=\" %m.formMethod \"",
-        "code": "<form action=\"%1$s\" method=\"%2$s\">\n%3$s\n</form>\n"
+        "spec": "<form>",
+        "code": "<form%1$s>\n%2$s\n</form>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlTextarea",
         "category": "html",
-        "blockType": "normal",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<textarea name=\" %s.inputOnly \" rows=\" %d \" placeholder=\" %s.inputOnly \"",
-        "code": "<textarea name=\"%1$s\" rows=\"%2$s\" placeholder=\"%3$s\"></textarea>\n"
+        "spec": "<textarea>",
+        "code": "<textarea%1$s>%2$s</textarea>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlSelect",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<select name=\" %s.inputOnly \">",
-        "code": "<select name=\"%1$s\">\n%2$s\n</select>\n"
+        "spec": "<select>",
+        "code": "<select%1$s>\n%2$s\n</select>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlOption",
         "category": "html",
-        "blockType": "normal",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<option value=\" %s.inputOnly \" %s.inputOnly",
-        "code": "<option value=\"%1$s\">%2$s</option>\n"
+        "spec": "<option>",
+        "code": "<option%1$s>\n%2$s\n</option>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlLabel",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<label for=\" %s.inputOnly \">",
-        "code": "<label for=\"%1$s\">%2$s</label>\n"
+        "spec": "<label>",
+        "code": "<label%1$s>\n%2$s\n</label>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlFieldset",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<fieldset>",
-        "code": "<fieldset>\n%1$s\n</fieldset>\n"
+        "code": "<fieldset%1$s>\n%2$s\n</fieldset>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlLegend",
@@ -2186,92 +2227,182 @@
         "code": "<legend>%1$s</legend>\n"
     },
     {
+        "id": "htmlTable",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<table>",
+        "code": "<table%1$s>\n%2$s\n</table>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlThead",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<thead>",
+        "code": "<thead%1$s>\n%2$s\n</thead>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlTbody",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<tbody>",
+        "code": "<tbody%1$s>\n%2$s\n</tbody>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlTr",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<tr>",
+        "code": "<tr%1$s>\n%2$s\n</tr>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlTh",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<th>",
+        "code": "<th%1$s>\n%2$s\n</th>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlTd",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<td>",
+        "code": "<td%1$s>\n%2$s\n</td>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlUnorderedList",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<ul>",
+        "code": "<ul%1$s>\n%2$s\n</ul>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlOrderedList",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<ol>",
+        "code": "<ol%1$s>\n%2$s\n</ol>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlListItem",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<li>",
+        "code": "<li%1$s>\n%2$s\n</li>\n",
+        "spec2": "children"
+    },
+    {
         "id": "htmlFigure",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<figure>",
-        "code": "<figure>\n%1$s\n</figure>\n"
+        "code": "<figure%1$s>\n%2$s\n</figure>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlFigCaption",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<figcaption>",
-        "code": "<figcaption>\n%1$s\n</figcaption>\n"
+        "code": "<figcaption%1$s>\n%2$s\n</figcaption>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlDetails",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<details>",
-        "code": "<details>\n%1$s\n</details>\n"
+        "code": "<details%1$s>\n%2$s\n</details>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlSummary",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<summary>",
-        "code": "<summary>\n%1$s\n</summary>\n"
+        "code": "<summary%1$s>\n%2$s\n</summary>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlVideo",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<video src=\" %s.inputOnly \" controls",
-        "code": "<video src=\"%1$s\" controls>\n%2$s\n</video>\n"
+        "spec": "<video>",
+        "code": "<video%1$s>\n%2$s\n</video>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlAudio",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<audio src=\" %s.inputOnly \" controls",
-        "code": "<audio src=\"%1$s\" controls>\n%2$s\n</audio>\n"
+        "spec": "<audio>",
+        "code": "<audio%1$s>\n%2$s\n</audio>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlPicture",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<picture>",
-        "code": "<picture>\n%1$s\n</picture>\n"
+        "code": "<picture%1$s>\n%2$s\n</picture>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlSource",
         "category": "html",
-        "blockType": "normal",
+        "blockType": "c",
         "color": "#607D8B",
-        "spec": "<source src=\" %s.inputOnly \" type=\" %s.inputOnly \"",
-        "code": "<source src=\"%1$s\" type=\"%2$s\">\n"
+        "spec": "<source />",
+        "code": "<source%1$s />\n"
     },
     {
         "id": "htmlIframe",
         "category": "html",
-        "blockType": "normal",
+        "blockType": "c",
         "color": "#607D8B",
-        "spec": "<iframe src=\" %s.inputOnly \" width=\" %s.inputOnly \" height=\" %s.inputOnly \"",
-        "code": "<iframe src=\"%1$s\" width=\"%2$s\" height=\"%3$s\" loading=\"lazy\"></iframe>\n"
+        "spec": "<iframe />",
+        "code": "<iframe%1$s />\n"
     },
     {
         "id": "htmlPre",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<pre>",
-        "code": "<pre>\n%1$s\n</pre>\n"
+        "code": "<pre%1$s>\n%2$s\n</pre>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlBlockquote",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<blockquote cite=\" %s.inputOnly \">",
-        "code": "<blockquote cite=\"%1$s\">\n%2$s\n</blockquote>\n"
+        "spec": "<blockquote>",
+        "code": "<blockquote%1$s>\n%2$s\n</blockquote>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlHr",
@@ -2294,24 +2425,311 @@
         "category": "html",
         "blockType": "normal",
         "color": "#607D8B",
-        "spec": "<progress value=\" %d \" max=\" %d \"",
+        "spec": "<progress value=\" %d \" max=\" %d \">",
         "code": "<progress value=\"%1$s\" max=\"%2$s\"></progress>\n"
     },
     {
         "id": "htmlCanvas",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
-        "spec": "<canvas id=\" %s.inputOnly \"",
-        "code": "<canvas id=\"%1$s\">\n%2$s\n</canvas>\n"
+        "spec": "<canvas>",
+        "code": "<canvas%1$s>\n%2$s\n</canvas>\n",
+        "spec2": "children"
     },
     {
         "id": "htmlTemplate",
         "category": "html",
-        "blockType": "c",
+        "blockType": "e",
         "color": "#607D8B",
         "spec": "<template>",
-        "code": "<template>\n%1$s\n</template>\n"
+        "code": "<template%1$s>\n%2$s\n</template>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlStrong",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<strong>",
+        "code": "<strong%1$s>%2$s</strong>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlEm",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<em>",
+        "code": "<em%1$s>%2$s</em>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlMark",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<mark>",
+        "code": "<mark%1$s>%2$s</mark>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlCode",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<code>",
+        "code": "<code%1$s>%2$s</code>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlSmall",
+        "category": "html",
+        "blockType": "e",
+        "color": "#607D8B",
+        "spec": "<small>",
+        "code": "<small%1$s>%2$s</small>\n",
+        "spec2": "children"
+    },
+    {
+        "id": "htmlAttrClass",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "class=\" %s.inputOnly \"",
+        "code": " class=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrId",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "id=\" %s.inputOnly \"",
+        "code": " id=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrStyle",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "style=\" %s.inputOnly \"",
+        "code": " style=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrHref",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "href=\" %s.inputOnly \"",
+        "code": " href=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrSrc",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "src=\" %s.inputOnly \"",
+        "code": " src=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrAlt",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "alt=\" %s.inputOnly \"",
+        "code": " alt=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrTitle",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "title=\" %s.inputOnly \"",
+        "code": " title=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrType",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "type=\" %m.htmlInputType \"",
+        "code": " type=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrName",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "name=\" %s.inputOnly \"",
+        "code": " name=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrValue",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "value=\" %s.inputOnly \"",
+        "code": " value=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrPlaceholder",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "placeholder=\" %s.inputOnly \"",
+        "code": " placeholder=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrTarget",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "target=\" %m.htmlTarget \"",
+        "code": " target=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrRel",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "rel=\" %m.htmlRel \"",
+        "code": " rel=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrWidth",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "width=\" %s.inputOnly \"",
+        "code": " width=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrHeight",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "height=\" %s.inputOnly \"",
+        "code": " height=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrAction",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "action=\" %s.inputOnly \"",
+        "code": " action=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrMethod",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "method=\" %m.htmlMethod \"",
+        "code": " method=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrFor",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "for=\" %s.inputOnly \"",
+        "code": " for=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrRole",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "role=\" %m.htmlRole \"",
+        "code": " role=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrAriaLabel",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "aria-label=\" %s.inputOnly \"",
+        "code": " aria-label=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrDisabled",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "disabled",
+        "code": " disabled"
+    },
+    {
+        "id": "htmlAttrChecked",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "checked",
+        "code": " checked"
+    },
+    {
+        "id": "htmlAttrRequired",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "required",
+        "code": " required"
+    },
+    {
+        "id": "htmlAttrReadonly",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "readonly",
+        "code": " readonly"
+    },
+    {
+        "id": "htmlAttrHidden",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "hidden",
+        "code": " hidden"
+    },
+    {
+        "id": "htmlAttrAutofocus",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "autofocus",
+        "code": " autofocus"
+    },
+    {
+        "id": "htmlAttrMultiple",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "multiple",
+        "code": " multiple"
+    },
+    {
+        "id": "htmlAttrSelected",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "selected",
+        "code": " selected"
+    },
+    {
+        "id": "htmlAttrData",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "data- %s.inputOnly =\" %s.inputOnly \"",
+        "code": " data-%1$s=\"%2$s\""
+    },
+    {
+        "id": "htmlAttrGeneric",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "%s.inputOnly =\" %s.inputOnly \"",
+        "code": " %1$s=\"%2$s\""
     },
     {
         "id": "httpFetchGet",
@@ -3205,5 +3623,229 @@
         "linkedWidget": "*",
         "linkedWIdget": "*",
         "eventType": "html"
+    },
+    {
+        "id": "htmlAttrLoading",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "loading=\" %m.htmlLoading \"",
+        "code": " loading=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrDecoding",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "decoding=\" %m.htmlDecoding \"",
+        "code": " decoding=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrPreload",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "preload=\" %m.htmlPreload \"",
+        "code": " preload=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrWrap",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "wrap=\" %m.htmlWrap \"",
+        "code": " wrap=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrDir",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "dir=\" %m.htmlDir \"",
+        "code": " dir=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrCrossorigin",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "crossorigin=\" %m.htmlCrossorigin \"",
+        "code": " crossorigin=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrShape",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "shape=\" %m.htmlShape \"",
+        "code": " shape=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrButtonType",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "type (button)=\" %m.htmlButtonType \"",
+        "code": " type=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrFormEnctype",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "enctype=\" %m.htmlFormEnctype \"",
+        "code": " enctype=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrTabindex",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "tabindex=\" %d \"",
+        "code": " tabindex=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrLang",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "lang=\" %s.inputOnly \"",
+        "code": " lang=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrDownload",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "download=\" %s.inputOnly \"",
+        "code": " download=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrAriaExpanded",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "aria-expanded=\" %b \"",
+        "code": " aria-expanded=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrAriaHidden",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "aria-hidden=\" %b \"",
+        "code": " aria-hidden=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrAriaDescribedby",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "aria-describedby=\" %s.inputOnly \"",
+        "code": " aria-describedby=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrMin",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "min=\" %s.inputOnly \"",
+        "code": " min=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrMax",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "max=\" %s.inputOnly \"",
+        "code": " max=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrStep",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "step=\" %s.inputOnly \"",
+        "code": " step=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrPattern",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "pattern=\" %s.inputOnly \"",
+        "code": " pattern=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrMaxlength",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "maxlength=\" %d \"",
+        "code": " maxlength=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrCols",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "cols=\" %d \"",
+        "code": " cols=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrRows",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "rows=\" %d \"",
+        "code": " rows=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrColspan",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "colspan=\" %d \"",
+        "code": " colspan=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrRowspan",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "rowspan=\" %d \"",
+        "code": " rowspan=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrSrcset",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "srcset=\" %s.inputOnly \"",
+        "code": " srcset=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrMedia",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "media=\" %s.inputOnly \"",
+        "code": " media=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrAccept",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "accept=\" %s.inputOnly \"",
+        "code": " accept=\"%1$s\""
+    },
+    {
+        "id": "htmlAttrCharset",
+        "category": "html_attr",
+        "blockType": "normal",
+        "color": "#78909C",
+        "spec": "charset=\" %s.inputOnly \"",
+        "code": " charset=\"%1$s\""
     }
 ]

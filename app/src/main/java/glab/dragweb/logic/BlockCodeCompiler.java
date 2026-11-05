@@ -151,7 +151,12 @@ public class BlockCodeCompiler {
         while (current != null) {
             String code = compileBlock(current, allBlocks, indentLevel);
             if (!code.isEmpty()) {
-                sb.append(code).append("\n");
+                boolean isHtmlAttr = current.opCode != null && (current.opCode.startsWith("htmlAttr") || "html_attr".equalsIgnoreCase(current.category));
+                if (isHtmlAttr) {
+                    sb.append(code);
+                } else {
+                    sb.append(code).append("\n");
+                }
             }
             int nextId = current.nextBlock;
             current = null;

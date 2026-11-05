@@ -222,6 +222,9 @@ public class SafStorageUtil {
     public static String getRelativeSubPath(Context context, String path) {
         if (path == null || path.isEmpty()) return "";
         String normalized = path.replace('\\', '/');
+        if (normalized.startsWith("/data/") || (normalized.contains("/glab.dragweb/") && !normalized.contains(".dragweb"))) {
+            return "";
+        }
         String storagePath = getSavedStoragePath(context);
         if (storagePath != null) {
             String normStorage = storagePath.replace('\\', '/');
@@ -529,17 +532,55 @@ public class SafStorageUtil {
         return makeSafDir(SketchApplication.getContext(), path);
     }
 
+    public static void removeCacheForPath(String path) {
+        if (path == null) return;
+        try {
+            String subPath = getRelativeSubPath(SketchApplication.getContext(), path);
+            if (!subPath.isEmpty()) {
+                dirCache.remove(subPath);
+                dirCache.keySet().removeIf(k -> k.equals(subPath) || k.startsWith(subPath + "/"));
+                fileCache.remove(subPath);
+                fileCache.keySet().removeIf(k -> k.equals(subPath) || k.startsWith(subPath + "/"));
+            }
+        } catch (Exception ignored) {}
+    }
+
+    public static boolean deleteSafDocumentRecursive(DocumentFile doc) {
+        if (doc == null || !doc.exists()) return true;
+        try {
+            if (doc.isDirectory()) {
+                DocumentFile[] children = doc.listFiles();
+                if (children != null) {
+                    for (DocumentFile child : children) {
+                        deleteSafDocumentRecursive(child);
+                    }
+                }
+            }
+            return doc.delete();
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to delete SAF document " + doc.getName() + ": " + e.getMessage());
+            return false;
+        }
+    }
+
     public static boolean deleteSafFile(Context context, String path) {
+        return deleteSafRecursive(context, path);
+    }
+
+    public static boolean deleteSafFile(String path) {
+        return deleteSafRecursive(SketchApplication.getContext(), path);
+    }
+
+    public static boolean deleteSafRecursive(String path) {
+        return deleteSafRecursive(SketchApplication.getContext(), path);
+    }
+
+    public static boolean deleteSafRecursive(Context context, String path) {
         if (context == null) context = SketchApplication.getContext();
         if (context == null || path == null) return false;
         try {
             String subPath = getRelativeSubPath(context, path);
-            if (!subPath.isEmpty()) {
-                dirCache.remove(subPath);
-                dirCache.keySet().removeIf(k -> k.startsWith(subPath + "/"));
-                fileCache.remove(subPath);
-                fileCache.keySet().removeIf(k -> k.startsWith(subPath + "/"));
-            }
+            removeCacheForPath(path);
 
             int lastSlash = subPath.lastIndexOf('/');
             String dirSub = lastSlash > 0 ? subPath.substring(0, lastSlash) : "";
@@ -552,17 +593,15 @@ public class SafStorageUtil {
                     target = parent.findFile(fileName + ".txt");
                 }
                 if (target != null && target.exists()) {
-                    return target.delete();
+                    boolean ok = deleteSafDocumentRecursive(target);
+                    removeCacheForPath(path);
+                    return ok;
                 }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error deleting SAF file " + path + ": " + e.getMessage(), e);
         }
         return false;
-    }
-
-    public static boolean deleteSafFile(String path) {
-        return deleteSafFile(SketchApplication.getContext(), path);
     }
 
     public static File[] listSafFiles(Context context, File dir) {

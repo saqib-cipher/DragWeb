@@ -1,11 +1,14 @@
 package glab.dragweb.activities;
 
 import glab.dragweb.R;
+import glab.dragweb.util.FileUtil;
 import glab.dragweb.util.SafStorageUtil;
 
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
@@ -44,6 +47,7 @@ public class StorageSetupActivity extends AppCompatActivity {
 
     private ViewPager2 viewPager;
     private TabLayout tabIndicator;
+    private MaterialButton btnGrantAllFiles;
     private MaterialButton btnSelectFolder;
     private TextView tvTitle;
     private TextView tvSubtitle;
@@ -56,16 +60,16 @@ public class StorageSetupActivity extends AppCompatActivity {
 
     private final String[] stepNumbers = {"STEP 1 OF 4", "STEP 2 OF 4", "STEP 3 OF 4", "STEP 4 OF 4"};
     private final String[] stepTitles = {
-        "Open File Manager",
-        "Create .dragweb Folder",
-        "Return to DragWeb",
-        "Select the Folder"
+        "Grant Storage Access (1-Tap)",
+        "Automatic .dragweb Setup",
+        "Or Manual File Manager",
+        "Choose Folder via SAF"
     };
     private final String[] stepDescriptions = {
-        "Open your device's built-in File Manager app and navigate to the root of your internal storage (/storage/emulated/0/).",
-        "Create a new folder named exactly as shown below. Make sure it begins with a dot (.) — this is important!",
-        "Come back to DragWeb. The folder picker will open automatically when you tap the button below.",
-        "Navigate to the newly created .dragweb folder and confirm the selection to grant storage access."
+        "Tap 'Grant Storage Permission' below for fastest setup. This gives full permission to create, edit, and delete projects.",
+        "DragWeb automatically creates and manages the .dragweb workspace on your internal storage with high-speed direct access.",
+        "Alternatively, if you prefer not granting All Files Access, you can create a .dragweb folder manually using your file manager.",
+        "Tap 'Choose Folder via SAF' to pick your .dragweb folder and grant Storage Access Framework permissions."
     };
     private final int[] stepIcons = {
         R.drawable.file_import,
@@ -102,6 +106,7 @@ public class StorageSetupActivity extends AppCompatActivity {
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         viewPager = findViewById(R.id.viewPager);
         tabIndicator = findViewById(R.id.tabIndicator);
+        btnGrantAllFiles = findViewById(R.id.btnGrantAllFiles);
         btnSelectFolder = findViewById(R.id.btnSelectFolder);
         tvTitle = findViewById(R.id.tvTitle);
         tvSubtitle = findViewById(R.id.tvSubtitle);
@@ -118,9 +123,35 @@ public class StorageSetupActivity extends AppCompatActivity {
             });
         }
 
+        if (btnGrantAllFiles != null) {
+            btnGrantAllFiles.setOnClickListener(v -> {
+                if (Build.VERSION.SDK_INT >= 30) {
+                    FileUtil.requestAllFilesAccessPermission(this);
+                } else {
+                    androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    }, 1001);
+                }
+            });
+        }
         btnSelectFolder.setOnClickListener(v -> launchFolderPicker());
 
         updateCurrentPath();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (FileUtil.hasStoragePermission(this)) {
+            java.io.File dragWebDir = new java.io.File(Environment.getExternalStorageDirectory(), ".dragweb");
+            dragWebDir.mkdirs();
+            SafStorageUtil.initFolderStructure(dragWebDir);
+            Toast.makeText(this, "Storage access granted!", Toast.LENGTH_SHORT).show();
+            finishSetup();
+        } else {
+            updateCurrentPath();
+        }
     }
 
     private void setupViewPager() {
@@ -319,11 +350,7 @@ public class StorageSetupActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        updateCurrentPath();
-    }
+
 
     @Override
     protected void onDestroy() {

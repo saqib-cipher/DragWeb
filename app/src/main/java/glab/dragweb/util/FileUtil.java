@@ -2,8 +2,19 @@ package glab.dragweb.util;
 
 import glab.dragweb.SketchApplication;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
+import android.provider.Settings;
+import android.util.Log;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import java.io.File;
 import java.io.FileReader;
@@ -11,6 +22,67 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 public class FileUtil {
+
+    public static boolean hasStoragePermission(Context context) {
+        if (context == null) {
+            context = SketchApplication.getContext();
+        }
+        if (context == null) return false;
+
+        if (Build.VERSION.SDK_INT >= 30) {
+            return Environment.isExternalStorageManager();
+        } else {
+            return ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        }
+    }
+
+    public static boolean hasAnyStorageAccess(Context context) {
+        return hasStoragePermission(context) || SafStorageUtil.isStorageConfigured(context);
+    }
+
+    public static boolean isAllFilesAccessGranted() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            return Environment.isExternalStorageManager();
+        }
+        return true;
+    }
+
+    public static void requestAllFilesAccessPermission(Context context) {
+        if (context == null) return;
+        if (Build.VERSION.SDK_INT >= 30) {
+            try {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                intent.setData(Uri.parse("package:" + context.getPackageName()));
+                if (!(context instanceof Activity)) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                }
+                context.startActivity(intent);
+            } catch (Exception e) {
+                try {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                    if (!(context instanceof Activity)) {
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    }
+                    context.startActivity(intent);
+                } catch (Exception ex) {
+                    Log.e("FileUtil", "Cannot open all files access settings: " + ex.getMessage());
+                }
+            }
+        }
+    }
+
+    public static void requestStoragePermission(Activity activity, int requestCode) {
+        if (activity == null) return;
+        if (Build.VERSION.SDK_INT >= 30) {
+            requestAllFilesAccessPermission(activity);
+        } else {
+            ActivityCompat.requestPermissions(activity, new String[]{
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            }, requestCode);
+        }
+    }
 
     public static File getDragWebDir() {
         return getDragWebDir(SketchApplication.getContext());
@@ -20,15 +92,22 @@ public class FileUtil {
         if (context == null) {
             context = SketchApplication.getContext();
         }
-        String savedPath = SafStorageUtil.getSavedStoragePath(context);
         File dir;
-        if (savedPath != null && !savedPath.trim().isEmpty()) {
-            dir = new File(savedPath);
-        } else {
+        if (hasStoragePermission(context)) {
             dir = new File(Environment.getExternalStorageDirectory(), ".dragweb");
+        } else {
+            String savedPath = SafStorageUtil.getSavedStoragePath(context);
+            if (savedPath != null && !savedPath.trim().isEmpty()) {
+                dir = new File(savedPath);
+            } else {
+                dir = new File(Environment.getExternalStorageDirectory(), ".dragweb");
+            }
         }
         if (!dir.exists()) {
-            dir.mkdirs();
+            boolean created = dir.mkdirs();
+            if (!created && !dir.exists()) {
+                SafStorageUtil.makeSafDir(dir.getAbsolutePath());
+            }
         }
         return dir;
     }
@@ -98,29 +177,50 @@ public class FileUtil {
         }
     }
 
-    public static void deleteFile(String path) {
-        if (path == null || path.isEmpty()) return;
-        File file = new File(path);
-        if (!file.exists()) {
-            // Might exist in SAF even if not visible in File
-            SafStorageUtil.deleteSafFile(path);
-            return;
-        }
+    public static boolean deleteFile(String path) {
+        if (path == null || path.trim().isEmpty()) return true;
+        return deleteFile(new File(path));
+    }
 
-        if (file.isDirectory() || isDirectory(file)) {
-            File[] fileArr = listFiles(file);
-            if (fileArr != null) {
-                for (File subFile : fileArr) {
-                    deleteFile(subFile.getAbsolutePath());
+    public static boolean deleteFile(File file) {
+        if (file == null) return true;
+        String path = file.getAbsolutePath();
+
+        // 1. Recursive Java File delete
+        deleteJavaFileRecursive(file);
+
+        // 2. Recursive SAF delete (for Scoped Storage, tree URI, or different UID ownership)
+        SafStorageUtil.deleteSafRecursive(path);
+
+        // 3. Invalidate caches
+        SafStorageUtil.removeCacheForPath(path);
+
+        // 4. Return true if file/dir is completely gone
+        return !file.exists() && !SafStorageUtil.safFileExists(file);
+    }
+
+    private static boolean deleteJavaFileRecursive(File file) {
+        if (file == null || !file.exists()) return true;
+        try {
+            if (file.isDirectory() || isDirectory(file)) {
+                File[] children = listFiles(file);
+                if (children != null) {
+                    for (File child : children) {
+                        if (child != null && !child.getAbsolutePath().equals(file.getAbsolutePath())) {
+                            deleteJavaFileRecursive(child);
+                        }
+                    }
                 }
             }
-        }
-
-        boolean deleted = file.delete();
-        if (!deleted) {
-            SafStorageUtil.deleteSafFile(path);
-        } else {
-            SafStorageUtil.deleteSafFile(path);
+            boolean deleted = file.delete();
+            if (!deleted) {
+                file.setWritable(true);
+                deleted = file.delete();
+            }
+            return deleted;
+        } catch (Exception e) {
+            Log.w("FileUtil", "Java delete exception for " + file.getAbsolutePath() + ": " + e.getMessage());
+            return false;
         }
     }
 

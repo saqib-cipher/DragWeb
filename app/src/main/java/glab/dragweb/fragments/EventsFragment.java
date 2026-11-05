@@ -637,7 +637,8 @@ public class EventsFragment extends Fragment {
         private void openLogicEditor(EventListItem item) {
             Intent intent = new Intent(getContext(), LogicBlockActivity.class);
             intent.putExtra("project_id", projectId);
-            intent.putExtra("page_name", item.targetPath);
+            String cleanName = DesignDataManager.getCleanPageName(item.targetPath);
+            intent.putExtra("page_name", cleanName);
             if (item.isFunction) {
                 intent.putExtra("id", "func");
                 intent.putExtra("event", item.funcName != null ? item.funcName : item.title);
@@ -648,6 +649,9 @@ public class EventsFragment extends Fragment {
                 intent.putExtra("event", "onPageLoad");
                 intent.putExtra("filename", item.targetPath);
                 intent.putExtra("event_text", item.title + " Logic");
+                if (item.targetPath != null && (item.targetPath.toLowerCase().endsWith(".html") || item.targetPath.toLowerCase().endsWith(".htm"))) {
+                    intent.putExtra("force_sync_html", true);
+                }
             }
             logicBlockLauncher.launch(intent);
         }

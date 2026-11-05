@@ -1,33 +1,410 @@
 {
-  "position": ["static", "relative", "absolute", "fixed", "sticky"],
-  "display": ["block", "none", "flex", "grid", "inline-block", "inline-flex"],
-  "overflow": ["visible", "hidden", "scroll", "auto"],
-  "textAlign": ["left", "center", "right", "justify"],
-  "textDecoration": ["none", "underline", "overline", "line-through"],
-  "fontWeight": ["normal", "bold", "100", "200", "300", "400", "500", "600", "700", "800", "900"],
-  "fontStyle": ["normal", "italic", "oblique"],
-  "cursor": ["default", "pointer", "move", "text", "wait", "help", "not-allowed", "grab", "grabbing"],
-  "flexDirection": ["row", "row-reverse", "column", "column-reverse"],
-  "flexWrap": ["nowrap", "wrap", "wrap-reverse"],
-  "borderStyle": ["none", "solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset"],
-  "textTransform": ["none", "capitalize", "uppercase", "lowercase"],
-  "justifyContent": ["flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly"],
-  "alignItems": ["stretch", "flex-start", "flex-end", "center", "baseline"],
-  "selector": ["body", "h1", "p", ".active", "#main", "div"],
-  "unit": ["px", "%", "em", "rem", "vh", "vw","deg","rad"],
-  "inputType": ["text", "password", "email", "number", "tel", "url", "search", "date", "time", "color", "file", "checkbox", "radio", "range", "hidden", "submit", "reset", "button"],
-  "listType": ["ul", "ol"],
-  "visibility": ["visible", "hidden", "collapse"],
-  "whiteSpace": ["normal", "nowrap", "pre", "pre-wrap", "pre-line"],
-  "wordBreak": ["normal", "break-all", "keep-all", "break-word"],
-  "float": ["none", "left", "right"],
-  "clear": ["none", "left", "right", "both"],
-  "objectFit": ["fill", "contain", "cover", "none", "scale-down"],
-  "verticalAlign": ["baseline", "top", "middle", "bottom", "text-top", "text-bottom"],
-  "listStyle": ["none", "disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "lower-alpha", "upper-alpha"],
-  "formMethod": ["GET", "POST", "dialog"],
-  "transitionProperty": ["all", "color", "background-color", "transform", "opacity", "width", "height", "margin", "padding", "border-radius", "border-color", "box-shadow"],
-  "timingFunction": ["linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end"],
-  "shadowType": ["outline", "inset"],
-  "filterType": ["blur", "grayscale", "hue-rotate", "invert", "saturate", "sepia"]
+  "position": [
+    "static",
+    "relative",
+    "absolute",
+    "fixed",
+    "sticky"
+  ],
+  "display": [
+    "block",
+    "none",
+    "flex",
+    "grid",
+    "inline-block",
+    "inline-flex"
+  ],
+  "overflow": [
+    "visible",
+    "hidden",
+    "scroll",
+    "auto"
+  ],
+  "textAlign": [
+    "left",
+    "center",
+    "right",
+    "justify"
+  ],
+  "textDecoration": [
+    "none",
+    "underline",
+    "overline",
+    "line-through"
+  ],
+  "fontWeight": [
+    "normal",
+    "bold",
+    "100",
+    "200",
+    "300",
+    "400",
+    "500",
+    "600",
+    "700",
+    "800",
+    "900"
+  ],
+  "fontStyle": [
+    "normal",
+    "italic",
+    "oblique"
+  ],
+  "cursor": [
+    "default",
+    "pointer",
+    "move",
+    "text",
+    "wait",
+    "help",
+    "not-allowed",
+    "grab",
+    "grabbing"
+  ],
+  "flexDirection": [
+    "row",
+    "row-reverse",
+    "column",
+    "column-reverse"
+  ],
+  "flexWrap": [
+    "nowrap",
+    "wrap",
+    "wrap-reverse"
+  ],
+  "borderStyle": [
+    "none",
+    "solid",
+    "dashed",
+    "dotted",
+    "double",
+    "groove",
+    "ridge",
+    "inset",
+    "outset"
+  ],
+  "textTransform": [
+    "none",
+    "capitalize",
+    "uppercase",
+    "lowercase"
+  ],
+  "justifyContent": [
+    "flex-start",
+    "flex-end",
+    "center",
+    "space-between",
+    "space-around",
+    "space-evenly"
+  ],
+  "alignItems": [
+    "stretch",
+    "flex-start",
+    "flex-end",
+    "center",
+    "baseline"
+  ],
+  "selector": [
+    "body",
+    "h1",
+    "p",
+    ".active",
+    "#main",
+    "div"
+  ],
+  "unit": [
+    "px",
+    "%",
+    "em",
+    "rem",
+    "vh",
+    "vw",
+    "deg",
+    "rad"
+  ],
+  "inputType": [
+    "text",
+    "password",
+    "email",
+    "number",
+    "tel",
+    "url",
+    "search",
+    "date",
+    "time",
+    "color",
+    "file",
+    "checkbox",
+    "radio",
+    "range",
+    "hidden",
+    "submit",
+    "reset",
+    "button"
+  ],
+  "listType": [
+    "ul",
+    "ol"
+  ],
+  "visibility": [
+    "visible",
+    "hidden",
+    "collapse"
+  ],
+  "whiteSpace": [
+    "normal",
+    "nowrap",
+    "pre",
+    "pre-wrap",
+    "pre-line"
+  ],
+  "wordBreak": [
+    "normal",
+    "break-all",
+    "keep-all",
+    "break-word"
+  ],
+  "float": [
+    "none",
+    "left",
+    "right"
+  ],
+  "clear": [
+    "none",
+    "left",
+    "right",
+    "both"
+  ],
+  "objectFit": [
+    "fill",
+    "contain",
+    "cover",
+    "none",
+    "scale-down"
+  ],
+  "verticalAlign": [
+    "baseline",
+    "top",
+    "middle",
+    "bottom",
+    "text-top",
+    "text-bottom"
+  ],
+  "listStyle": [
+    "none",
+    "disc",
+    "circle",
+    "square",
+    "decimal",
+    "lower-roman",
+    "upper-roman",
+    "lower-alpha",
+    "upper-alpha"
+  ],
+  "formMethod": [
+    "GET",
+    "POST",
+    "dialog"
+  ],
+  "transitionProperty": [
+    "all",
+    "color",
+    "background-color",
+    "transform",
+    "opacity",
+    "width",
+    "height",
+    "margin",
+    "padding",
+    "border-radius",
+    "border-color",
+    "box-shadow"
+  ],
+  "timingFunction": [
+    "linear",
+    "ease",
+    "ease-in",
+    "ease-out",
+    "ease-in-out",
+    "step-start",
+    "step-end"
+  ],
+  "shadowType": [
+    "outline",
+    "inset"
+  ],
+  "filterType": [
+    "blur",
+    "grayscale",
+    "hue-rotate",
+    "invert",
+    "saturate",
+    "sepia"
+  ],
+  "htmlInputType": [
+    "text",
+    "password",
+    "email",
+    "number",
+    "tel",
+    "url",
+    "search",
+    "date",
+    "time",
+    "datetime-local",
+    "month",
+    "week",
+    "color",
+    "file",
+    "checkbox",
+    "radio",
+    "range",
+    "hidden",
+    "submit",
+    "reset",
+    "button"
+  ],
+  "htmlTarget": [
+    "_blank",
+    "_self",
+    "_parent",
+    "_top"
+  ],
+  "htmlMethod": [
+    "GET",
+    "POST",
+    "PUT",
+    "DELETE",
+    "PATCH",
+    "dialog"
+  ],
+  "htmlRel": [
+    "stylesheet",
+    "noopener",
+    "noreferrer",
+    "canonical",
+    "preload",
+    "prefetch",
+    "icon",
+    "alternate",
+    "author",
+    "help",
+    "license",
+    "next",
+    "prev"
+  ],
+  "htmlTag": [
+    "div",
+    "span",
+    "p",
+    "section",
+    "article",
+    "header",
+    "footer",
+    "nav",
+    "main",
+    "aside",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "ul",
+    "ol",
+    "li",
+    "form",
+    "input",
+    "button",
+    "a",
+    "img",
+    "table",
+    "tr",
+    "td",
+    "th",
+    "label",
+    "select",
+    "option",
+    "textarea",
+    "pre",
+    "blockquote",
+    "code",
+    "figure",
+    "details",
+    "summary",
+    "template",
+    "canvas",
+    "video",
+    "audio",
+    "picture",
+    "source",
+    "iframe"
+  ],
+  "htmlRole": [
+    "alert",
+    "alertdialog",
+    "banner",
+    "button",
+    "checkbox",
+    "complementary",
+    "contentinfo",
+    "dialog",
+    "form",
+    "heading",
+    "img",
+    "link",
+    "list",
+    "listitem",
+    "main",
+    "navigation",
+    "region",
+    "search",
+    "tab",
+    "tabpanel",
+    "tooltip"
+  ],
+  "htmlLoading": [
+    "eager",
+    "lazy"
+  ],
+  "htmlDecoding": [
+    "async",
+    "auto",
+    "sync"
+  ],
+  "htmlPreload": [
+    "none",
+    "metadata",
+    "auto"
+  ],
+  "htmlWrap": [
+    "soft",
+    "hard",
+    "off"
+  ],
+  "htmlShape": [
+    "default",
+    "rect",
+    "circle",
+    "poly"
+  ],
+  "htmlCrossorigin": [
+    "anonymous",
+    "use-credentials"
+  ],
+  "htmlDir": [
+    "ltr",
+    "rtl",
+    "auto"
+  ],
+  "htmlButtonType": [
+    "button",
+    "submit",
+    "reset"
+  ],
+  "htmlFormEnctype": [
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "text/plain"
+  ]
 }

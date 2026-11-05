@@ -116,6 +116,21 @@ public class BlockParamTypeManager {
         d.put("timingFunction", Arrays.asList("linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end"));
         d.put("shadowType", Arrays.asList("outline", "inset"));
         d.put("filterType", Arrays.asList("blur", "grayscale", "hue-rotate", "invert", "saturate", "sepia"));
+        d.put("htmlInputType", Arrays.asList("text", "password", "email", "number", "tel", "url", "search", "date", "time", "datetime-local", "month", "week", "color", "file", "checkbox", "radio", "range", "hidden", "submit", "reset", "button"));
+        d.put("htmlTarget", Arrays.asList("_blank", "_self", "_parent", "_top"));
+        d.put("htmlMethod", Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "dialog"));
+        d.put("htmlRel", Arrays.asList("stylesheet", "noopener", "noreferrer", "canonical", "preload", "prefetch", "icon", "alternate", "author", "help", "license", "next", "prev"));
+        d.put("htmlTag", Arrays.asList("div", "span", "p", "section", "article", "header", "footer", "nav", "main", "aside", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "form", "input", "button", "a", "img", "table", "tr", "td", "th", "label", "select", "option", "textarea", "pre", "blockquote", "code", "figure", "details", "summary", "template", "canvas", "video", "audio", "picture", "source", "iframe"));
+        d.put("htmlRole", Arrays.asList("alert", "alertdialog", "banner", "button", "checkbox", "complementary", "contentinfo", "dialog", "form", "heading", "img", "link", "list", "listitem", "main", "navigation", "region", "search", "tab", "tabpanel", "tooltip"));
+        d.put("htmlLoading", Arrays.asList("eager", "lazy"));
+        d.put("htmlDecoding", Arrays.asList("async", "auto", "sync"));
+        d.put("htmlPreload", Arrays.asList("none", "metadata", "auto"));
+        d.put("htmlWrap", Arrays.asList("soft", "hard", "off"));
+        d.put("htmlShape", Arrays.asList("default", "rect", "circle", "poly"));
+        d.put("htmlCrossorigin", Arrays.asList("anonymous", "use-credentials"));
+        d.put("htmlDir", Arrays.asList("ltr", "rtl", "auto"));
+        d.put("htmlButtonType", Arrays.asList("button", "submit", "reset"));
+        d.put("htmlFormEnctype", Arrays.asList("application/x-www-form-urlencoded", "multipart/form-data", "text/plain"));
         return d;
     }
 

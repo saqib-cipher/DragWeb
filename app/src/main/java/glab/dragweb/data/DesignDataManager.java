@@ -402,14 +402,32 @@ public class DesignDataManager {
         if (map == null) return new ArrayList();
         if (map.containsKey(str2)) {
             ArrayList<BlockBean> list = map.get(str2);
-            return list != null ? list : new ArrayList();
+            if (list != null && !list.isEmpty()) {
+                return list;
+            }
         }
         // Fallback for page-load aliases
-        if ("onPageLoad_onPageLoad".equals(str2) || "onCreate_initializeLogic".equals(str2) || "initializeLogic_initializeLogic".equals(str2) || "onPageLoad".equals(str2)) {
-            if (map.containsKey("onPageLoad_onPageLoad")) return map.get("onPageLoad_onPageLoad");
-            if (map.containsKey("onCreate_initializeLogic")) return map.get("onCreate_initializeLogic");
-            if (map.containsKey(clean)) return map.get(clean);
-            if (map.containsKey(str)) return map.get(str);
+        if ("onPageLoad_onPageLoad".equals(str2) || "onCreate_initializeLogic".equals(str2) || "initializeLogic_initializeLogic".equals(str2) || "onPageLoad".equals(str2) || "initializeLogic".equals(str2)) {
+            if (map.containsKey("onPageLoad_onPageLoad")) {
+                ArrayList<BlockBean> list = map.get("onPageLoad_onPageLoad");
+                if (list != null && !list.isEmpty()) return list;
+            }
+            if (map.containsKey("onCreate_initializeLogic")) {
+                ArrayList<BlockBean> list = map.get("onCreate_initializeLogic");
+                if (list != null && !list.isEmpty()) return list;
+            }
+            if (map.containsKey(clean)) {
+                ArrayList<BlockBean> list = map.get(clean);
+                if (list != null && !list.isEmpty()) return list;
+            }
+            if (map.containsKey(str)) {
+                ArrayList<BlockBean> list = map.get(str);
+                if (list != null && !list.isEmpty()) return list;
+            }
+        }
+        if (map.containsKey(str2)) {
+            ArrayList<BlockBean> list = map.get(str2);
+            return list != null ? list : new ArrayList();
         }
         return new ArrayList();
     }
@@ -953,6 +971,21 @@ public class DesignDataManager {
             }
             data.blocks.put(entry.getKey(), eventBlocks);
         }
+
+        if (data.blocks.containsKey("onPageLoad_onPageLoad") && !data.blocks.containsKey("onCreate_initializeLogic")) {
+            data.blocks.put("onCreate_initializeLogic", data.blocks.get("onPageLoad_onPageLoad"));
+        } else if (data.blocks.containsKey("onCreate_initializeLogic") && !data.blocks.containsKey("onPageLoad_onPageLoad")) {
+            data.blocks.put("onPageLoad_onPageLoad", data.blocks.get("onCreate_initializeLogic"));
+        } else if (pageName != null && !pageName.isEmpty()) {
+            String clean = getCleanPageName(pageName);
+            if (data.blocks.containsKey(clean)) {
+                data.blocks.put("onCreate_initializeLogic", data.blocks.get(clean));
+                data.blocks.put("onPageLoad_onPageLoad", data.blocks.get(clean));
+            } else if (data.blocks.containsKey(pageName)) {
+                data.blocks.put("onCreate_initializeLogic", data.blocks.get(pageName));
+                data.blocks.put("onPageLoad_onPageLoad", data.blocks.get(pageName));
+            }
+        }
         
         return data;
     }
@@ -1004,17 +1037,29 @@ public class DesignDataManager {
         }
 
         if (content == null || content.trim().isEmpty() || content.trim().equals("{}") || content.trim().equals("[]")) {
-            mapBlocks.put(cleanPage, new HashMap<>());
-            mapVariables.put(cleanPage, new ArrayList<>());
-            mapLists.put(cleanPage, new ArrayList<>());
-            mapFunctions.put(cleanPage, new ArrayList<>());
+            if (!mapBlocks.containsKey(cleanPage) || mapBlocks.get(cleanPage) == null || mapBlocks.get(cleanPage).isEmpty()) {
+                mapBlocks.put(cleanPage, new HashMap<>());
+            }
+            if (!mapVariables.containsKey(cleanPage) || mapVariables.get(cleanPage) == null) {
+                mapVariables.put(cleanPage, new ArrayList<>());
+            }
+            if (!mapLists.containsKey(cleanPage) || mapLists.get(cleanPage) == null) {
+                mapLists.put(cleanPage, new ArrayList<>());
+            }
+            if (!mapFunctions.containsKey(cleanPage) || mapFunctions.get(cleanPage) == null) {
+                mapFunctions.put(cleanPage, new ArrayList<>());
+            }
             return;
         }
 
         try {
             PageLogicData data = deserializePageLogicData(content, pageName);
             if (data != null) {
-                if (data.blocks != null) mapBlocks.put(cleanPage, new HashMap<>(data.blocks));
+                if (data.blocks != null && !data.blocks.isEmpty()) {
+                    mapBlocks.put(cleanPage, new HashMap<>(data.blocks));
+                } else if (!mapBlocks.containsKey(cleanPage) || mapBlocks.get(cleanPage) == null || mapBlocks.get(cleanPage).isEmpty()) {
+                    mapBlocks.put(cleanPage, new HashMap<>());
+                }
                 if (data.variables != null) mapVariables.put(cleanPage, new ArrayList<>(data.variables));
                 if (data.lists != null) mapLists.put(cleanPage, new ArrayList<>(data.lists));
                 if (data.functions != null) mapFunctions.put(cleanPage, new ArrayList<>(data.functions));
@@ -1255,14 +1300,17 @@ public class DesignDataManager {
             mapBlocks.put(clean, new HashMap());
         }
         HashMap<String, ArrayList<BlockBean>> pageMap = mapBlocks.get(clean);
-        // Normalize page load events to onPageLoad_onPageLoad and clear alias duplicates
+        // Normalize page load events to onPageLoad_onPageLoad and replicate aliases
         if ("onPageLoad_onPageLoad".equals(str2) || "onCreate_initializeLogic".equals(str2) || "initializeLogic_initializeLogic".equals(str2) || "onPageLoad".equals(str2) || "initializeLogic".equals(str2)) {
             pageMap.remove("onCreate_initializeLogic");
             pageMap.remove("onPageLoad_onPageLoad");
             pageMap.remove("initializeLogic_initializeLogic");
             pageMap.remove(clean);
             pageMap.remove(str);
-            str2 = "onPageLoad_onPageLoad";
+            ArrayList<BlockBean> safeList = arrayList != null ? arrayList : new ArrayList<>();
+            pageMap.put("onPageLoad_onPageLoad", safeList);
+            pageMap.put("onCreate_initializeLogic", safeList);
+            return;
         }
         pageMap.put(str2, arrayList != null ? arrayList : new ArrayList<>());
     }

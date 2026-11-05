@@ -86,6 +86,8 @@ public class HomeActivity extends AppCompatActivity {
 	private ActivityResultLauncher<String[]> cssFileLauncher;
 	private ActivityResultLauncher<String[]> jsFileLauncher;
 	private ActivityResultLauncher<Intent> storageFolderLauncher;
+	private ActivityResultLauncher<String[]> storagePermissionLauncher;
+	private boolean hasPromptedStoragePermission = false;
 	private String pendingBackupProject = null;
 
 	// HTML/CSS import state
@@ -143,6 +145,37 @@ public class HomeActivity extends AppCompatActivity {
 		super.onResume();
 		ensureExternalDirectories();
 		loadProjects();
+		checkStorageAccessOnResume();
+	}
+
+	private void checkStorageAccessOnResume() {
+		if (FileUtil.hasStoragePermission(this) || SafStorageUtil.isStorageConfigured(this)) {
+			return;
+		}
+		if (hasPromptedStoragePermission) return;
+		hasPromptedStoragePermission = true;
+		showStoragePermissionPrompt();
+	}
+
+	private void showStoragePermissionPrompt() {
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Storage Access Required")
+			.setMessage("DragWeb saves and manages your website projects, HTML/CSS code, assets, and custom blocks in the '.dragweb' folder on your device storage.\n\nAll Files Access permission is required to create, load, and delete website projects.")
+			.setPositiveButton("Grant Access", (dialog, which) -> {
+				if (android.os.Build.VERSION.SDK_INT >= 30) {
+					FileUtil.requestAllFilesAccessPermission(this);
+				} else {
+					storagePermissionLauncher.launch(new String[]{
+						android.Manifest.permission.READ_EXTERNAL_STORAGE,
+						android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+					});
+				}
+			})
+			.setNeutralButton("Choose Folder (SAF)", (dialog, which) -> {
+				storageFolderLauncher.launch(SafStorageUtil.createFolderPickerIntent());
+			})
+			.setNegativeButton("Later", null)
+			.show();
 	}
 
 	private void ensureExternalDirectories() {
@@ -281,6 +314,24 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		);
 
+		storagePermissionLauncher = registerForActivityResult(
+			new ActivityResultContracts.RequestMultiplePermissions(),
+			result -> {
+				boolean allGranted = true;
+				for (Boolean granted : result.values()) {
+					if (!Boolean.TRUE.equals(granted)) {
+						allGranted = false;
+						break;
+					}
+				}
+				if (allGranted) {
+					ensureExternalDirectories();
+					loadProjects();
+					Toast.makeText(this, "Storage permission granted", Toast.LENGTH_SHORT).show();
+				}
+			}
+		);
+
 		// Drawer menu items
 		LinearLayout menuMyProjects = findViewById(R.id.menuMyProjects);
 		LinearLayout menuAbout = findViewById(R.id.menuAbout);
@@ -382,14 +433,24 @@ public class HomeActivity extends AppCompatActivity {
 
 	private void showStorageLocationDialog() {
 		String currentPath = FileUtil.getDragWebDir(this).getAbsolutePath();
-		new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+		boolean hasAllFiles = FileUtil.hasStoragePermission(this);
+		String statusText = hasAllFiles ? "Status: Full Access Granted (High Speed)\n\n" : "Status: SAF / Restricted Access\n\n";
+
+		MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
 			.setTitle("Storage Location")
-			.setMessage("Current .dragweb workspace:\n\n" + currentPath + "\n\nAll website design projects, assets, custom blocks, and themes are stored in this directory.")
-			.setPositiveButton("OK", null)
-			.setNeutralButton("Change Folder", (dialog, which) -> {
+			.setMessage("Current .dragweb workspace:\n\n" + currentPath + "\n\n" + statusText + "All website design projects, assets, custom blocks, and themes are stored in this directory.")
+			.setPositiveButton("OK", null);
+
+		if (!hasAllFiles && android.os.Build.VERSION.SDK_INT >= 30) {
+			builder.setNeutralButton("Grant Full Access", (dialog, which) -> {
+				FileUtil.requestAllFilesAccessPermission(this);
+			});
+		} else {
+			builder.setNeutralButton("Change Folder", (dialog, which) -> {
 				storageFolderLauncher.launch(SafStorageUtil.createFolderPickerIntent());
-			})
-			.show();
+			});
+		}
+		builder.show();
 	}
 
 	private void showFolderMismatchDialog(String selectedFolderName) {
@@ -922,37 +983,65 @@ public class HomeActivity extends AppCompatActivity {
 				progressDialog.show();
 
 				AppExecutors.io().execute(() -> {
-					File dir = new File(FileUtil.getDragWebDir(this), "projects");
-					String[] extensions = {".json", ".meta", ".theme", ".logic"};
+					File dragWebDir = FileUtil.getDragWebDir(this);
+					File dir = new File(dragWebDir, "projects");
+
+					// 1. Delete project subfolder recursively (extDir)
+					File extDir = new File(dir, projectId);
+					FileUtil.deleteFile(extDir.getAbsolutePath());
+
+					// 2. Delete any legacy flat files in projects/ for this projectId
+					String[] extensions = {".json", ".meta", ".meta.txt", ".theme", ".logic", ".cblocks"};
 					for (String ext : extensions) {
 						File f = new File(dir, projectId + ext);
 						FileUtil.deleteFile(f.getAbsolutePath());
 					}
 
-					// Delete page files (projectId_pageName.json)
+					// 3. Delete page files (projectId_pageName.json) in projects/
 					File[] files = FileUtil.listFiles(dir);
 					if (files != null) {
 						for (File f : files) {
-							if (f.getName().startsWith(projectId + "_")) {
-								FileUtil.deleteFile(f.getAbsolutePath());
+							if (f != null && f.getName() != null) {
+								String fname = f.getName();
+								if (fname.startsWith(projectId + "_") || fname.startsWith(projectId + ".")) {
+									FileUtil.deleteFile(f.getAbsolutePath());
+								}
 							}
 						}
 					}
 
-					// Delete project subfolder
-					File extDir = new File(dir, projectId);
-					FileUtil.deleteFile(extDir.getAbsolutePath());
-
-					File exportDir = new File(FileUtil.getDragWebDir(this), "exports/" + projectId);
+					// 4. Delete export directory
+					File exportDir = new File(dragWebDir, "exports/" + projectId);
 					FileUtil.deleteFile(exportDir.getAbsolutePath());
 
-					// Reset all in-memory static maps to clear stale cached blocks
+					// 5. Invalidate SAF caches
+					SafStorageUtil.clearCache();
+
+					// 6. Reset all in-memory static maps to clear stale cached blocks
 					DesignDataManager.initMaps();
+
+					// 7. Verify whether project folder was actually deleted
+					boolean stillExists = FileUtil.exists(extDir);
 
 					AppExecutors.mainThread(() -> {
 						try { progressDialog.dismiss(); } catch (Exception ignored) {}
+						if (stillExists) {
+							if (android.os.Build.VERSION.SDK_INT >= 30 && !FileUtil.hasStoragePermission(this)) {
+								new MaterialAlertDialogBuilder(this)
+									.setTitle("Storage Permission Required")
+									.setMessage("Could not delete \"" + finalName + "\" because DragWeb needs All Files Access permission to delete files from older installations.\n\nPlease grant storage permission to delete this project.")
+									.setPositiveButton("Grant Access", (d, w) -> {
+										FileUtil.requestAllFilesAccessPermission(this);
+									})
+									.setNegativeButton("Cancel", null)
+									.show();
+							} else {
+								Toast.makeText(this, "Could not delete project folder. Please check storage permissions.", Toast.LENGTH_LONG).show();
+							}
+						} else {
+							Toast.makeText(this, "Project deleted", Toast.LENGTH_SHORT).show();
+						}
 						loadProjects();
-						Toast.makeText(this, "Project deleted", Toast.LENGTH_SHORT).show();
 					});
 				});
 			})

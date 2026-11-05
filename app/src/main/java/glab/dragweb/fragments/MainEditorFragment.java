@@ -183,9 +183,11 @@ public class MainEditorFragment extends Fragment {
 			new ActivityResultContracts.StartActivityForResult(),
 			result -> {
 				if (result.getResultCode() == Activity.RESULT_OK) {
-					// Reload logic from .dragweb after returning from LogicBlockActivity
+					// Reload logic and layout from .dragweb after returning from LogicBlockActivity
 					String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
 					DesignDataManager.initialize(requireContext(), projectId, pageName);
+					loadCurrentPageLayout();
+					refreshHierarchy();
 					refreshLogicBlocksUI();
 				}
 			}
@@ -686,20 +688,39 @@ public class MainEditorFragment extends Fragment {
 	// ---- Widget Context Menu (long press on hierarchy) ----
 
 	private void showWidgetContextMenu(View widgetView) {
-		String[] options = {"Copy", "Duplicate", "Lock/Unlock", "Hide/Show", "Delete"};
+		String[] options = {"Copy", "Duplicate", "HTML Blocks", "Lock/Unlock", "Hide/Show", "Delete"};
 		new MaterialAlertDialogBuilder(requireContext())
 			.setTitle("Widget Actions")
 			.setItems(options, (dialog, which) -> {
 				switch (which) {
 					case 0: copyWidget(widgetView); break;
 					case 1: duplicateWidget(widgetView); break;
-					case 2: toggleLockWidget(widgetView); break;
-					case 3: toggleHideWidget(widgetView); break;
-					case 4: deleteWidget(widgetView); break;
+					case 2: openHtmlBlocksForWidget(widgetView); break;
+					case 3: toggleLockWidget(widgetView); break;
+					case 4: toggleHideWidget(widgetView); break;
+					case 5: deleteWidget(widgetView); break;
 				}
 			})
 			.setNegativeButton("Cancel", null)
 			.show();
+	}
+
+	private void openHtmlBlocksForWidget(View widgetView) {
+		syncHtmlLogicWithCanvas();
+		saveProject(() -> {
+			String curPage = pageManager != null ? pageManager.getCurrentPage() : "index";
+			String cleanPage = DesignDataManager.getCleanPageName(curPage);
+			String targetFilename = cleanPage + ".html";
+			Intent intent = new Intent(requireContext(), LogicBlockActivity.class);
+			intent.putExtra("project_id", projectId);
+			intent.putExtra("page_name", cleanPage);
+			intent.putExtra("id", "onCreate");
+			intent.putExtra("event", "initializeLogic");
+			intent.putExtra("filename", targetFilename);
+			intent.putExtra("event_text", "HTML Blocks - " + targetFilename);
+			intent.putExtra("force_sync_html", true);
+			logicBlockLauncher.launch(intent);
+		});
 	}
 
 	private void copyWidget(View widgetView) {
@@ -1389,13 +1410,22 @@ public class MainEditorFragment extends Fragment {
 						intent.putExtra("page_name", name);
 						intent.putExtra("id", "onCreate");
 						intent.putExtra("event", "initializeLogic");
-						intent.putExtra("filename", name + ".html");
+						String targetFilename = (isCss || isJs) ? name : (name.endsWith(".html") ? name : name + ".html");
+						intent.putExtra("filename", targetFilename);
 						intent.putExtra("event_text", "Page Initialization");
+						if (!isCss && !isJs) {
+							intent.putExtra("force_sync_html", true);
+						}
 						logicBlockLauncher.launch(intent);
 					});
 				} else {
 					holder.tvPageName.setText(name + ".html");
-					holder.tvLinkedStyleName.setText(getPageCssPath(name));
+					int pageBlockCount = getBlockCountForCss(name + ".html");
+					if (pageBlockCount > 0) {
+						holder.tvLinkedStyleName.setText(getPageCssPath(name) + " (" + pageBlockCount + " blocks)");
+					} else {
+						holder.tvLinkedStyleName.setText(getPageCssPath(name));
+					}
 
 					String previewText = name.substring(0, Math.min(2, name.length())).toUpperCase();
 					if (holder.tvPreview != null) {
@@ -1427,7 +1457,19 @@ public class MainEditorFragment extends Fragment {
 					}
 
 					if (holder.actionContainer != null) {
-						holder.actionContainer.setOnClickListener(v -> {});
+						holder.actionContainer.setOnClickListener(v -> {
+							saveProject();
+							dialog.dismiss();
+							Intent intent = new Intent(requireContext(), LogicBlockActivity.class);
+							intent.putExtra("project_id", projectId);
+							intent.putExtra("page_name", name);
+							intent.putExtra("id", "onCreate");
+							intent.putExtra("event", "initializeLogic");
+							intent.putExtra("filename", name.endsWith(".html") ? name : name + ".html");
+							intent.putExtra("event_text", "HTML Blocks - " + name + ".html");
+							intent.putExtra("force_sync_html", true);
+							logicBlockLauncher.launch(intent);
+						});
 					}
 
 					holder.itemView.setOnClickListener(v -> {
@@ -1435,6 +1477,21 @@ public class MainEditorFragment extends Fragment {
 						if (!name.equals(pageManager.getCurrentPage())) {
 							switchPage(name);
 						}
+					});
+
+					holder.itemView.setOnLongClickListener(v -> {
+						saveProject();
+						dialog.dismiss();
+						Intent intent = new Intent(requireContext(), LogicBlockActivity.class);
+						intent.putExtra("project_id", projectId);
+						intent.putExtra("page_name", name);
+						intent.putExtra("id", "onCreate");
+						intent.putExtra("event", "initializeLogic");
+						intent.putExtra("filename", name.endsWith(".html") ? name : name + ".html");
+						intent.putExtra("event_text", "HTML Blocks - " + name + ".html");
+						intent.putExtra("force_sync_html", true);
+						logicBlockLauncher.launch(intent);
+						return true;
 					});
 
 					if (holder.imgEdit != null) {
@@ -3065,6 +3122,47 @@ public class MainEditorFragment extends Fragment {
 		undoRedoManager.saveState(screen);
 		refreshHierarchy();
 		saveCurrentPageLayout();
+		syncHtmlLogicWithCanvas();
+	}
+
+	public void syncHtmlLogicWithCanvas() {
+		if (screen == null || pageManager == null || getContext() == null) return;
+		String curPage = pageManager.getCurrentPage();
+		if (curPage == null || curPage.isEmpty()) curPage = "index";
+		final String cleanPage = DesignDataManager.getCleanPageName(curPage);
+		final String htmlFilename = cleanPage + ".html";
+		final android.content.Context ctx = requireContext().getApplicationContext();
+
+		List<Map<String, Object>> widgetTree = serializeChildren(screen);
+		if (widgetTree == null || widgetTree.isEmpty()) return;
+
+		PageCodeGenerator pcg = new PageCodeGenerator();
+		pcg.setProjectId(projectId);
+		pcg.setContext(ctx);
+		pcg.setCurrentPageName(cleanPage);
+		String htmlCode = pcg.generateBodyHtmlFromTree(widgetTree);
+
+		if (htmlCode != null && !htmlCode.trim().isEmpty()) {
+			try {
+				HtmlCode2Block.BlockResult result = glab.dragweb.core.BlocksLoader.convertHtmlCode(ctx, htmlCode);
+				if (result != null && result.isSuccess && result.blocks != null && !result.blocks.isEmpty()) {
+					DesignDataManager.setBlocks(cleanPage, "onCreate_initializeLogic", result.blocks);
+					DesignDataManager.setBlocks(cleanPage, "onPageLoad_onPageLoad", result.blocks);
+					DesignDataManager.setBlocks(htmlFilename, "onCreate_initializeLogic", result.blocks);
+					DesignDataManager.setBlocks(htmlFilename, "onPageLoad_onPageLoad", result.blocks);
+				}
+			} catch (Exception e) {
+				Log.e("MainEditor", "Failed immediate HTML conversion: " + e.getMessage());
+			}
+			AppExecutors.io().execute(() -> {
+				try {
+					DesignDataManager.saveSavedLogic(ctx, projectId, cleanPage);
+					DesignDataManager.saveSavedLogic(ctx, projectId, htmlFilename);
+				} catch (Exception e) {
+					Log.e("MainEditor", "Failed to save HTML logic: " + e.getMessage());
+				}
+			});
+		}
 	}
 
 	private void restoreState(List<Map<String, Object>> state) {

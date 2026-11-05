@@ -80,7 +80,12 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		}
 
 		public static boolean isHtmlEvent() {
-				return filename != null && (filename.toLowerCase().endsWith(".html") || filename.toLowerCase().endsWith(".htm"));
+				if (filename == null) return false;
+				String fn = filename.toLowerCase();
+				if (fn.endsWith(".html") || fn.endsWith(".htm")) return true;
+				if (isCssEvent()) return false;
+				if (fn.endsWith(".js") || fn.contains("js") || fn.contains("script") || "func".equals(fn)) return false;
+				return true;
 		}
 		
 		private Context context;
@@ -594,14 +599,65 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		
 		private void loadLogic() {
 				Map<Integer, Block> hashMap = new HashMap<>();
-				DesignDataManager.initialize(this.context, this.projectId, this.pageName);
+				String cleanPName = DesignDataManager.getCleanPageName((this.pageName != null && !this.pageName.isEmpty()) ? this.pageName : filename);
+				DesignDataManager.initialize(this.context, this.projectId, cleanPName);
 				String eventKey = this.id + LOGIC_NAME_SEPARATOR + this.eventName;
-				ArrayList blocks = DesignDataManager.getBlocks(filename, eventKey);
+				ArrayList blocks = DesignDataManager.getBlocks(cleanPName, eventKey);
+				if (blocks == null || blocks.isEmpty()) {
+						blocks = DesignDataManager.getBlocks(filename, eventKey);
+				}
+				boolean forceSyncHtml = getIntent().getBooleanExtra("force_sync_html", false);
 				if (blocks == null || blocks.isEmpty()) {
 						if ("initializeLogic".equals(this.eventName) || "onPageLoad".equals(this.eventName)) {
-								blocks = DesignDataManager.getBlocks(filename, "onCreate_initializeLogic");
+								blocks = DesignDataManager.getBlocks(cleanPName, "onCreate_initializeLogic");
+								if (blocks == null || blocks.isEmpty()) {
+										blocks = DesignDataManager.getBlocks(cleanPName, "onPageLoad_onPageLoad");
+								}
+								if (blocks == null || blocks.isEmpty()) {
+										blocks = DesignDataManager.getBlocks(filename, "onCreate_initializeLogic");
+								}
 								if (blocks == null || blocks.isEmpty()) {
 										blocks = DesignDataManager.getBlocks(filename, "onPageLoad_onPageLoad");
+								}
+						}
+				}
+				if ((blocks == null || blocks.isEmpty() || forceSyncHtml) && isHtmlEvent()) {
+						String htmlCode = null;
+						PageManager pm = new PageManager(this, this.projectId);
+						String pageJson = pm.loadPageLayout(cleanPName);
+						List<Map<String, Object>> tree = PageManager.parseLayoutTree(pageJson);
+
+						// 1. If canvas has a widget tree, generate HTML directly from canvas
+						if (tree != null && !tree.isEmpty()) {
+								PageCodeGenerator pcg = new PageCodeGenerator();
+								pcg.setProjectId(this.projectId);
+								pcg.setContext(this);
+								pcg.setCurrentPageName(cleanPName);
+								htmlCode = pcg.generateBodyHtmlFromTree(tree);
+						}
+
+						// 2. Fall back to existing HTML file if canvas layout was empty
+						if (htmlCode == null || htmlCode.trim().isEmpty()) {
+								File htmlFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/" + cleanPName + ".html");
+								if (!htmlFile.exists()) {
+										htmlFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/assets/" + cleanPName + ".html");
+								}
+								if (htmlFile.exists()) {
+										htmlCode = FileUtil.readFile(htmlFile.getAbsolutePath());
+								}
+						}
+
+						if (htmlCode != null && !htmlCode.trim().isEmpty()) {
+								ArrayList<BlockBean> converted = glab.dragweb.core.BlocksLoader.generateHtmlBlocksFromCode(this, htmlCode);
+								if (converted != null && !converted.isEmpty()) {
+										blocks = converted;
+										DesignDataManager.setBlocks(cleanPName, "onCreate_initializeLogic", blocks);
+										DesignDataManager.setBlocks(cleanPName, "onPageLoad_onPageLoad", blocks);
+										DesignDataManager.setBlocks(cleanPName, eventKey, blocks);
+										DesignDataManager.setBlocks(filename, "onCreate_initializeLogic", blocks);
+										DesignDataManager.setBlocks(filename, "onPageLoad_onPageLoad", blocks);
+										DesignDataManager.setBlocks(filename, eventKey, blocks);
+										DesignDataManager.saveSavedLogic(this, this.projectId, cleanPName);
 								}
 						}
 				}
@@ -695,27 +751,33 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 								}
 						}
 
-						// Fallback for legacy blocks without isConnectedToRoot flag:
-						// Only attach the first block if it had no parent, never forcibly chain unattached blocks!
+						// Robust fallback: find ANY unparented statement block to connect to getRoot()
 						if (rootChild == null && !blocks.isEmpty()) {
-								boolean anyExplicit = false;
 								for (Object obj : blocks) {
-										if (obj instanceof BlockBean && ((BlockBean) obj).isConnectedToRoot) {
-												anyExplicit = true;
-												break;
-										}
-								}
-								if (!anyExplicit) {
-										BlockBean firstBean = (BlockBean) blocks.get(0);
-										Block firstB = (Block) hashMap.get(Integer.valueOf(safeParseInt(firstBean.id)));
-										if (firstB != null && firstB.parentBlock == null && !firstB.isReporter && firstB != this.pane.getRoot()) {
-												rootChild = firstB;
+										if (obj instanceof BlockBean) {
+												BlockBean bb = (BlockBean) obj;
+												Block b = (Block) hashMap.get(Integer.valueOf(safeParseInt(bb.id)));
+												if (b != null && b.parentBlock == null && !b.isReporter && b != this.pane.getRoot()) {
+														rootChild = b;
+														break;
+												}
 										}
 								}
 						}
 
 						if (rootChild != null) {
 								this.pane.getRoot().insertBlock(rootChild);
+								Block currentTail = rootChild.bottomBlock();
+								for (Object obj : blocks) {
+										if (obj instanceof BlockBean) {
+												BlockBean bb = (BlockBean) obj;
+												Block b = (Block) hashMap.get(Integer.valueOf(safeParseInt(bb.id)));
+												if (b != null && b != rootChild && b.parentBlock == null && !b.isReporter && b != this.pane.getRoot()) {
+														currentTail.insertBlock(b);
+														currentTail = b.bottomBlock();
+												}
+										}
+								}
 						}
 
 						this.pane.getRoot().fixLayout();
@@ -1820,25 +1882,45 @@ startActivityForResult(intent, 209);
 		private synchronized void saveLogicSynchronous() {
 			try {
 				ArrayList<BlockBean> beans = getBlocksWithoutDefinedFunc();
+				if (beans.isEmpty() && this.pane != null) {
+					ArrayList<BlockBean> allCanvas = this.pane.getAllCanvasBlocks();
+					if (allCanvas != null && !allCanvas.isEmpty()) {
+						beans = allCanvas;
+					}
+				}
 				final Context appCtx = getApplicationContext() != null ? getApplicationContext() : this;
 				final String pId = (this.projectId != null && !this.projectId.isEmpty()) ? this.projectId : DesignDataManager.currentProjectId;
 				final String fName = LogicBlockActivity.filename;
 				final String pName = this.pageName;
 				final String targetFile = (fName != null && !fName.isEmpty()) ? fName : ((pName != null && !pName.isEmpty()) ? pName : "index");
+				final String cleanTarget = DesignDataManager.getCleanPageName(targetFile);
+
+				// Guard against wiping out existing blocks if pane only has root
+				if (beans.isEmpty() && this.pane != null && this.pane.getChildCount() <= 1) {
+					ArrayList<BlockBean> existing = DesignDataManager.getBlocks(cleanTarget, this.id + LOGIC_NAME_SEPARATOR + this.eventName);
+					if (existing != null && !existing.isEmpty()) {
+						return;
+					}
+				}
 
 				// 1. Update in-memory block maps
 				DesignDataManager.setBlocks(targetFile, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
+				DesignDataManager.setBlocks(cleanTarget, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
 
 				// 2. Normalize and replicate page load event aliases
 				if ("onPageLoad".equals(this.eventName) || "initializeLogic".equals(this.eventName)) {
 					DesignDataManager.setBlocks(targetFile, "onCreate_initializeLogic", beans);
 					DesignDataManager.setBlocks(targetFile, "onPageLoad_onPageLoad", beans);
+					DesignDataManager.setBlocks(cleanTarget, "onCreate_initializeLogic", beans);
+					DesignDataManager.setBlocks(cleanTarget, "onPageLoad_onPageLoad", beans);
 				}
 
 				// 3. For Functions / MoreBlocks, update both alias keys and project more_blocks
 				if ("func".equals(this.id) || (this.id != null && this.id.startsWith("func")) || "moreBlock".equals(this.eventName)) {
 					DesignDataManager.setBlocks(targetFile, "func_" + this.eventName, beans);
 					DesignDataManager.setBlocks(targetFile, this.eventName + "_moreBlock", beans);
+					DesignDataManager.setBlocks(cleanTarget, "func_" + this.eventName, beans);
+					DesignDataManager.setBlocks(cleanTarget, this.eventName + "_moreBlock", beans);
 					ArrayList<DesignDataManager.MoreBlockData> funcs = DesignDataManager.getProjectMoreBlocks(pId);
 					if (funcs != null) {
 						for (DesignDataManager.MoreBlockData mb : funcs) {
@@ -1853,9 +1935,53 @@ startActivityForResult(intent, 209);
 
 				// 4. Synchronously write logic JSON files to disk so they are immediately available
 				DesignDataManager.saveSavedLogic(appCtx, pId, targetFile);
+				DesignDataManager.saveSavedLogic(appCtx, pId, cleanTarget);
+
+				// 5. If this is an HTML page, also synchronize the HTML source code from the logic blocks
+				if (isHtmlEvent()) {
+					try {
+						ArrayList<BlockBean> activeBeans = getBlocksWithoutDefinedFunc();
+						if (activeBeans.isEmpty() && this.pane != null) {
+							activeBeans = this.pane.getAllCanvasBlocks();
+						}
+						String updatedHtml = glab.dragweb.core.BlocksLoader.generateHtmlFromBlocks(appCtx, activeBeans);
+						if (updatedHtml != null && !updatedHtml.trim().isEmpty()) {
+							File htmlFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/" + cleanTarget + ".html");
+							if (htmlFile.exists()) {
+								String existingFull = FileUtil.readFile(htmlFile.getAbsolutePath());
+								if (existingFull != null && (existingFull.contains("<body") || existingFull.contains("<html"))) {
+									String replaced = replaceBodyContent(existingFull, updatedHtml);
+									FileUtil.writeFile(htmlFile.getAbsolutePath(), replaced);
+								} else {
+									FileUtil.writeFile(htmlFile.getAbsolutePath(), updatedHtml);
+								}
+							} else {
+								FileUtil.writeFile(htmlFile.getAbsolutePath(), updatedHtml);
+							}
+
+							// Also save to assets/<cleanTarget>.html
+							File assetHtml = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/assets/" + cleanTarget + ".html");
+							FileUtil.writeFile(assetHtml.getAbsolutePath(), FileUtil.readFile(htmlFile.getAbsolutePath()));
+
+							// Bi-directional sync back to Canvas layout tree
+							try {
+								HtmlCssImporter importer = new HtmlCssImporter(appCtx);
+								HtmlCssImporter.ImportResult res = importer.importHtmlCss(updatedHtml, null);
+								if (res != null && res.success && res.widgetTree != null && !res.widgetTree.isEmpty()) {
+									PageManager pm = new PageManager(appCtx, pId);
+									String layoutJson = new com.google.gson.Gson().toJson(res.widgetTree);
+									pm.savePageLayout(cleanTarget, layoutJson);
+								}
+							} catch (Exception e) {
+								android.util.Log.e("LogicBlockActivity", "Failed to sync canvas layout from blocks: " + e.getMessage());
+							}
+						}
+					} catch (Exception e) {
+						android.util.Log.e("LogicBlockActivity", "Failed to sync HTML from blocks: " + e.getMessage());
+					}
+				}
 
 				// Clean up redundant style_logic.json if css_style is saved
-				String cleanTarget = DesignDataManager.getCleanPageName(targetFile);
 				if ("css_style".equals(cleanTarget)) {
 					File redundantStyle = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/style_logic.json");
 					if (redundantStyle.exists()) {
@@ -1868,13 +1994,26 @@ startActivityForResult(intent, 209);
 
 				// 5. Generate and save compiled assets synchronously
 				try {
-					ProjectCodeGenerator.generateAndSaveAssets(appCtx, pId, (pName != null && !pName.isEmpty()) ? pName : fName);
+					ProjectCodeGenerator.generateAndSaveAssets(appCtx, pId, cleanTarget);
 				} catch (Exception ignored) {}
 
 				isSaved = true;
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
+		}
+
+		private static String replaceBodyContent(String fullHtml, String newBody) {
+			if (fullHtml == null) return newBody;
+			int bodyStart = fullHtml.indexOf("<body");
+			if (bodyStart >= 0) {
+				int bodyOpenClose = fullHtml.indexOf('>', bodyStart);
+				int bodyEnd = fullHtml.indexOf("</body>", bodyOpenClose);
+				if (bodyOpenClose >= 0 && bodyEnd > bodyOpenClose) {
+					return fullHtml.substring(0, bodyOpenClose + 1) + "\n" + newBody + "\n" + fullHtml.substring(bodyEnd);
+				}
+			}
+			return newBody;
 		}
 
 		private void saveAndFinish() {
@@ -2549,7 +2688,10 @@ startActivityForResult(intent, 209);
 
 				filename = getIntent().getStringExtra("filename");
 				if (filename == null || filename.trim().isEmpty()) {
-						filename = (this.pageName != null && !this.pageName.isEmpty()) ? this.pageName : "index";
+						filename = (this.pageName != null && !this.pageName.isEmpty()) ? this.pageName : "index.html";
+				}
+				if (!filename.contains(".") && !filename.contains("css") && !filename.contains("js")) {
+						filename = filename + ".html";
 				}
 
 				setContentView(R.layout.logic_editor);
@@ -2813,22 +2955,24 @@ startActivityForResult(intent, 209);
 								}
 						}
 						if (rootChild == null && !blockBeans.isEmpty()) {
-								boolean anyExplicit = false;
 								for (BlockBean bean : blockBeans) {
-										if (bean.isConnectedToRoot) {
-												anyExplicit = true;
+										Block block = blockMap.get(safeParseInt(bean.id));
+										if (block != null && block.parentBlock == null && !block.isReporter && block != this.pane.getRoot()) {
+												rootChild = block;
 												break;
-										}
-								}
-								if (!anyExplicit) {
-										Block firstB = blockMap.get(safeParseInt(blockBeans.get(0).id));
-										if (firstB != null && firstB.parentBlock == null && !firstB.isReporter && firstB != this.pane.getRoot()) {
-												rootChild = firstB;
 										}
 								}
 						}
 						if (rootChild != null) {
 								this.pane.getRoot().insertBlock(rootChild);
+								Block currentTail = rootChild.bottomBlock();
+								for (BlockBean bean : blockBeans) {
+										Block block = blockMap.get(safeParseInt(bean.id));
+										if (block != null && block != rootChild && block.parentBlock == null && !block.isReporter && block != this.pane.getRoot()) {
+												currentTail.insertBlock(block);
+												currentTail = block.bottomBlock();
+										}
+								}
 						}
 
 						this.pane.getRoot().fixLayout();
@@ -2972,7 +3116,15 @@ startActivityForResult(intent, 209);
 								}
 						}
 				}
-				String result = jsm.getSource(mode, blocks);
+				String result;
+				if (isHtmlEvent()) {
+						result = HtmlCode2Block.generateHtmlFromBlocks(this, blocks);
+						if (result == null || result.trim().isEmpty()) {
+								result = jsm.getSource(mode, blocks);
+						}
+				} else {
+						result = jsm.getSource(mode, blocks);
+				}
 				
 				final String finalResult = (result == null || result.trim().isEmpty()) ? "/* No code generated */" : result;
 

@@ -1305,6 +1305,10 @@ public class HtmlCssImporter {
         return new ArrayList<>(importedLogicBlocks);
     }
 
+    public ArrayList<BlockBean> importHtmlToBeans(String htmlContent) {
+        return HtmlCode2Block.generateHtmlBlocksFromCode(this.context, htmlContent);
+    }
+
     public ArrayList<BlockBean> importJsToBeans(String jsContent) {
         List<Map<String, Object>> rawMaps = importJsOnly(jsContent);
         return convertRawMapsToBeans(rawMaps);

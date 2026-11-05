@@ -834,9 +834,15 @@ public class Block extends BlockBase {
             addView((View) it.next());
         }
         if (this.mType.equals("e")) {
-            if (this.mSpec2 != null && !this.mSpec2.trim().isEmpty()) {
+            String effectiveSpec2 = this.mSpec2;
+            if ((effectiveSpec2 == null || effectiveSpec2.trim().isEmpty()) &&
+                ((this.mCategory != null && this.mCategory.toLowerCase().startsWith("html")) ||
+                 (this.mOpCode != null && this.mOpCode.toLowerCase().startsWith("html")))) {
+                effectiveSpec2 = "children";
+            }
+            if (effectiveSpec2 != null && !effectiveSpec2.trim().isEmpty()) {
                 this.DividerH = this.labelAndArgHeight + (int) (12.0f * this.dip);
-                addElseLabelsAndArgs(this.mSpec2, this.mColor);
+                addElseLabelsAndArgs(effectiveSpec2, this.mColor);
                 Iterator it2 = this.elseLabelsAndArgs.iterator();
                 while (it2.hasNext()) {
                     addView((View) it2.next());
