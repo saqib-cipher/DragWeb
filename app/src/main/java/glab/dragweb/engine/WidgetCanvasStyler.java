@@ -22,7 +22,10 @@ import android.widget.TextView;
 
 import com.google.android.material.textfield.TextInputEditText;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -54,6 +57,19 @@ public class WidgetCanvasStyler {
     private final float density;
     private final int screenWidthPx;
     private final int screenHeightPx;
+
+    /** CSS rules compiled from the logic blocks, applied on top of the canvas widget tree. */
+    private final List<CssRule> cssRules = new ArrayList<>();
+
+    private static final class CssRule {
+        final String selector;
+        final Map<String, String> declarations;
+
+        CssRule(String selector, Map<String, String> declarations) {
+            this.selector = selector;
+            this.declarations = declarations;
+        }
+    }
 
     // Cache of CSS standard color names
     private static final Map<String, Integer> CSS_COLORS = new HashMap<>();
@@ -649,6 +665,277 @@ public class WidgetCanvasStyler {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
+     * Replaces the CSS rules compiled from logic blocks. Call this before
+     * {@link #synchronizeCanvas(View)} so CSS logic edits are reflected on the canvas.
+     */
+    public void loadCssRules(String cssText) {
+        cssRules.clear();
+        if (cssText == null || cssText.trim().isEmpty()) return;
+        parseCssRules(stripCssComments(cssText));
+    }
+
+    public void clearCssRules() {
+        cssRules.clear();
+    }
+
+    private static String stripCssComments(String css) {
+        return css.replaceAll("(?s)/\\*.*?\\*/", " ");
+    }
+
+    /**
+     * Minimal CSS parser: collects style rules (including rules nested inside @media blocks)
+     * and ignores at-rules that only carry metadata (e.g. @import).
+     */
+    private void parseCssRules(String css) {
+        int i = 0;
+        int n = css.length();
+        StringBuilder prelude = new StringBuilder();
+        while (i < n) {
+            char c = css.charAt(i);
+            if (c == '{') {
+                String selector = prelude.toString();
+                int lastSemi = selector.lastIndexOf(';');
+                if (lastSemi >= 0) selector = selector.substring(lastSemi + 1);
+                selector = selector.trim();
+
+                int depth = 1;
+                int start = i + 1;
+                int j = start;
+                while (j < n && depth > 0) {
+                    char cj = css.charAt(j);
+                    if (cj == '{') depth++;
+                    else if (cj == '}') depth--;
+                    j++;
+                }
+                String body = css.substring(start, Math.max(start, j - 1));
+                prelude.setLength(0);
+
+                if (selector.startsWith("@")) {
+                    // Recurse into conditional group rules so their inner rules still apply.
+                    if (selector.startsWith("@media") || selector.startsWith("@supports")
+                            || selector.startsWith("@layer") || selector.startsWith("@container")) {
+                        parseCssRules(body);
+                    }
+                } else {
+                    Map<String, String> declarations = parseDeclarations(body);
+                    if (!declarations.isEmpty()) {
+                        for (String sel : selector.split(",")) {
+                            String clean = sel.trim();
+                            if (!clean.isEmpty()) {
+                                cssRules.add(new CssRule(clean, declarations));
+                            }
+                        }
+                    }
+                }
+                i = j;
+            } else if (c == '}') {
+                prelude.setLength(0);
+                i++;
+            } else {
+                prelude.append(c);
+                i++;
+            }
+        }
+    }
+
+    private Map<String, String> parseDeclarations(String body) {
+        Map<String, String> out = new LinkedHashMap<>();
+        if (body == null) return out;
+
+        StringBuilder current = new StringBuilder();
+        int parenDepth = 0;
+        for (int i = 0; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if (c == '(') parenDepth++;
+            else if (c == ')') parenDepth = Math.max(0, parenDepth - 1);
+
+            if (c == ';' && parenDepth == 0) {
+                putDeclaration(out, current.toString());
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+        putDeclaration(out, current.toString());
+        return out;
+    }
+
+    private void putDeclaration(Map<String, String> out, String declaration) {
+        if (declaration == null) return;
+        int colon = declaration.indexOf(':');
+        if (colon <= 0) return;
+        String key = declaration.substring(0, colon).trim().toLowerCase(Locale.ROOT);
+        String value = declaration.substring(colon + 1).trim();
+        if (key.isEmpty() || value.isEmpty()) return;
+        out.put(camelizeCssKey(key), value);
+    }
+
+    private static String camelizeCssKey(String key) {
+        if (key.indexOf('-') < 0) return key;
+        StringBuilder sb = new StringBuilder(key.length());
+        boolean upper = false;
+        for (int i = 0; i < key.length(); i++) {
+            char c = key.charAt(i);
+            if (c == '-') {
+                upper = true;
+            } else if (upper) {
+                sb.append(Character.toUpperCase(c));
+                upper = false;
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    private Map<String, String> matchCssRules(View view, String tag, Map<String, Object> function) {
+        Map<String, String> merged = new LinkedHashMap<>();
+        if (cssRules.isEmpty() || function == null) return merged;
+
+        for (CssRule rule : cssRules) {
+            if (selectorMatches(rule.selector, view, tag, function)) {
+                merged.putAll(rule.declarations);
+            }
+        }
+        return merged;
+    }
+
+    private boolean selectorMatches(String selector, View view, String tag, Map<String, Object> function) {
+        String sel = selector != null ? selector.trim() : "";
+        if (sel.isEmpty()) return false;
+
+        List<String> compounds = splitSelectorCompounds(sel);
+        if (compounds.isEmpty()) return false;
+        if (!compoundMatches(compounds.get(compounds.size() - 1), tag, function)) return false;
+
+        // Walk ancestors right-to-left so descendant selectors (.nav a) only apply
+        // inside matching parents. Child/sibling combinators are treated as descendants.
+        View current = view != null && view.getParent() instanceof View
+                ? (View) view.getParent() : null;
+        for (int i = compounds.size() - 2; i >= 0; i--) {
+            boolean found = false;
+            while (current != null) {
+                String ancestorTag = "";
+                Map<String, Object> ancestorFunction = null;
+                if (current.getTag() instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> ancestorMap = (Map<String, Object>) current.getTag();
+                    if (ancestorMap.get("tag") != null) {
+                        ancestorTag = String.valueOf(ancestorMap.get("tag"));
+                    }
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> fn = (Map<String, Object>) ancestorMap.get("function");
+                    ancestorFunction = fn;
+                }
+                View parent = current.getParent() instanceof View
+                        ? (View) current.getParent() : null;
+                if (compoundMatches(compounds.get(i), ancestorTag, ancestorFunction)) {
+                    found = true;
+                    current = parent;
+                    break;
+                }
+                current = parent;
+            }
+            if (!found) return false;
+        }
+        return true;
+    }
+
+    private List<String> splitSelectorCompounds(String selector) {
+        List<String> compounds = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        int depth = 0;
+        for (int i = 0; i < selector.length(); i++) {
+            char c = selector.charAt(i);
+            if (c == '[' || c == '(') depth++;
+            else if (c == ']' || c == ')') depth = Math.max(0, depth - 1);
+
+            if (depth == 0 && (c == ' ' || c == '\t' || c == '\n' || c == '>' || c == '+' || c == '~')) {
+                if (current.length() > 0) {
+                    compounds.add(current.toString());
+                    current.setLength(0);
+                }
+            } else {
+                current.append(c);
+            }
+        }
+        if (current.length() > 0) compounds.add(current.toString());
+        return compounds;
+    }
+
+    private boolean compoundMatches(String compound, String tag, Map<String, Object> function) {
+        if (compound == null) return false;
+        String sel = compound.trim();
+        if (sel.isEmpty()) return false;
+        // Pseudo-classes/elements (:hover, ::before) and attribute selectors cannot be
+        // evaluated reliably on the static canvas. Skip them instead of over-applying.
+        if (sel.indexOf(':') >= 0 || sel.indexOf('[') >= 0) return false;
+        if ("*".equals(sel)) return true;
+
+        String id = function != null && function.get("id") != null
+                ? String.valueOf(function.get("id")).trim() : "";
+        String classes = function != null && function.get("class") != null
+                ? String.valueOf(function.get("class")) : "";
+
+        int p = 0;
+        StringBuilder tagBuilder = new StringBuilder();
+        while (p < sel.length()) {
+            char c = sel.charAt(p);
+            if (Character.isLetterOrDigit(c) || c == '-' || c == '_' || c == '*') {
+                tagBuilder.append(c);
+                p++;
+            } else {
+                break;
+            }
+        }
+        String tagSelector = tagBuilder.toString();
+        if (!tagSelector.isEmpty() && !"*".equals(tagSelector)
+                && !tagSelector.equalsIgnoreCase(tag == null ? "" : tag)) {
+            return false;
+        }
+
+        List<String> requiredIds = new ArrayList<>();
+        List<String> requiredClasses = new ArrayList<>();
+        while (p < sel.length()) {
+            char c = sel.charAt(p);
+            if (c == '#' || c == '.') {
+                p++;
+                StringBuilder token = new StringBuilder();
+                while (p < sel.length()) {
+                    char tc = sel.charAt(p);
+                    if (Character.isLetterOrDigit(tc) || tc == '-' || tc == '_') {
+                        token.append(tc);
+                        p++;
+                    } else {
+                        break;
+                    }
+                }
+                if (token.length() > 0) {
+                    (c == '#' ? requiredIds : requiredClasses).add(token.toString());
+                }
+            } else {
+                p++;
+            }
+        }
+
+        for (String required : requiredIds) {
+            if (!required.equals(id)) return false;
+        }
+        if (!requiredClasses.isEmpty()) {
+            java.util.Set<String> classSet = new java.util.HashSet<>();
+            if (classes != null) {
+                for (String cl : classes.split("\\s+")) {
+                    if (!cl.isEmpty()) classSet.add(cl);
+                }
+            }
+            for (String required : requiredClasses) {
+                if (!classSet.contains(required)) return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Applies both attributes and CSS styles from widgetMap to the target Android View.
      */
     public void applyProperties(View view, Map<String, Object> widgetMap) {
@@ -692,7 +979,13 @@ public class WidgetCanvasStyler {
 
         @SuppressWarnings("unchecked")
         Map<String, Object> style = (Map<String, Object>) function.get("style");
-        if (style != null) {
+        Map<String, String> cssMatched = matchCssRules(view, tag, function);
+        if (!cssMatched.isEmpty()) {
+            // CSS logic rules provide the base; inline/property styles always win.
+            Map<String, Object> merged = new HashMap<>(cssMatched);
+            if (style != null) merged.putAll(style);
+            applyStyles(view, tag, merged);
+        } else if (style != null) {
             applyStyles(view, tag, style);
         }
     }

@@ -606,7 +606,6 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				if (blocks == null || blocks.isEmpty()) {
 						blocks = DesignDataManager.getBlocks(filename, eventKey);
 				}
-				boolean forceSyncHtml = getIntent().getBooleanExtra("force_sync_html", false);
 				if (blocks == null || blocks.isEmpty()) {
 						if ("initializeLogic".equals(this.eventName) || "onPageLoad".equals(this.eventName)) {
 								blocks = DesignDataManager.getBlocks(cleanPName, "onCreate_initializeLogic");

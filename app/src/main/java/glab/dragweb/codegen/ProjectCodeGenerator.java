@@ -410,13 +410,22 @@ public class ProjectCodeGenerator {
         return sb.toString().trim();
     }
 
-    public static String compileCssForFile(Context context, String projectId, String cleanPage) {
+    /**
+     * Compiles ONLY the CSS logic blocks (global stylesheet + the given page) into CSS text.
+     * Does not include layout/inline styles, so the result can be applied on top of the
+     * canvas widget tree without baking generated styles back into the layout.
+     */
+    public static String compileCssLogicOnly(Context context, String projectId, String cleanPage) {
         StringBuilder cssSb = new StringBuilder();
+        appendCssLogicBlocks(context, projectId, cleanPage, cssSb);
+        return cssSb.toString().trim();
+    }
 
+    private static void appendCssLogicBlocks(Context context, String projectId, String cleanPage, StringBuilder cssSb) {
         // Collect blocks from the current page AND the global CSS stylesheet page
         String cssPage = DesignDataManager.getCleanPageName("css/style.css");
-        String[] pagesToCompile = (cssPage.equals(cleanPage)) 
-            ? new String[]{cleanPage} 
+        String[] pagesToCompile = (cssPage.equals(cleanPage))
+            ? new String[]{cleanPage}
             : new String[]{cssPage, cleanPage};
 
         for (String pageKey : pagesToCompile) {
@@ -446,6 +455,11 @@ public class ProjectCodeGenerator {
                 e.printStackTrace();
             }
         }
+    }
+
+    public static String compileCssForFile(Context context, String projectId, String cleanPage) {
+        StringBuilder cssSb = new StringBuilder();
+        appendCssLogicBlocks(context, projectId, cleanPage, cssSb);
 
         // 2. Compile visual layout and widget preset styles into CSS
         ThemeManager themeManager = getProjectThemeManager(context, projectId);

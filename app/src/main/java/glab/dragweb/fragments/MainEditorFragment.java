@@ -2019,11 +2019,23 @@ public class MainEditorFragment extends Fragment {
 		if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
 
 		String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+		final String cleanPage = DesignDataManager.getCleanPageName(pageName);
 		final androidx.fragment.app.FragmentActivity act = getActivity();
+		final android.content.Context appCtx = getContext() != null
+				? getContext().getApplicationContext() : null;
 
 		AppExecutors.io().execute(() -> {
 			final String json = pageManager != null ? pageManager.loadPageLayout(pageName) : "[]";
 			final List<Map<String, Object>> parsedTree = PageManager.parseLayoutTree(json);
+
+			// Compile the CSS logic blocks so canvas rendering reflects CSS block edits.
+			String cssLogic = "";
+			try {
+				cssLogic = ProjectCodeGenerator.compileCssLogicOnly(appCtx, projectId, cleanPage);
+			} catch (Exception e) {
+				Log.e("MainEditor", "Failed to compile CSS logic: " + e.getMessage());
+			}
+			final String finalCssLogic = cssLogic;
 
 			final List<Map<String, Object>> finalTree = parsedTree;
 
@@ -2031,11 +2043,13 @@ public class MainEditorFragment extends Fragment {
 			act.runOnUiThread(() -> {
 				if (!isAdded()) return;
 				screen.removeAllViews();
+				WidgetCanvasStyler styler = WidgetCanvasStyler.getInstance(requireContext());
+				styler.loadCssRules(finalCssLogic);
 				if (finalTree != null && !finalTree.isEmpty()) {
 					for (Map<String, Object> nodeMap : finalTree) {
 						rebuildView(nodeMap, screen);
 					}
-					WidgetCanvasStyler.getInstance(requireContext()).synchronizeCanvas(screen);
+					styler.synchronizeCanvas(screen);
 				}
 				registerAllWidgetsForDrag(screen);
 				setupHierarchyTracker(screen);
@@ -3140,35 +3154,48 @@ public class MainEditorFragment extends Fragment {
 
 	public void syncHtmlLogicWithCanvas() {
 		if (screen == null || pageManager == null || getContext() == null) return;
+		// Never regenerate logic from a canvas that has not finished loading; it would
+		// overwrite newer logic with stale widgets.
+		if (!isProjectLoaded) return;
 		String curPage = pageManager.getCurrentPage();
 		if (curPage == null || curPage.isEmpty()) curPage = "index";
 		final String cleanPage = DesignDataManager.getCleanPageName(curPage);
 		final String htmlFilename = cleanPage + ".html";
 
-		// Guard: Logic blocks are the primary reference / source of truth.
-		// If logic blocks already exist for this page, never overwrite them from canvas!
+		// Existing HTML logic blocks are always regenerated from the canvas. Non-HTML
+		// blocks (JS/variables/functions) placed inside the same event are preserved.
 		ArrayList<BlockBean> existingBlocks = DesignDataManager.getBlocks(cleanPage, "onCreate_initializeLogic");
 		if (existingBlocks == null || existingBlocks.isEmpty()) {
 			existingBlocks = DesignDataManager.getBlocks(htmlFilename, "onCreate_initializeLogic");
-		}
-		if (existingBlocks != null && !existingBlocks.isEmpty()) {
-			return;
 		}
 
 		final android.content.Context ctx = requireContext().getApplicationContext();
 
 		List<Map<String, Object>> widgetTree = serializeChildren(screen);
-		if (widgetTree == null || widgetTree.isEmpty()) {
-			DesignDataManager.setBlocks(cleanPage, "onCreate_initializeLogic", new java.util.ArrayList<>());
-			DesignDataManager.setBlocks(htmlFilename, "onCreate_initializeLogic", new java.util.ArrayList<>());
-			if (DesignDataManager.mapBlocks != null) {
-				if (DesignDataManager.mapBlocks.containsKey(cleanPage)) {
-					DesignDataManager.mapBlocks.get(cleanPage).remove("onPageLoad_onPageLoad");
-				}
-				if (DesignDataManager.mapBlocks.containsKey(htmlFilename)) {
-					DesignDataManager.mapBlocks.get(htmlFilename).remove("onPageLoad_onPageLoad");
+		ArrayList<BlockBean> generated = null;
+		if (widgetTree != null && !widgetTree.isEmpty()) {
+			PageCodeGenerator pcg = new PageCodeGenerator();
+			pcg.setProjectId(projectId);
+			pcg.setContext(ctx);
+			pcg.setCurrentPageName(cleanPage);
+			String htmlCode = pcg.generateBodyHtmlFromTree(widgetTree);
+
+			if (htmlCode != null && !htmlCode.trim().isEmpty()) {
+				try {
+					HtmlCode2Block.BlockResult result = glab.dragweb.core.BlocksLoader.convertHtmlCode(ctx, htmlCode);
+					if (result != null && result.isSuccess && result.blocks != null && !result.blocks.isEmpty()) {
+						generated = result.blocks;
+					}
+				} catch (Exception e) {
+					Log.e("MainEditor", "Failed immediate HTML conversion: " + e.getMessage());
 				}
 			}
+		}
+
+		// If nothing could be generated (e.g. empty canvas), still keep non-HTML logic.
+		if (generated == null && (existingBlocks == null || existingBlocks.isEmpty())) {
+			DesignDataManager.setBlocks(cleanPage, "onCreate_initializeLogic", new java.util.ArrayList<>());
+			DesignDataManager.setBlocks(htmlFilename, "onCreate_initializeLogic", new java.util.ArrayList<>());
 			AppExecutors.io().execute(() -> {
 				try {
 					DesignDataManager.saveSavedLogic(ctx, projectId, cleanPage);
@@ -3180,39 +3207,163 @@ public class MainEditorFragment extends Fragment {
 			return;
 		}
 
-		PageCodeGenerator pcg = new PageCodeGenerator();
-		pcg.setProjectId(projectId);
-		pcg.setContext(ctx);
-		pcg.setCurrentPageName(cleanPage);
-		String htmlCode = pcg.generateBodyHtmlFromTree(widgetTree);
+		ArrayList<BlockBean> merged = mergeHtmlLogicBlocks(generated, existingBlocks);
+		DesignDataManager.setBlocks(cleanPage, "onCreate_initializeLogic", merged);
+		DesignDataManager.setBlocks(htmlFilename, "onCreate_initializeLogic", merged);
+		// Clean up legacy onPageLoad_onPageLoad alias to prevent double compilation
+		if (DesignDataManager.mapBlocks != null) {
+			if (DesignDataManager.mapBlocks.containsKey(cleanPage)) {
+				DesignDataManager.mapBlocks.get(cleanPage).remove("onPageLoad_onPageLoad");
+			}
+			if (DesignDataManager.mapBlocks.containsKey(htmlFilename)) {
+				DesignDataManager.mapBlocks.get(htmlFilename).remove("onPageLoad_onPageLoad");
+			}
+		}
 
-		if (htmlCode != null && !htmlCode.trim().isEmpty()) {
+		AppExecutors.io().execute(() -> {
 			try {
-				HtmlCode2Block.BlockResult result = glab.dragweb.core.BlocksLoader.convertHtmlCode(ctx, htmlCode);
-				if (result != null && result.isSuccess && result.blocks != null && !result.blocks.isEmpty()) {
-					DesignDataManager.setBlocks(cleanPage, "onCreate_initializeLogic", result.blocks);
-					DesignDataManager.setBlocks(htmlFilename, "onCreate_initializeLogic", result.blocks);
-					// Clean up legacy onPageLoad_onPageLoad alias to prevent double compilation
-					if (DesignDataManager.mapBlocks != null) {
-						if (DesignDataManager.mapBlocks.containsKey(cleanPage)) {
-							DesignDataManager.mapBlocks.get(cleanPage).remove("onPageLoad_onPageLoad");
-						}
-						if (DesignDataManager.mapBlocks.containsKey(htmlFilename)) {
-							DesignDataManager.mapBlocks.get(htmlFilename).remove("onPageLoad_onPageLoad");
+				DesignDataManager.saveSavedLogic(ctx, projectId, cleanPage);
+				DesignDataManager.saveSavedLogic(ctx, projectId, htmlFilename);
+			} catch (Exception e) {
+				Log.e("MainEditor", "Failed to save HTML logic: " + e.getMessage());
+			}
+		});
+	}
+
+	/**
+	 * Merges freshly generated HTML blocks with any non-HTML logic blocks that already
+	 * lived in the same event, renumbering the preserved blocks so nothing is lost.
+	 */
+	private ArrayList<BlockBean> mergeHtmlLogicBlocks(ArrayList<BlockBean> generated,
+			ArrayList<BlockBean> existing) {
+		ArrayList<BlockBean> result = new ArrayList<>();
+		if (generated != null) result.addAll(generated);
+		if (existing == null || existing.isEmpty()) return reindexBlocks(result);
+
+		ArrayList<BlockBean> preserved = new ArrayList<>();
+		for (BlockBean b : existing) {
+			if (b == null) continue;
+			String category = b.category != null ? b.category.toLowerCase(java.util.Locale.ROOT) : "";
+			if (!category.equals("html") && !category.equals("html_attr")) {
+				preserved.add(b);
+			}
+		}
+		if (preserved.isEmpty()) return reindexBlocks(result);
+
+		int maxId = -1;
+		for (BlockBean b : result) {
+			int id = parseBlockId(b.id);
+			if (id > maxId) maxId = id;
+		}
+
+		java.util.HashMap<Integer, Integer> idMap = new java.util.HashMap<>();
+		int nextId = maxId + 1;
+		for (BlockBean b : preserved) {
+			int oldId = parseBlockId(b.id);
+			if (!idMap.containsKey(oldId)) {
+				idMap.put(oldId, nextId++);
+			}
+		}
+		for (BlockBean b : preserved) {
+			int oldId = parseBlockId(b.id);
+			Integer mapped = idMap.get(oldId);
+			if (mapped != null) b.id = String.valueOf(mapped);
+			b.nextBlock = remapBlockRef(b.nextBlock, idMap);
+			b.subStack1 = remapBlockRef(b.subStack1, idMap);
+			b.subStack2 = remapBlockRef(b.subStack2, idMap);
+			if (b.parameters != null) {
+				for (int i = 0; i < b.parameters.size(); i++) {
+					String param = b.parameters.get(i);
+					if (param == null || !param.startsWith("@")) continue;
+					Integer ref = idMap.get(parseBlockId(param.substring(1)));
+					if (ref != null) b.parameters.set(i, "@" + ref);
+				}
+			}
+		}
+
+		// Identify top-level preserved blocks (not referenced by any other preserved block).
+		java.util.HashSet<Integer> referenced = new java.util.HashSet<>();
+		for (BlockBean b : preserved) {
+			collectBlockRefs(b, referenced);
+		}
+		ArrayList<BlockBean> roots = new ArrayList<>();
+		for (BlockBean b : preserved) {
+			if (!referenced.contains(parseBlockId(b.id))) roots.add(b);
+		}
+		roots.sort((a, b) -> Integer.compare(a.stackIndex, b.stackIndex));
+		for (int i = 0; i < roots.size(); i++) {
+			BlockBean b = roots.get(i);
+			b.isConnectedToRoot = true;
+			b.nextBlock = (i + 1 < roots.size()) ? parseBlockId(roots.get(i + 1).id) : -1;
+		}
+
+		// Attach the preserved chain after the last generated root statement.
+		if (!roots.isEmpty() && !result.isEmpty()) {
+			java.util.HashSet<Integer> generatedRefs = new java.util.HashSet<>();
+			for (BlockBean b : result) {
+				collectBlockRefs(b, generatedRefs);
+			}
+			BlockBean tail = null;
+			for (BlockBean b : result) {
+				if (!generatedRefs.contains(parseBlockId(b.id))) {
+					tail = b;
+					break;
+				}
+			}
+			if (tail != null) {
+				while (tail.nextBlock >= 0) {
+					BlockBean next = null;
+					for (BlockBean candidate : result) {
+						if (parseBlockId(candidate.id) == tail.nextBlock) {
+							next = candidate;
+							break;
 						}
 					}
+					if (next == null) break;
+					tail = next;
 				}
-			} catch (Exception e) {
-				Log.e("MainEditor", "Failed immediate HTML conversion: " + e.getMessage());
+				tail.nextBlock = parseBlockId(roots.get(0).id);
 			}
-			AppExecutors.io().execute(() -> {
-				try {
-					DesignDataManager.saveSavedLogic(ctx, projectId, cleanPage);
-					DesignDataManager.saveSavedLogic(ctx, projectId, htmlFilename);
-				} catch (Exception e) {
-					Log.e("MainEditor", "Failed to save HTML logic: " + e.getMessage());
+		}
+
+		result.addAll(preserved);
+		return reindexBlocks(result);
+	}
+
+	private ArrayList<BlockBean> reindexBlocks(ArrayList<BlockBean> blocks) {
+		int index = 0;
+		for (BlockBean b : blocks) {
+			if (b != null) b.stackIndex = index++;
+		}
+		return blocks;
+	}
+
+	private void collectBlockRefs(BlockBean bean, java.util.Set<Integer> refs) {
+		if (bean == null) return;
+		if (bean.nextBlock >= 0) refs.add(bean.nextBlock);
+		if (bean.subStack1 >= 0) refs.add(bean.subStack1);
+		if (bean.subStack2 >= 0) refs.add(bean.subStack2);
+		if (bean.parameters != null) {
+			for (String param : bean.parameters) {
+				if (param != null && param.startsWith("@")) {
+					refs.add(parseBlockId(param.substring(1)));
 				}
-			});
+			}
+		}
+	}
+
+	private int remapBlockRef(int ref, java.util.Map<Integer, Integer> idMap) {
+		if (ref < 0) return ref;
+		Integer mapped = idMap.get(ref);
+		return mapped != null ? mapped : ref;
+	}
+
+	private int parseBlockId(String id) {
+		if (id == null) return -1;
+		try {
+			return Integer.parseInt(id.trim());
+		} catch (Exception e) {
+			return -1;
 		}
 	}
 
@@ -3234,6 +3385,8 @@ public class MainEditorFragment extends Fragment {
 		}
 		refreshHierarchy();
 		saveCurrentPageLayout();
+		// Undo/redo changes the canvas, so mirror the result into the logic blocks.
+		syncHtmlLogicWithCanvas();
 	}
 
 	private void rebuildView(Map<String, Object> nodeMap, ViewGroup parent) {

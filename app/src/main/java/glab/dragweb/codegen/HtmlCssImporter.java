@@ -3006,8 +3006,8 @@ public class HtmlCssImporter {
         // Build style map
         Map<String, Object> styleMap = new HashMap<>();
 
-        // Apply CSS rules based on tag name
-        // applyCssRules(styleMap, parsedTag.tagName, parsedTag.attributes);
+        // Apply CSS rules collected from external stylesheets / <style> blocks
+        applyCssRules(styleMap, parsedTag.tagName, parsedTag.attributes);
 
         // Apply inline styles (highest priority)
         if (parsedTag.attributes.containsKey("style")) {
