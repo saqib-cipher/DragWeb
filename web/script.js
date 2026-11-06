@@ -90,10 +90,6 @@
   var sbBgColor = document.getElementById('sbBgColor');
   var sbEnableClick = document.getElementById('sbEnableClick');
 
-  var valPadding = document.getElementById('valPadding');
-  var valRadius = document.getElementById('valRadius');
-  var valFontSize = document.getElementById('valFontSize');
-
   var previewWrapper = document.getElementById('sandboxPreviewWrapper');
   var codeOutput = document.getElementById('codeOutput');
   var clickCountVal = document.getElementById('clickCountVal');
@@ -131,9 +127,9 @@
 
     var type = sbWidgetType.value;
     var textVal = sbText.value;
-    var padVal = sbPadding.value;
-    var radVal = sbRadius.value;
-    var fontVal = sbFontSize.value;
+    var padVal = sbPadding.value || '0';
+    var radVal = sbRadius.value || '0';
+    var fontVal = sbFontSize.value || '0';
     var bgVal = sbBgColor.value;
     var isClickEnabled = sbEnableClick.checked;
 
@@ -244,11 +240,14 @@
   [sbWidgetType, sbBgColor].forEach(function (sel) {
     if (sel) sel.addEventListener('change', updateSandbox);
   });
-  
+
   if (sbText) sbText.addEventListener('input', updateSandbox);
-  
-  [sbPadding, sbRadius, sbFontSize].forEach(function (slider) {
-    if (slider) slider.addEventListener('input', updateSandbox);
+
+  [sbPadding, sbRadius, sbFontSize].forEach(function (input) {
+    if (input) {
+      input.addEventListener('input', updateSandbox);
+      input.addEventListener('change', updateSandbox);
+    }
   });
 
   if (sbEnableClick) {

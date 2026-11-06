@@ -34,12 +34,33 @@ public class PageManager {
         return new ArrayList<>(pages);
     }
 
+    public static String normalizePageName(String pageName) {
+        if (pageName == null || pageName.trim().isEmpty()) return "index";
+        String clean = pageName.trim();
+        if (clean.endsWith(".html")) {
+            clean = clean.substring(0, clean.length() - 5);
+        } else if (clean.endsWith(".htm")) {
+            clean = clean.substring(0, clean.length() - 4);
+        }
+        return clean.isEmpty() ? "index" : clean;
+    }
+
     public String getCurrentPage() {
-        return currentPage;
+        return currentPage != null ? currentPage : "index";
     }
 
     public void setCurrentPage(String page) {
-        this.currentPage = page;
+        this.currentPage = normalizePageName(page);
+    }
+
+    public void invalidateCache(String pageName) {
+        if (pageName != null) {
+            String norm = normalizePageName(pageName);
+            pageLayoutCache.remove(norm);
+            pageLayoutCache.remove(pageName);
+        } else {
+            pageLayoutCache.clear();
+        }
     }
 
     public void addPage(String pageName) {
@@ -131,10 +152,11 @@ public class PageManager {
     }
 
     public String loadPageLayout(String pageName) {
+        pageName = normalizePageName(pageName);
         // Check in-memory cache first for unsaved changes if non-empty
         if (pageLayoutCache.containsKey(pageName)) {
             String cached = pageLayoutCache.get(pageName);
-            if (cached != null && !cached.trim().isEmpty() && !"[]".equals(cached.trim())) {
+            if (cached != null && !cached.trim().isEmpty()) {
                 return cached;
             }
         }
@@ -143,7 +165,7 @@ public class PageManager {
         File pagesFile = getPageLayoutFile(pageName);
         if (FileUtil.exists(pagesFile)) {
             String json = FileUtil.readFile(pagesFile.getAbsolutePath());
-            if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
+            if (json != null && !json.trim().isEmpty()) {
                 pageLayoutCache.put(pageName, json);
                 // Keep layouts/ mirror updated
                 File layoutsFile = getLayoutsPageFile(pageName);
@@ -160,7 +182,7 @@ public class PageManager {
         File layoutsFile = getLayoutsPageFile(pageName);
         if (FileUtil.exists(layoutsFile)) {
             String json = FileUtil.readFile(layoutsFile.getAbsolutePath());
-            if (json != null && !json.trim().isEmpty() && !"[]".equals(json.trim())) {
+            if (json != null && !json.trim().isEmpty()) {
                 pageLayoutCache.put(pageName, json);
                 // Restore to primary pages/ file
                 FileUtil.writeFile(pagesFile.getAbsolutePath(), json);
@@ -235,6 +257,7 @@ public class PageManager {
     }
 
     public void savePageLayout(String pageName, String json) {
+        pageName = normalizePageName(pageName);
         if (json == null || json.isEmpty()) {
             json = "[]";
         }
@@ -364,24 +387,27 @@ public class PageManager {
     }
 
     private File getPageLayoutFile(String pageName) {
+        String clean = normalizePageName(pageName);
         String basePath = FileUtil.getDragWebDir(context).getAbsolutePath()
             + "/projects/" + projectId + "/pages";
         File pagesDir = new File(basePath);
         if (!FileUtil.exists(pagesDir)) FileUtil.makeDir(pagesDir.getAbsolutePath());
-        return new File(pagesDir, pageName + ".json");
+        return new File(pagesDir, clean + ".json");
     }
 
     private File getLayoutsPageFile(String pageName) {
+        String clean = normalizePageName(pageName);
         String basePath = FileUtil.getDragWebDir(context).getAbsolutePath()
             + "/projects/" + projectId + "/layouts";
         File layoutsDir = new File(basePath);
         if (!FileUtil.exists(layoutsDir)) FileUtil.makeDir(layoutsDir.getAbsolutePath());
-        return new File(layoutsDir, pageName + ".json");
+        return new File(layoutsDir, clean + ".json");
     }
 
     private File getLegacyPageFile(String pageName) {
+        String clean = normalizePageName(pageName);
         File dir = new File(FileUtil.getDragWebDir(context), "projects");
-        return new File(dir, projectId + "_" + pageName + ".json");
+        return new File(dir, projectId + "_" + clean + ".json");
     }
 
     private void loadPageList() {

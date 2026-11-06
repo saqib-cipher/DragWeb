@@ -85,7 +85,6 @@ public class HomeActivity extends AppCompatActivity {
 	private ActivityResultLauncher<String[]> htmlFileLauncher;
 	private ActivityResultLauncher<String[]> cssFileLauncher;
 	private ActivityResultLauncher<String[]> jsFileLauncher;
-	private ActivityResultLauncher<Intent> storageFolderLauncher;
 	private ActivityResultLauncher<String[]> storagePermissionLauncher;
 	private boolean hasPromptedStoragePermission = false;
 	private String pendingBackupProject = null;
@@ -149,7 +148,7 @@ public class HomeActivity extends AppCompatActivity {
 	}
 
 	private void checkStorageAccessOnResume() {
-		if (FileUtil.hasStoragePermission(this) || SafStorageUtil.isStorageConfigured(this)) {
+		if (FileUtil.hasStoragePermission(this)) {
 			return;
 		}
 		if (hasPromptedStoragePermission) return;
@@ -170,9 +169,6 @@ public class HomeActivity extends AppCompatActivity {
 						android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 					});
 				}
-			})
-			.setNeutralButton("Choose Folder (SAF)", (dialog, which) -> {
-				storageFolderLauncher.launch(SafStorageUtil.createFolderPickerIntent());
 			})
 			.setNegativeButton("Later", null)
 			.show();
@@ -295,25 +291,6 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		);
 
-		storageFolderLauncher = registerForActivityResult(
-			new ActivityResultContracts.StartActivityForResult(),
-			result -> {
-				if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-					Uri uri = result.getData().getData();
-					if (uri != null) {
-						SafStorageUtil.ValidationResult validation = SafStorageUtil.validateFolderSelection(this, uri);
-						if (validation.isValid) {
-							SafStorageUtil.persistFolderSelection(this, uri);
-							loadProjects();
-							Toast.makeText(this, "Storage location updated", Toast.LENGTH_SHORT).show();
-						} else {
-							showFolderMismatchDialog(validation.folderName);
-						}
-					}
-				}
-			}
-		);
-
 		storagePermissionLauncher = registerForActivityResult(
 			new ActivityResultContracts.RequestMultiplePermissions(),
 			result -> {
@@ -385,22 +362,6 @@ public class HomeActivity extends AppCompatActivity {
 				startActivity(new Intent(this, EditorSettingsActivity.class));
 			});
 		}
-
-		LinearLayout menuStorageLocation = findViewById(R.id.menuStorageLocation);
-		if (menuStorageLocation != null) {
-			menuStorageLocation.setOnClickListener(v -> {
-				drawer.closeDrawer(GravityCompat.START);
-				showStorageLocationDialog();
-			});
-		}
-
-		LinearLayout menuSetupStorage = findViewById(R.id.menuSetupStorage);
-		if (menuSetupStorage != null) {
-			menuSetupStorage.setOnClickListener(v -> {
-				drawer.closeDrawer(GravityCompat.START);
-				startActivity(new Intent(HomeActivity.this, StorageSetupActivity.class));
-			});
-		}
 	}
 
 	private String generateProjectId() {
@@ -429,39 +390,6 @@ public class HomeActivity extends AppCompatActivity {
 
 	private void importProject() {
 		importZipLauncher.launch(new String[]{"application/zip"});
-	}
-
-	private void showStorageLocationDialog() {
-		String currentPath = FileUtil.getDragWebDir(this).getAbsolutePath();
-		boolean hasAllFiles = FileUtil.hasStoragePermission(this);
-		String statusText = hasAllFiles ? "Status: Full Access Granted (High Speed)\n\n" : "Status: SAF / Restricted Access\n\n";
-
-		MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
-			.setTitle("Storage Location")
-			.setMessage("Current .dragweb workspace:\n\n" + currentPath + "\n\n" + statusText + "All website design projects, assets, custom blocks, and themes are stored in this directory.")
-			.setPositiveButton("OK", null);
-
-		if (!hasAllFiles && android.os.Build.VERSION.SDK_INT >= 30) {
-			builder.setNeutralButton("Grant Full Access", (dialog, which) -> {
-				FileUtil.requestAllFilesAccessPermission(this);
-			});
-		} else {
-			builder.setNeutralButton("Change Folder", (dialog, which) -> {
-				storageFolderLauncher.launch(SafStorageUtil.createFolderPickerIntent());
-			});
-		}
-		builder.show();
-	}
-
-	private void showFolderMismatchDialog(String selectedFolderName) {
-		new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-			.setTitle("Folder Location Mismatch")
-			.setMessage("You selected: \"" + (selectedFolderName != null ? selectedFolderName : "Unknown folder") + "\"\n\nDragWeb requires the '.dragweb' folder to store website projects and assets.\n\nPlease select the '.dragweb' folder.")
-			.setPositiveButton("Select Again", (dialog, which) -> {
-				storageFolderLauncher.launch(SafStorageUtil.createFolderPickerIntent());
-			})
-			.setNegativeButton("Cancel", null)
-			.show();
 	}
 
 	private void performBackup(Uri uri) {
@@ -548,8 +476,33 @@ public class HomeActivity extends AppCompatActivity {
 			getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 			getSupportActionBar().setHomeButtonEnabled(true);
 		}
+
+		final View mainContent = findViewById(R.id.main);
+		drawer.setScrimColor(android.graphics.Color.TRANSPARENT);
+		drawer.setDrawerElevation(0f);
+
 		ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-			this, drawer, toolbar, R.string.app_name, R.string.app_name);
+			this, drawer, toolbar, R.string.app_name, R.string.app_name) {
+			@Override
+			public void onDrawerSlide(View drawerView, float slideOffset) {
+				super.onDrawerSlide(drawerView, slideOffset);
+				if (mainContent != null) {
+					float moveFactor = drawerView.getWidth() * slideOffset;
+					if (androidx.core.view.ViewCompat.getLayoutDirection(drawer) == androidx.core.view.ViewCompat.LAYOUT_DIRECTION_RTL) {
+						moveFactor = -moveFactor;
+					}
+					mainContent.setTranslationX(moveFactor);
+				}
+			}
+
+			@Override
+			public void onDrawerClosed(View drawerView) {
+				super.onDrawerClosed(drawerView);
+				if (mainContent != null) {
+					mainContent.setTranslationX(0f);
+				}
+			}
+		};
 		drawer.addDrawerListener(toggle);
 		toggle.syncState();
 	}

@@ -845,6 +845,46 @@ public class WidgetCanvasStyler {
                 view.setElevation(elev);
             } catch (Exception ignored) {}
         }
+
+        // 8b. Position offsets (top/left) via translation — safe, doesn't conflict with layout margins
+        if (style.containsKey("top")) {
+            try {
+                view.setTranslationY(parseDimension(style.get("top").toString(), 0, 0));
+            } catch (Exception ignored) {}
+        }
+        if (style.containsKey("left")) {
+            try {
+                view.setTranslationX(parseDimension(style.get("left").toString(), 0, 0));
+            } catch (Exception ignored) {}
+        }
+        if (style.containsKey("right")) {
+            // Right offset is not directly supported on Android View; store for reference
+            Object tagObj = view.getTag();
+            if (tagObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> wm = (Map<String, Object>) tagObj;
+                Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+                if (fn == null) {
+                    fn = new HashMap<>();
+                    wm.put("function", fn);
+                }
+                fn.put("offsetRight", style.get("right").toString());
+            }
+        }
+        if (style.containsKey("bottom")) {
+            Object tagObj = view.getTag();
+            if (tagObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> wm = (Map<String, Object>) tagObj;
+                Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+                if (fn == null) {
+                    fn = new HashMap<>();
+                    wm.put("function", fn);
+                }
+                fn.put("offsetBottom", style.get("bottom").toString());
+            }
+        }
+
         if (style.containsKey("transform")) {
             String transform = style.get("transform").toString();
             if (transform.contains("rotate(")) {
@@ -864,6 +904,64 @@ public class WidgetCanvasStyler {
                 case "scale-down": ((ImageView) view).setScaleType(ImageView.ScaleType.CENTER_INSIDE); break;
                 default: ((ImageView) view).setScaleType(ImageView.ScaleType.FIT_CENTER); break;
             }
+        }
+
+        // 8c. Min/Max dimensions
+        if (style.containsKey("minWidth")) {
+            try {
+                view.setMinimumWidth(parseDimension(style.get("minWidth").toString(), 0, 0));
+            } catch (Exception ignored) {}
+        }
+        if (style.containsKey("minHeight")) {
+            try {
+                view.setMinimumHeight(parseDimension(style.get("minHeight").toString(), 0, 0));
+            } catch (Exception ignored) {}
+        }
+        // Note: maxWidth/maxHeight have no direct View API; handled at layout time via LayoutParams
+
+        // 8c. Z-Index (approximated via elevation on Android)
+        if (style.containsKey("zIndex")) {
+            try {
+                float z = Float.parseFloat(style.get("zIndex").toString().trim());
+                view.setElevation(z * 2f);
+            } catch (Exception ignored) {}
+        }
+
+        // 8d. Overflow (clip children if hidden/scroll/auto)
+        if (style.containsKey("overflow")) {
+            String ovf = style.get("overflow").toString().trim().toLowerCase(Locale.ROOT);
+            boolean clip = "hidden".equals(ovf) || "scroll".equals(ovf) || "auto".equals(ovf);
+            if (view instanceof ViewGroup) {
+                ((ViewGroup) view).setClipChildren(clip);
+            }
+        }
+
+        // 8e. Cursor hint (stored on tag for reference; Android has no direct cursor API)
+        if (style.containsKey("cursor")) {
+            Object tagObj = view.getTag();
+            if (tagObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> wm = (Map<String, Object>) tagObj;
+                Map<String, Object> fn = (Map<String, Object>) wm.get("function");
+                if (fn == null) {
+                    fn = new HashMap<>();
+                    wm.put("function", fn);
+                }
+                fn.put("cursor", style.get("cursor").toString());
+            }
+        }
+
+        // 8f. BoxShadow (approximated via elevation + outline)
+        if (style.containsKey("boxShadow")) {
+            try {
+                String shadow = style.get("boxShadow").toString();
+                // Parse simple "2px 2px 4px #000000" or just extract a pixel offset for elevation
+                String num = shadow.replaceAll("[^0-9.]", "");
+                if (!num.isEmpty()) {
+                    float elev = Float.parseFloat(num);
+                    view.setElevation(Math.max(view.getElevation(), dpToPx(elev)));
+                }
+            } catch (Exception ignored) {}
         }
 
         // 9. Flex Container Layout (Orientation, Alignment, Children adjustment)

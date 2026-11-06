@@ -183,14 +183,16 @@ public class MainEditorFragment extends Fragment {
 		logicBlockLauncher = registerForActivityResult(
 			new ActivityResultContracts.StartActivityForResult(),
 			result -> {
-				if (result.getResultCode() == Activity.RESULT_OK) {
-					// Reload logic and layout from .dragweb after returning from LogicBlockActivity
-					String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-					DesignDataManager.initialize(requireContext(), projectId, pageName);
-					loadCurrentPageLayout();
-					refreshHierarchy();
-					refreshLogicBlocksUI();
+				// Always reload logic and layout from .dragweb after returning from LogicBlockActivity
+				if (pageManager != null) {
+					pageManager.invalidateCache(null);
 				}
+				String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+				String cleanPage = DesignDataManager.getCleanPageName(pageName);
+				DesignDataManager.initialize(requireContext(), projectId, cleanPage);
+				loadCurrentPageLayout();
+				refreshHierarchy();
+				refreshLogicBlocksUI();
 			}
 		);
 
@@ -706,7 +708,6 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void openHtmlBlocksForWidget(View widgetView) {
-		syncHtmlLogicWithCanvas();
 		saveProject(() -> {
 			String curPage = pageManager != null ? pageManager.getCurrentPage() : "index";
 			String cleanPage = DesignDataManager.getCleanPageName(curPage);
@@ -718,7 +719,6 @@ public class MainEditorFragment extends Fragment {
 			intent.putExtra("event", "initializeLogic");
 			intent.putExtra("filename", targetFilename);
 			intent.putExtra("event_text", "HTML Blocks - " + targetFilename);
-			intent.putExtra("force_sync_html", true);
 			logicBlockLauncher.launch(intent);
 		});
 	}
@@ -1418,9 +1418,6 @@ public class MainEditorFragment extends Fragment {
 						String targetFilename = (isCss || isJs) ? name : (name.endsWith(".html") ? name : name + ".html");
 						intent.putExtra("filename", targetFilename);
 						intent.putExtra("event_text", "Page Initialization");
-						if (!isCss && !isJs) {
-							intent.putExtra("force_sync_html", true);
-						}
 						logicBlockLauncher.launch(intent);
 					});
 				} else {
@@ -1472,7 +1469,6 @@ public class MainEditorFragment extends Fragment {
 							intent.putExtra("event", "initializeLogic");
 							intent.putExtra("filename", name.endsWith(".html") ? name : name + ".html");
 							intent.putExtra("event_text", "HTML Blocks - " + name + ".html");
-							intent.putExtra("force_sync_html", true);
 							logicBlockLauncher.launch(intent);
 						});
 					}
@@ -1494,7 +1490,6 @@ public class MainEditorFragment extends Fragment {
 						intent.putExtra("event", "initializeLogic");
 						intent.putExtra("filename", name.endsWith(".html") ? name : name + ".html");
 						intent.putExtra("event_text", "HTML Blocks - " + name + ".html");
-						intent.putExtra("force_sync_html", true);
 						logicBlockLauncher.launch(intent);
 						return true;
 					});
@@ -3149,10 +3144,41 @@ public class MainEditorFragment extends Fragment {
 		if (curPage == null || curPage.isEmpty()) curPage = "index";
 		final String cleanPage = DesignDataManager.getCleanPageName(curPage);
 		final String htmlFilename = cleanPage + ".html";
+
+		// Guard: Logic blocks are the primary reference / source of truth.
+		// If logic blocks already exist for this page, never overwrite them from canvas!
+		ArrayList<BlockBean> existingBlocks = DesignDataManager.getBlocks(cleanPage, "onCreate_initializeLogic");
+		if (existingBlocks == null || existingBlocks.isEmpty()) {
+			existingBlocks = DesignDataManager.getBlocks(htmlFilename, "onCreate_initializeLogic");
+		}
+		if (existingBlocks != null && !existingBlocks.isEmpty()) {
+			return;
+		}
+
 		final android.content.Context ctx = requireContext().getApplicationContext();
 
 		List<Map<String, Object>> widgetTree = serializeChildren(screen);
-		if (widgetTree == null || widgetTree.isEmpty()) return;
+		if (widgetTree == null || widgetTree.isEmpty()) {
+			DesignDataManager.setBlocks(cleanPage, "onCreate_initializeLogic", new java.util.ArrayList<>());
+			DesignDataManager.setBlocks(htmlFilename, "onCreate_initializeLogic", new java.util.ArrayList<>());
+			if (DesignDataManager.mapBlocks != null) {
+				if (DesignDataManager.mapBlocks.containsKey(cleanPage)) {
+					DesignDataManager.mapBlocks.get(cleanPage).remove("onPageLoad_onPageLoad");
+				}
+				if (DesignDataManager.mapBlocks.containsKey(htmlFilename)) {
+					DesignDataManager.mapBlocks.get(htmlFilename).remove("onPageLoad_onPageLoad");
+				}
+			}
+			AppExecutors.io().execute(() -> {
+				try {
+					DesignDataManager.saveSavedLogic(ctx, projectId, cleanPage);
+					DesignDataManager.saveSavedLogic(ctx, projectId, htmlFilename);
+				} catch (Exception e) {
+					Log.e("MainEditor", "Failed to clear HTML logic: " + e.getMessage());
+				}
+			});
+			return;
+		}
 
 		PageCodeGenerator pcg = new PageCodeGenerator();
 		pcg.setProjectId(projectId);
@@ -3165,9 +3191,16 @@ public class MainEditorFragment extends Fragment {
 				HtmlCode2Block.BlockResult result = glab.dragweb.core.BlocksLoader.convertHtmlCode(ctx, htmlCode);
 				if (result != null && result.isSuccess && result.blocks != null && !result.blocks.isEmpty()) {
 					DesignDataManager.setBlocks(cleanPage, "onCreate_initializeLogic", result.blocks);
-					DesignDataManager.setBlocks(cleanPage, "onPageLoad_onPageLoad", result.blocks);
 					DesignDataManager.setBlocks(htmlFilename, "onCreate_initializeLogic", result.blocks);
-					DesignDataManager.setBlocks(htmlFilename, "onPageLoad_onPageLoad", result.blocks);
+					// Clean up legacy onPageLoad_onPageLoad alias to prevent double compilation
+					if (DesignDataManager.mapBlocks != null) {
+						if (DesignDataManager.mapBlocks.containsKey(cleanPage)) {
+							DesignDataManager.mapBlocks.get(cleanPage).remove("onPageLoad_onPageLoad");
+						}
+						if (DesignDataManager.mapBlocks.containsKey(htmlFilename)) {
+							DesignDataManager.mapBlocks.get(htmlFilename).remove("onPageLoad_onPageLoad");
+						}
+					}
 				}
 			} catch (Exception e) {
 				Log.e("MainEditor", "Failed immediate HTML conversion: " + e.getMessage());

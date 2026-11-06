@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import html
 import json
 import mimetypes
 import os
@@ -48,6 +49,7 @@ def send_telegram_document(bot_token, chat_id, file_path, caption=None, thread_i
     add_field("chat_id", str(chat_id))
     if thread_id:
         add_field("message_thread_id", str(thread_id))
+    add_field("parse_mode", "HTML")
     if caption:
         add_field("caption", caption)
 
@@ -70,7 +72,7 @@ def send_telegram_document(bot_token, chat_id, file_path, caption=None, thread_i
         with urllib.request.urlopen(req) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except Exception as e:
-        print(f"Error sending document to Telegram: {e}", file=sys.stderr)
+        print(f"Error sending document ({filename}) to Telegram: {e}", file=sys.stderr)
         return None
 
 def get_git_info():
@@ -90,20 +92,14 @@ def get_git_info():
         except Exception:
             commit_short = "unknown"
 
-    changelog = ""
-    if os.path.exists("CHANGELOG.txt"):
+    commit_msg = os.getenv("COMMIT_MESSAGE")
+    if not commit_msg:
         try:
-            with open("CHANGELOG.txt", "r", encoding="utf-8", errors="replace") as f:
-                changelog = f.read()[:800]
+            commit_msg = subprocess.check_output(["git", "log", "-1", "--pretty=format:%s"], text=True, errors="replace").strip()
         except Exception:
-            pass
-    if not changelog:
-        try:
-            changelog = subprocess.check_output(["git", "log", "-1", "--pretty=format:- %s"], text=True, errors="replace").strip()
-        except Exception:
-            changelog = "No changelog available"
+            commit_msg = "No commit message"
 
-    return branch, commit_short, changelog
+    return branch, commit_short, commit_msg
 
 def get_app_version():
     version_code = None
@@ -177,15 +173,12 @@ def main():
     print(f"App Version Code: {version_code}, Version Name: {version_name}")
     print(f"Checking if Git tag '{tag_name}' exists: {is_tagged}")
 
-    # Decision logic:
-    # If tag exists -> DEBUG build
-    # If tag DOES NOT exist -> RELEASE build + create & push tag on success
     if is_tagged:
         build_type = "debug"
         cmd = args.cmd or "./gradlew assembleDebug"
         apk_path = args.apk or "app/build/outputs/apk/debug/app-debug.apk"
         thread_id = args.thread_id
-        title = f"🐛 <b>Debug Build (v{version_name} - Code {version_code})</b>"
+        title = f"🐛 <b>Debug Build (v{html.escape(version_name)} - Code {html.escape(version_code)})</b>"
     else:
         build_type = "release"
         workspace = os.getenv("GITHUB_WORKSPACE", ".")
@@ -208,7 +201,7 @@ def main():
         cmd = args.cmd or default_release_cmd
         apk_path = args.apk or "app/build/outputs/apk/release/app-release.apk"
         thread_id = args.thread_r_id or args.thread_id
-        title = f"🚀 <b>Release Build v{version_name} (Code {version_code})</b>"
+        title = f"🚀 <b>Release Build v{html.escape(version_name)} (Code {html.escape(version_code)})</b>"
 
     print(f"Selected Build Mode: {build_type.upper()}")
     print(f"Executing command: {cmd}")
@@ -216,7 +209,7 @@ def main():
 
     start_time = time.time()
 
-    # Execute build command and stream live output to stdout & log file
+    # Stream build output to console and write to log_file
     with open(log_file, "w", encoding="utf-8", errors="replace") as log_f:
         process = subprocess.Popen(
             cmd,
@@ -239,7 +232,7 @@ def main():
         exit_code = process.returncode
 
     duration = round(time.time() - start_time, 2)
-    branch, commit_short, changelog = get_git_info()
+    branch, commit_short, commit_msg = get_git_info()
 
     print(f"\nBuild finished with exit code: {exit_code} in {duration}s")
 
@@ -251,48 +244,43 @@ def main():
 
     if bot_token and chat_id:
         if exit_code == 0:
-            # If release build succeeded and tag didn't exist, create and push tag to GitHub!
             if build_type == "release" and not is_tagged:
                 create_and_push_tag(tag_name)
 
-            # SUCCESS: Send APK + caption, delete build log
             caption = (
                 f"{title}\n\n"
-                f"<b>Branch:</b> {branch}\n"
+                f"<b>Branch:</b> {html.escape(branch)}\n"
                 f"<b>Commit:</b> #{commit_short}\n"
-                f"<b>Tag:</b> {tag_name}\n"
+                f"<b>Tag:</b> {html.escape(tag_name)}\n"
                 f"<b>Duration:</b> {duration}s\n\n"
-                f"<b>Changes:</b>\n{changelog}"
+                f"<b>Message:</b> {html.escape(commit_msg)}"
             )
 
-            uploaded = False
+            uploaded_apk = False
             if apk_path and os.path.exists(apk_path):
                 print(f"Sending APK ({apk_path}) to Telegram...")
                 res = send_telegram_document(bot_token, chat_id, apk_path, caption=caption, thread_id=thread_id)
                 if res and res.get("ok"):
-                    uploaded = True
+                    uploaded_apk = True
 
-            if not uploaded:
+            if not uploaded_apk:
                 print("Sending text notification to Telegram...")
                 send_telegram_message(bot_token, chat_id, caption, thread_id=thread_id)
 
-            # Delete log file on success as requested
+            # Send the complete build log as a file document
             if os.path.exists(log_file):
-                try:
-                    os.remove(log_file)
-                    print(f"Deleted success log file: {log_file}")
-                except Exception as e:
-                    print(f"Failed to delete log file: {e}")
+                log_caption = f"📄 <b>Build Log ({build_type.upper()})</b> — {html.escape(tag_name)} ({duration}s)"
+                print(f"Sending whole build log file ({log_file}) to Telegram...")
+                send_telegram_document(bot_token, chat_id, log_file, caption=log_caption, thread_id=thread_id)
 
         else:
-            # FAILURE: Send build.log file + failure message
             caption = (
                 f"❌ <b>Build Failed ({build_type.upper()})</b>\n\n"
-                f"<b>Branch:</b> {branch}\n"
+                f"<b>Branch:</b> {html.escape(branch)}\n"
                 f"<b>Commit:</b> #{commit_short}\n"
-                f"<b>Version Code:</b> {version_code}\n"
+                f"<b>Version Code:</b> {html.escape(version_code)}\n"
                 f"<b>Duration:</b> {duration}s\n\n"
-                f"Attached log file for details."
+                f"<b>Message:</b> {html.escape(commit_msg)}"
             )
             print("Sending build failure log to Telegram...")
             if os.path.exists(log_file):

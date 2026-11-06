@@ -83,7 +83,15 @@ public class PageCodeGenerator {
         collectedScripts.clear();
         StringBuilder bodyBuilder = new StringBuilder();
 
-        if (screen instanceof ViewGroup) {
+        // Compile HTML blocks (category "html") into the body as the main reference
+        String pageHtmlBlocks = "";
+        if (currentPageName != null && !currentPageName.isEmpty()) {
+            pageHtmlBlocks = compileHtmlBlocks(currentPageName);
+        }
+
+        if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
+            bodyBuilder.append("  ").append(pageHtmlBlocks.replace("\n", "\n  ")).append("\n");
+        } else if (screen instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) screen;
             for (int i = 0; i < vg.getChildCount(); i++) {
                 bodyBuilder.append(generateHtmlForView(vg.getChildAt(i), 1));
@@ -108,16 +116,6 @@ public class PageCodeGenerator {
             if (asdHtml != null && !asdHtml.trim().isEmpty()) {
                 bodyBuilder.append("  <!-- ASD HTML source -->\n  ");
                 bodyBuilder.append(asdHtml.replace("\n", "\n  "));
-                bodyBuilder.append("\n");
-            }
-        }
-
-        // Compile HTML blocks (category "html") into the body
-        if (logicBlockManager != null && currentPageName != null && !currentPageName.isEmpty()) {
-            String pageHtmlBlocks = compileHtmlBlocks(currentPageName);
-            if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
-                bodyBuilder.append("  <!-- HTML Blocks -->\n  ");
-                bodyBuilder.append(pageHtmlBlocks.replace("\n", "\n  "));
                 bodyBuilder.append("\n");
             }
         }
@@ -154,7 +152,15 @@ public class PageCodeGenerator {
         collectedScripts.clear();
         StringBuilder bodyBuilder = new StringBuilder();
 
-        if (widgetTree != null) {
+        // Check if logic HTML blocks exist for this page (HTML blocks are main reference)
+        String pageHtmlBlocks = "";
+        if (currentPageName != null && !currentPageName.isEmpty()) {
+            pageHtmlBlocks = compileHtmlBlocks(currentPageName);
+        }
+
+        if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
+            bodyBuilder.append("  ").append(pageHtmlBlocks.replace("\n", "\n  ")).append("\n");
+        } else if (widgetTree != null) {
             for (Map<String, Object> nodeMap : widgetTree) {
                 bodyBuilder.append(generateHtmlForNode(nodeMap, 1));
             }
@@ -178,16 +184,6 @@ public class PageCodeGenerator {
             }
         }
 
-        // Compile HTML blocks (category "html") into the body
-        if (logicBlockManager != null && currentPageName != null && !currentPageName.isEmpty()) {
-            String pageHtmlBlocks = compileHtmlBlocks(currentPageName);
-            if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
-                bodyBuilder.append("  <!-- HTML Blocks -->\n  ");
-                bodyBuilder.append(pageHtmlBlocks.replace("\n", "\n  "));
-                bodyBuilder.append("\n");
-            }
-        }
-
         StringBuilder htmlBuilder = new StringBuilder();
         appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager);
         htmlBuilder.append(bodyBuilder);
@@ -206,23 +202,46 @@ public class PageCodeGenerator {
             DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(content, pageName);
             if (data == null || data.blocks == null || data.blocks.isEmpty()) return "";
             BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
-            StringBuilder sb = new StringBuilder();
-            for (java.util.Map.Entry<String, java.util.ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
-                String key = entry.getKey();
-                if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
+
+            // Canonical HTML event lookup: "onCreate_initializeLogic", then fallback to "onPageLoad_onPageLoad", then first HTML event
+            java.util.ArrayList<BlockBean> targetBlocks = data.blocks.get("onCreate_initializeLogic");
+            if (targetBlocks == null || targetBlocks.isEmpty()) {
+                targetBlocks = data.blocks.get("onPageLoad_onPageLoad");
+            }
+            if (targetBlocks == null || targetBlocks.isEmpty()) {
+                for (java.util.Map.Entry<String, java.util.ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
+                    String key = entry.getKey();
+                    if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
+                    if (entry.getValue() != null) {
+                        for (BlockBean b : entry.getValue()) {
+                            if (b != null && ExportManager.isHtmlCategory(b.category)) {
+                                targetBlocks = entry.getValue();
+                                break;
+                            }
+                        }
+                    }
+                    if (targetBlocks != null && !targetBlocks.isEmpty()) break;
+                }
+            }
+
+            if (targetBlocks != null && !targetBlocks.isEmpty()) {
                 java.util.ArrayList<BlockBean> htmlBlocks = new java.util.ArrayList<>();
-                for (BlockBean b : entry.getValue()) {
-                    if (b != null && "html".equals(b.category)) {
+                for (BlockBean b : targetBlocks) {
+                    if (b != null && ExportManager.isHtmlCategory(b.category)) {
                         htmlBlocks.add(b);
                     }
                 }
-                if (htmlBlocks.isEmpty()) continue;
-                String code = compiler.getSource(0, htmlBlocks);
-                if (code != null && !code.trim().isEmpty()) {
-                    sb.append(code).append("\n\n");
+                if (!htmlBlocks.isEmpty()) {
+                    String code = HtmlCode2Block.generateHtmlFromBlocks(context, htmlBlocks);
+                    if (code == null || code.trim().isEmpty()) {
+                        code = compiler.getSource(0, htmlBlocks);
+                    }
+                    if (code != null && !code.trim().isEmpty()) {
+                        return code.trim();
+                    }
                 }
             }
-            return sb.toString().trim();
+            return "";
         } catch (Exception e) {
             e.printStackTrace();
             return "";

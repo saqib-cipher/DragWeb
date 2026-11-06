@@ -266,6 +266,46 @@ public class ExportManager {
             DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(content, cleanPage);
             if (data == null || data.blocks == null || data.blocks.isEmpty()) return "";
             BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
+            if ("html".equalsIgnoreCase(mode)) {
+                ArrayList<BlockBean> targetBlocks = data.blocks.get("onCreate_initializeLogic");
+                if (targetBlocks == null || targetBlocks.isEmpty()) {
+                    targetBlocks = data.blocks.get("onPageLoad_onPageLoad");
+                }
+                if (targetBlocks == null || targetBlocks.isEmpty()) {
+                    for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
+                        String key = entry.getKey();
+                        if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
+                        if (entry.getValue() != null) {
+                            for (BlockBean b : entry.getValue()) {
+                                if (b != null && isHtmlCategory(b.category)) {
+                                    targetBlocks = entry.getValue();
+                                    break;
+                                }
+                            }
+                        }
+                        if (targetBlocks != null && !targetBlocks.isEmpty()) break;
+                    }
+                }
+                if (targetBlocks != null && !targetBlocks.isEmpty()) {
+                    ArrayList<BlockBean> filtered = new ArrayList<>();
+                    for (BlockBean b : targetBlocks) {
+                        if (b != null && isHtmlCategory(b.category)) {
+                            filtered.add(b);
+                        }
+                    }
+                    if (!filtered.isEmpty()) {
+                        String code = HtmlCode2Block.generateHtmlFromBlocks(context, filtered);
+                        if (code == null || code.trim().isEmpty()) {
+                            code = compiler.getSource(0, filtered);
+                        }
+                        if (code != null && !code.trim().isEmpty()) {
+                            return code.trim();
+                        }
+                    }
+                }
+                return "";
+            }
+
             StringBuilder sb = new StringBuilder();
             java.util.Set<String> validIds = ProjectCodeGenerator.collectWidgetIdentifiers(context, projectId, cleanPage);
             for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
@@ -485,16 +525,6 @@ public class ExportManager {
 
             // Clean assets reference in HTML: replace "assets/" with ""
             htmlContent = htmlContent.replace("assets/", "");
-
-            // Compile HTML blocks (category "html") and inject into body
-            if (pageLogic != null) {
-                String cleanName = DesignDataManager.getCleanPageName(pageName);
-                String pageHtmlBlocks = compileBlocksForMode(cleanName, "html");
-                if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
-                    htmlContent = htmlContent.replace("</body>",
-                        "\n  <!-- HTML Blocks -->\n  " + pageHtmlBlocks.replace("\n", "\n  ") + "\n</body>");
-                }
-            }
 
             pageHtmlMap.put(pageName, htmlContent);
 
@@ -734,7 +764,11 @@ public class ExportManager {
         html.append("</head>\n");
         html.append("<body>\n");
 
-        if (widgetTree != null) {
+        String cleanName = DesignDataManager.getCleanPageName(pageName);
+        String pageHtmlBlocks = compileBlocksForMode(cleanName, "html");
+        if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
+            html.append("  ").append(pageHtmlBlocks.replace("\n", "\n  ")).append("\n");
+        } else if (widgetTree != null) {
             for (Map<String, Object> nodeMap : widgetTree) {
                 html.append(generateElementHtmlFromNode(nodeMap, 1));
             }
@@ -1034,7 +1068,11 @@ public class ExportManager {
         html.append("</head>\n");
         html.append("<body>\n");
 
-        if (screen instanceof ViewGroup) {
+        String cleanName = DesignDataManager.getCleanPageName(pageName);
+        String pageHtmlBlocks = compileBlocksForMode(cleanName, "html");
+        if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
+            html.append("  ").append(pageHtmlBlocks.replace("\n", "\n  ")).append("\n");
+        } else if (screen instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) screen;
             for (int i = 0; i < vg.getChildCount(); i++) {
                 html.append(generateElementHtml(vg.getChildAt(i), 1));

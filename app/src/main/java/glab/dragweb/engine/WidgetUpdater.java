@@ -80,6 +80,13 @@ public class WidgetUpdater {
         // Re-apply all properties to the view via engine
         engine.applyPropertiesToView(view, widgetMap);
 
+        // Force the view to redraw and re-layout so property changes are immediately visible
+        view.invalidate();
+        view.requestLayout();
+        if (view.getParent() instanceof View) {
+            ((View) view.getParent()).requestLayout();
+        }
+
         // If the view itself is a flex container, normalize its children (orientation, weights, gap)
         if (view instanceof ViewGroup) {
             WidgetCanvasStyler.getInstance(context).normalizeFlexContainer((ViewGroup) view);

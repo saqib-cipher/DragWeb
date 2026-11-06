@@ -78,6 +78,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           python3 scripts/telegram_build.py --log "build.log"
 

@@ -649,9 +649,6 @@ public class EventsFragment extends Fragment {
                 intent.putExtra("event", "onPageLoad");
                 intent.putExtra("filename", item.targetPath);
                 intent.putExtra("event_text", item.title + " Logic");
-                if (item.targetPath != null && (item.targetPath.toLowerCase().endsWith(".html") || item.targetPath.toLowerCase().endsWith(".htm"))) {
-                    intent.putExtra("force_sync_html", true);
-                }
             }
             logicBlockLauncher.launch(intent);
         }
