@@ -410,7 +410,10 @@ fn process_node(ctx: &mut GeneratorContext, node: &HtmlNode, is_root: bool) -> i
                 (def.id, def.spec, def.spec2, def.block_type, def.category, def.color, def.code, init_params, spec_types)
             } else if *is_void {
                 let fb_spec = ctx.fallback_leaf.spec.clone();
-                let spec_types = parse_spec_param_types(&fb_spec);
+                let mut spec_types = parse_spec_param_types(&fb_spec);
+                if spec_types.is_empty() {
+                    spec_types.push("m.htmlTag".to_string());
+                }
                 (
                     ctx.fallback_leaf.id.clone(),
                     fb_spec,
@@ -419,12 +422,15 @@ fn process_node(ctx: &mut GeneratorContext, node: &HtmlNode, is_root: bool) -> i
                     ctx.fallback_leaf.category.clone(),
                     ctx.fallback_leaf.color,
                     ctx.fallback_leaf.code.clone(),
-                    vec![tag_name.clone(), String::new()],
+                    vec![tag_name.clone()],
                     spec_types,
                 )
             } else {
                 let fb_spec = ctx.fallback_container.spec.clone();
-                let spec_types = parse_spec_param_types(&fb_spec);
+                let mut spec_types = parse_spec_param_types(&fb_spec);
+                if spec_types.is_empty() {
+                    spec_types.push("m.htmlTag".to_string());
+                }
                 (
                     ctx.fallback_container.id.clone(),
                     fb_spec,
@@ -433,7 +439,7 @@ fn process_node(ctx: &mut GeneratorContext, node: &HtmlNode, is_root: bool) -> i
                     ctx.fallback_container.category.clone(),
                     ctx.fallback_container.color,
                     ctx.fallback_container.code.clone(),
-                    vec![tag_name.clone(), String::new()],
+                    vec![tag_name.clone()],
                     spec_types,
                 )
             };

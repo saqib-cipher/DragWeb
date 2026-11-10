@@ -590,17 +590,7 @@ public class HomeActivity extends AppCompatActivity {
 						if (FileUtil.exists(legacyConfigFile)) {
 							FileUtil.deleteFile(legacyConfigFile.getAbsolutePath());
 						}
-						File legacyLayout = new File(projectFolder, "layout.json");
-						if (FileUtil.exists(legacyLayout)) {
-							File indexPage = new File(projectFolder, "pages/index.json");
-							if (!FileUtil.exists(indexPage)) {
-								String lJson = FileUtil.readFile(legacyLayout.getAbsolutePath());
-								if (lJson != null && !lJson.isEmpty()) {
-									FileUtil.writeFile(indexPage.getAbsolutePath(), lJson);
-								}
-							}
-							FileUtil.deleteFile(legacyLayout.getAbsolutePath());
-						}
+						PageManager.cleanupLegacyFiles(projectFolder);
 
 						long lastMod = FileUtil.getLastModified(projectFolder);
 						project.put("lastModified", lastMod > 0 ? sdfDisplay.format(new Date(lastMod)) : project.getOrDefault("created", ""));
@@ -709,9 +699,6 @@ public class HomeActivity extends AppCompatActivity {
 				File extDir = new File(projectsDir, projectId);
 				if (!extDir.exists()) FileUtil.makeDir(extDir.getAbsolutePath());
 
-				File pagesDir = new File(extDir, "pages");
-				if (!pagesDir.exists()) FileUtil.makeDir(pagesDir.getAbsolutePath());
-
 				File assetsDir = new File(extDir, "assets");
 				if (!assetsDir.exists()) FileUtil.makeDir(assetsDir.getAbsolutePath());
 
@@ -724,10 +711,9 @@ public class HomeActivity extends AppCompatActivity {
 				File imgDir = new File(assetsDir, "images");
 				if (!imgDir.exists()) FileUtil.makeDir(imgDir.getAbsolutePath());
 
-				File indexPage = new File(pagesDir, "index.json");
-				FileUtil.writeFile(indexPage.getAbsolutePath(), "[]");
-				FileUtil.writeFile(new File(extDir, "pages.json").getAbsolutePath(), "[\"index\"]");
-				FileUtil.writeFile(new File(extDir, "index_logic.json").getAbsolutePath(), "{}");
+				PageManager pm = new PageManager(HomeActivity.this, projectId);
+				pm.savePageLayout("index", "[]");
+				DesignDataManager.saveAllSavedLogic(HomeActivity.this, projectId);
 				FileUtil.writeFile(new File(extDir, "theme.json").getAbsolutePath(), new ThemeManager().toJson());
 
 				Map<String, String> meta = new HashMap<>();
@@ -767,29 +753,26 @@ public class HomeActivity extends AppCompatActivity {
 		File extDir = new File(dir, projectId);
 		if (!extDir.exists()) extDir.mkdirs();
 
-		// Save widget tree as pages/index.json
+		// Save widget tree in unified layout
 		String jsonStr = new Gson().toJson(widgetTree);
-		File pagesDir = new File(extDir, "pages");
-		if (!pagesDir.exists()) pagesDir.mkdirs();
-		FileUtil.writeFile(new File(pagesDir, "index.json").getAbsolutePath(), jsonStr);
-		FileUtil.writeFile(new File(extDir, "pages.json").getAbsolutePath(), "[\"index\"]");
+		PageManager pm = new PageManager(this, projectId);
+		pm.savePageLayout("index", jsonStr);
 
 		HtmlCssImporter importer = new HtmlCssImporter(this);
 
 		// Save logic blocks if any
 		if (logicBlocks != null && !logicBlocks.isEmpty()) {
-			File logicFile = new File(extDir, "index_logic.json");
 			ArrayList<BlockBean> beans = importer.convertRawMapsToBeans(logicBlocks);
-			FileUtil.writeFile(logicFile.getAbsolutePath(), new Gson().toJson(beans));
+			DesignDataManager.setBlocks("index", "onCreate_initializeLogic", beans);
 		}
 
 		// Save global CSS logic blocks if any
 		if (cssLogicBlocks != null && !cssLogicBlocks.isEmpty()) {
 			String cleanCssName = DesignDataManager.getCleanPageName("css/style.css");
-			File cssLogicFile = new File(extDir, cleanCssName + "_logic.json");
 			ArrayList<BlockBean> cssBeans = importer.convertRawMapsToBeans(cssLogicBlocks);
-			FileUtil.writeFile(cssLogicFile.getAbsolutePath(), new Gson().toJson(cssBeans));
+			DesignDataManager.setBlocks(cleanCssName, "onCreate_initializeLogic", cssBeans);
 		}
+		DesignDataManager.saveAllSavedLogic(this, projectId);
 
 		// Global JS content is saved directly to assets/js/script.js without creating redundant script_logic.json
 

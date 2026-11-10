@@ -258,21 +258,33 @@ public class ExportManager {
     }
 
     public String compileBlocksForMode(String cleanPage, String mode) {
-        File logicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + cleanPage + "_logic.json");
-        if (!logicFile.exists()) return "";
+        if ("html".equalsIgnoreCase(mode)) return "";
+        DesignDataManager.loadSavedLogic(context, projectId, cleanPage);
+        Map<String, ArrayList<BlockBean>> allBlocks = DesignDataManager.getAllBlocks(cleanPage);
+        if (allBlocks == null || allBlocks.isEmpty()) {
+            File logicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + cleanPage + "_logic.json");
+            if (logicFile.exists()) {
+                try {
+                    String content = FileUtil.readFile(logicFile.getAbsolutePath());
+                    if (content != null && !content.trim().isEmpty()) {
+                        DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(content, cleanPage);
+                        if (data != null && data.blocks != null) {
+                            allBlocks = data.blocks;
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        if (allBlocks == null || allBlocks.isEmpty()) return "";
         try {
-            String content = FileUtil.readFile(logicFile.getAbsolutePath());
-            if (content == null || content.trim().isEmpty()) return "";
-            DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(content, cleanPage);
-            if (data == null || data.blocks == null || data.blocks.isEmpty()) return "";
             BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
             if ("html".equalsIgnoreCase(mode)) {
-                ArrayList<BlockBean> targetBlocks = data.blocks.get("onCreate_initializeLogic");
+                ArrayList<BlockBean> targetBlocks = allBlocks.get("onCreate_initializeLogic");
                 if (targetBlocks == null || targetBlocks.isEmpty()) {
-                    targetBlocks = data.blocks.get("onPageLoad_onPageLoad");
+                    targetBlocks = allBlocks.get("onPageLoad_onPageLoad");
                 }
                 if (targetBlocks == null || targetBlocks.isEmpty()) {
-                    for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
+                    for (Map.Entry<String, ArrayList<BlockBean>> entry : allBlocks.entrySet()) {
                         String key = entry.getKey();
                         if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
                         if (entry.getValue() != null) {
@@ -308,7 +320,7 @@ public class ExportManager {
 
             StringBuilder sb = new StringBuilder();
             java.util.Set<String> validIds = ProjectCodeGenerator.collectWidgetIdentifiers(context, projectId, cleanPage);
-            for (Map.Entry<String, ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
+            for (Map.Entry<String, ArrayList<BlockBean>> entry : allBlocks.entrySet()) {
                 String key = entry.getKey();
                 if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
                 if (key != null && validIds != null && !validIds.isEmpty() && !ProjectCodeGenerator.isSystemEvent(key)) {
@@ -418,18 +430,10 @@ public class ExportManager {
         }
         String currentPageName = pageManager.getCurrentPage();
 
-        // Load all project logic files into mapBlocks so addMoreBlockCodes can find function definitions
-        File projDir = new File(FileUtil.getDragWebDir(), "projects/" + projectId);
-        if (projDir.exists() && projDir.isDirectory()) {
-            File[] files = projDir.listFiles();
-            if (files != null) {
-                for (File f : files) {
-                    if (f.getName().endsWith("_logic.json")) {
-                        String pageKey = f.getName().replace("_logic.json", "");
-                        DesignDataManager.loadSavedLogic(context, projectId, pageKey);
-                    }
-                }
-            }
+        // Load unified logic file (and migrate legacy _logic.json if needed)
+        DesignDataManager.loadSavedLogic(context, projectId, "index");
+        for (String p : allPages) {
+            DesignDataManager.loadSavedLogic(context, projectId, p);
         }
 
         Map<String, String> pageHtmlMap = new HashMap<>();
@@ -448,18 +452,34 @@ public class ExportManager {
             accumulatedCssBuffer.append("\n/* Global Stylesheet Styles */\n").append(cssBlockCode).append("\n");
         }
         // ASD raw CSS blocks from global stylesheet
-        File globalCssLogicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + globalCssClean + "_logic.json");
-        if (globalCssLogicFile.exists()) {
+        Map<String, ArrayList<BlockBean>> globalCssBlocks = DesignDataManager.getAllBlocks(globalCssClean);
+        if (globalCssBlocks != null && !globalCssBlocks.isEmpty()) {
             try {
                 LogicBlockManager asdReader = new LogicBlockManager(context);
-                String logicJson = FileUtil.readFile(globalCssLogicFile.getAbsolutePath());
-                asdReader.fromJson(logicJson);
+                Map<String, Object> rootMap = new HashMap<>();
+                rootMap.put("blocks", globalCssBlocks);
+                asdReader.fromJson(new Gson().toJson(rootMap));
                 String asdCss = asdReader.generateAsdSource("css");
                 if (asdCss != null && !asdCss.trim().isEmpty()) {
                     accumulatedCssBuffer.append("\n/* Global Stylesheet ASD CSS */\n").append(asdCss).append("\n");
                 }
             } catch (Exception e) {
                 Log.w("ExportManager", "Error parsing global CSS ASD blocks: " + e.getMessage());
+            }
+        } else {
+            File globalCssLogicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + globalCssClean + "_logic.json");
+            if (globalCssLogicFile.exists()) {
+                try {
+                    LogicBlockManager asdReader = new LogicBlockManager(context);
+                    String logicJson = FileUtil.readFile(globalCssLogicFile.getAbsolutePath());
+                    asdReader.fromJson(logicJson);
+                    String asdCss = asdReader.generateAsdSource("css");
+                    if (asdCss != null && !asdCss.trim().isEmpty()) {
+                        accumulatedCssBuffer.append("\n/* Global Stylesheet ASD CSS */\n").append(asdCss).append("\n");
+                    }
+                } catch (Exception e) {
+                    Log.w("ExportManager", "Error parsing global CSS ASD blocks: " + e.getMessage());
+                }
             }
         }
 
@@ -478,18 +498,34 @@ public class ExportManager {
             accumulatedJsBuffer.append(jsBlockCode).append("\n");
         }
         // ASD raw JS blocks from global script
-        File globalJsLogicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + globalJsClean + "_logic.json");
-        if (globalJsLogicFile.exists()) {
+        Map<String, ArrayList<BlockBean>> globalJsBlocks = DesignDataManager.getAllBlocks(globalJsClean);
+        if (globalJsBlocks != null && !globalJsBlocks.isEmpty()) {
             try {
                 LogicBlockManager asdReader = new LogicBlockManager(context);
-                String logicJson = FileUtil.readFile(globalJsLogicFile.getAbsolutePath());
-                asdReader.fromJson(logicJson);
+                Map<String, Object> rootMap = new HashMap<>();
+                rootMap.put("blocks", globalJsBlocks);
+                asdReader.fromJson(new Gson().toJson(rootMap));
                 String asdJs = asdReader.generateAsdSource("js");
                 if (asdJs != null && !asdJs.trim().isEmpty()) {
                     accumulatedJsBuffer.append(asdJs).append("\n");
                 }
             } catch (Exception e) {
                 Log.w("ExportManager", "Error parsing global JS ASD blocks: " + e.getMessage());
+            }
+        } else {
+            File globalJsLogicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + globalJsClean + "_logic.json");
+            if (globalJsLogicFile.exists()) {
+                try {
+                    LogicBlockManager asdReader = new LogicBlockManager(context);
+                    String logicJson = FileUtil.readFile(globalJsLogicFile.getAbsolutePath());
+                    asdReader.fromJson(logicJson);
+                    String asdJs = asdReader.generateAsdSource("js");
+                    if (asdJs != null && !asdJs.trim().isEmpty()) {
+                        accumulatedJsBuffer.append(asdJs).append("\n");
+                    }
+                } catch (Exception e) {
+                    Log.w("ExportManager", "Error parsing global JS ASD blocks: " + e.getMessage());
+                }
             }
         }
 
@@ -506,10 +542,17 @@ public class ExportManager {
                 String pageJson = pageManager.loadPageLayout(pageName);
                 pageLogic = new LogicBlockManager(context);
                 String cleanName = DesignDataManager.getCleanPageName(pageName);
-                File logicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + cleanName + "_logic.json");
-                if (logicFile.exists()) {
-                    String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
-                    pageLogic.fromJson(logicJson);
+                Map<String, ArrayList<BlockBean>> pageBlocks = DesignDataManager.getAllBlocks(cleanName);
+                if (pageBlocks != null && !pageBlocks.isEmpty()) {
+                    Map<String, Object> rootMap = new HashMap<>();
+                    rootMap.put("blocks", pageBlocks);
+                    pageLogic.fromJson(new Gson().toJson(rootMap));
+                } else {
+                    File logicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + cleanName + "_logic.json");
+                    if (logicFile.exists()) {
+                        String logicJson = FileUtil.readFile(logicFile.getAbsolutePath());
+                        pageLogic.fromJson(logicJson);
+                    }
                 }
 
                 List<Map<String, Object>> widgetTree = null;
@@ -764,11 +807,7 @@ public class ExportManager {
         html.append("</head>\n");
         html.append("<body>\n");
 
-        String cleanName = DesignDataManager.getCleanPageName(pageName);
-        String pageHtmlBlocks = compileBlocksForMode(cleanName, "html");
-        if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
-            html.append("  ").append(pageHtmlBlocks.replace("\n", "\n  ")).append("\n");
-        } else if (widgetTree != null) {
+        if (widgetTree != null) {
             for (Map<String, Object> nodeMap : widgetTree) {
                 html.append(generateElementHtmlFromNode(nodeMap, 1));
             }
@@ -1068,11 +1107,7 @@ public class ExportManager {
         html.append("</head>\n");
         html.append("<body>\n");
 
-        String cleanName = DesignDataManager.getCleanPageName(pageName);
-        String pageHtmlBlocks = compileBlocksForMode(cleanName, "html");
-        if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
-            html.append("  ").append(pageHtmlBlocks.replace("\n", "\n  ")).append("\n");
-        } else if (screen instanceof ViewGroup) {
+        if (screen instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) screen;
             for (int i = 0; i < vg.getChildCount(); i++) {
                 html.append(generateElementHtml(vg.getChildAt(i), 1));
@@ -1535,6 +1570,15 @@ public class ExportManager {
             return "  <link rel=\"stylesheet\" href=\"css/style.css\">\n";
         }
         
+        PageManager pm = new PageManager(context, projectId);
+        PageManager.PageConfig cfg = pm.getPageConfig(pageName);
+        if (cfg != null && !cfg.useGlobalCss && cfg.cssFile != null && !cfg.cssFile.isEmpty()) {
+            if (cfg.cssFile.equals("css/style.css")) {
+                return "  <link rel=\"stylesheet\" href=\"css/style.css\">\n";
+            }
+            return "  <link rel=\"stylesheet\" href=\"" + cfg.cssFile + "\">\n";
+        }
+
         File metaFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages/" + pageName + ".meta");
         if (!metaFile.exists()) {
             metaFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "_" + pageName + ".meta");

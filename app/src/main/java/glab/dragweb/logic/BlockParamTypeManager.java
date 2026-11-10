@@ -121,6 +121,7 @@ public class BlockParamTypeManager {
         d.put("htmlMethod", Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "dialog"));
         d.put("htmlRel", Arrays.asList("stylesheet", "noopener", "noreferrer", "canonical", "preload", "prefetch", "icon", "alternate", "author", "help", "license", "next", "prev"));
         d.put("htmlTag", Arrays.asList("div", "span", "p", "section", "article", "header", "footer", "nav", "main", "aside", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "form", "input", "button", "a", "img", "table", "tr", "td", "th", "label", "select", "option", "textarea", "pre", "blockquote", "code", "figure", "details", "summary", "template", "canvas", "video", "audio", "picture", "source", "iframe"));
+        d.put("Convert", d.get("htmlTag"));
         d.put("htmlRole", Arrays.asList("alert", "alertdialog", "banner", "button", "checkbox", "complementary", "contentinfo", "dialog", "form", "heading", "img", "link", "list", "listitem", "main", "navigation", "region", "search", "tab", "tabpanel", "tooltip"));
         d.put("htmlLoading", Arrays.asList("eager", "lazy"));
         d.put("htmlDecoding", Arrays.asList("async", "auto", "sync"));

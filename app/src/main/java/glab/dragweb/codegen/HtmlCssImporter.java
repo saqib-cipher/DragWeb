@@ -2738,13 +2738,24 @@ public class HtmlCssImporter {
                     List<Map<String, Object>> children = parseHtmlNodes(innerHtml);
                     if (!children.isEmpty()) {
                         widgetNode.put("children", children);
+                    } else {
+                        // If container has only text content (e.g. <a>Link</a> or <button>Submit</button>)
+                        String textContent = innerHtml.replaceAll("<[^>]*>", "").trim();
+                        if (!textContent.isEmpty()) {
+                            String decoded = decodeHtmlEntities(textContent);
+                            Map<String, Object> function = (Map<String, Object>) widgetNode.get("function");
+                            if (function != null) function.put("text", decoded);
+                            widgetNode.put("text", decoded);
+                        }
                     }
                 } else {
-                    // For leaf elements, just extract text content
+                    // For leaf elements, extract text content
                     String textContent = innerHtml.replaceAll("<[^>]*>", "").trim();
                     if (!textContent.isEmpty()) {
+                        String decoded = decodeHtmlEntities(textContent);
                         Map<String, Object> function = (Map<String, Object>) widgetNode.get("function");
-                        function.put("text", decodeHtmlEntities(textContent));
+                        if (function != null) function.put("text", decoded);
+                        widgetNode.put("text", decoded);
                     }
                 }
 
@@ -2754,8 +2765,10 @@ public class HtmlCssImporter {
                 String innerHtml = html.substring(pos);
                 String textContent = innerHtml.replaceAll("<[^>]*>", "").trim();
                 if (!textContent.isEmpty()) {
+                    String decoded = decodeHtmlEntities(textContent);
                     Map<String, Object> function = (Map<String, Object>) widgetNode.get("function");
-                    function.put("text", decodeHtmlEntities(textContent));
+                    if (function != null) function.put("text", decoded);
+                    widgetNode.put("text", decoded);
                 }
                 pos = len;
             }
@@ -2954,12 +2967,20 @@ public class HtmlCssImporter {
 
         // Extract id
         if (parsedTag.attributes.containsKey("id")) {
-            function.put("id", parsedTag.attributes.get("id"));
+            String idVal = parsedTag.attributes.get("id");
+            if (idVal != null && !idVal.trim().isEmpty()) {
+                node.put("id", idVal.trim());
+                function.put("id", idVal.trim());
+            }
         }
 
         // Extract class
         if (parsedTag.attributes.containsKey("class")) {
-            function.put("class", parsedTag.attributes.get("class"));
+            String classVal = parsedTag.attributes.get("class");
+            if (classVal != null && !classVal.trim().isEmpty()) {
+                node.put("class", classVal.trim());
+                function.put("class", classVal.trim());
+            }
         }
 
         // Extract tag-specific attributes
@@ -3022,6 +3043,14 @@ public class HtmlCssImporter {
 
         function.put("style", styleMap);
         node.put("function", function);
+        node.put("styles", styleMap);
+
+        String conv = "View";
+        if (tag.equals("button")) conv = "Button";
+        else if (tag.equals("p") || tag.equals("h1") || tag.equals("h2") || tag.equals("h3") || tag.equals("span") || tag.equals("a")) conv = "TextView";
+        else if (tag.equals("img")) conv = "ImageView";
+        else if (tag.equals("div") || tag.equals("section") || tag.equals("header") || tag.equals("footer")) conv = "LinearLayout";
+        node.put("convert", conv);
 
         return node;
     }
@@ -3180,21 +3209,7 @@ public class HtmlCssImporter {
     }
 
     private boolean isSupportedTag(String tag) {
-        for (String supported : SUPPORTED_TAGS) {
-            if (supported.equals(tag)) return true;
-        }
-        // Also accept tags that we map to supported ones
-        switch (tag) {
-            case "thead": case "tbody": case "tfoot": case "tr": case "td": case "th":
-            case "code": case "strong": case "b": case "em": case "i": case "u":
-            case "small": case "mark": case "del": case "ins": case "sub": case "sup":
-            case "abbr": case "cite": case "q": case "time":
-            case "figure": case "figcaption": case "details": case "summary": case "dialog":
-            case "select":
-                return true;
-            default:
-                return false;
-        }
+        return tag != null && !tag.trim().isEmpty();
     }
 
     private boolean isVoidElement(String tag) {

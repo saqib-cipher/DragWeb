@@ -292,6 +292,28 @@ public class BlockArg extends BlockBase {
             else if (menuName.startsWith("m.")) menuName = menuName.substring(2);
             else if (menuName.startsWith("s.")) menuName = menuName.substring(2);
 
+            if ("Convert".equalsIgnoreCase(menuName) || "view_convert".equalsIgnoreCase(menuName)
+                    || "convert".equalsIgnoreCase(menuName) || "htmlTag".equalsIgnoreCase(menuName)
+                    || "ConvertTag".equalsIgnoreCase(menuName) || "tag".equalsIgnoreCase(menuName)
+                    || "html_convert".equalsIgnoreCase(menuName) || "html_convert_leaf".equalsIgnoreCase(menuName)) {
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Convert View");
+                BlockParamTypeManager pManager = new BlockParamTypeManager(this.getContext());
+                java.util.List<String> options = null;
+                if (pManager.hasType("htmlTag")) {
+                    options = pManager.getOptions("htmlTag");
+                } else if (pManager.hasType("Convert")) {
+                    options = pManager.getOptions("Convert");
+                }
+                dialog.showConvertViewDialog(options, this.argValue != null ? this.argValue.toString() : "", new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        applyArgValueChange(value);
+                    }
+                });
+                return;
+            }
+
             if ("id.selector".equalsIgnoreCase(menuName) || "id".equalsIgnoreCase(menuName) || "idSelector".equalsIgnoreCase(menuName)) {
                 UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
                 dialog.setTitle("Pick ID")

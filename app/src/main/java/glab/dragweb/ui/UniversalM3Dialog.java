@@ -2224,4 +2224,122 @@ public final class UniversalM3Dialog {
 
         builder.show();
     }
+
+    public void showConvertViewDialog(List<String> optionsList, String initialValue, final OnText cb) {
+        int pad = dp(24);
+        LinearLayout dialogContainer = new LinearLayout(context);
+        dialogContainer.setOrientation(LinearLayout.VERTICAL);
+        dialogContainer.setPadding(pad, dp(12), pad, dp(20));
+
+        // 1. Search Bar
+        TextInputLayout searchTil = createTextInputLayout("Search");
+        final TextInputEditText searchEdit = createEditor(searchTil, "");
+        searchTil.addView(searchEdit);
+        searchTil.setStartIconDrawable(R.drawable.ic_search);
+        LinearLayout.LayoutParams searchLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        searchLp.bottomMargin = dp(8);
+        dialogContainer.addView(searchTil, searchLp);
+
+        // 2. Scrollable RadioGroup
+        ScrollView scroll = new ScrollView(context);
+        LinearLayout.LayoutParams scrollLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f);
+        scroll.setLayoutParams(scrollLp);
+        dialogContainer.addView(scroll);
+
+        final android.widget.RadioGroup rg = new android.widget.RadioGroup(context);
+        rg.setOrientation(android.widget.RadioGroup.VERTICAL);
+        scroll.addView(rg);
+
+        // Collect options
+        final List<String> allItems = new ArrayList<>();
+        if (optionsList != null && !optionsList.isEmpty()) {
+            allItems.addAll(optionsList);
+        } else {
+            // Default comprehensive tag & view options
+            allItems.addAll(Arrays.asList(
+                // Web Layouts & Containers
+                "div", "section", "header", "footer", "nav", "main", "article", "aside",
+                "form", "table", "thead", "tbody", "tr", "td", "th", "ul", "ol", "li",
+                // Web Text & Typography
+                "p", "h1", "h2", "h3", "h4", "h5", "h6", "span", "strong", "em", "b", "i", "blockquote", "pre", "code", "label",
+                // Web Interactive & Controls
+                "button", "a", "input", "textarea", "select", "option",
+                // Web Media & Embeds
+                "img", "svg", "video", "audio", "iframe", "canvas", "figure", "figcaption", "hr", "br",
+                // Android Views (Sketchware Compatibility)
+                "LinearLayout", "FrameLayout", "RelativeLayout",
+                "androidx.constraintlayout.widget.ConstraintLayout",
+                "androidx.coordinatorlayout.widget.CoordinatorLayout",
+                "ScrollView", "HorizontalScrollView",
+                "androidx.core.widget.NestedScrollView",
+                "androidx.recyclerview.widget.RecyclerView",
+                "androidx.cardview.widget.CardView",
+                "com.google.android.material.button.MaterialButton",
+                "TextView", "ImageView", "Button", "EditText"
+            ));
+        }
+
+        final String currentVal = initialValue != null ? initialValue.trim() : "";
+        final List<com.google.android.material.radiobutton.MaterialRadioButton> radioButtons = new ArrayList<>();
+
+        for (String item : allItems) {
+            com.google.android.material.radiobutton.MaterialRadioButton rb = new com.google.android.material.radiobutton.MaterialRadioButton(context);
+            rb.setText(item);
+            rb.setTag(item);
+            rb.setTextSize(15);
+            rb.setPadding(dp(8), dp(8), dp(8), dp(8));
+            if (item.equalsIgnoreCase(currentVal)) {
+                rb.setChecked(true);
+            }
+            rg.addView(rb);
+            radioButtons.add(rb);
+        }
+
+        // Live search filter
+        searchEdit.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String query = s != null ? s.toString().trim().toLowerCase() : "";
+                for (com.google.android.material.radiobutton.MaterialRadioButton rb : radioButtons) {
+                    String tag = rb.getTag() != null ? rb.getTag().toString() : "";
+                    if (query.isEmpty() || tag.toLowerCase().contains(query)) {
+                        rb.setVisibility(View.VISIBLE);
+                    } else {
+                        rb.setVisibility(View.GONE);
+                    }
+                }
+            }
+            @Override public void afterTextChanged(android.text.Editable s) {}
+        });
+
+        MaterialAlertDialogBuilder builder = createBuilder()
+            .setTitle(this.title != null && !this.title.isEmpty() ? this.title : "Convert View")
+            .setView(dialogContainer)
+            .setPositiveButton("Select", (dialogInterface, which) -> {
+                int checkedId = rg.getCheckedRadioButtonId();
+                View selectedRb = rg.findViewById(checkedId);
+                if (selectedRb instanceof com.google.android.material.radiobutton.MaterialRadioButton) {
+                    String selectedTag = ((com.google.android.material.radiobutton.MaterialRadioButton) selectedRb).getTag().toString();
+                    if (cb != null) cb.onText(selectedTag);
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .setNeutralButton("Code Editor", (dialogInterface, which) -> {
+                UniversalM3Dialog customDialog = new UniversalM3Dialog(context);
+                customDialog.setTitle("Custom Tag / View")
+                            .setHint("e.g. custom-tag, div, p")
+                            .setInitialValue(currentVal)
+                            .showTextInput(cb);
+            });
+
+        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        dialog.show();
+
+        if (dialog.getWindow() != null) {
+            int displayHeight = context.getResources().getDisplayMetrics().heightPixels;
+            int maxDialogHeight = (int) (displayHeight * 0.75f);
+            dialogContainer.setMinimumHeight(dp(300));
+            scroll.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, maxDialogHeight - dp(160)));
+        }
+    }
 }

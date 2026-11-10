@@ -316,8 +316,26 @@ public class HtmlCode2Block {
         if (block.parameters != null && !block.parameters.isEmpty()) {
             String p0 = block.parameters.get(0);
             if (p0 != null && !p0.trim().isEmpty() && !p0.startsWith("@")) {
-                if ("html_convert".equals(block.opCode) || "html_convert_leaf".equals(block.opCode)) {
-                    return p0.trim();
+                if ("html_convert".equals(block.opCode) || "html_convert_leaf".equals(block.opCode)
+                        || "view_convert".equals(block.opCode) || "view_convert_leaf".equals(block.opCode)) {
+                    String clean = p0.trim();
+                    String lower = clean.toLowerCase();
+                    if (lower.contains("linearlayout") || lower.contains("framelayout")
+                            || lower.contains("relativelayout") || lower.contains("coordinatorlayout")
+                            || lower.contains("constraintlayout") || lower.contains("cardview")
+                            || lower.contains("scrollview") || lower.contains("recyclerview")
+                            || lower.contains("viewpager")) {
+                        return "div";
+                    } else if (lower.contains("textview")) {
+                        return "p";
+                    } else if (lower.contains("button")) {
+                        return "button";
+                    } else if (lower.contains("imageview")) {
+                        return "img";
+                    } else if (lower.contains("edittext")) {
+                        return "input";
+                    }
+                    return clean;
                 }
             }
         }
@@ -382,9 +400,25 @@ public class HtmlCode2Block {
             }
         }
 
-        if (attr.code != null && attr.code.contains("%1$s")) {
+        if ("id".equalsIgnoreCase(op)) {
+            String val = (attr.parameters != null && !attr.parameters.isEmpty()) ? attr.parameters.get(0) : "";
+            return "id=\"" + val + "\"";
+        }
+        if ("class".equalsIgnoreCase(op)) {
+            String val = (attr.parameters != null && !attr.parameters.isEmpty()) ? attr.parameters.get(0) : "";
+            return "class=\"" + val + "\"";
+        }
+        if ("style".equalsIgnoreCase(op)) {
+            String val = (attr.parameters != null && !attr.parameters.isEmpty()) ? attr.parameters.get(0) : "";
+            return "style=\"" + val + "\"";
+        }
+
+        if (attr.code != null && attr.code.contains("%")) {
             try {
-                return String.format(attr.code, attr.parameters.toArray());
+                if (attr.parameters != null && !attr.parameters.isEmpty()) {
+                    String fmt = attr.code.contains("%1$s") ? attr.code : attr.code.replace("%s", "%1$s");
+                    return String.format(fmt, attr.parameters.toArray());
+                }
             } catch (Exception ignored) {}
         }
         return "";
@@ -474,11 +508,16 @@ public class HtmlCode2Block {
 
             if (matchedDef != null) {
                 viewBlock = createBlockFromDef(matchedDef, matchedDef.getOpCode(), matchedDef.getSpec(), matchedDef.getType(), matchedDef.color, viewId);
+                if (("html_convert".equals(matchedDef.getOpCode()) || "html_convert_leaf".equals(matchedDef.getOpCode())
+                        || "view_convert".equals(matchedDef.getOpCode()) || "view_convert_leaf".equals(matchedDef.getOpCode()))
+                        && viewBlock.parameters.isEmpty()) {
+                    viewBlock.parameters.add(elem.tagName);
+                }
             } else if (isVoid) {
-                viewBlock = createBlockFromDef(ctx.fallbackLeafDef, "html_convert_leaf", "<%s.inputOnly />", "c", "#607D8B", viewId);
+                viewBlock = createBlockFromDef(ctx.fallbackLeafDef, "html_convert_leaf", "< %m.htmlTag />", "c", "#607D8B", viewId);
                 viewBlock.parameters.add(elem.tagName);
             } else {
-                viewBlock = createBlockFromDef(ctx.fallbackContainerDef, "html_convert", "<%s.inputOnly>", "e", "#607D8B", viewId);
+                viewBlock = createBlockFromDef(ctx.fallbackContainerDef, "html_convert", "< %m.htmlTag >", "e", "#607D8B", viewId);
                 viewBlock.parameters.add(elem.tagName);
             }
 

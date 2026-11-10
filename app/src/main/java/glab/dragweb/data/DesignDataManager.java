@@ -997,30 +997,13 @@ public class DesignDataManager {
         if (pageName == null || pageName.isEmpty()) pageName = "index";
         String cleanPage = getCleanPageName(pageName);
 
-        File extLogicFile = new File(FileUtil.getDragWebDir(context),
-            "projects/" + projectId + "/" + cleanPage + "_logic.json");
+        File projDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId);
+        File logicFile = new File(projDir, "logic");
 
-        // Migrate any legacy style_logic.json into canonical css_style_logic.json and remove duplicate
-        if ("css_style".equals(cleanPage)) {
-            File legacyStyleFile = new File(FileUtil.getDragWebDir(context),
-                "projects/" + projectId + "/style_logic.json");
-            if (FileUtil.exists(legacyStyleFile)) {
-                if (!FileUtil.exists(extLogicFile)) {
-                    String legacyContent = FileUtil.readFile(legacyStyleFile.getAbsolutePath());
-                    if (legacyContent != null && !legacyContent.trim().isEmpty() && !legacyContent.trim().equals("{}")) {
-                        FileUtil.writeFile(extLogicFile.getAbsolutePath(), legacyContent);
-                    }
-                }
-                FileUtil.deleteFile(legacyStyleFile.getAbsolutePath());
-            }
-            if (mapBlocks != null) {
-                mapBlocks.remove("style");
-            }
-        }
-
-        String content = null;
-        if (FileUtil.exists(extLogicFile)) {
-            content = FileUtil.readFile(extLogicFile.getAbsolutePath());
+        if (FileUtil.exists(logicFile)) {
+            loadSavedLogicFromUnifiedFile(context, projectId, logicFile);
+        } else {
+            migrateLegacyLogicFiles(context, projectId);
         }
 
         if (!mapBlocks.containsKey(cleanPage)) {
@@ -1035,37 +1018,183 @@ public class DesignDataManager {
         if (!mapFunctions.containsKey(cleanPage)) {
             mapFunctions.put(cleanPage, new ArrayList<>());
         }
+    }
 
-        if (content == null || content.trim().isEmpty() || content.trim().equals("{}") || content.trim().equals("[]")) {
-            if (!mapBlocks.containsKey(cleanPage) || mapBlocks.get(cleanPage) == null || mapBlocks.get(cleanPage).isEmpty()) {
-                mapBlocks.put(cleanPage, new HashMap<>());
+    public static synchronized void loadSavedLogicFromUnifiedFile(Context context, String projectId, File logicFile) {
+        if (!FileUtil.exists(logicFile)) return;
+        String content = FileUtil.readFile(logicFile.getAbsolutePath());
+        if (content == null || content.trim().isEmpty()) return;
+
+        String[] lines = content.split("\r?\n");
+        String currentSection = null;
+        List<String> sectionLines = new ArrayList<>();
+
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("@")) {
+                if (currentSection != null && !sectionLines.isEmpty()) {
+                    processLogicSection(currentSection, sectionLines);
+                    sectionLines.clear();
+                }
+                currentSection = trimmed.substring(1).trim();
+            } else if (currentSection != null && !trimmed.isEmpty()) {
+                sectionLines.add(trimmed);
             }
-            if (!mapVariables.containsKey(cleanPage) || mapVariables.get(cleanPage) == null) {
-                mapVariables.put(cleanPage, new ArrayList<>());
+        }
+        if (currentSection != null && !sectionLines.isEmpty()) {
+            processLogicSection(currentSection, sectionLines);
+        }
+    }
+
+    private static void processLogicSection(String sectionHeader, List<String> lines) {
+        if (sectionHeader == null || lines == null || lines.isEmpty()) return;
+        Gson gson = new Gson();
+
+        if (sectionHeader.endsWith("_var")) {
+            String target = sectionHeader.substring(0, sectionHeader.length() - 4);
+            String cleanTarget = getCleanPageName(target);
+            if (!mapVariables.containsKey(cleanTarget)) mapVariables.put(cleanTarget, new ArrayList<>());
+            ArrayList<Pair<Integer, String>> varList = mapVariables.get(cleanTarget);
+
+            for (String line : lines) {
+                int colonIdx = line.indexOf(':');
+                if (colonIdx > 0) {
+                    String typePart = line.substring(0, colonIdx).trim();
+                    String varName = line.substring(colonIdx + 1).trim();
+                    try {
+                        int finalType;
+                        if (typePart.contains("-")) {
+                            String[] parts = typePart.split("-");
+                            int decl = Integer.parseInt(parts[0].trim()); // 0 = const, 1 = let
+                            int vType = Integer.parseInt(parts[1].trim()); // 0=bool, 1=num, 2=str
+                            finalType = (decl == 0) ? (vType + 4) : vType;
+                        } else {
+                            finalType = Integer.parseInt(typePart);
+                        }
+                        boolean exists = false;
+                        for (Pair<Integer, String> existing : varList) {
+                            if (existing.second != null && existing.second.equals(varName)) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            varList.add(new Pair<>(finalType, varName));
+                        }
+                    } catch (Exception ignored) {}
+                }
             }
-            if (!mapLists.containsKey(cleanPage) || mapLists.get(cleanPage) == null) {
-                mapLists.put(cleanPage, new ArrayList<>());
+            if (!cleanTarget.equals(target)) {
+                mapVariables.put(target, varList);
             }
-            if (!mapFunctions.containsKey(cleanPage) || mapFunctions.get(cleanPage) == null) {
-                mapFunctions.put(cleanPage, new ArrayList<>());
+        } else if (sectionHeader.endsWith("_moreblock")) {
+            String target = sectionHeader.substring(0, sectionHeader.length() - 10);
+            String cleanTarget = getCleanPageName(target);
+            if (!mapFunctions.containsKey(cleanTarget)) mapFunctions.put(cleanTarget, new ArrayList<>());
+            ArrayList<Pair<String, String>> funcList = mapFunctions.get(cleanTarget);
+
+            for (String line : lines) {
+                int colonIdx = line.indexOf(':');
+                if (colonIdx > 0) {
+                    String funcName = line.substring(0, colonIdx).trim();
+                    String spec = line.substring(colonIdx + 1).trim();
+                    boolean exists = false;
+                    for (Pair<String, String> existing : funcList) {
+                        if (existing.first != null && existing.first.equals(funcName)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        funcList.add(new Pair<>(funcName, spec));
+                    }
+                }
             }
-            return;
+            if (!cleanTarget.equals(target)) {
+                mapFunctions.put(target, funcList);
+            }
+        } else {
+            // Block section: could be @target or @target_eventKey or @target_func_name
+            String target;
+            String eventKey;
+            if (sectionHeader.contains("_func_")) {
+                int idx = sectionHeader.indexOf("_func_");
+                target = sectionHeader.substring(0, idx);
+                eventKey = sectionHeader.substring(idx + 1); // "func_xxx"
+            } else if (sectionHeader.contains("_") && !sectionHeader.equals("css_style") && !sectionHeader.equals("js_script")) {
+                int idx = sectionHeader.indexOf('_');
+                target = sectionHeader.substring(0, idx);
+                eventKey = sectionHeader.substring(idx + 1);
+            } else {
+                target = sectionHeader;
+                eventKey = "onCreate_initializeLogic";
+            }
+
+            String cleanTarget = getCleanPageName(target);
+            if (!mapBlocks.containsKey(cleanTarget)) mapBlocks.put(cleanTarget, new HashMap<>());
+            HashMap<String, ArrayList<BlockBean>> pageMap = mapBlocks.get(cleanTarget);
+
+            ArrayList<BlockBean> blocks = new ArrayList<>();
+            for (String line : lines) {
+                try {
+                    BlockBean b = gson.fromJson(line, BlockBean.class);
+                    if (b != null && b.opCode != null) {
+                        blocks.add(b);
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            pageMap.put(eventKey, blocks);
+            if ("onCreate_initializeLogic".equals(eventKey)) {
+                pageMap.put("immediate", blocks);
+                pageMap.put(cleanTarget, blocks);
+            }
+            if (!cleanTarget.equals(target)) {
+                if (!mapBlocks.containsKey(target)) mapBlocks.put(target, new HashMap<>());
+                mapBlocks.get(target).put(eventKey, blocks);
+            }
+        }
+    }
+
+    private static void migrateLegacyLogicFiles(Context context, String projectId) {
+        File projDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId);
+        if (!projDir.exists() || !projDir.isDirectory()) return;
+
+        File[] files = projDir.listFiles();
+        if (files == null) return;
+
+        boolean found = false;
+        for (File f : files) {
+            String name = f.getName();
+            if (name.endsWith("_logic.json") || "style_logic.json".equals(name)) {
+                found = true;
+                String cleanPage = name.replace("_logic.json", "").replace(".json", "");
+                if ("style_logic".equals(cleanPage) || "style".equals(cleanPage)) cleanPage = "css_style";
+                String content = FileUtil.readFile(f.getAbsolutePath());
+                if (content != null && !content.trim().isEmpty() && !content.trim().equals("{}") && !content.trim().equals("[]")) {
+                    try {
+                        PageLogicData data = deserializePageLogicData(content, cleanPage);
+                        if (data != null) {
+                            if (data.blocks != null && !data.blocks.isEmpty()) {
+                                if (!mapBlocks.containsKey(cleanPage)) mapBlocks.put(cleanPage, new HashMap<>());
+                                mapBlocks.get(cleanPage).putAll(data.blocks);
+                            }
+                            if (data.variables != null && !data.variables.isEmpty()) {
+                                if (!mapVariables.containsKey(cleanPage)) mapVariables.put(cleanPage, new ArrayList<>());
+                                mapVariables.get(cleanPage).addAll(data.variables);
+                            }
+                            if (data.functions != null && !data.functions.isEmpty()) {
+                                if (!mapFunctions.containsKey(cleanPage)) mapFunctions.put(cleanPage, new ArrayList<>());
+                                mapFunctions.get(cleanPage).addAll(data.functions);
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
         }
 
-        try {
-            PageLogicData data = deserializePageLogicData(content, pageName);
-            if (data != null) {
-                if (data.blocks != null && !data.blocks.isEmpty()) {
-                    mapBlocks.put(cleanPage, new HashMap<>(data.blocks));
-                } else if (!mapBlocks.containsKey(cleanPage) || mapBlocks.get(cleanPage) == null || mapBlocks.get(cleanPage).isEmpty()) {
-                    mapBlocks.put(cleanPage, new HashMap<>());
-                }
-                if (data.variables != null) mapVariables.put(cleanPage, new ArrayList<>(data.variables));
-                if (data.lists != null) mapLists.put(cleanPage, new ArrayList<>(data.lists));
-                if (data.functions != null) mapFunctions.put(cleanPage, new ArrayList<>(data.functions));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (found && ((mapBlocks != null && !mapBlocks.isEmpty()) || (mapVariables != null && !mapVariables.isEmpty()))) {
+            saveAllSavedLogic(context, projectId);
         }
     }
 
@@ -1074,68 +1203,208 @@ public class DesignDataManager {
     }
 
     public static void saveSavedLogic(Context context, String projectId, String pageName) {
-        if (projectId == null || projectId.isEmpty()) projectId = currentProjectId;
-        if (projectId == null || projectId.isEmpty()) projectId = "default_project";
-        if (pageName == null || pageName.isEmpty()) pageName = currentPageName;
-        if (pageName == null || pageName.isEmpty()) pageName = "index";
-        String cleanPage = getCleanPageName(pageName);
-
-        HashMap<String, ArrayList<BlockBean>> blocksMap = mapBlocks.get(cleanPage);
-        if (blocksMap == null && !mapBlocks.containsKey(cleanPage)) {
-            return;
-        }
-
-        PageLogicData data = new PageLogicData();
-
-        if (blocksMap != null) {
-            data.blocks.putAll(blocksMap);
-        }
-
-        ArrayList<Pair<Integer, String>> vars = mapVariables.get(cleanPage);
-        if (vars != null) {
-            data.variables.addAll(vars);
-        }
-
-        ArrayList<Pair<Integer, String>> lists = mapLists.get(cleanPage);
-        if (lists != null) {
-            data.lists.addAll(lists);
-        }
-
-        ArrayList<Pair<String, String>> funcs = mapFunctions.get(cleanPage);
-        if (funcs != null) {
-            data.functions.addAll(funcs);
-        }
-
-        String content = serializePageLogicData(data, pageName);
-
-        File extDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId);
-        if (!extDir.exists()) extDir.mkdirs();
-        File extFile = new File(extDir, cleanPage + "_logic.json");
-        FileUtil.writeFile(extFile.getAbsolutePath(), content);
-
-        // Delete any redundant style_logic.json when css_style is saved
-        if ("css_style".equals(cleanPage)) {
-            File redundantStyle = new File(extDir, "style_logic.json");
-            if (FileUtil.exists(redundantStyle)) {
-                FileUtil.deleteFile(redundantStyle.getAbsolutePath());
-            }
-            if (mapBlocks != null) {
-                mapBlocks.remove("style");
-            }
-        }
+        saveAllSavedLogic(context, projectId);
     }
 
-    public static void saveAllSavedLogic(Context context, String projectId) {
+    public static synchronized void saveAllSavedLogic(Context context, String projectId) {
         if (projectId == null || projectId.isEmpty()) projectId = currentProjectId;
         if (projectId == null || projectId.isEmpty()) return;
-        // Purge redundant "style" key so duplicate style_logic.json is never created
-        if (mapBlocks != null && mapBlocks.containsKey("css_style")) {
-            mapBlocks.remove("style");
+
+        File projDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId);
+        if (!projDir.exists()) projDir.mkdirs();
+
+        File logicFile = new File(projDir, "logic");
+
+        StringBuilder sb = new StringBuilder();
+        Gson gson = new Gson();
+
+        java.util.Set<String> allTargets = new java.util.LinkedHashSet<>();
+        allTargets.add("script.js");
+        allTargets.add("styles.css");
+
+        if (mapBlocks != null) {
+            for (String key : mapBlocks.keySet()) {
+                String canonical = getCanonicalTargetName(key);
+                if (!canonical.endsWith(".html") && !canonical.endsWith(".htm")) {
+                    allTargets.add(canonical);
+                }
+            }
         }
-        for (String page : new ArrayList<>(mapBlocks.keySet())) {
-            if ("style".equals(page) && mapBlocks.containsKey("css_style")) continue;
-            saveSavedLogic(context, projectId, page);
+        if (mapVariables != null) {
+            for (String key : mapVariables.keySet()) {
+                String canonical = getCanonicalTargetName(key);
+                if (!canonical.endsWith(".html") && !canonical.endsWith(".htm")) {
+                    allTargets.add(canonical);
+                }
+            }
         }
+        if (mapFunctions != null) {
+            for (String key : mapFunctions.keySet()) {
+                String canonical = getCanonicalTargetName(key);
+                if (!canonical.endsWith(".html") && !canonical.endsWith(".htm")) {
+                    allTargets.add(canonical);
+                }
+            }
+        }
+
+        for (String target : allTargets) {
+            String cleanTarget = getCleanPageName(target);
+
+            // 1. Blocks
+            HashMap<String, ArrayList<BlockBean>> blocksForTarget = null;
+            if (mapBlocks != null) {
+                blocksForTarget = mapBlocks.get(cleanTarget);
+                if (blocksForTarget == null) blocksForTarget = mapBlocks.get(target);
+            }
+
+            ArrayList<BlockBean> defaultBlocks = null;
+            if (blocksForTarget != null) {
+                defaultBlocks = blocksForTarget.get("onCreate_initializeLogic");
+                if (defaultBlocks == null || defaultBlocks.isEmpty()) {
+                    defaultBlocks = blocksForTarget.get("immediate");
+                }
+                if (defaultBlocks == null || defaultBlocks.isEmpty()) {
+                    defaultBlocks = blocksForTarget.get(cleanTarget);
+                }
+            }
+
+            sb.append("@").append(target).append("\n");
+            if (defaultBlocks != null) {
+                for (BlockBean b : defaultBlocks) {
+                    sb.append(gson.toJson(b)).append("\n");
+                }
+            }
+            sb.append("\n");
+
+            // Event blocks
+            if (blocksForTarget != null) {
+                for (Map.Entry<String, ArrayList<BlockBean>> entry : blocksForTarget.entrySet()) {
+                    String eventKey = entry.getKey();
+                    if ("onCreate_initializeLogic".equals(eventKey) || "onPageLoad_onPageLoad".equals(eventKey)
+                            || "immediate".equals(eventKey) || cleanTarget.equals(eventKey)
+                            || eventKey.startsWith("func_")) {
+                        continue;
+                    }
+                    if (entry.getValue() != null && !entry.getValue().isEmpty()) {
+                        sb.append("@").append(target).append("_").append(eventKey).append("\n");
+                        for (BlockBean b : entry.getValue()) {
+                            sb.append(gson.toJson(b)).append("\n");
+                        }
+                        sb.append("\n");
+                    }
+                }
+            }
+
+            // 2. Variables (_var)
+            ArrayList<Pair<Integer, String>> vars = null;
+            if (mapVariables != null) {
+                vars = mapVariables.get(cleanTarget);
+                if (vars == null) vars = mapVariables.get(target);
+            }
+
+            sb.append("@").append(target).append("_var\n");
+            if (vars != null) {
+                for (Pair<Integer, String> p : vars) {
+                    if (p != null && p.second != null) {
+                        int typeVal = p.first != null ? p.first : 2;
+                        int declType = (typeVal >= 4) ? 0 : 1; // 0=const, 1=let
+                        int varType = (typeVal >= 4) ? (typeVal - 4) : typeVal; // 0=bool, 1=num, 2=str
+                        sb.append(declType).append("-").append(varType).append(":").append(p.second).append("\n");
+                    }
+                }
+            }
+            sb.append("\n");
+
+            // 3. MoreBlocks (_moreblock)
+            ArrayList<Pair<String, String>> funcs = null;
+            if (mapFunctions != null) {
+                funcs = mapFunctions.get(cleanTarget);
+                if (funcs == null) funcs = mapFunctions.get(target);
+            }
+
+            sb.append("@").append(target).append("_moreblock\n");
+            if (funcs != null) {
+                for (Pair<String, String> f : funcs) {
+                    if (f != null && f.first != null) {
+                        sb.append(f.first).append(":").append(f.second != null ? f.second : "").append("\n");
+                    }
+                }
+            }
+            sb.append("\n");
+
+            // Function body blocks
+            if (blocksForTarget != null) {
+                for (Map.Entry<String, ArrayList<BlockBean>> entry : blocksForTarget.entrySet()) {
+                    String eventKey = entry.getKey();
+                    if (eventKey.startsWith("func_") && entry.getValue() != null && !entry.getValue().isEmpty()) {
+                        sb.append("@").append(target).append("_").append(eventKey).append("\n");
+                        for (BlockBean b : entry.getValue()) {
+                            sb.append(gson.toJson(b)).append("\n");
+                        }
+                        sb.append("\n");
+                    }
+                }
+            }
+        }
+
+        FileUtil.writeFile(logicFile.getAbsolutePath(), sb.toString());
+        cleanupLegacyLogicFiles(context, projectId);
+    }
+
+    public static void cleanupLegacyLogicFiles(Context context, String projectId) {
+        try {
+            File projDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId);
+            if (!projDir.exists() || !projDir.isDirectory()) return;
+            File[] files = projDir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.getName().endsWith("_logic.json") || "style_logic.json".equals(f.getName())) {
+                        f.delete();
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
+    public static String getCanonicalTargetName(String key) {
+        if (key == null || key.isEmpty()) return "index.html";
+        String clean = getCleanPageName(key);
+        if ("script".equals(clean)) return "script.js";
+        if ("css_style".equals(clean) || "style".equals(clean)) return "styles.css";
+        if (clean.endsWith(".html")) return clean;
+        return clean + ".html";
+    }
+
+    public static void removePage(Context context, String projectId, String pageName) {
+        String clean = getCleanPageName(pageName);
+        if (mapBlocks != null) {
+            mapBlocks.remove(clean);
+            mapBlocks.remove(pageName);
+        }
+        if (mapVariables != null) {
+            mapVariables.remove(clean);
+            mapVariables.remove(pageName);
+        }
+        if (mapFunctions != null) {
+            mapFunctions.remove(clean);
+            mapFunctions.remove(pageName);
+        }
+        saveAllSavedLogic(context, projectId);
+    }
+
+    public static void renamePage(Context context, String projectId, String oldName, String newName) {
+        String oldClean = getCleanPageName(oldName);
+        String newClean = getCleanPageName(newName);
+        if (mapBlocks != null && mapBlocks.containsKey(oldClean)) {
+            mapBlocks.put(newClean, mapBlocks.remove(oldClean));
+        }
+        if (mapVariables != null && mapVariables.containsKey(oldClean)) {
+            mapVariables.put(newClean, mapVariables.remove(oldClean));
+        }
+        if (mapFunctions != null && mapFunctions.containsKey(oldClean)) {
+            mapFunctions.put(newClean, mapFunctions.remove(oldClean));
+        }
+        saveAllSavedLogic(context, projectId);
     }
 
     public static void saveSavedLogic(String filename) {

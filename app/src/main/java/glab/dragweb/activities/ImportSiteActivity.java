@@ -295,48 +295,21 @@ public class ImportSiteActivity extends AppCompatActivity {
             }
         }
 
-        // Save layouts & logic
+        // Save layouts & logic using unified layout and logic
+        glab.dragweb.data.PageManager pm = new glab.dragweb.data.PageManager(this, projectId);
         for (String pName : pageNamesList) {
             List<Map<String, Object>> widgetTree = pageWidgetTrees.get(pName);
             if (widgetTree == null) widgetTree = new ArrayList<>();
             List<Map<String, Object>> htmlLogic = pageLogicBlocks.get(pName);
 
-            if (pName.equals("index")) {
-                File projectFile = new File(dir, projectId + ".json");
-                FileUtil.writeFile(projectFile.getAbsolutePath(), new Gson().toJson(widgetTree));
-                if (htmlLogic != null && !htmlLogic.isEmpty()) {
-                    File extLogicFile = new File(extPath, "index_logic.json");
-                    ArrayList<BlockBean> beans = importer.convertRawMapsToBeans(htmlLogic);
-                    FileUtil.writeFile(extLogicFile.getAbsolutePath(), new Gson().toJson(beans));
-                }
-            } else {
-                File projectFile = new File(dir, projectId + "_" + pName + ".json");
-                FileUtil.writeFile(projectFile.getAbsolutePath(), new Gson().toJson(widgetTree));
-                if (htmlLogic != null && !htmlLogic.isEmpty()) {
-                    String cleanPName = DesignDataManager.getCleanPageName(pName);
-                    File extLogicFile = new File(extPath, cleanPName + "_logic.json");
-                    ArrayList<BlockBean> beans = importer.convertRawMapsToBeans(htmlLogic);
-                    FileUtil.writeFile(extLogicFile.getAbsolutePath(), new Gson().toJson(beans));
-                }
-            }
+            String treeJson = new Gson().toJson(widgetTree);
+            pm.savePageLayout(pName, treeJson);
 
-            // Save layout file to external pages dir
-            try {
-                File extPagesDir = new File(extPath, "pages");
-                extPagesDir.mkdirs();
-                File extPageLayoutFile = new File(extPagesDir, pName + ".json");
-                FileUtil.writeFile(extPageLayoutFile.getAbsolutePath(), new Gson().toJson(widgetTree));
-            } catch (Exception e) {
-                Log.w("ImportSite", "Failed to write external layouts: " + e.getMessage());
+            if (htmlLogic != null && !htmlLogic.isEmpty()) {
+                String cleanPName = DesignDataManager.getCleanPageName(pName);
+                ArrayList<BlockBean> beans = importer.convertRawMapsToBeans(htmlLogic);
+                DesignDataManager.setBlocks(cleanPName, "onCreate_initializeLogic", beans);
             }
-        }
-
-        // Save project pages.json
-        try {
-            File pagesJsonFile = new File(extPath, "pages.json");
-            FileUtil.writeFile(pagesJsonFile.getAbsolutePath(), new Gson().toJson(pageNamesList));
-        } catch (Exception e) {
-            Log.e("ImportSiteActivity", "Failed to save pages list metadata: " + e.getMessage());
         }
 
         // Process global CSS
@@ -364,9 +337,8 @@ public class ImportSiteActivity extends AppCompatActivity {
 
         if (cssLogicBlocks != null && !cssLogicBlocks.isEmpty()) {
             String cleanCssName = DesignDataManager.getCleanPageName("css/style.css");
-            File cssLogicFile = new File(extPath, cleanCssName + "_logic.json");
             ArrayList<BlockBean> cssBeans = importer.convertRawMapsToBeans(cssLogicBlocks);
-            FileUtil.writeFile(cssLogicFile.getAbsolutePath(), new Gson().toJson(cssBeans));
+            DesignDataManager.setBlocks(cleanCssName, "onCreate_initializeLogic", cssBeans);
 
             // Compile and write compiled css output to external assets/css/style.css
             try {
@@ -417,9 +389,8 @@ public class ImportSiteActivity extends AppCompatActivity {
             }
 
             String cleanJsName = DesignDataManager.getCleanPageName("js/script.js");
-            File jsLogicFile = new File(extPath, cleanJsName + "_logic.json");
             ArrayList<BlockBean> jsBeans = importer.convertRawMapsToBeans(jsLogicBlocks);
-            FileUtil.writeFile(jsLogicFile.getAbsolutePath(), new Gson().toJson(jsBeans));
+            DesignDataManager.setBlocks(cleanJsName, "onCreate_initializeLogic", jsBeans);
 
             // Write script.js to external assets/js/script.js
             try {
@@ -444,6 +415,8 @@ public class ImportSiteActivity extends AppCompatActivity {
                 Log.w("ImportSite", "Failed to write script.js: " + e.getMessage());
             }
         }
+
+        DesignDataManager.saveAllSavedLogic(this, projectId);
 
         // Save metadata
         File metaFile = new File(extPath, "project.meta");

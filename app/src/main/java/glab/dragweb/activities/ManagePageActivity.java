@@ -128,33 +128,12 @@ public class ManagePageActivity extends AppCompatActivity {
     }
 
     private void loadPageMetadata() {
-        File metaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + pageName + ".meta");
-        if (!metaFile.exists()) {
-            metaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + pageName + ".meta");
-        }
-        boolean useGlobal = true;
-        String customCss = "css/style.css";
+        PageManager pm = new PageManager(this, projectId);
+        PageManager.PageConfig cfg = pm.getPageConfig(pageName);
 
-        if (metaFile.exists()) {
-            try {
-                String json = FileUtil.readFile(metaFile.getAbsolutePath());
-                Map<String, Object> map = new Gson().fromJson(json, new TypeToken<Map<String, Object>>(){}.getType());
-                if (map != null) {
-                    if (map.containsKey("useGlobalCss")) {
-                        useGlobal = (Boolean) map.get("useGlobalCss");
-                    }
-                    if (map.containsKey("customCssPath")) {
-                        customCss = (String) map.get("customCssPath");
-                    }
-                }
-            } catch (Exception e) {
-                // Ignore parsing errors
-            }
-        }
-
-        switchGlobalCss.setChecked(useGlobal);
-        etCssSelector.setText(customCss);
-        tilCssSelector.setEnabled(!useGlobal);
+        switchGlobalCss.setChecked(cfg.useGlobalCss);
+        etCssSelector.setText(cfg.cssFile != null ? cfg.cssFile : "css/style.css");
+        tilCssSelector.setEnabled(!cfg.useGlobalCss);
     }
 
     private void showCssDropdown() {
@@ -219,43 +198,25 @@ public class ManagePageActivity extends AppCompatActivity {
                 Toast.makeText(this, "Page name already exists", Toast.LENGTH_SHORT).show();
                 return;
             }
-            
             pm.renamePage(pageName, cleanName);
-
-            // Rename logic file in .dragweb
-            File extDir = new File(FileUtil.getDragWebDir(this), "projects/" + projectId);
-            File oldLogic = new File(extDir, pageName + "_logic.json");
-            File newLogic = new File(extDir, cleanName + "_logic.json");
-            if (oldLogic.exists()) {
-                oldLogic.renameTo(newLogic);
-            }
-
-            // Rename metadata file
-            File oldMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + pageName + ".meta");
-            if (!oldMeta.exists()) {
-                oldMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + pageName + ".meta");
-            }
-            File newMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + cleanName + ".meta");
-            if (!newMeta.getParentFile().exists()) newMeta.getParentFile().mkdirs();
-            if (oldMeta.exists()) {
-                oldMeta.renameTo(newMeta);
-            }
-
-            // Switch current active page in manager if we renamed it
             if (pageName.equals(pm.getCurrentPage())) {
                 pm.setCurrentPage(cleanName);
             }
         }
 
-        // Save page metadata
-        File saveMetaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + cleanName + ".meta");
-        if (!saveMetaFile.getParentFile().exists()) saveMetaFile.getParentFile().mkdirs();
-        Map<String, Object> metaMap = new HashMap<>();
-        metaMap.put("useGlobalCss", switchGlobalCss.isChecked());
-        metaMap.put("customCssPath", etCssSelector.getText().toString());
-        FileUtil.writeFile(saveMetaFile.getAbsolutePath(), new Gson().toJson(metaMap));
-        File legacyMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + cleanName + ".meta");
-        if (legacyMeta.exists()) legacyMeta.delete();
+        // Save page metadata into PageConfig in pages.json
+        PageManager.PageConfig cfg = pm.getPageConfig(cleanName);
+        cfg.useGlobalCss = switchGlobalCss.isChecked();
+        cfg.cssFile = etCssSelector.getText().toString().trim();
+        pm.savePageConfig(cfg);
+
+        // Clean up any legacy meta files
+        try {
+            File metaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + cleanName + ".meta");
+            if (metaFile.exists()) metaFile.delete();
+            File legacyMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + cleanName + ".meta");
+            if (legacyMeta.exists()) legacyMeta.delete();
+        } catch (Exception ignored) {}
 
         // Return intent details
         Intent resultIntent = new Intent();
@@ -263,7 +224,7 @@ public class ManagePageActivity extends AppCompatActivity {
         resultIntent.putExtra("old_page_name", pageName);
         resultIntent.putExtra("new_page_name", cleanName);
         resultIntent.putExtra("use_global_css", switchGlobalCss.isChecked());
-        resultIntent.putExtra("custom_css_path", etCssSelector.getText().toString());
+        resultIntent.putExtra("custom_css_path", etCssSelector.getText().toString().trim());
         setResult(RESULT_OK, resultIntent);
 
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show();
@@ -286,22 +247,6 @@ public class ManagePageActivity extends AppCompatActivity {
                 // Switch back active page index if we deleted current
                 if (pageName.equals(pm.getCurrentPage())) {
                     pm.setCurrentPage("index");
-                }
-
-                // Delete logic file from .dragweb
-                File extLogicFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/" + pageName + "_logic.json");
-                if (extLogicFile.exists()) {
-                    extLogicFile.delete();
-                }
-
-                // Delete metadata file
-                File metaFileToDelete = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + pageName + ".meta");
-                if (metaFileToDelete.exists()) {
-                    metaFileToDelete.delete();
-                }
-                File legacyMetaToDelete = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + pageName + ".meta");
-                if (legacyMetaToDelete.exists()) {
-                    legacyMetaToDelete.delete();
                 }
 
                 // Return deleted action

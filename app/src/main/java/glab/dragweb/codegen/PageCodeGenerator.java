@@ -83,15 +83,8 @@ public class PageCodeGenerator {
         collectedScripts.clear();
         StringBuilder bodyBuilder = new StringBuilder();
 
-        // Compile HTML blocks (category "html") into the body as the main reference
-        String pageHtmlBlocks = "";
-        if (currentPageName != null && !currentPageName.isEmpty()) {
-            pageHtmlBlocks = compileHtmlBlocks(currentPageName);
-        }
-
-        if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
-            bodyBuilder.append("  ").append(pageHtmlBlocks.replace("\n", "\n  ")).append("\n");
-        } else if (screen instanceof ViewGroup) {
+        // Render HTML elements directly from view tree (authoritative layout)
+        if (screen instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) screen;
             for (int i = 0; i < vg.getChildCount(); i++) {
                 bodyBuilder.append(generateHtmlForView(vg.getChildAt(i), 1));
@@ -152,15 +145,8 @@ public class PageCodeGenerator {
         collectedScripts.clear();
         StringBuilder bodyBuilder = new StringBuilder();
 
-        // Check if logic HTML blocks exist for this page (HTML blocks are main reference)
-        String pageHtmlBlocks = "";
-        if (currentPageName != null && !currentPageName.isEmpty()) {
-            pageHtmlBlocks = compileHtmlBlocks(currentPageName);
-        }
-
-        if (pageHtmlBlocks != null && !pageHtmlBlocks.trim().isEmpty()) {
-            bodyBuilder.append("  ").append(pageHtmlBlocks.replace("\n", "\n  ")).append("\n");
-        } else if (widgetTree != null) {
+        // Render HTML elements directly from widget tree (authoritative layout)
+        if (widgetTree != null) {
             for (Map<String, Object> nodeMap : widgetTree) {
                 bodyBuilder.append(generateHtmlForNode(nodeMap, 1));
             }
@@ -189,63 +175,6 @@ public class PageCodeGenerator {
         htmlBuilder.append(bodyBuilder);
         appendHtmlFooter(htmlBuilder, themeManager, logicBlockManager, customBlockManager);
         return htmlBuilder.toString();
-    }
-
-    private String compileHtmlBlocks(String pageName) {
-        if (projectId == null || projectId.isEmpty() || context == null) return "";
-        String cleanName = DesignDataManager.getCleanPageName(pageName);
-        java.io.File logicFile = new java.io.File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + cleanName + "_logic.json");
-        if (!logicFile.exists()) return "";
-        try {
-            String content = FileUtil.readFile(logicFile.getAbsolutePath());
-            if (content == null || content.trim().isEmpty()) return "";
-            DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(content, pageName);
-            if (data == null || data.blocks == null || data.blocks.isEmpty()) return "";
-            BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
-
-            // Canonical HTML event lookup: "onCreate_initializeLogic", then fallback to "onPageLoad_onPageLoad", then first HTML event
-            java.util.ArrayList<BlockBean> targetBlocks = data.blocks.get("onCreate_initializeLogic");
-            if (targetBlocks == null || targetBlocks.isEmpty()) {
-                targetBlocks = data.blocks.get("onPageLoad_onPageLoad");
-            }
-            if (targetBlocks == null || targetBlocks.isEmpty()) {
-                for (java.util.Map.Entry<String, java.util.ArrayList<BlockBean>> entry : data.blocks.entrySet()) {
-                    String key = entry.getKey();
-                    if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
-                    if (entry.getValue() != null) {
-                        for (BlockBean b : entry.getValue()) {
-                            if (b != null && ExportManager.isHtmlCategory(b.category)) {
-                                targetBlocks = entry.getValue();
-                                break;
-                            }
-                        }
-                    }
-                    if (targetBlocks != null && !targetBlocks.isEmpty()) break;
-                }
-            }
-
-            if (targetBlocks != null && !targetBlocks.isEmpty()) {
-                java.util.ArrayList<BlockBean> htmlBlocks = new java.util.ArrayList<>();
-                for (BlockBean b : targetBlocks) {
-                    if (b != null && ExportManager.isHtmlCategory(b.category)) {
-                        htmlBlocks.add(b);
-                    }
-                }
-                if (!htmlBlocks.isEmpty()) {
-                    String code = HtmlCode2Block.generateHtmlFromBlocks(context, htmlBlocks);
-                    if (code == null || code.trim().isEmpty()) {
-                        code = compiler.getSource(0, htmlBlocks);
-                    }
-                    if (code != null && !code.trim().isEmpty()) {
-                        return code.trim();
-                    }
-                }
-            }
-            return "";
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "";
-        }
     }
 
     private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager) {

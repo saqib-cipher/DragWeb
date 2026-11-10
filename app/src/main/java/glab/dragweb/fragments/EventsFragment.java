@@ -190,28 +190,6 @@ public class EventsFragment extends Fragment {
                             .setPositiveButton("Reset", (d, w) -> {
                                 String linkedFile = selectedMb.linkedFile != null ? selectedMb.linkedFile : "js/script.js";
                                 String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
-                                File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanPage + "_logic.json");
-                                if (FileUtil.exists(logicFile)) {
-                                    try {
-                                        String json = FileUtil.readFile(logicFile.getAbsolutePath());
-                                        if (json != null && !json.trim().isEmpty()) {
-                                            DesignDataManager.PageLogicData data = new Gson().fromJson(json, DesignDataManager.PageLogicData.class);
-                                            if (data != null && data.blocks != null) {
-                                                data.blocks.remove("func_" + selectedName);
-                                                data.blocks.remove(selectedName + "_moreBlock");
-                                                String updatedJson = new GsonBuilder().setPrettyPrinting().create().toJson(data);
-                                                FileUtil.writeFile(logicFile.getAbsolutePath(), updatedJson);
-                                            }
-                                        }
-                                    } catch (Exception e) {
-                                        Log.e("EventsFragment", "Error updating logic file", e);
-                                    }
-                                }
-
-                                // Delete function's own separate logic file if exists
-                                File funcLogicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanPage + "_func_" + selectedName + "_logic.json");
-                                FileUtil.deleteFile(funcLogicFile.getAbsolutePath());
-                                
                                 if (DesignDataManager.mapBlocks != null) {
                                     for (HashMap<String, ArrayList<BlockBean>> pageBlocks : DesignDataManager.mapBlocks.values()) {
                                         if (pageBlocks != null) {
@@ -220,6 +198,14 @@ public class EventsFragment extends Fragment {
                                         }
                                     }
                                 }
+                                DesignDataManager.saveAllSavedLogic(getContext(), projectId);
+
+                                // Delete legacy files if exist
+                                File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanPage + "_logic.json");
+                                if (FileUtil.exists(logicFile)) FileUtil.deleteFile(logicFile.getAbsolutePath());
+                                File funcLogicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanPage + "_func_" + selectedName + "_logic.json");
+                                if (FileUtil.exists(funcLogicFile)) FileUtil.deleteFile(funcLogicFile.getAbsolutePath());
+                                
                                 refreshLogicList();
                                 Toast.makeText(getContext(), "Function logic reset successfully", Toast.LENGTH_SHORT).show();
                             })
@@ -240,9 +226,12 @@ public class EventsFragment extends Fragment {
                             .setMessage("Are you sure you want to delete all logic blocks for '" + selected + "'? This cannot be undone.")
                             .setPositiveButton("Reset", (d, w) -> {
                                 String cleanName = DesignDataManager.getCleanPageName(selected);
+                                if (DesignDataManager.mapBlocks != null) {
+                                    DesignDataManager.mapBlocks.remove(cleanName);
+                                }
+                                DesignDataManager.saveAllSavedLogic(getContext(), projectId);
                                 File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanName + "_logic.json");
-                                FileUtil.deleteFile(logicFile.getAbsolutePath());
-                                DesignDataManager.mapBlocks.remove(cleanName);
+                                if (logicFile.exists()) FileUtil.deleteFile(logicFile.getAbsolutePath());
                                 refreshLogicList();
                                 Toast.makeText(getContext(), "Logic reset successfully", Toast.LENGTH_SHORT).show();
                             })
@@ -313,7 +302,7 @@ public class EventsFragment extends Fragment {
                     item.subtitle = f;
                     item.tag = f.endsWith(".js") ? "JS" : f.endsWith(".html") ? "HTML" : "CSS";
                     item.targetPath = f;
-                    item.blockCount = getBlockCountForCss(f);
+                    item.blockCount = getBlockCountForFile(f);
                     items.add(item);
                 }
             }
@@ -443,36 +432,59 @@ public class EventsFragment extends Fragment {
         }
 
         String cleanPage = DesignDataManager.getCleanPageName(linkedFile);
-        String[] pagesToCheck = new String[]{cleanPage, "script", "js_script", "index"};
-        for (String pKey : pagesToCheck) {
-            File logicFile = new File(FileUtil.getDragWebDir(getContext()),
-                "projects/" + projectId + "/" + pKey + "_logic.json");
-            if (FileUtil.exists(logicFile)) {
-                try {
-                    String json = FileUtil.readFile(logicFile.getAbsolutePath());
-                    if (json != null && !json.trim().isEmpty() && !json.trim().equals("{}")) {
-                        DesignDataManager.PageLogicData data = DesignDataManager.deserializePageLogicData(json, pKey);
-                        if (data != null && data.blocks != null) {
-                            if (data.blocks.containsKey(funcKey1) && data.blocks.get(funcKey1) != null) {
-                                return countBlocksExcludingDefine(data.blocks.get(funcKey1));
-                            }
-                            if (data.blocks.containsKey(funcKey2) && data.blocks.get(funcKey2) != null) {
-                                return countBlocksExcludingDefine(data.blocks.get(funcKey2));
-                            }
-                        }
+        DesignDataManager.loadSavedLogic(getContext(), projectId, cleanPage);
+        if (DesignDataManager.mapBlocks != null) {
+            for (HashMap<String, ArrayList<BlockBean>> map : DesignDataManager.mapBlocks.values()) {
+                if (map != null) {
+                    if (map.containsKey(funcKey1) && map.get(funcKey1) != null) {
+                        return countBlocksExcludingDefine(map.get(funcKey1));
+                    } else if (map.containsKey(funcKey2) && map.get(funcKey2) != null) {
+                        return countBlocksExcludingDefine(map.get(funcKey2));
                     }
-                } catch (Exception ignored) {}
+                }
             }
         }
         return 0;
     }
 
+    private int getBlockCountForFile(String filePath) {
+        if (filePath == null) return 0;
+        if (filePath.endsWith(".html") || filePath.endsWith(".htm")) {
+            try {
+                String cleanName = DesignDataManager.getCleanPageName(filePath);
+                PageManager pm = new PageManager(getContext(), projectId);
+                String json = pm.loadPageLayout(cleanName);
+                List<Map<String, Object>> tree = PageManager.parseLayoutTree(json);
+                return countWidgetsInTree(tree);
+            } catch (Exception ignored) {
+                return 0;
+            }
+        }
+        return getBlockCountForCss(filePath);
+    }
+
+    private int countWidgetsInTree(List<Map<String, Object>> tree) {
+        if (tree == null) return 0;
+        int count = 0;
+        for (Map<String, Object> node : tree) {
+            count++;
+            if (node != null && node.containsKey("children")) {
+                Object c = node.get("children");
+                if (c instanceof List) {
+                    try {
+                        count += countWidgetsInTree((List<Map<String, Object>>) c);
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        return count;
+    }
+
     private int getBlockCountForCss(String cssPath) {
         if (getContext() == null) return 0;
         String cleanName = DesignDataManager.getCleanPageName(cssPath);
+        DesignDataManager.loadSavedLogic(getContext(), projectId, cleanName);
 
-        // 1. Prefer the in-memory mapBlocks — always reflects the latest edits,
-        //    including blocks deleted in LogicBlockActivity before it saved to disk.
         if (DesignDataManager.mapBlocks != null
                 && DesignDataManager.mapBlocks.containsKey(cleanName)) {
             HashMap<String, ArrayList<BlockBean>> blocksMap = DesignDataManager.mapBlocks.get(cleanName);
@@ -481,7 +493,7 @@ public class EventsFragment extends Fragment {
             }
         }
 
-        // 2. Fall back to disk only when the key is absent from memory
+        // Fall back to legacy file if exists
         File logicFile = new File(FileUtil.getDragWebDir(getContext()),
             "projects/" + projectId + "/" + cleanName + "_logic.json");
         if (FileUtil.exists(logicFile)) {
@@ -621,11 +633,20 @@ public class EventsFragment extends Fragment {
                             .setMessage("Are you sure you want to delete all logic blocks for '" + item.title + "'? This cannot be undone.")
                             .setPositiveButton("Reset", (d, w) -> {
                                 String cleanName = DesignDataManager.getCleanPageName(item.targetPath);
+                                if (item.targetPath != null && item.targetPath.toLowerCase().endsWith(".html")) {
+                                    PageManager pm = new PageManager(getContext(), projectId);
+                                    pm.savePageLayout(cleanName, "[]");
+                                    File assetHtml = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/assets/" + cleanName + ".html");
+                                    if (assetHtml.exists()) FileUtil.writeFile(assetHtml.getAbsolutePath(), "");
+                                }
+                                if (DesignDataManager.mapBlocks != null) {
+                                    DesignDataManager.mapBlocks.remove(cleanName);
+                                }
+                                DesignDataManager.saveAllSavedLogic(getContext(), projectId);
                                 File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanName + "_logic.json");
-                                FileUtil.deleteFile(logicFile.getAbsolutePath());
-                                DesignDataManager.mapBlocks.remove(cleanName);
+                                if (logicFile.exists()) FileUtil.deleteFile(logicFile.getAbsolutePath());
                                 refreshLogicList();
-                                Toast.makeText(getContext(), "Logic reset successfully", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getContext(), "Reset successfully", Toast.LENGTH_SHORT).show();
                             })
                             .setNegativeButton("Cancel", null)
                             .show();

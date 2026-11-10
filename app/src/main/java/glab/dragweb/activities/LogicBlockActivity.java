@@ -602,31 +602,16 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				String cleanPName = DesignDataManager.getCleanPageName((this.pageName != null && !this.pageName.isEmpty()) ? this.pageName : filename);
 				DesignDataManager.initialize(this.context, this.projectId, cleanPName);
 				String eventKey = this.id + LOGIC_NAME_SEPARATOR + this.eventName;
-				ArrayList blocks = DesignDataManager.getBlocks(cleanPName, eventKey);
-				if (blocks == null || blocks.isEmpty()) {
-						blocks = DesignDataManager.getBlocks(filename, eventKey);
-				}
-				if (blocks == null || blocks.isEmpty()) {
-						if ("initializeLogic".equals(this.eventName) || "onPageLoad".equals(this.eventName)) {
-								blocks = DesignDataManager.getBlocks(cleanPName, "onCreate_initializeLogic");
-								if (blocks == null || blocks.isEmpty()) {
-										blocks = DesignDataManager.getBlocks(cleanPName, "onPageLoad_onPageLoad");
-								}
-								if (blocks == null || blocks.isEmpty()) {
-										blocks = DesignDataManager.getBlocks(filename, "onCreate_initializeLogic");
-								}
-								if (blocks == null || blocks.isEmpty()) {
-										blocks = DesignDataManager.getBlocks(filename, "onPageLoad_onPageLoad");
-								}
-						}
-				}
-				if ((blocks == null || blocks.isEmpty()) && isHtmlEvent()) {
+				ArrayList blocks = null;
+
+				if (isHtmlEvent()) {
+						// Pure layout2blocks on demand via Rust engine — no separated HTML logic blocks
 						String htmlCode = null;
 						PageManager pm = new PageManager(this, this.projectId);
 						String pageJson = pm.loadPageLayout(cleanPName);
 						List<Map<String, Object>> tree = PageManager.parseLayoutTree(pageJson);
 
-						// 1. If canvas has a widget tree, generate HTML directly from canvas
+						// 1. Generate HTML directly from canvas layout tree
 						if (tree != null && !tree.isEmpty()) {
 								PageCodeGenerator pcg = new PageCodeGenerator();
 								pcg.setProjectId(this.projectId);
@@ -635,11 +620,11 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 								htmlCode = pcg.generateBodyHtmlFromTree(tree);
 						}
 
-						// 2. Fall back to existing HTML file only if canvas layout JSON does not exist at all
-						if ((htmlCode == null || htmlCode.trim().isEmpty()) && (pageJson == null || pageJson.trim().isEmpty())) {
-								File htmlFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/" + cleanPName + ".html");
+						// 2. Fall back to existing assets HTML file if tree is empty
+						if (htmlCode == null || htmlCode.trim().isEmpty()) {
+								File htmlFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/assets/" + cleanPName + ".html");
 								if (!htmlFile.exists()) {
-										htmlFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/assets/" + cleanPName + ".html");
+										htmlFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/assets/index.html");
 								}
 								if (htmlFile.exists()) {
 										htmlCode = FileUtil.readFile(htmlFile.getAbsolutePath());
@@ -647,22 +632,25 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						}
 
 						if (htmlCode != null && !htmlCode.trim().isEmpty()) {
-								ArrayList<BlockBean> converted = glab.dragweb.core.BlocksLoader.generateHtmlBlocksFromCode(this, htmlCode);
-								if (converted != null && !converted.isEmpty()) {
-										blocks = converted;
-										DesignDataManager.setBlocks(cleanPName, "onCreate_initializeLogic", blocks);
-										DesignDataManager.setBlocks(cleanPName, eventKey, blocks);
-										DesignDataManager.setBlocks(filename, "onCreate_initializeLogic", blocks);
-										DesignDataManager.setBlocks(filename, eventKey, blocks);
-										if (DesignDataManager.mapBlocks != null) {
-											if (DesignDataManager.mapBlocks.containsKey(cleanPName)) {
-												DesignDataManager.mapBlocks.get(cleanPName).remove("onPageLoad_onPageLoad");
-											}
-											if (DesignDataManager.mapBlocks.containsKey(filename)) {
-												DesignDataManager.mapBlocks.get(filename).remove("onPageLoad_onPageLoad");
-											}
+								blocks = glab.dragweb.core.BlocksLoader.generateHtmlBlocksFromCode(this, htmlCode);
+						}
+				} else {
+						blocks = DesignDataManager.getBlocks(cleanPName, eventKey);
+						if (blocks == null || blocks.isEmpty()) {
+								blocks = DesignDataManager.getBlocks(filename, eventKey);
+						}
+						if (blocks == null || blocks.isEmpty()) {
+								if ("initializeLogic".equals(this.eventName) || "onPageLoad".equals(this.eventName)) {
+										blocks = DesignDataManager.getBlocks(cleanPName, "onCreate_initializeLogic");
+										if (blocks == null || blocks.isEmpty()) {
+												blocks = DesignDataManager.getBlocks(cleanPName, "onPageLoad_onPageLoad");
 										}
-										DesignDataManager.saveSavedLogic(this, this.projectId, cleanPName);
+										if (blocks == null || blocks.isEmpty()) {
+												blocks = DesignDataManager.getBlocks(filename, "onCreate_initializeLogic");
+										}
+										if (blocks == null || blocks.isEmpty()) {
+												blocks = DesignDataManager.getBlocks(filename, "onPageLoad_onPageLoad");
+										}
 								}
 						}
 				}
@@ -970,6 +958,48 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						}
 				}
 				return filtered;
+		}
+
+		/**
+		 * Collects every bean currently present in the editor pane (root-connected
+		 * stacks plus any floating blocks), excluding the synthetic "definedFunc"
+		 * placeholder. Used when synchronizing an HTML event back into the canvas so
+		 * that edited blocks are never dropped just because the stack is not rooted.
+		 */
+		private ArrayList<BlockBean> getActiveCanvasBeans() {
+				ArrayList<BlockBean> result = new ArrayList();
+				if (this.pane == null) {
+						return result;
+				}
+				ArrayList<BlockBean> all = this.pane.getAllCanvasBlocks();
+				if (all == null) {
+						return result;
+				}
+				java.util.Set<String> seenIds = new java.util.HashSet();
+				for (BlockBean b : all) {
+						if (b == null) {
+							continue;
+						}
+						if ("definedFunc".equals(b.opCode)) {
+							continue;
+						}
+						if (b.id == null) {
+							continue;
+						}
+						String key = b.id.trim();
+						if (key.isEmpty() || "-1".equals(key)) {
+							continue;
+						}
+						if (!seenIds.add(key)) {
+							continue;
+						}
+						result.add(b);
+				}
+				if (result.isEmpty()) {
+						// Fallback to the root-connected collection if the pane scan came up empty
+						result = this.getBlocksWithoutDefinedFunc();
+				}
+				return result;
 		}
 		
 		private void showAddBlockPopup() {
@@ -1889,6 +1919,8 @@ startActivityForResult(intent, 209);
 		private synchronized void saveLogicSynchronous() {
 			if (!isLogicLoaded) return;
 			try {
+				// Root-connected blocks first; fall back to the full canvas scan when the
+				// event owns no rooted stack yet (e.g. freshly inserted HTML blocks).
 				ArrayList<BlockBean> beans = getBlocksWithoutDefinedFunc();
 				if (beans.isEmpty() && this.pane != null) {
 					ArrayList<BlockBean> allCanvas = this.pane.getAllCanvasBlocks();
@@ -1902,6 +1934,73 @@ startActivityForResult(intent, 209);
 				final String pName = this.pageName;
 				final String targetFile = (fName != null && !fName.isEmpty()) ? fName : ((pName != null && !pName.isEmpty()) ? pName : "index");
 				final String cleanTarget = DesignDataManager.getCleanPageName(targetFile);
+
+				// If this is an HTML page, apply block changes directly to canvas layout and assets HTML.
+				// No separate HTML logic blocks in logic file.
+				if (isHtmlEvent()) {
+					try {
+						ArrayList<BlockBean> activeBeans = getActiveCanvasBeans();
+						if (activeBeans == null || activeBeans.isEmpty()) {
+							activeBeans = beans;
+						}
+						PageManager pm = new PageManager(appCtx, pId);
+						if (activeBeans == null || activeBeans.isEmpty()) {
+							// All blocks deleted: clear canvas layout and generated HTML
+							pm.savePageLayout(cleanTarget, "[]");
+							File htmlFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/" + cleanTarget + ".html");
+							if (htmlFile.exists()) FileUtil.deleteFile(htmlFile.getAbsolutePath());
+							File assetHtml = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/assets/" + cleanTarget + ".html");
+							FileUtil.writeFile(assetHtml.getAbsolutePath(), "");
+						} else {
+							String updatedHtml = glab.dragweb.core.BlocksLoader.generateHtmlFromBlocks(appCtx, activeBeans);
+							if (updatedHtml == null || updatedHtml.trim().isEmpty()) {
+								try {
+									BlockCodeCompiler compiler = new BlockCodeCompiler(appCtx, pId);
+									updatedHtml = compiler.getSource(0, activeBeans);
+								} catch (Exception ignored) {}
+							}
+							if (updatedHtml != null) {
+								File htmlFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/" + cleanTarget + ".html");
+								if (htmlFile.exists()) FileUtil.deleteFile(htmlFile.getAbsolutePath());
+
+								// Save directly to assets/<cleanTarget>.html
+								File assetHtml = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/assets/" + cleanTarget + ".html");
+								if (assetHtml.exists()) {
+									String existingFull = FileUtil.readFile(assetHtml.getAbsolutePath());
+									if (existingFull != null && (existingFull.contains("<body") || existingFull.contains("<html"))) {
+										String replaced = replaceBodyContent(existingFull, updatedHtml);
+										FileUtil.writeFile(assetHtml.getAbsolutePath(), replaced);
+									} else {
+										FileUtil.writeFile(assetHtml.getAbsolutePath(), updatedHtml);
+									}
+								} else {
+									FileUtil.writeFile(assetHtml.getAbsolutePath(), updatedHtml);
+								}
+
+								// Apply changes back to Canvas layout tree
+								try {
+									HtmlCssImporter importer = new HtmlCssImporter(appCtx);
+									HtmlCssImporter.ImportResult res = importer.importHtmlCss(updatedHtml, null);
+									if (res != null && res.success && res.widgetTree != null) {
+										String layoutJson = new com.google.gson.Gson().toJson(res.widgetTree);
+										pm.savePageLayout(cleanTarget, layoutJson);
+									}
+								} catch (Exception e) {
+									android.util.Log.e("LogicBlockActivity", "Failed to sync canvas layout from blocks: " + e.getMessage());
+								}
+							}
+						}
+
+						// Do not pollute logic file with HTML blocks
+						if (DesignDataManager.mapBlocks != null) {
+							DesignDataManager.mapBlocks.remove(cleanTarget);
+							DesignDataManager.mapBlocks.remove(targetFile);
+						}
+					} catch (Exception e) {
+						android.util.Log.e("LogicBlockActivity", "Failed to sync HTML from blocks: " + e.getMessage());
+					}
+					return;
+				}
 
 				// 1. Update in-memory block maps
 				DesignDataManager.setBlocks(targetFile, this.id + LOGIC_NAME_SEPARATOR + this.eventName, beans);
@@ -1942,65 +2041,6 @@ startActivityForResult(intent, 209);
 				// 4. Synchronously write logic JSON files to disk so they are immediately available
 				DesignDataManager.saveSavedLogic(appCtx, pId, targetFile);
 				DesignDataManager.saveSavedLogic(appCtx, pId, cleanTarget);
-
-				// 5. If this is an HTML page, also synchronize the HTML source code and canvas from the logic blocks
-				if (isHtmlEvent()) {
-					try {
-						ArrayList<BlockBean> activeBeans = getBlocksWithoutDefinedFunc();
-						if (activeBeans.isEmpty() && this.pane != null) {
-							activeBeans = this.pane.getAllCanvasBlocks();
-						}
-						PageManager pm = new PageManager(appCtx, pId);
-						if (activeBeans == null || activeBeans.isEmpty()) {
-							// All blocks deleted: clear canvas layout and generated HTML
-							pm.savePageLayout(cleanTarget, "[]");
-							File htmlFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/" + cleanTarget + ".html");
-							FileUtil.writeFile(htmlFile.getAbsolutePath(), "");
-							File assetHtml = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/assets/" + cleanTarget + ".html");
-							FileUtil.writeFile(assetHtml.getAbsolutePath(), "");
-						} else {
-							String updatedHtml = glab.dragweb.core.BlocksLoader.generateHtmlFromBlocks(appCtx, activeBeans);
-							if (updatedHtml == null || updatedHtml.trim().isEmpty()) {
-								try {
-									BlockCodeCompiler compiler = new BlockCodeCompiler(appCtx, pId);
-									updatedHtml = compiler.getSource(0, activeBeans);
-								} catch (Exception ignored) {}
-							}
-							if (updatedHtml != null) {
-								File htmlFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/" + cleanTarget + ".html");
-								if (htmlFile.exists()) {
-									String existingFull = FileUtil.readFile(htmlFile.getAbsolutePath());
-									if (existingFull != null && (existingFull.contains("<body") || existingFull.contains("<html"))) {
-										String replaced = replaceBodyContent(existingFull, updatedHtml);
-										FileUtil.writeFile(htmlFile.getAbsolutePath(), replaced);
-									} else {
-										FileUtil.writeFile(htmlFile.getAbsolutePath(), updatedHtml);
-									}
-								} else {
-									FileUtil.writeFile(htmlFile.getAbsolutePath(), updatedHtml);
-								}
-
-								// Also save to assets/<cleanTarget>.html
-								File assetHtml = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/assets/" + cleanTarget + ".html");
-								FileUtil.writeFile(assetHtml.getAbsolutePath(), FileUtil.readFile(htmlFile.getAbsolutePath()));
-
-								// Bi-directional sync back to Canvas layout tree
-								try {
-									HtmlCssImporter importer = new HtmlCssImporter(appCtx);
-									HtmlCssImporter.ImportResult res = importer.importHtmlCss(updatedHtml, null);
-									if (res != null && res.success && res.widgetTree != null) {
-										String layoutJson = new com.google.gson.Gson().toJson(res.widgetTree);
-										pm.savePageLayout(cleanTarget, layoutJson);
-									}
-								} catch (Exception e) {
-									android.util.Log.e("LogicBlockActivity", "Failed to sync canvas layout from blocks: " + e.getMessage());
-								}
-							}
-						}
-					} catch (Exception e) {
-						android.util.Log.e("LogicBlockActivity", "Failed to sync HTML from blocks: " + e.getMessage());
-					}
-				}
 
 				// Clean up redundant style_logic.json if css_style is saved
 				if ("css_style".equals(cleanTarget)) {
@@ -2098,28 +2138,25 @@ startActivityForResult(intent, 209);
 				Context ctx = this.context != null ? this.context : this;
 				File dragWebDir = FileUtil.getDragWebDir(ctx);
 
-				File file = new File(dragWebDir, "projects/" + proj + "/pages/" + cleanPage + ".json");
-				if (!file.exists()) {
-						file = new File(dragWebDir, "projects/" + proj + "/layouts/" + cleanPage + ".json");
-				}
-
 				String json = null;
-				if (file.exists()) {
-						json = FileUtil.readFile(file.getAbsolutePath());
-				} else {
-						try {
-								if (proj != null && !proj.isEmpty()) {
-										PageManager pm = new PageManager(ctx, proj);
-										json = pm.loadPageLayout(cleanPage);
-								}
-						} catch (Exception ignored) {}
+				try {
+						if (proj != null && !proj.isEmpty()) {
+								PageManager pm = new PageManager(ctx, proj);
+								json = pm.loadPageLayout(cleanPage);
+						}
+				} catch (Exception ignored) {}
 
-						if (json == null || json.trim().isEmpty()) {
-								if ("index".equals(cleanPage)) {
-										File legacy = new File(dragWebDir, "projects/" + proj + "/layout.json");
-										if (legacy.exists()) {
-												json = FileUtil.readFile(legacy.getAbsolutePath());
-										}
+				if (json == null || json.trim().isEmpty()) {
+						File file = new File(dragWebDir, "projects/" + proj + "/pages/" + cleanPage + ".json");
+						if (!file.exists()) {
+								file = new File(dragWebDir, "projects/" + proj + "/layouts/" + cleanPage + ".json");
+						}
+						if (file.exists()) {
+								json = FileUtil.readFile(file.getAbsolutePath());
+						} else if ("index".equals(cleanPage)) {
+								File legacy = new File(dragWebDir, "projects/" + proj + "/layout.json");
+								if (legacy.exists()) {
+										json = FileUtil.readFile(legacy.getAbsolutePath());
 								}
 						}
 				}
