@@ -684,6 +684,18 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 										}
 								}
 						}
+						// If no saved JS blocks exist yet and an external JS file exists (e.g. js/script.js), convert via blocks.json reference
+						if (blocks == null || blocks.isEmpty()) {
+								String relJs = (filename != null && filename.endsWith(".js")) ? filename : "js/script.js";
+								File jsFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/assets/" + relJs);
+								if (jsFile.exists()) {
+										String rawJs = FileUtil.readFile(jsFile.getAbsolutePath());
+										String cleanedJs = stripDragWebJsBoilerplate(rawJs);
+										if (cleanedJs != null && !cleanedJs.trim().isEmpty()) {
+												blocks = glab.dragweb.core.BlocksLoader.generateJsBlocksFromCode(this, cleanedJs);
+										}
+								}
+						}
 				}
 				if (blocks != null) {
 						populateBlocksIntoPane(blocks);
@@ -1026,6 +1038,13 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		private static String stripCssImports(String css) {
 			if (css == null || css.isEmpty()) return "";
 			return css.replaceAll("(?im)^\\s*@import\\b[^;]*;\\s*$", "").trim();
+		}
+
+		private static String stripDragWebJsBoilerplate(String js) {
+			if (js == null || js.isEmpty()) return "";
+			String s = js.replaceAll("(?s)/\\*\\s*=+\\s*\\*\\s*DragWeb generated runtime.*?\\*/", "");
+			s = s.replaceAll("(?s)document\\.addEventListener\\(\\s*['\"]DOMContentLoaded['\"]\\s*,\\s*function\\(\\)\\s*\\{\\s*if\\s*\\(window\\.feather\\).*?lucide\\.createIcons\\(\\);.*?\\}\\s*\\);?", "");
+			return s.trim();
 		}
 
 		private void addBlockDefToPalette(BlockDef def, int fallbackColor) {

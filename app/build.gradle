@@ -2,6 +2,29 @@ plugins {
     id 'com.android.application'
 }
 
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+def resolvedStorePath = System.getenv("KEYSTORE_FILE") ?: keystoreProps.getProperty("storeFile")
+def resolvedStorePass = System.getenv("KEYSTORE_PASSWORD") ?: keystoreProps.getProperty("storePassword")
+def resolvedKeyAlias = System.getenv("KEY_ALIAS") ?: keystoreProps.getProperty("keyAlias")
+def resolvedKeyPass = System.getenv("KEY_PASSWORD") ?: keystoreProps.getProperty("keyPassword") ?: resolvedStorePass
+
+File resolvedStoreFileObj = null
+if (resolvedStorePath != null && !resolvedStorePath.trim().isEmpty()) {
+    File candidate = new File(resolvedStorePath.trim())
+    resolvedStoreFileObj = candidate.isAbsolute() ? candidate : rootProject.file(resolvedStorePath.trim())
+}
+
+boolean hasCustomSigning = resolvedStoreFileObj != null
+        && resolvedStoreFileObj.exists()
+        && resolvedStorePass != null && !resolvedStorePass.isEmpty() && !resolvedStorePass.startsWith("YOUR_")
+        && resolvedKeyAlias != null && !resolvedKeyAlias.isEmpty() && !resolvedKeyAlias.startsWith("YOUR_")
+        && resolvedKeyPass != null && !resolvedKeyPass.isEmpty() && !resolvedKeyPass.startsWith("YOUR_")
+
 android {
     namespace = "glab.dragweb"
     compileSdk = 37
@@ -14,8 +37,27 @@ android {
         versionName = "1.4"
     }
 
+    signingConfigs {
+        if (hasCustomSigning) {
+            shared {
+                storeFile resolvedStoreFileObj
+                storePassword resolvedStorePass
+                keyAlias resolvedKeyAlias
+                keyPassword resolvedKeyPass
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            if (hasCustomSigning) {
+                signingConfig signingConfigs.shared
+            }
+        }
         release {
+            if (hasCustomSigning) {
+                signingConfig signingConfigs.shared
+            }
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

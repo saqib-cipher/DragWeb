@@ -117,10 +117,18 @@
     "%",
     "em",
     "rem",
-    "vh",
     "vw",
+    "vh",
+    "vmin",
+    "vmax",
+    "ch",
+    "ex",
+    "pt",
+    "pc",
+    "fr",
     "deg",
-    "rad"
+    "rad",
+    "auto"
   ],
   "inputType": [
     "text",

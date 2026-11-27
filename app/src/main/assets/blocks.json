@@ -132,24 +132,24 @@
     "category": "cssControl",
     "blockType": "s",
     "color": "#FF9100",
-    "spec": "Top|Bottom %m.unit Left|Right %m.unit",
-    "code": "%1$s %2$s"
+    "spec": "Top|Bottom %d %m.unit Left|Right %d %m.unit",
+    "code": "%1$s%2$s %3$s%4$s"
   },
   {
     "id": "cssCUnits2",
     "category": "cssControl",
     "blockType": "s",
     "color": "#FF9100",
-    "spec": "Top %m.unit Left|Right %m.unit Bottom %m.unit",
-    "code": "%1$s %2$s %3$s"
+    "spec": "Top %d %m.unit Left|Right %d %m.unit Bottom %d %m.unit",
+    "code": "%1$s%2$s %3$s%4$s %5$s%6$s"
   },
   {
     "id": "cssCUnits3",
     "category": "cssControl",
     "blockType": "s",
     "color": "#FF9100",
-    "spec": "Top %m.unit Right %m.unit Bottom %m.unit Left $m.unit",
-    "code": "%1$s %2$s %3$s %4$s"
+    "spec": "Top %d %m.unit Right %d %m.unit Bottom %d %m.unit Left %d %m.unit",
+    "code": "%1$s%2$s %3$s%4$s %5$s%6$s %7$s%8$s"
   },
   {
     "id": "cssHover",
@@ -284,56 +284,56 @@
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "width %m.unit",
-    "code": "width: %1$s;\n"
+    "spec": "width %d %m.unit",
+    "code": "width: %1$s%2$s;\n"
   },
   {
     "id": "setHeight",
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "height %m.unit",
-    "code": "height: %1$s;\n"
+    "spec": "height %d %m.unit",
+    "code": "height: %1$s%2$s;\n"
   },
   {
     "id": "setMaxWidth",
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "max-width %m.unit",
-    "code": "max-width: %1$s;\n"
+    "spec": "max-width %d %m.unit",
+    "code": "max-width: %1$s%2$s;\n"
   },
   {
     "id": "setMaxHeight",
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "max-height %m.unit",
-    "code": "max-height: %1$s;\n"
+    "spec": "max-height %d %m.unit",
+    "code": "max-height: %1$s%2$s;\n"
   },
   {
     "id": "setMinWidth",
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "min-width %m.unit",
-    "code": "min-width: %1$s;\n"
+    "spec": "min-width %d %m.unit",
+    "code": "min-width: %1$s%2$s;\n"
   },
   {
     "id": "setMinHeight",
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "min-height %m.unit",
-    "code": "min-height: %1$s;\n"
+    "spec": "min-height %d %m.unit",
+    "code": "min-height: %1$s%2$s;\n"
   },
   {
     "id": "setMargin",
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "margin %m.unit",
-    "code": "margin: %1$s;\n"
+    "spec": "margin %d %m.unit",
+    "code": "margin: %1$s%2$s;\n"
   },
   {
     "id": "setMarginMulti",
@@ -348,8 +348,8 @@
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "padding %m.unit",
-    "code": "padding: %1$s;\n"
+    "spec": "padding %d %m.unit",
+    "code": "padding: %1$s%2$s;\n"
   },
   {
     "id": "setPaddingMulti",
@@ -364,24 +364,24 @@
     "category": "css_background",
     "blockType": " ",
     "color": "#689F38",
-    "spec": "border %m.unit solid %m.color",
-    "code": "border: %1$s solid %2$s;\n"
+    "spec": "border %d %m.unit solid %m.color",
+    "code": "border: %1$s%2$s solid %3$s;\n"
   },
   {
     "id": "setRadius",
     "category": "css_background",
     "blockType": " ",
     "color": "#689F38",
-    "spec": "border-radius %m.unit",
-    "code": "border-radius: %1$s;\n"
+    "spec": "border-radius %d %m.unit",
+    "code": "border-radius: %1$s%2$s;\n"
   },
   {
     "id": "setRadiusMulti",
     "category": "css_background",
     "blockType": " ",
     "color": "#689F38",
-    "spec": "border-radius TL %m.unit TR %m.unit BR %m.unit BL %m.unit",
-    "code": "border-radius: %1$s %2$s %3$s %4$s;\n"
+    "spec": "border-radius TL %d %m.unit TR %d %m.unit BR %d %m.unit BL %d %m.unit",
+    "code": "border-radius: %1$s%2$s %3$s%4$s %5$s%6$s %7$s%8$s;\n"
   },
   {
     "id": "setBoxShadow",
@@ -396,8 +396,8 @@
     "category": "css_text",
     "blockType": " ",
     "color": "#388E3C",
-    "spec": "font-size %m.unit",
-    "code": "font-size: %1$s;\n"
+    "spec": "font-size %d %m.unit",
+    "code": "font-size: %1$s%2$s;\n"
   },
   {
     "id": "setFontFamily",
@@ -452,8 +452,8 @@
     "category": "css_text",
     "blockType": " ",
     "color": "#388E3C",
-    "spec": "letter-spacing %m.unit",
-    "code": "letter-spacing: %1$s;\n"
+    "spec": "letter-spacing %d %m.unit",
+    "code": "letter-spacing: %1$s%2$s;\n"
   },
   {
     "id": "setOpacity",
@@ -508,8 +508,8 @@
     "category": "css_flex",
     "blockType": " ",
     "color": "#0097A7",
-    "spec": "gap %m.unit",
-    "code": "gap: %1$s;\n"
+    "spec": "gap %d %m.unit",
+    "code": "gap: %1$s%2$s;\n"
   },
   {
     "id": "setGridTemplateColumns",
@@ -1734,32 +1734,32 @@
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "top %m.unit",
-    "code": "top: %1$s;\n"
+    "spec": "top %d %m.unit",
+    "code": "top: %1$s%2$s;\n"
   },
   {
     "id": "setBottom",
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "bottom %m.unit",
-    "code": "bottom: %1$s;\n"
+    "spec": "bottom %d %m.unit",
+    "code": "bottom: %1$s%2$s;\n"
   },
   {
     "id": "setLeft",
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "left %m.unit",
-    "code": "left: %1$s;\n"
+    "spec": "left %d %m.unit",
+    "code": "left: %1$s%2$s;\n"
   },
   {
     "id": "setRight",
     "category": "css_layout",
     "blockType": " ",
     "color": "#0288D1",
-    "spec": "right %m.unit",
-    "code": "right: %1$s;\n"
+    "spec": "right %d %m.unit",
+    "code": "right: %1$s%2$s;\n"
   },
   {
     "id": "setTextTransform",
@@ -1926,8 +1926,8 @@
     "category": "css_background",
     "blockType": " ",
     "color": "#689F38",
-    "spec": "outline %m.unit solid %m.color",
-    "code": "outline: %1$s solid %2$s;\n"
+    "spec": "outline %d %m.unit solid %m.color",
+    "code": "outline: %1$s%2$s solid %3$s;\n"
   },
   {
     "id": "setListStyle",

@@ -1,4 +1,247 @@
-use crate::models::{parse_spec_param_types, DragWebBlockBean};
+use crate::models::{parse_hex_color_i32, parse_spec_param_types, DragWebBlockBean};
+use rustc_hash::FxHashMap;
+use serde_json::Value;
+
+#[derive(Clone, Debug)]
+struct JsJsonDef {
+    id: String,
+    category: String,
+    block_type: String,
+    color: i32,
+    spec: String,
+    spec2: String,
+    code: String,
+    segments: Vec<String>,
+    param_indices: Vec<usize>,
+    literal_score: usize,
+}
+
+fn parse_template_segments(raw_code: &str) -> (Vec<String>, Vec<usize>, usize) {
+    let cleaned = raw_code.trim().trim_end_matches(';').trim();
+    let chars: Vec<char> = cleaned.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut segments = Vec::new();
+    let mut indices = Vec::new();
+    let mut curr_lit = String::new();
+    let mut next_auto = 1usize;
+
+    while i < len {
+        if chars[i] == '%' && i + 1 < len {
+            if chars[i + 1].is_ascii_digit() {
+                let mut d_end = i + 1;
+                while d_end < len && chars[d_end].is_ascii_digit() {
+                    d_end += 1;
+                }
+                if d_end + 1 < len && chars[d_end] == '$' && (chars[d_end + 1] == 's' || chars[d_end + 1] == 'd') {
+                    let idx_num: usize = chars[i + 1..d_end].iter().collect::<String>().parse().unwrap_or(next_auto);
+                    segments.push(curr_lit.clone());
+                    curr_lit.clear();
+                    indices.push(idx_num);
+                    next_auto = idx_num + 1;
+                    i = d_end + 2;
+                    continue;
+                }
+            }
+            if chars[i + 1] == 's' || chars[i + 1] == 'd' || chars[i + 1] == 'b' || chars[i + 1] == 'n' {
+                segments.push(curr_lit.clone());
+                curr_lit.clear();
+                indices.push(next_auto);
+                next_auto += 1;
+                i += 2;
+                continue;
+            }
+        }
+        curr_lit.push(chars[i]);
+        i += 1;
+    }
+    segments.push(curr_lit);
+    let score: usize = segments.iter().map(|s| s.trim().len()).sum();
+    (segments, indices, score)
+}
+
+fn load_js_json_defs(blocks_json: &str) -> (Vec<JsJsonDef>, FxHashMap<String, JsJsonDef>) {
+    let mut matchers = Vec::new();
+    let mut by_id = FxHashMap::default();
+
+    if let Ok(Value::Array(items)) = serde_json::from_str::<Value>(blocks_json) {
+        for item in items {
+            let id = item
+                .get("id")
+                .or_else(|| item.get("name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let cat = item
+                .get("category")
+                .or_else(|| item.get("palette"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if id.is_empty() {
+                continue;
+            }
+            let cat_l = cat.to_ascii_lowercase();
+            let is_js_relevant = cat_l.starts_with("js")
+                || cat_l == "control"
+                || cat_l == "operator"
+                || cat_l == "comment"
+                || cat_l == "asd"
+                || cat_l == "widgets"
+                || id.starts_with("js");
+            if !is_js_relevant {
+                continue;
+            }
+
+            let raw_btype = item
+                .get("blockType")
+                .or_else(|| item.get("type"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(" ");
+            let block_type = if raw_btype.is_empty() || raw_btype.eq_ignore_ascii_case("normal") {
+                " ".to_string()
+            } else {
+                raw_btype.to_string()
+            };
+            let color_str = item.get("color").and_then(|v| v.as_str()).unwrap_or("#607D8B");
+            let spec = item.get("spec").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let spec2 = item.get("spec2").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let code = item
+                .get("code")
+                .or_else(|| item.get("template"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            let (segments, param_indices, literal_score) = parse_template_segments(&code);
+            let def = JsJsonDef {
+                id: id.clone(),
+                category: cat,
+                block_type: block_type.clone(),
+                color: parse_hex_color_i32(color_str),
+                spec,
+                spec2,
+                code: code.clone(),
+                segments,
+                param_indices,
+                literal_score,
+            };
+            by_id.insert(id.clone(), def.clone());
+
+            // Only build direct regex-free statement matcher for single-statement command blocks with non-empty static pattern
+            let has_container_body = block_type == "c" || block_type == "e" || code.contains("{\n%");
+            if !has_container_body
+                && block_type != "b"
+                && block_type != "d"
+                && block_type != "s"
+                && !code.trim().is_empty()
+                && literal_score >= 3
+            {
+                matchers.push(def);
+            }
+        }
+    }
+
+    matchers.sort_by(|a, b| b.literal_score.cmp(&a.literal_score));
+    (matchers, by_id)
+}
+
+fn match_flexible_prefix(input: &str, pos: usize, pattern: &str) -> Option<usize> {
+    let in_bytes = input.as_bytes();
+    let pat_bytes = pattern.as_bytes();
+    let mut ii = pos;
+    let mut pi = 0;
+
+    while pi < pat_bytes.len() {
+        let pc = pat_bytes[pi];
+        if pc.is_ascii_whitespace() {
+            while pi < pat_bytes.len() && pat_bytes[pi].is_ascii_whitespace() {
+                pi += 1;
+            }
+            while ii < in_bytes.len() && in_bytes[ii].is_ascii_whitespace() {
+                ii += 1;
+            }
+            continue;
+        }
+        if ii >= in_bytes.len() {
+            return None;
+        }
+        let ic = in_bytes[ii];
+        let matches = if (pc == b'"' || pc == b'\'') && (ic == b'"' || ic == b'\'') {
+            true
+        } else {
+            pc == ic
+        };
+        if !matches {
+            return None;
+        }
+        ii += 1;
+        pi += 1;
+    }
+    Some(ii)
+}
+
+fn find_flexible(input: &str, start: usize, pattern: &str) -> Option<(usize, usize)> {
+    if pattern.is_empty() {
+        return Some((start, start));
+    }
+    for (idx, _) in input[start..].char_indices() {
+        let abs_idx = start + idx;
+        if let Some(end) = match_flexible_prefix(input, abs_idx, pattern) {
+            return Some((abs_idx, end));
+        }
+    }
+    None
+}
+
+fn match_statement_to_json_def(stmt: &str, def: &JsJsonDef) -> Option<Vec<String>> {
+    if def.segments.is_empty() {
+        return None;
+    }
+    let clean_stmt = stmt.trim().trim_end_matches(';').trim();
+    if clean_stmt.is_empty() {
+        return None;
+    }
+
+    let mut pos = match_flexible_prefix(clean_stmt, 0, &def.segments[0])?;
+    if def.param_indices.is_empty() {
+        if clean_stmt[pos..].trim().is_empty() {
+            return Some(Vec::new());
+        }
+        return None;
+    }
+
+    let max_idx = *def.param_indices.iter().max().unwrap_or(&0);
+    let mut params = vec![String::new(); max_idx];
+
+    for k in 0..def.param_indices.len() {
+        let next_seg = &def.segments[k + 1];
+        let p_slot = def.param_indices[k].saturating_sub(1);
+
+        if next_seg.is_empty() {
+            if k + 1 == def.param_indices.len() {
+                let raw_val = clean_stmt[pos..].trim();
+                params[p_slot] = raw_val.to_string();
+                pos = clean_stmt.len();
+            } else {
+                return None;
+            }
+        } else {
+            let (found_start, found_end) = find_flexible(clean_stmt, pos, next_seg)?;
+            let raw_val = clean_stmt[pos..found_start].trim();
+            if raw_val.is_empty() && next_seg.len() > 1 {
+                return None;
+            }
+            params[p_slot] = raw_val.to_string();
+            pos = found_end;
+        }
+    }
+
+    if !clean_stmt[pos..].trim().is_empty() {
+        return None;
+    }
+    Some(params)
+}
 
 pub fn find_matching_pair(chars: &[char], start: usize, open: char, close: char) -> Option<usize> {
     let mut depth = 0;
@@ -84,18 +327,38 @@ pub fn split_js_statements(code: &str) -> Vec<String> {
         }
 
         if c == '/' && i + 1 < len && chars[i + 1] == '/' {
+            let comment_start = i;
             while i < len && chars[i] != '\n' {
                 i += 1;
+            }
+            if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 && current.trim().is_empty() {
+                let c_line: String = chars[comment_start..i].iter().collect();
+                let trimmed = c_line.trim();
+                if !trimmed.is_empty() {
+                    stmts.push(trimmed.to_string());
+                }
             }
             continue;
         }
 
         if c == '/' && i + 1 < len && chars[i + 1] == '*' {
+            let comment_start = i;
             i += 2;
             while i + 1 < len && !(chars[i] == '*' && chars[i + 1] == '/') {
                 i += 1;
             }
-            i += 2;
+            if i + 1 < len {
+                i += 2;
+            } else {
+                i = len;
+            }
+            if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 && current.trim().is_empty() {
+                let c_block: String = chars[comment_start..i].iter().collect();
+                let trimmed = c_block.trim();
+                if !trimmed.is_empty() {
+                    stmts.push(trimmed.to_string());
+                }
+            }
             continue;
         }
 
@@ -262,6 +525,24 @@ pub fn extract_event_listener(s: &str) -> Option<(String, String, String)> {
     Some((target.to_string(), event_name.to_string(), body.trim().to_string()))
 }
 
+fn extract_set_timeout(s: &str) -> Option<(String, String)> {
+    if !s.starts_with("setTimeout(") {
+        return None;
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let open_paren = chars.iter().position(|&c| c == '(')?;
+    let close_paren = find_matching_pair(&chars, open_paren, '(', ')')?;
+    let open_brace = chars.iter().enumerate().skip(open_paren).find(|(_, &c)| c == '{').map(|(i, _)| i)?;
+    let close_brace = find_matching_pair(&chars, open_brace, '{', '}')?;
+    let body: String = chars[open_brace + 1..close_brace].iter().collect();
+    let after: String = chars[close_brace + 1..close_paren].iter().collect();
+    let ms = after.trim().trim_start_matches(',').trim();
+    if ms.is_empty() {
+        return None;
+    }
+    Some((ms.to_string(), body.trim().to_string()))
+}
+
 pub fn extract_var_declaration(s: &str) -> Option<(String, String)> {
     let trimmed = s.trim();
     let rest = if trimmed.starts_with("const ") {
@@ -313,12 +594,32 @@ pub fn extract_simple_assignment(s: &str) -> Option<(String, String)> {
     Some((left.to_string(), right.to_string()))
 }
 
-pub fn process_js_nested_body(body: &str, blocks: &mut Vec<DragWebBlockBean>, counter: &mut i32) -> i32 {
+fn apply_def_meta(bean: &mut DragWebBlockBean, by_id: &FxHashMap<String, JsJsonDef>, op_code: &str) {
+    if let Some(def) = by_id.get(op_code) {
+        bean.op_code = def.id.clone();
+        bean.spec = def.spec.clone();
+        bean.spec2 = def.spec2.clone();
+        bean.block_type = def.block_type.clone();
+        bean.category = def.category.clone();
+        bean.color = def.color;
+        bean.code = def.code.clone();
+        bean.param_types = parse_spec_param_types(&def.spec);
+        bean.tokenized_spec = bean.param_types.clone();
+    }
+}
+
+fn process_js_nested_body_with_defs(
+    body: &str,
+    blocks: &mut Vec<DragWebBlockBean>,
+    counter: &mut i32,
+    matchers: &[JsJsonDef],
+    by_id: &FxHashMap<String, JsJsonDef>,
+) -> i32 {
     let stmts = split_js_statements(body);
     let mut first_id = -1;
     let mut prev_id = -1;
     for stmt in stmts {
-        let id = process_js_statement(&stmt, blocks, counter, false);
+        let id = process_js_statement_with_defs(&stmt, blocks, counter, false, -1, matchers, by_id);
         if id >= 0 {
             if first_id == -1 {
                 first_id = id;
@@ -334,11 +635,14 @@ pub fn process_js_nested_body(body: &str, blocks: &mut Vec<DragWebBlockBean>, co
     first_id
 }
 
-pub fn process_js_statement(
+fn process_js_statement_with_defs(
     stmt: &str,
     blocks: &mut Vec<DragWebBlockBean>,
     counter: &mut i32,
     is_root: bool,
+    stack_index: i32,
+    matchers: &[JsJsonDef],
+    by_id: &FxHashMap<String, JsJsonDef>,
 ) -> i32 {
     let s = stmt.trim();
     if s.is_empty() {
@@ -355,20 +659,41 @@ pub fn process_js_statement(
         spec2: String::new(),
         block_type: " ".to_string(),
         category: "js".to_string(),
-        color: -13158097, // default gray
+        color: -13158097,
         code: String::new(),
         parameters: Vec::new(),
         param_types: Vec::new(),
         sub_stack1: -1,
         sub_stack2: -1,
         next_block: -1,
-        stack_index: if is_root { 0 } else { -1 },
+        stack_index,
         is_connected_to_root: is_root,
         x: if is_root { 100 } else { 0 },
         y: if is_root { 100 } else { 0 },
         header_text: String::new(),
         tokenized_spec: Vec::new(),
     };
+
+    // 0. Comments (// or /* ... */)
+    if s.starts_with("//") || s.starts_with("/*") {
+        let txt = if s.starts_with("//") {
+            s.trim_start_matches("//").trim().to_string()
+        } else {
+            s.trim_start_matches("/*").trim_end_matches("*/").trim().to_string()
+        };
+        bean.op_code = "commentBlock".to_string();
+        bean.spec = "// %s".to_string();
+        bean.block_type = " ".to_string();
+        bean.color = -11243910;
+        bean.category = "comment".to_string();
+        bean.parameters = vec![txt];
+        bean.code = "// %1$s\n".to_string();
+        apply_def_meta(&mut bean, by_id, "commentBlock");
+        bean.param_types = parse_spec_param_types(&bean.spec);
+        bean.tokenized_spec = bean.param_types.clone();
+        blocks.push(bean);
+        return block_id;
+    }
 
     // 1. Check for if / if-else
     if s.starts_with("if") && s.contains('{') {
@@ -383,14 +708,16 @@ pub fn process_js_statement(
                 bean.spec2 = "else \n".to_string();
                 bean.block_type = "e".to_string();
                 bean.code = "if (%1$s) {\n%2$s\n} else {\n%3$s\n}\n".to_string();
-                bean.sub_stack1 = process_js_nested_body(&body, blocks, counter);
-                bean.sub_stack2 = process_js_nested_body(&else_b, blocks, counter);
+                apply_def_meta(&mut bean, by_id, "jsIfElse");
+                bean.sub_stack1 = process_js_nested_body_with_defs(&body, blocks, counter, matchers, by_id);
+                bean.sub_stack2 = process_js_nested_body_with_defs(&else_b, blocks, counter, matchers, by_id);
             } else {
                 bean.op_code = "jsIf".to_string();
                 bean.spec = "if (%b) {\n".to_string();
                 bean.block_type = "c".to_string();
                 bean.code = "if (%1$s) {\n%2$s\n}\n".to_string();
-                bean.sub_stack1 = process_js_nested_body(&body, blocks, counter);
+                apply_def_meta(&mut bean, by_id, "jsIf");
+                bean.sub_stack1 = process_js_nested_body_with_defs(&body, blocks, counter, matchers, by_id);
             }
             bean.tokenized_spec = parse_spec_param_types(&bean.spec);
             blocks.push(bean);
@@ -407,10 +734,11 @@ pub fn process_js_statement(
             bean.color = -28416;
             bean.category = "control".to_string();
             bean.parameters = vec![cond];
-            bean.param_types = vec!["b".to_string()];
             bean.code = "while (%1$s) {\n%2$s\n}\n".to_string();
-            bean.sub_stack1 = process_js_nested_body(&body, blocks, counter);
-            bean.tokenized_spec = parse_spec_param_types(&bean.spec);
+            apply_def_meta(&mut bean, by_id, "jsWhile");
+            bean.sub_stack1 = process_js_nested_body_with_defs(&body, blocks, counter, matchers, by_id);
+            bean.param_types = parse_spec_param_types(&bean.spec);
+            bean.tokenized_spec = bean.param_types.clone();
             blocks.push(bean);
             return block_id;
         }
@@ -426,13 +754,31 @@ pub fn process_js_statement(
             bean.category = "control".to_string();
             let limit = extract_for_limit(&header);
             bean.parameters = vec![limit];
-            bean.param_types = vec!["d".to_string()];
             bean.code = "for (let i = 0; i < %1$s; i++) {\n%2$s\n}\n".to_string();
-            bean.sub_stack1 = process_js_nested_body(&body, blocks, counter);
-            bean.tokenized_spec = parse_spec_param_types(&bean.spec);
+            apply_def_meta(&mut bean, by_id, "jsForLoop");
+            bean.sub_stack1 = process_js_nested_body_with_defs(&body, blocks, counter, matchers, by_id);
+            bean.param_types = parse_spec_param_types(&bean.spec);
+            bean.tokenized_spec = bean.param_types.clone();
             blocks.push(bean);
             return block_id;
         }
+    }
+
+    // 3b. setTimeout(function() { body }, ms)
+    if let Some((ms, body)) = extract_set_timeout(s) {
+        bean.op_code = "jsSetTimeout".to_string();
+        bean.spec = "run after %d ms".to_string();
+        bean.block_type = "c".to_string();
+        bean.color = -1499549;
+        bean.category = "js_timing".to_string();
+        bean.parameters = vec![ms];
+        bean.code = "setTimeout(function() {\n%2$s\n}, %1$s);\n".to_string();
+        apply_def_meta(&mut bean, by_id, "jsSetTimeout");
+        bean.sub_stack1 = process_js_nested_body_with_defs(&body, blocks, counter, matchers, by_id);
+        bean.param_types = parse_spec_param_types(&bean.spec);
+        bean.tokenized_spec = bean.param_types.clone();
+        blocks.push(bean);
+        return block_id;
     }
 
     // 4. Check for addEventListener
@@ -445,7 +791,8 @@ pub fn process_js_statement(
                 bean.color = -16613443;
                 bean.category = "js_events".to_string();
                 bean.code = "document.addEventListener(\"DOMContentLoaded\", function() {\n%1$s\n});\n".to_string();
-                bean.sub_stack1 = process_js_nested_body(&body, blocks, counter);
+                apply_def_meta(&mut bean, by_id, "jsOnLoad");
+                bean.sub_stack1 = process_js_nested_body_with_defs(&body, blocks, counter, matchers, by_id);
             } else {
                 bean.op_code = "jsAddEventOnVar".to_string();
                 bean.spec = "%var addEventListener %m.event".to_string();
@@ -453,17 +800,39 @@ pub fn process_js_statement(
                 bean.color = -16613443;
                 bean.category = "js_events".to_string();
                 bean.parameters = vec![target, event_name];
-                bean.param_types = vec!["v".to_string(), "m.event".to_string()];
                 bean.code = "%1$s.addEventListener(\"%2$s\", (e) => {\n%3$s\n});\n".to_string();
-                bean.sub_stack1 = process_js_nested_body(&body, blocks, counter);
+                apply_def_meta(&mut bean, by_id, "jsAddEventOnVar");
+                bean.sub_stack1 = process_js_nested_body_with_defs(&body, blocks, counter, matchers, by_id);
             }
-            bean.tokenized_spec = parse_spec_param_types(&bean.spec);
+            bean.param_types = parse_spec_param_types(&bean.spec);
+            bean.tokenized_spec = bean.param_types.clone();
             blocks.push(bean);
             return block_id;
         }
     }
 
-    // 5. Variable declarations: (const|let|var)\s+([a-zA-Z0-9_$]+)\s*=\s*(.+)
+    // 5. Reference scan against blocks.json definitions (longest literal pattern match first)
+    for def in matchers {
+        if let Some(params) = match_statement_to_json_def(s, def) {
+            let ptypes = parse_spec_param_types(&def.spec);
+            if params.len() >= ptypes.len() {
+                bean.op_code = def.id.clone();
+                bean.spec = def.spec.clone();
+                bean.spec2 = def.spec2.clone();
+                bean.block_type = def.block_type.clone();
+                bean.category = def.category.clone();
+                bean.color = def.color;
+                bean.code = def.code.clone();
+                bean.parameters = params.into_iter().take(ptypes.len().max(def.param_indices.len())).collect();
+                bean.param_types = ptypes.clone();
+                bean.tokenized_spec = ptypes;
+                blocks.push(bean);
+                return block_id;
+            }
+        }
+    }
+
+    // 6. Variable declarations: (const|let|var) name = expr
     if let Some((vname, vexpr)) = extract_var_declaration(s) {
         bean.category = "variable".to_string();
         bean.color = -1683200; // #E65100
@@ -496,34 +865,35 @@ pub fn process_js_statement(
             bean.param_types = vec!["v".to_string(), "d".to_string()];
             bean.code = "%1$s = %2$s;\n".to_string();
         } else {
-            bean.op_code = "setVarString".to_string();
-            bean.spec = "set %var to %s".to_string();
+            bean.op_code = "jsVarLet".to_string();
+            bean.spec = "let %s.inputOnly = %s.inputOnly".to_string();
             bean.parameters = vec![vname, trimmed_expr.to_string()];
-            bean.param_types = vec!["v".to_string(), "s".to_string()];
-            bean.code = "%1$s = %2$s;\n".to_string();
+            bean.code = "let %1$s = %2$s;\n".to_string();
+            apply_def_meta(&mut bean, by_id, "jsVarLet");
+            bean.param_types = parse_spec_param_types(&bean.spec);
         }
-        bean.tokenized_spec = parse_spec_param_types(&bean.spec);
+        bean.tokenized_spec = bean.param_types.clone();
         blocks.push(bean);
         return block_id;
     }
 
-    // 6. console.log(...)
+    // 7. Built-in fallbacks when blocks_json is empty (unit tests)
     if s.starts_with("console.log(") {
         let arg = extract_paren_arg(s, "console.log");
         bean.op_code = "jsConsoleLog".to_string();
         bean.spec = "console.log %s".to_string();
         bean.block_type = " ".to_string();
-        bean.color = -1498717; // #E91E63
+        bean.color = -1498717;
         bean.category = "js_dom".to_string();
         bean.parameters = vec![arg];
         bean.param_types = vec!["s".to_string()];
         bean.code = "console.log(%1$s);\n".to_string();
-        bean.tokenized_spec = parse_spec_param_types(&bean.spec);
+        apply_def_meta(&mut bean, by_id, "jsConsoleLog");
+        bean.tokenized_spec = bean.param_types.clone();
         blocks.push(bean);
         return block_id;
     }
 
-    // 7. alert(...)
     if s.starts_with("alert(") {
         let arg = extract_paren_arg(s, "alert");
         bean.op_code = "jsAlert".to_string();
@@ -534,12 +904,12 @@ pub fn process_js_statement(
         bean.parameters = vec![arg];
         bean.param_types = vec!["s".to_string()];
         bean.code = "alert(%1$s);\n".to_string();
-        bean.tokenized_spec = parse_spec_param_types(&bean.spec);
+        apply_def_meta(&mut bean, by_id, "jsAlert");
+        bean.tokenized_spec = bean.param_types.clone();
         blocks.push(bean);
         return block_id;
     }
 
-    // 8. innerHTML / textContent / style assignment
     if s.contains(".innerHTML") && s.contains('=') {
         if let Some((target, val)) = extract_prop_assignment(s, ".innerHTML") {
             bean.op_code = "jsSetInnerHTML".to_string();
@@ -550,7 +920,7 @@ pub fn process_js_statement(
             bean.parameters = vec![target, val];
             bean.param_types = vec!["s.inputOnly".to_string(), "s".to_string()];
             bean.code = "%1$s.innerHTML = %2$s;\n".to_string();
-            bean.tokenized_spec = parse_spec_param_types(&bean.spec);
+            bean.tokenized_spec = bean.param_types.clone();
             blocks.push(bean);
             return block_id;
         }
@@ -565,13 +935,13 @@ pub fn process_js_statement(
             bean.parameters = vec![target, val];
             bean.param_types = vec!["s.inputOnly".to_string(), "s".to_string()];
             bean.code = "%1$s.textContent = %2$s;\n".to_string();
-            bean.tokenized_spec = parse_spec_param_types(&bean.spec);
+            bean.tokenized_spec = bean.param_types.clone();
             blocks.push(bean);
             return block_id;
         }
     }
 
-    // 9. Simple assignment: target = val
+    // 8. Simple assignment: target = val
     if s.contains('=') && !s.contains("==") && !s.contains("=>") {
         if let Some((target, val)) = extract_simple_assignment(s) {
             bean.op_code = "setVarString".to_string();
@@ -582,36 +952,68 @@ pub fn process_js_statement(
             bean.parameters = vec![target, val];
             bean.param_types = vec!["v".to_string(), "s".to_string()];
             bean.code = "%1$s = %2$s;\n".to_string();
-            bean.tokenized_spec = parse_spec_param_types(&bean.spec);
+            bean.tokenized_spec = bean.param_types.clone();
             blocks.push(bean);
             return block_id;
         }
     }
 
-    // 10. Fallback: Add source directly
-    bean.op_code = "addSourceCode".to_string();
+    // 9. Fallback: Add source directly (command block " ", never "s")
+    bean.op_code = "asdN".to_string();
     bean.spec = "add source directly %s.inputOnly".to_string();
-    bean.block_type = "s".to_string();
-    bean.color = -13158097; // #37474F
+    bean.block_type = " ".to_string();
+    bean.color = -12232092; // #455A64
     bean.category = "asd".to_string();
     let cleaned = s.trim_end_matches(';').trim().to_string();
     bean.parameters = vec![cleaned];
-    bean.param_types = vec!["s.inputOnly".to_string()];
     bean.code = "%1$s;\n".to_string();
-    bean.tokenized_spec = parse_spec_param_types(&bean.spec);
+    if by_id.contains_key("asdN") {
+        apply_def_meta(&mut bean, by_id, "asdN");
+        bean.block_type = " ".to_string();
+    } else if by_id.contains_key("addSourceCode") {
+        apply_def_meta(&mut bean, by_id, "addSourceCode");
+        bean.block_type = " ".to_string();
+    }
+    bean.param_types = parse_spec_param_types(&bean.spec);
+    bean.tokenized_spec = bean.param_types.clone();
     blocks.push(bean);
     block_id
 }
 
-pub fn generate_js_blocks(js_code: &str, _blocks_json: &str) -> Vec<DragWebBlockBean> {
+pub fn process_js_nested_body(body: &str, blocks: &mut Vec<DragWebBlockBean>, counter: &mut i32) -> i32 {
+    let empty_by_id = FxHashMap::default();
+    process_js_nested_body_with_defs(body, blocks, counter, &[], &empty_by_id)
+}
+
+pub fn process_js_statement(
+    stmt: &str,
+    blocks: &mut Vec<DragWebBlockBean>,
+    counter: &mut i32,
+    is_root: bool,
+) -> i32 {
+    let empty_by_id = FxHashMap::default();
+    process_js_statement_with_defs(stmt, blocks, counter, is_root, if is_root { 0 } else { -1 }, &[], &empty_by_id)
+}
+
+pub fn generate_js_blocks(js_code: &str, blocks_json: &str) -> Vec<DragWebBlockBean> {
     let mut blocks = Vec::new();
     let mut counter = 10;
+    let (matchers, by_id) = load_js_json_defs(blocks_json);
     let stmts = split_js_statements(js_code);
 
     let mut prev_block_id = -1;
-    for (idx, stmt) in stmts.iter().enumerate() {
-        let is_root = idx == 0;
-        let id = process_js_statement(stmt, &mut blocks, &mut counter, is_root);
+    let mut root_idx = 0;
+    for stmt in stmts.iter() {
+        let is_root = prev_block_id == -1;
+        let id = process_js_statement_with_defs(
+            stmt,
+            &mut blocks,
+            &mut counter,
+            is_root,
+            root_idx,
+            &matchers,
+            &by_id,
+        );
         if id >= 0 {
             if prev_block_id != -1 {
                 if let Some(prev) = blocks.iter_mut().find(|b| b.id == prev_block_id.to_string()) {
@@ -619,9 +1021,9 @@ pub fn generate_js_blocks(js_code: &str, _blocks_json: &str) -> Vec<DragWebBlock
                 }
             }
             prev_block_id = id;
+            root_idx += 1;
         }
     }
 
     blocks
 }
-

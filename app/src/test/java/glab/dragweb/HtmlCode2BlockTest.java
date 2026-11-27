@@ -4,6 +4,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 
 import glab.dragweb.codegen.HtmlCode2Block;
@@ -263,6 +264,59 @@ public class HtmlCode2BlockTest {
         String content = new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8);
         assertFalse("blocks.json must not have blockType normal", content.contains("\"blockType\": \"normal\""));
         assertFalse("blocks.json must not have type normal", content.contains("\"type\": \"normal\""));
+        assertFalse("blocks.json must not have $m.unit typo", content.contains("$m.unit"));
+        assertTrue("setRadius should use %d %m.unit", content.contains("\"spec\": \"border-radius %d %m.unit\""));
+        assertTrue("setWidth should use %d %m.unit", content.contains("\"spec\": \"width %d %m.unit\""));
+        assertTrue("setPadding should use %d %m.unit", content.contains("\"spec\": \"padding %d %m.unit\""));
+        assertTrue("setRadiusMulti should use 4x %d %m.unit", content.contains("\"spec\": \"border-radius TL %d %m.unit TR %d %m.unit BR %d %m.unit BL %d %m.unit\""));
+    }
+
+    @Test
+    public void testParamJsonUnitsAndCssUnitBlockCompilation() throws Exception {
+        File pf = new File("src/main/assets/param.json");
+        if (!pf.exists()) {
+            pf = new File("app/src/main/assets/param.json");
+        }
+        String paramContent = new String(Files.readAllBytes(pf.toPath()), StandardCharsets.UTF_8);
+        for (String unit : Arrays.asList("\"px\"", "\"%\"", "\"em\"", "\"rem\"", "\"vw\"", "\"vh\"", "\"vmin\"", "\"vmax\"", "\"ch\"", "\"pt\"", "\"fr\"", "\"deg\"", "\"rad\"", "\"auto\"")) {
+            assertTrue("param.json unit list must include " + unit, paramContent.contains(unit));
+        }
+
+        ArrayList<BlockBean> cssBlocks = new ArrayList<>();
+        BlockBean selector = new BlockBean();
+        selector.id = "1";
+        selector.opCode = "cssSelector";
+        selector.blockType = "c";
+        selector.parameters.add(".card");
+        selector.subStack1 = 2;
+        selector.nextBlock = -1;
+        cssBlocks.add(selector);
+
+        BlockBean rSingle = new BlockBean();
+        rSingle.id = "2";
+        rSingle.opCode = "setRadius";
+        rSingle.parameters.addAll(Arrays.asList("8", "px"));
+        rSingle.nextBlock = 3;
+        cssBlocks.add(rSingle);
+
+        BlockBean rMulti = new BlockBean();
+        rMulti.id = "3";
+        rMulti.opCode = "setRadiusMulti";
+        rMulti.parameters.addAll(Arrays.asList("4", "px", "8", "px", "12", "px", "16", "px"));
+        rMulti.nextBlock = 4;
+        cssBlocks.add(rMulti);
+
+        BlockBean widthAuto = new BlockBean();
+        widthAuto.id = "4";
+        widthAuto.opCode = "setWidth";
+        widthAuto.parameters.addAll(Arrays.asList("0", "auto"));
+        widthAuto.nextBlock = -1;
+        cssBlocks.add(widthAuto);
+
+        String css = HtmlCode2Block.generateCssFromBlocks(null, cssBlocks);
+        assertTrue("Single-value radius must render 8px: " + css, css.contains("border-radius: 8px;"));
+        assertTrue("Multi-value radius must render 4px 8px 12px 16px: " + css, css.contains("border-radius: 4px 8px 12px 16px;"));
+        assertTrue("auto unit must render width: auto: " + css, css.contains("width: auto;"));
     }
 }
 

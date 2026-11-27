@@ -260,13 +260,39 @@ public class BlocksLoader {
 
     private static String loadBlocksJsonFromAssets(Context context) {
         if (context == null) return "";
-        try (InputStream is = context.getAssets().open("blocks.json")) {
-            byte[] buf = new byte[is.available()];
-            int read = is.read(buf);
-            if (read > 0) {
-                return new String(buf, 0, read, StandardCharsets.UTF_8);
+        try {
+            org.json.JSONArray merged = new org.json.JSONArray();
+            try (InputStream is = context.getAssets().open("blocks.json")) {
+                String raw = readFullyUtf8(is);
+                if (!raw.trim().isEmpty()) {
+                    org.json.JSONArray builtIn = new org.json.JSONArray(raw);
+                    for (int i = 0; i < builtIn.length(); i++) {
+                        merged.put(builtIn.get(i));
+                    }
+                }
             }
+            java.io.File customFile = new java.io.File(glab.dragweb.util.CustomStorageUtil.getCustomDir(context), "blocks.json");
+            if (customFile.exists() && customFile.length() > 0) {
+                String customRaw = glab.dragweb.util.FileUtil.readFile(customFile.getAbsolutePath());
+                if (customRaw != null && !customRaw.trim().isEmpty()) {
+                    org.json.JSONArray customArr = new org.json.JSONArray(customRaw);
+                    for (int i = 0; i < customArr.length(); i++) {
+                        merged.put(customArr.get(i));
+                    }
+                }
+            }
+            return merged.toString();
         } catch (Exception ignored) {}
         return "";
+    }
+
+    private static String readFullyUtf8(InputStream is) throws java.io.IOException {
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = is.read(buf)) != -1) {
+            baos.write(buf, 0, n);
+        }
+        return new String(baos.toByteArray(), StandardCharsets.UTF_8);
     }
 }

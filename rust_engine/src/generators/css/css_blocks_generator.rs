@@ -1,13 +1,63 @@
-use crate::generators::html::html_blocks_generator::{load_definitions, unpack_style_properties, GeneratorContext};
-use crate::models::DragWebBlockBean;
+use crate::generators::html::html_blocks_generator::{
+    load_definitions, unpack_style_properties, BlockDef, GeneratorContext,
+};
+use crate::models::{parse_hex_color_i32, parse_spec_param_types, DragWebBlockBean};
+use rustc_hash::FxHashMap;
+use serde_json::Value;
 
 #[derive(Clone, Debug)]
 pub struct CssRule {
     pub selector: String,
     pub declarations: Vec<(String, String)>,
     pub is_media: bool,
+    pub is_comment: bool,
     pub media_query: String,
     pub inner_rules: Vec<CssRule>,
+}
+
+fn load_css_structural_defs(blocks_json: &str) -> FxHashMap<String, BlockDef> {
+    let mut map = FxHashMap::default();
+    if let Ok(Value::Array(items)) = serde_json::from_str::<Value>(blocks_json) {
+        for item in items {
+            let id = item.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let cat = item.get("category").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if id.is_empty() {
+                continue;
+            }
+            if id == "cssSelector"
+                || id == "cssSelectorS"
+                || id == "cssHover"
+                || id == "cssFocus"
+                || id == "cssActive"
+                || id == "cssMediaQuery"
+                || id == "commentBlockCss"
+                || id == "asdCss"
+            {
+                let raw_btype = item
+                    .get("blockType")
+                    .or_else(|| item.get("type"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(" ");
+                let block_type = if raw_btype.is_empty() || raw_btype.eq_ignore_ascii_case("normal") {
+                    " ".to_string()
+                } else {
+                    raw_btype.to_string()
+                };
+                let color_str = item.get("color").and_then(|v| v.as_str()).unwrap_or("#1976D2");
+                let def = BlockDef {
+                    id: id.clone(),
+                    category: cat,
+                    block_type,
+                    color: parse_hex_color_i32(color_str),
+                    spec: item.get("spec").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    spec2: item.get("spec2").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    code: item.get("code").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                };
+                map.insert(id, def);
+            }
+        }
+    }
+    map
 }
 
 pub fn parse_css_rules(css: &str) -> Vec<CssRule> {
@@ -24,13 +74,26 @@ pub fn parse_css_rules(css: &str) -> Vec<CssRule> {
             break;
         }
 
-        // Check for comments
+        // Preserve CSS comments as comment blocks
         if chars[i] == '/' && i + 1 < len && chars[i + 1] == '*' {
-            i += 2;
-            while i + 1 < len && !(chars[i] == '*' && chars[i + 1] == '/') {
-                i += 1;
+            let comment_start = i + 2;
+            let mut comment_end = comment_start;
+            while comment_end + 1 < len && !(chars[comment_end] == '*' && chars[comment_end + 1] == '/') {
+                comment_end += 1;
             }
-            i += 2;
+            let comment_text: String = chars[comment_start..comment_end].iter().collect();
+            let trimmed = comment_text.trim().to_string();
+            if !trimmed.is_empty() {
+                rules.push(CssRule {
+                    selector: String::new(),
+                    declarations: Vec::new(),
+                    is_media: false,
+                    is_comment: true,
+                    media_query: trimmed,
+                    inner_rules: Vec::new(),
+                });
+            }
+            i = if comment_end + 1 < len { comment_end + 2 } else { len };
             continue;
         }
 
@@ -78,12 +141,14 @@ pub fn parse_css_rules(css: &str) -> Vec<CssRule> {
                 }
                 i += 1;
             }
-            let inner_css: String = chars[inner_start..i - 1].iter().collect();
+            let end_slice = if brace_depth == 0 && i > 0 { i - 1 } else { len };
+            let inner_css: String = chars[inner_start..end_slice].iter().collect();
             let inner_rules = parse_css_rules(&inner_css);
             rules.push(CssRule {
                 selector,
                 declarations: Vec::new(),
                 is_media: true,
+                is_comment: false,
                 media_query,
                 inner_rules,
             });
@@ -127,6 +192,7 @@ pub fn parse_css_rules(css: &str) -> Vec<CssRule> {
                 selector,
                 declarations: decls,
                 is_media: false,
+                is_comment: false,
                 media_query: String::new(),
                 inner_rules: Vec::new(),
             });
@@ -136,15 +202,48 @@ pub fn parse_css_rules(css: &str) -> Vec<CssRule> {
     rules
 }
 
-pub fn process_css_rule(ctx: &mut GeneratorContext, rule: &CssRule, is_root: bool) -> i32 {
+pub fn process_css_rule(
+    ctx: &mut GeneratorContext,
+    structural_defs: &FxHashMap<String, BlockDef>,
+    rule: &CssRule,
+    is_root: bool,
+    stack_index: i32,
+) -> i32 {
     let rule_id = ctx.next_id();
+
+    if rule.is_comment {
+        let def = structural_defs.get("commentBlockCss");
+        let block = DragWebBlockBean {
+            id: rule_id.to_string(),
+            op_code: "commentBlockCss".to_string(),
+            spec: def.map(|d| d.spec.clone()).unwrap_or_else(|| "// %s".to_string()),
+            spec2: String::new(),
+            block_type: " ".to_string(),
+            category: def.map(|d| d.category.clone()).unwrap_or_else(|| "comment".to_string()),
+            color: def.map(|d| d.color).unwrap_or(-11243910), // #546E7A
+            code: def.map(|d| d.code.clone()).unwrap_or_else(|| "/* %1$s */\n".to_string()),
+            parameters: vec![rule.media_query.clone()],
+            param_types: vec!["s".to_string()],
+            sub_stack1: -1,
+            sub_stack2: -1,
+            next_block: -1,
+            stack_index,
+            is_connected_to_root: is_root,
+            x: if is_root { 100 } else { 0 },
+            y: if is_root { 100 } else { 0 },
+            header_text: String::new(),
+            tokenized_spec: vec!["s".to_string()],
+        };
+        ctx.add_block(block);
+        return rule_id;
+    }
 
     if rule.is_media {
         let mut first_inner_id = -1;
         let mut prev_inner_id = -1;
 
         for r in &rule.inner_rules {
-            let id = process_css_rule(ctx, r, false);
+            let id = process_css_rule(ctx, structural_defs, r, false, -1);
             if id >= 0 {
                 if first_inner_id == -1 {
                     first_inner_id = id;
@@ -156,26 +255,28 @@ pub fn process_css_rule(ctx: &mut GeneratorContext, rule: &CssRule, is_root: boo
             }
         }
 
+        let def = structural_defs.get("cssMediaQuery");
+        let spec = def.map(|d| d.spec.clone()).unwrap_or_else(|| "@media (%s) {".to_string());
         let media_block = DragWebBlockBean {
             id: rule_id.to_string(),
             op_code: "cssMediaQuery".to_string(),
-            spec: "@media (%s) {".to_string(),
+            spec: spec.clone(),
             spec2: String::new(),
-            block_type: "c".to_string(),
-            category: "Selectors".to_string(),
-            color: -15108462, // #1976D2
-            code: "@media (%1$s) {\n %2$s\n}\n".to_string(),
+            block_type: def.map(|d| d.block_type.clone()).unwrap_or_else(|| "c".to_string()),
+            category: def.map(|d| d.category.clone()).unwrap_or_else(|| "responsive".to_string()),
+            color: def.map(|d| d.color).unwrap_or(-15108462), // #1976D2
+            code: def.map(|d| d.code.clone()).unwrap_or_else(|| "@media (%1$s) {\n %2$s\n}\n".to_string()),
             parameters: vec![rule.media_query.clone()],
-            param_types: vec!["s".to_string()],
+            param_types: parse_spec_param_types(&spec),
             sub_stack1: first_inner_id,
             sub_stack2: -1,
             next_block: -1,
-            stack_index: if is_root { 0 } else { -1 },
+            stack_index,
             is_connected_to_root: is_root,
             x: if is_root { 100 } else { 0 },
             y: if is_root { 100 } else { 0 },
             header_text: String::new(),
-            tokenized_spec: vec!["s".to_string()],
+            tokenized_spec: parse_spec_param_types(&spec),
         };
 
         ctx.add_block(media_block);
@@ -201,60 +302,80 @@ pub fn process_css_rule(ctx: &mut GeneratorContext, rule: &CssRule, is_root: boo
         }
     }
 
-    let (op_code, spec, code) = if rule.selector.contains(":hover") {
+    let (target_op, fallback_spec, fallback_code, params) = if rule.selector.ends_with(":hover") {
+        let cleaned = rule.selector.trim_end_matches(":hover").trim().to_string();
         (
-            "cssHover".to_string(),
-            "%selector hover".to_string(),
-            "%1$s:hover {\n %2$s\n}\n".to_string(),
+            "cssHover",
+            "%selector hover",
+            "%1$s:hover {\n %2$s\n}\n",
+            vec![cleaned],
         )
-    } else if rule.selector.contains(":focus") {
+    } else if rule.selector.ends_with(":focus") {
+        let cleaned = rule.selector.trim_end_matches(":focus").trim().to_string();
         (
-            "cssFocus".to_string(),
-            "%selector focus".to_string(),
-            "%1$s:focus {\n %2$s\n}\n".to_string(),
+            "cssFocus",
+            "%selector focus",
+            "%1$s:focus {\n %2$s\n}\n",
+            vec![cleaned],
         )
-    } else if rule.selector.contains(":active") {
+    } else if rule.selector.ends_with(":active") {
+        let cleaned = rule.selector.trim_end_matches(":active").trim().to_string();
         (
-            "cssActive".to_string(),
-            "%selector active".to_string(),
-            "%1$s:active {\n %2$s\n}\n".to_string(),
+            "cssActive",
+            "%selector active",
+            "%1$s:active {\n %2$s\n}\n",
+            vec![cleaned],
         )
+    } else if let Some(colon_idx) = rule.selector.find(':') {
+        if !rule.selector.contains(' ') && structural_defs.contains_key("cssSelectorS") {
+            let base = rule.selector[..colon_idx].trim().to_string();
+            let pseudo = rule.selector[colon_idx + 1..].trim().to_string();
+            (
+                "cssSelectorS",
+                "Widget %selector : %s.inputOnly",
+                "%1$s%2$s {\n %3$s\n}\n",
+                vec![base, pseudo],
+            )
+        } else {
+            (
+                "cssSelector",
+                "Widget %selector",
+                "%1$s {\n %2$s\n}\n",
+                vec![rule.selector.clone()],
+            )
+        }
     } else {
         (
-            "cssSelector".to_string(),
-            "Widget %selector".to_string(),
-            "%1$s {\n %2$s\n}\n".to_string(),
+            "cssSelector",
+            "Widget %selector",
+            "%1$s {\n %2$s\n}\n",
+            vec![rule.selector.clone()],
         )
     };
 
-    let cleaned_sel = rule
-        .selector
-        .replace(":hover", "")
-        .replace(":focus", "")
-        .replace(":active", "")
-        .trim()
-        .to_string();
-
+    let def = structural_defs.get(target_op);
+    let spec = def.map(|d| d.spec.clone()).unwrap_or_else(|| fallback_spec.to_string());
+    let ptypes = parse_spec_param_types(&spec);
     let sel_block = DragWebBlockBean {
         id: rule_id.to_string(),
-        op_code,
+        op_code: target_op.to_string(),
         spec,
         spec2: String::new(),
-        block_type: "c".to_string(),
-        category: "Selectors".to_string(),
-        color: -15108462, // #1976D2
-        code,
-        parameters: vec![cleaned_sel],
-        param_types: vec!["selector".to_string()],
+        block_type: def.map(|d| d.block_type.clone()).unwrap_or_else(|| "c".to_string()),
+        category: def.map(|d| d.category.clone()).unwrap_or_else(|| "css".to_string()),
+        color: def.map(|d| d.color).unwrap_or(-15108462), // #1976D2
+        code: def.map(|d| d.code.clone()).unwrap_or_else(|| fallback_code.to_string()),
+        parameters: params,
+        param_types: ptypes.clone(),
         sub_stack1: first_decl_id,
         sub_stack2: -1,
         next_block: -1,
-        stack_index: if is_root { 0 } else { -1 },
+        stack_index,
         is_connected_to_root: is_root,
         x: if is_root { 100 } else { 0 },
         y: if is_root { 100 } else { 0 },
         header_text: String::new(),
-        tokenized_spec: vec!["selector".to_string()],
+        tokenized_spec: ptypes,
     };
 
     ctx.add_block(sel_block);
@@ -264,6 +385,7 @@ pub fn process_css_rule(ctx: &mut GeneratorContext, rule: &CssRule, is_root: boo
 pub fn generate_css_blocks(css_code: &str, blocks_json: &str) -> Vec<DragWebBlockBean> {
     let (tag_map, attr_map, fb_cont, fb_leaf, fb_attr, fb_text, fb_comm, css_prop_map) =
         load_definitions(blocks_json);
+    let structural_defs = load_css_structural_defs(blocks_json);
 
     let mut ctx = GeneratorContext {
         counter: 10,
@@ -280,15 +402,17 @@ pub fn generate_css_blocks(css_code: &str, blocks_json: &str) -> Vec<DragWebBloc
 
     let rules = parse_css_rules(css_code);
     let mut prev_rule_id = -1;
+    let mut root_idx = 0;
 
-    for (idx, rule) in rules.iter().enumerate() {
-        let is_root = idx == 0;
-        let rule_id = process_css_rule(&mut ctx, rule, is_root);
+    for rule in rules.iter() {
+        let is_root = prev_rule_id == -1;
+        let rule_id = process_css_rule(&mut ctx, &structural_defs, rule, is_root, root_idx);
         if rule_id >= 0 {
             if prev_rule_id != -1 {
                 ctx.set_next_block(prev_rule_id, rule_id);
             }
             prev_rule_id = rule_id;
+            root_idx += 1;
         }
     }
 

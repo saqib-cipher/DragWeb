@@ -7,8 +7,8 @@ impl TextTypography {
         let mut palette = BlockPalette::new("Text & Typography", -13022805); // 0xFF3949AB
 
         palette.push(make_bean("Content", "htmlText", "text: %s", " ", -13022805, "%1$s", vec!["Hello, world!"]));
-        palette.push(make_bean("Styling", "setColor", "color: %s", " ", -13022805, "color: %1$s;", vec!["#000000"]));
-        palette.push(make_bean("", "setFontSize", "font-size: %s", " ", -13022805, "font-size: %1$s;", vec!["14px"]));
+        palette.push(make_bean("Styling", "setColor", "color %m.color", " ", -13022805, "color: %1$s;", vec!["#000000"]));
+        palette.push(make_bean("", "setFontSize", "font-size %d %m.unit", " ", -13022805, "font-size: %1$s%2$s;", vec!["14", "px"]));
         palette.push(make_bean("", "setFontWeight", "font-weight: %m.fontWeight", " ", -13022805, "font-weight: %1$s;", vec!["normal"]));
         palette.push(make_bean("", "setTextAlign", "text-align: %m.textAlign", " ", -13022805, "text-align: %1$s;", vec!["left"]));
         palette.push(make_bean("", "setTextDecoration", "text-decoration: %m.textDecoration", " ", -13022805, "text-decoration: %1$s;", vec!["none"]));

@@ -216,7 +216,7 @@ public class BlockDef {
             }
             
             if (chip.defaultValue == null) {
-                chip.defaultValue = defaultForType(chip.type);
+                chip.defaultValue = "unit".equalsIgnoreCase(chip.selector) ? "px" : defaultForType(chip.type);
             }
             derivedInputs.add(chip);
             idx++;

@@ -377,6 +377,21 @@ public class HtmlCode2Block {
         if (p0.trim().isEmpty()) return;
 
         String op = b.opCode != null ? b.opCode : "";
+        String valueStr = p0.trim();
+        boolean isUnitBlock = (b.spec != null && b.spec.contains("%m.unit"))
+                || isKnownUnitBlock(op);
+        if (b.parameters.size() >= 2 && isUnitBlock) {
+            if ("setRadiusMulti".equals(op) && b.parameters.size() >= 8) {
+                valueStr = combineUnitVal(b.parameters.get(0), b.parameters.get(1)) + " "
+                        + combineUnitVal(b.parameters.get(2), b.parameters.get(3)) + " "
+                        + combineUnitVal(b.parameters.get(4), b.parameters.get(5)) + " "
+                        + combineUnitVal(b.parameters.get(6), b.parameters.get(7));
+            } else if (("setBorder".equals(op) || "setOutline".equals(op)) && b.parameters.size() >= 3) {
+                valueStr = combineUnitVal(b.parameters.get(0), b.parameters.get(1)) + " solid " + b.parameters.get(2).trim();
+            } else {
+                valueStr = combineUnitVal(p0, b.parameters.get(1));
+            }
+        }
         String propName = null;
 
         if (b.code != null && b.code.contains(":")) {
@@ -388,8 +403,12 @@ public class HtmlCode2Block {
 
         if (propName == null && op.startsWith("set") && op.length() > 3) {
             String namePart = op.substring(3);
-            propName = camelToKebab(namePart);
-            if ("radius".equals(propName)) propName = "border-radius";
+            if ("RadiusMulti".equalsIgnoreCase(namePart)) {
+                propName = "border-radius";
+            } else {
+                propName = camelToKebab(namePart);
+                if ("radius".equals(propName)) propName = "border-radius";
+            }
         }
 
         if (propName == null && op.startsWith("css_")) {
@@ -397,8 +416,44 @@ public class HtmlCode2Block {
         }
 
         if (propName != null) {
-            inlineStyles.put(propName, p0.trim());
+            inlineStyles.put(propName, valueStr);
         }
+    }
+
+    private static boolean isKnownUnitBlock(String op) {
+        if (op == null) return false;
+        switch (op) {
+            case "setWidth":
+            case "setHeight":
+            case "setMaxWidth":
+            case "setMaxHeight":
+            case "setMinWidth":
+            case "setMinHeight":
+            case "setMargin":
+            case "setPadding":
+            case "setBorder":
+            case "setOutline":
+            case "setRadius":
+            case "setRadiusMulti":
+            case "setFontSize":
+            case "setLetterSpacing":
+            case "setGap":
+            case "setTop":
+            case "setBottom":
+            case "setLeft":
+            case "setRight":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static String combineUnitVal(String num, String unit) {
+        String n = num != null ? num.trim() : "";
+        String u = unit != null ? unit.trim() : "";
+        if ("auto".equalsIgnoreCase(u)) return "auto";
+        if (n.isEmpty()) return u;
+        return n + u;
     }
 
     public static void parseCssDeclarationsInto(String css, Map<String, String> inlineStyles) {

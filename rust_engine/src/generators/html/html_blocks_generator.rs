@@ -30,7 +30,7 @@ pub struct GeneratorContext {
     pub blocks: Vec<DragWebBlockBean>,
     pub tag_map: FxHashMap<String, BlockDef>,
     pub attr_map: FxHashMap<String, BlockDef>,
-    pub css_prop_map: FxHashMap<String, BlockDef>,
+    pub css_prop_map: FxHashMap<String, Vec<BlockDef>>,
     pub fallback_container: BlockDef,
     pub fallback_leaf: BlockDef,
     pub fallback_attr_generic: BlockDef,
@@ -79,11 +79,11 @@ pub fn load_definitions(
     BlockDef,
     BlockDef,
     BlockDef,
-    FxHashMap<String, BlockDef>,
+    FxHashMap<String, Vec<BlockDef>>,
 ) {
     let mut tag_map = FxHashMap::default();
     let mut attr_map = FxHashMap::default();
-    let mut css_prop_map = FxHashMap::default();
+    let mut css_prop_map: FxHashMap<String, Vec<BlockDef>> = FxHashMap::default();
 
     // Default Fallbacks
     let fallback_container = BlockDef {
@@ -178,66 +178,64 @@ pub fn load_definitions(
 
     // Built-in standard CSS property definitions
     let default_css_props = [
-        ("width", "setWidth", "width: %s", "width: %1$s;", -1086464),
-        ("height", "setHeight", "height: %s", "height: %1$s;", -1086464),
-        ("min-width", "setMinWidth", "min-width: %s", "min-width: %1$s;", -1086464),
-        ("max-width", "setMaxWidth", "max-width: %s", "max-width: %1$s;", -1086464),
-        ("min-height", "setMinHeight", "min-height: %s", "min-height: %1$s;", -1086464),
-        ("max-height", "setMaxHeight", "max-height: %s", "max-height: %1$s;", -1086464),
-        ("margin", "setMargin", "margin: %s", "margin: %1$s;", -1086464),
-        ("margin-top", "setMarginTop", "margin-top: %s", "margin-top: %1$s;", -1086464),
-        ("margin-bottom", "setMarginBottom", "margin-bottom: %s", "margin-bottom: %1$s;", -1086464),
-        ("margin-left", "setMarginLeft", "margin-left: %s", "margin-left: %1$s;", -1086464),
-        ("margin-right", "setMarginRight", "margin-right: %s", "margin-right: %1$s;", -1086464),
-        ("padding", "setPadding", "padding: %s", "padding: %1$s;", -1086464),
-        ("padding-top", "setPaddingTop", "padding-top: %s", "padding-top: %1$s;", -1086464),
-        ("padding-bottom", "setPaddingBottom", "padding-bottom: %s", "padding-bottom: %1$s;", -1086464),
-        ("padding-left", "setPaddingLeft", "padding-left: %s", "padding-left: %1$s;", -1086464),
-        ("padding-right", "setPaddingRight", "padding-right: %s", "padding-right: %1$s;", -1086464),
+        ("width", "setWidth", "width %d %m.unit", "width: %1$s%2$s;", -1086464),
+        ("height", "setHeight", "height %d %m.unit", "height: %1$s%2$s;", -1086464),
+        ("min-width", "setMinWidth", "min-width %d %m.unit", "min-width: %1$s%2$s;", -1086464),
+        ("max-width", "setMaxWidth", "max-width %d %m.unit", "max-width: %1$s%2$s;", -1086464),
+        ("min-height", "setMinHeight", "min-height %d %m.unit", "min-height: %1$s%2$s;", -1086464),
+        ("max-height", "setMaxHeight", "max-height %d %m.unit", "max-height: %1$s%2$s;", -1086464),
+        ("margin", "setMargin", "margin %d %m.unit", "margin: %1$s%2$s;", -1086464),
+        ("margin-top", "setMarginTop", "margin-top %d %m.unit", "margin-top: %1$s%2$s;", -1086464),
+        ("margin-bottom", "setMarginBottom", "margin-bottom %d %m.unit", "margin-bottom: %1$s%2$s;", -1086464),
+        ("margin-left", "setMarginLeft", "margin-left %d %m.unit", "margin-left: %1$s%2$s;", -1086464),
+        ("margin-right", "setMarginRight", "margin-right %d %m.unit", "margin-right: %1$s%2$s;", -1086464),
+        ("padding", "setPadding", "padding %d %m.unit", "padding: %1$s%2$s;", -1086464),
+        ("padding-top", "setPaddingTop", "padding-top %d %m.unit", "padding-top: %1$s%2$s;", -1086464),
+        ("padding-bottom", "setPaddingBottom", "padding-bottom %d %m.unit", "padding-bottom: %1$s%2$s;", -1086464),
+        ("padding-left", "setPaddingLeft", "padding-left %d %m.unit", "padding-left: %1$s%2$s;", -1086464),
+        ("padding-right", "setPaddingRight", "padding-right %d %m.unit", "padding-right: %1$s%2$s;", -1086464),
         ("display", "setDisplay", "display: %m.display", "display: %1$s;", -1086464),
         ("position", "setPosition", "position: %m.position", "position: %1$s;", -1086464),
         ("overflow", "setOverflow", "overflow: %m.overflow", "overflow: %1$s;", -1086464),
-        ("gap", "setGap", "gap: %s", "gap: %1$s;", -1086464),
+        ("gap", "setGap", "gap %d %m.unit", "gap: %1$s%2$s;", -1086464),
         ("flex-direction", "setFlexDirection", "flex-direction: %m.flexDirection", "flex-direction: %1$s;", -1086464),
         ("flex-wrap", "setFlexWrap", "flex-wrap: %m.flexWrap", "flex-wrap: %1$s;", -1086464),
         ("justify-content", "setJustifyContent", "justify-content: %m.justifyContent", "justify-content: %1$s;", -1086464),
         ("align-items", "setAlignItems", "align-items: %m.alignItems", "align-items: %1$s;", -1086464),
-        ("color", "setColor", "color: %s", "color: %1$s;", -13022805),
-        ("font-size", "setFontSize", "font-size: %s", "font-size: %1$s;", -13022805),
+        ("color", "setColor", "color %m.color", "color: %1$s;", -13022805),
+        ("font-size", "setFontSize", "font-size %d %m.unit", "font-size: %1$s%2$s;", -13022805),
         ("font-weight", "setFontWeight", "font-weight: %m.fontWeight", "font-weight: %1$s;", -13022805),
         ("text-align", "setTextAlign", "text-align: %m.textAlign", "text-align: %1$s;", -13022805),
         ("text-decoration", "setTextDecoration", "text-decoration: %m.textDecoration", "text-decoration: %1$s;", -13022805),
         ("text-transform", "setTextTransform", "text-transform: %m.textTransform", "text-transform: %1$s;", -13022805),
         ("line-height", "setLineHeight", "line-height: %s", "line-height: %1$s;", -13022805),
         ("font-family", "setFontFamily", "font-family: %s", "font-family: %1$s;", -13022805),
-        ("background-color", "setBackgroundColor", "background-color: %s", "background-color: %1$s;", -7461718),
+        ("background-color", "setBackgroundColor", "background-color %m.color", "background-color: %1$s;", -7461718),
         ("background", "setBackground", "background: %s", "background: %1$s;", -7461718),
-        ("border", "setBorder", "border: %s", "border: %1$s;", -7461718),
-        ("border-radius", "setRadius", "border-radius: %s", "border-radius: %1$s;", -7461718),
+        ("border", "setBorder", "border %d %m.unit solid %m.color", "border: %1$s%2$s solid %3$s;", -7461718),
+        ("border-radius", "setRadius", "border-radius %d %m.unit", "border-radius: %1$s%2$s;", -7461718),
+        ("border-radius", "setRadiusMulti", "border-radius TL %d %m.unit TR %d %m.unit BR %d %m.unit BL %d %m.unit", "border-radius: %1$s%2$s %3$s%4$s %5$s%6$s %7$s%8$s;", -7461718),
         ("box-shadow", "setBoxShadow", "box-shadow: %s", "box-shadow: %1$s;", -7461718),
         ("opacity", "setOpacity", "opacity: %s", "opacity: %1$s;", -7461718),
         ("cursor", "setCursor", "cursor: %m.cursor", "cursor: %1$s;", -7461718),
     ];
 
     for (k, id, spec, code, color) in default_css_props {
-        css_prop_map.insert(
-            k.to_string(),
-            BlockDef {
-                id: id.to_string(),
-                category: if color == -1086464 {
-                    "Layout & Dimensions".to_string()
-                } else if color == -13022805 {
-                    "Text & Typography".to_string()
-                } else {
-                    "Style & Appearance".to_string()
-                },
-                block_type: " ".to_string(),
-                color,
-                spec: spec.to_string(),
-                spec2: String::new(),
-                code: code.to_string(),
+        css_prop_map.entry(k.to_string()).or_default().push(BlockDef {
+            id: id.to_string(),
+            category: if color == -1086464 {
+                "Layout & Dimensions".to_string()
+            } else if color == -13022805 {
+                "Text & Typography".to_string()
+            } else {
+                "Style & Appearance".to_string()
             },
-        );
+            block_type: " ".to_string(),
+            color,
+            spec: spec.to_string(),
+            spec2: String::new(),
+            code: code.to_string(),
+        });
     }
 
     if let Ok(Value::Array(items)) = serde_json::from_str::<Value>(blocks_json) {
@@ -289,23 +287,33 @@ pub fn load_definitions(
                 && !id.starts_with("cssHover")
                 && !id.starts_with("cssFocus")
                 && !id.starts_with("cssMediaQuery")
+                && !id.starts_with("comment")
             {
+                let mut inserted = false;
                 if let Some(colon_pos) = code.find(':') {
                     let code_key = code[..colon_pos].trim().to_lowercase();
                     if !code_key.is_empty() && !code_key.contains('%') && !code_key.contains(' ') {
-                        css_prop_map.insert(code_key, def.clone());
+                        let list = css_prop_map.entry(code_key).or_default();
+                        list.retain(|existing| existing.id != def.id);
+                        // Prefer blocks.json definition by inserting at front
+                        list.insert(0, def.clone());
+                        inserted = true;
                     }
                 }
-                let raw_name = id.trim_start_matches("css_").trim_start_matches("set");
-                let mut kebab = String::new();
-                for (ci, ch) in raw_name.chars().enumerate() {
-                    if ch.is_uppercase() && ci > 0 {
-                        kebab.push('-');
+                if !inserted {
+                    let raw_name = id.trim_start_matches("css_").trim_start_matches("set");
+                    let mut kebab = String::new();
+                    for (ci, ch) in raw_name.chars().enumerate() {
+                        if ch.is_uppercase() && ci > 0 {
+                            kebab.push('-');
+                        }
+                        kebab.push(ch.to_ascii_lowercase());
                     }
-                    kebab.push(ch.to_ascii_lowercase());
-                }
-                if !kebab.is_empty() {
-                    css_prop_map.entry(kebab).or_insert(def);
+                    if !kebab.is_empty() {
+                        let list = css_prop_map.entry(kebab).or_default();
+                        list.retain(|existing| existing.id != def.id);
+                        list.insert(0, def);
+                    }
                 }
             }
         }
@@ -546,6 +554,85 @@ fn parse_html_custom(html: &str) -> Vec<HtmlNode> {
     nodes
 }
 
+fn split_number_and_unit(token: &str) -> Option<(String, String)> {
+    let t = token.trim();
+    if t.is_empty() {
+        return None;
+    }
+    if t.eq_ignore_ascii_case("auto") {
+        return Some(("0".to_string(), "auto".to_string()));
+    }
+    let bytes = t.as_bytes();
+    let mut i = 0;
+    if i < bytes.len() && (bytes[i] == b'+' || bytes[i] == b'-') {
+        i += 1;
+    }
+    let digit_start = i;
+    let mut has_digit = false;
+    while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
+        if bytes[i].is_ascii_digit() {
+            has_digit = true;
+        }
+        i += 1;
+    }
+    if !has_digit || i == digit_start {
+        return None;
+    }
+    let num = t[..i].to_string();
+    let unit = t[i..].trim();
+    let final_unit = if unit.is_empty() {
+        if num == "0" { "px".to_string() } else { "".to_string() }
+    } else {
+        unit.to_string()
+    };
+    Some((num, final_unit))
+}
+
+fn match_css_def_and_params(def: &BlockDef, key: &str, val: &str) -> Option<Vec<String>> {
+    let param_types = parse_spec_param_types(&def.spec);
+    let tokens: Vec<&str> = val.split_whitespace().collect();
+
+    if def.id == "setRadiusMulti" || (key == "border-radius" && param_types.len() == 8) {
+        if tokens.len() != 4 {
+            return None;
+        }
+        let mut params = Vec::with_capacity(8);
+        for tok in tokens {
+            let (n, u) = split_number_and_unit(tok)?;
+            params.push(n);
+            params.push(if u.is_empty() { "px".to_string() } else { u });
+        }
+        return Some(params);
+    }
+
+    if (def.id == "setBorder" || def.id == "setOutline") && param_types.len() == 3 {
+        if tokens.len() == 3 && tokens[1].eq_ignore_ascii_case("solid") {
+            if let Some((n, u)) = split_number_and_unit(tokens[0]) {
+                return Some(vec![
+                    n,
+                    if u.is_empty() { "px".to_string() } else { u },
+                    tokens[2].to_string(),
+                ]);
+            }
+        }
+        return None;
+    }
+
+    if param_types.len() == 2 && def.spec.contains("%d %m.unit") {
+        if tokens.len() != 1 {
+            return None;
+        }
+        let (n, u) = split_number_and_unit(tokens[0])?;
+        return Some(vec![n, if u.is_empty() { "px".to_string() } else { u }]);
+    }
+
+    if param_types.len() == 1 {
+        return Some(vec![val.to_string()]);
+    }
+
+    None
+}
+
 pub fn unpack_style_properties(style_str: &str, ctx: &mut GeneratorContext) -> Vec<DragWebBlockBean> {
     let mut prop_blocks = Vec::new();
     let declarations: Vec<&str> = style_str.split(';').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
@@ -563,40 +650,35 @@ pub fn unpack_style_properties(style_str: &str, ctx: &mut GeneratorContext) -> V
             prop_block.sub_stack2 = -1;
             prop_block.is_connected_to_root = false;
 
-            if let Some(def) = ctx.css_prop_map.get(&key) {
-                prop_block.op_code = def.id.clone();
-                prop_block.spec = def.spec.clone();
-                prop_block.code = def.code.clone();
-                prop_block.category = def.category.clone();
-                prop_block.block_type = def.block_type.clone();
-                prop_block.color = def.color;
-                prop_block.parameters = vec![val.to_string()];
-                prop_block.param_types = parse_spec_param_types(&def.spec);
-                prop_block.tokenized_spec = prop_block.param_types.clone();
-            } else {
+            let mut matched = false;
+            if let Some(defs) = ctx.css_prop_map.get(&key) {
+                for def in defs {
+                    if let Some(params) = match_css_def_and_params(def, &key, val) {
+                        prop_block.op_code = def.id.clone();
+                        prop_block.spec = def.spec.clone();
+                        prop_block.code = def.code.clone();
+                        prop_block.category = def.category.clone();
+                        prop_block.block_type = def.block_type.clone();
+                        prop_block.color = def.color;
+                        prop_block.parameters = params;
+                        prop_block.param_types = parse_spec_param_types(&def.spec);
+                        prop_block.tokenized_spec = prop_block.param_types.clone();
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+
+            if !matched {
                 let color = if key.contains("width") || key.contains("height") || key.contains("margin") || key.contains("padding") || key.contains("display") || key.contains("position") {
-                    -1086464 // #EF6C00
-                } else if key.contains("color") || key.contains("font") || key.contains("text") {
-                    -13022805 // #3949AB
+                    -16611119 // #0288D1
+                } else if key.contains("color") || key.contains("font") || key.contains("text") || key.contains("line-height") {
+                    -13070788 // #388E3C
                 } else {
-                    -7461718 // #8E24AA
+                    -9920712 // #689F38
                 };
 
-                let op_code = match key.as_str() {
-                    "width" => "setWidth",
-                    "height" => "setHeight",
-                    "margin" => "setMargin",
-                    "padding" => "setPadding",
-                    "color" => "setColor",
-                    "background-color" => "setBackgroundColor",
-                    "background" => "setBackground",
-                    "font-size" => "setFontSize",
-                    "border" => "setBorder",
-                    "border-radius" => "setRadius",
-                    _ => "cssPropertyGeneric",
-                };
-
-                prop_block.op_code = op_code.to_string();
+                prop_block.op_code = "cssPropertyGeneric".to_string();
                 prop_block.spec = format!("{}: %s", key);
                 prop_block.code = format!("{}: %1$s;", key);
                 prop_block.category = "Style & Appearance".to_string();
@@ -938,10 +1020,37 @@ fn format_block_template(template: &str, params: &[String]) -> String {
     out
 }
 
+fn combine_unit_pair(num: &str, unit: &str) -> String {
+    let n = num.trim();
+    let u = unit.trim();
+    if u.eq_ignore_ascii_case("auto") {
+        return "auto".to_string();
+    }
+    if n.is_empty() {
+        return u.to_string();
+    }
+    format!("{}{}", n, u)
+}
+
 fn css_prop_from_block(block: &DragWebBlockBean) -> Option<String> {
     let op = block.op_code.as_str();
     let p0 = block.parameters.first().map(|s| s.trim()).unwrap_or("");
     let p1 = block.parameters.get(1).map(|s| s.trim()).unwrap_or("");
+
+    if op == "setRadiusMulti" && block.parameters.len() >= 8 {
+        let tl = combine_unit_pair(&block.parameters[0], &block.parameters[1]);
+        let tr = combine_unit_pair(&block.parameters[2], &block.parameters[3]);
+        let br = combine_unit_pair(&block.parameters[4], &block.parameters[5]);
+        let bl = combine_unit_pair(&block.parameters[6], &block.parameters[7]);
+        return Some(format!("border-radius: {} {} {} {};", tl, tr, br, bl));
+    }
+
+    if (op == "setBorder" || op == "setOutline") && block.parameters.len() >= 3 && block.spec.contains("%m.unit") {
+        let pname = if op == "setBorder" { "border" } else { "outline" };
+        let w = combine_unit_pair(p0, p1);
+        let c = block.parameters[2].trim();
+        return Some(format!("{}: {} solid {};", pname, w, c));
+    }
 
     let prop_name = match op {
         "setWidth" => Some("width"),
@@ -964,6 +1073,10 @@ fn css_prop_from_block(block: &DragWebBlockBean) -> Option<String> {
         "setPosition" => Some("position"),
         "setOverflow" => Some("overflow"),
         "setGap" => Some("gap"),
+        "setTop" => Some("top"),
+        "setBottom" => Some("bottom"),
+        "setLeft" => Some("left"),
+        "setRight" => Some("right"),
         "setFlexDirection" => Some("flex-direction"),
         "setFlexWrap" => Some("flex-wrap"),
         "setJustifyContent" => Some("justify-content"),
@@ -975,10 +1088,12 @@ fn css_prop_from_block(block: &DragWebBlockBean) -> Option<String> {
         "setTextDecoration" => Some("text-decoration"),
         "setTextTransform" => Some("text-transform"),
         "setLineHeight" => Some("line-height"),
+        "setLetterSpacing" => Some("letter-spacing"),
         "setFontFamily" => Some("font-family"),
         "setBackgroundColor" => Some("background-color"),
         "setBackground" => Some("background"),
         "setBorder" => Some("border"),
+        "setOutline" => Some("outline"),
         "setRadius" => Some("border-radius"),
         "setBoxShadow" => Some("box-shadow"),
         "setOpacity" => Some("opacity"),
@@ -987,10 +1102,18 @@ fn css_prop_from_block(block: &DragWebBlockBean) -> Option<String> {
     };
 
     if let Some(name) = prop_name {
-        if p0.is_empty() {
+        if p0.is_empty() && !block.spec.contains("%m.unit") {
             return None;
         }
-        return Some(format!("{}: {};", name, p0));
+        let val = if block.parameters.len() >= 2 && block.spec.contains("%m.unit") {
+            combine_unit_pair(p0, p1)
+        } else {
+            p0.to_string()
+        };
+        if val.is_empty() {
+            return None;
+        }
+        return Some(format!("{}: {};", name, val));
     }
 
     if op == "cssPropertyGeneric" || op == "setStyleProp" {

@@ -10,13 +10,14 @@ import time
 import urllib.request
 import uuid
 
+
 def send_telegram_message(bot_token, chat_id, text, thread_id=None):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
-        "disable_web_page_preview": True
+        "disable_web_page_preview": True,
     }
     if thread_id:
         payload["message_thread_id"] = thread_id
@@ -29,6 +30,7 @@ def send_telegram_message(bot_token, chat_id, text, thread_id=None):
     except Exception as e:
         print(f"Error sending message to Telegram: {e}", file=sys.stderr)
         return None
+
 
 def send_telegram_document(bot_token, chat_id, file_path, caption=None, thread_id=None):
     if not os.path.isfile(file_path):
@@ -75,6 +77,7 @@ def send_telegram_document(bot_token, chat_id, file_path, caption=None, thread_i
         print(f"Error sending document ({filename}) to Telegram: {e}", file=sys.stderr)
         return None
 
+
 def get_git_info():
     branch = os.getenv("GITHUB_REF_NAME")
     if not branch:
@@ -101,6 +104,7 @@ def get_git_info():
 
     return branch, commit_short, commit_msg
 
+
 def get_app_version():
     version_code = None
     version_name = None
@@ -121,6 +125,7 @@ def get_app_version():
                 break
     return version_code or "1", version_name or "1.0"
 
+
 def tag_exists(tag_name):
     try:
         output = subprocess.check_output(["git", "tag", "-l"], text=True, errors="replace")
@@ -130,16 +135,18 @@ def tag_exists(tag_name):
     except Exception:
         return False
 
+
 def create_and_push_tag(tag_name):
     try:
-        print(f"🏷️ Creating Git tag: {tag_name}")
+        print(f"Creating Git tag: {tag_name}")
         subprocess.run(["git", "tag", tag_name], check=True)
-        print(f"⬆️ Pushing Git tag {tag_name} to remote...")
+        print(f"Pushing Git tag {tag_name} to remote...")
         subprocess.run(["git", "push", "origin", tag_name], check=True)
         return True
     except Exception as e:
         print(f"Error pushing tag {tag_name}: {e}", file=sys.stderr)
         return False
+
 
 def set_github_output(key, value):
     gh_output = os.getenv("GITHUB_OUTPUT")
@@ -150,11 +157,21 @@ def set_github_output(key, value):
         except Exception as e:
             print(f"Error setting GitHub output: {e}", file=sys.stderr)
 
+
+def get_actions_run_url():
+    server = os.getenv("GITHUB_SERVER_URL")
+    repo = os.getenv("GITHUB_REPOSITORY")
+    run_id = os.getenv("GITHUB_RUN_ID")
+    if server and repo and run_id:
+        return f"{server}/{repo}/actions/runs/{run_id}"
+    return None
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Live build executor, version tag checker, and Telegram notifier.")
+    parser = argparse.ArgumentParser(description="Build executor, version tag checker, and Telegram notifier.")
     parser.add_argument("--cmd", type=str, help="Override build command to execute")
     parser.add_argument("--apk", type=str, help="Override APK path to upload")
-    parser.add_argument("--log", type=str, default="build.log", help="Path to build log file")
+    parser.add_argument("--aab", type=str, help="Override AAB path for Play Store release")
     parser.add_argument("--bot-token", type=str, default=os.getenv("TELEGRAM_BOT_TOKEN"), help="Telegram Bot Token")
     parser.add_argument("--chat-id", type=str, default=os.getenv("TELEGRAM_CHAT_ID"), help="Telegram Chat ID")
     parser.add_argument("--thread-id", type=str, default=os.getenv("TELEGRAM_THREAD_ID"), help="Telegram Thread ID")
@@ -164,7 +181,6 @@ def main():
 
     bot_token = args.bot_token
     chat_id = args.chat_id
-    log_file = args.log
 
     version_code, version_name = get_app_version()
     tag_name = f"v{version_code}"
@@ -173,64 +189,32 @@ def main():
     print(f"App Version Code: {version_code}, Version Name: {version_name}")
     print(f"Checking if Git tag '{tag_name}' exists: {is_tagged}")
 
+    keystore_file = os.getenv("KEYSTORE_FILE", "")
+    has_keystore = bool(keystore_file and os.path.exists(keystore_file))
+    print(f"Shared keystore configured: {has_keystore}")
+
     if is_tagged:
         build_type = "debug"
         cmd = args.cmd or "./gradlew assembleDebug"
         apk_path = args.apk or "app/build/outputs/apk/debug/app-debug.apk"
+        aab_path = ""
         thread_id = args.thread_id
-        title = f"🐛 <b>Debug Build (v{html.escape(version_name)} - Code {html.escape(version_code)})</b>"
+        title = f"<b>Debug Build (v{html.escape(version_name)} - Code {html.escape(version_code)})</b>"
     else:
         build_type = "release"
-        workspace = os.getenv("GITHUB_WORKSPACE", ".")
-        keystore = os.path.join(workspace, "release.jks")
-        ks_pass = os.getenv("KEYSTORE_PASSWORD", "")
-        key_alias = os.getenv("KEY_ALIAS", "")
-        key_pass = os.getenv("KEY_PASSWORD", "")
-
-        if os.path.exists(keystore) and ks_pass:
-            default_release_cmd = (
-                f'./gradlew assembleRelease '
-                f'-Pandroid.injected.signing.store.file="{keystore}" '
-                f'-Pandroid.injected.signing.store.password="{ks_pass}" '
-                f'-Pandroid.injected.signing.key.alias="{key_alias}" '
-                f'-Pandroid.injected.signing.key.password="{key_pass}"'
-            )
-        else:
-            default_release_cmd = "./gradlew assembleRelease"
-
-        cmd = args.cmd or default_release_cmd
+        # Signing credentials are consumed directly from env by app/build.gradle (never via CLI args)
+        cmd = args.cmd or "./gradlew assembleRelease bundleRelease"
         apk_path = args.apk or "app/build/outputs/apk/release/app-release.apk"
+        aab_path = args.aab or "app/build/outputs/bundle/release/app-release.aab"
         thread_id = args.thread_r_id or args.thread_id
-        title = f"🚀 <b>Release Build v{html.escape(version_name)} (Code {html.escape(version_code)})</b>"
+        title = f"<b>Release Build v{html.escape(version_name)} (Code {html.escape(version_code)})</b>"
 
     print(f"Selected Build Mode: {build_type.upper()}")
     print(f"Executing command: {cmd}")
-    print(f"Logging to: {log_file}")
 
     start_time = time.time()
-
-    # Stream build output to console and write to log_file
-    with open(log_file, "w", encoding="utf-8", errors="replace") as log_f:
-        process = subprocess.Popen(
-            cmd,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            bufsize=1
-        )
-
-        for line in process.stdout:
-            sys.stdout.write(line)
-            sys.stdout.flush()
-            log_f.write(line)
-            log_f.flush()
-
-        process.wait()
-        exit_code = process.returncode
-
+    process = subprocess.run(cmd, shell=True)
+    exit_code = process.returncode
     duration = round(time.time() - start_time, 2)
     branch, commit_short, commit_msg = get_git_info()
 
@@ -240,7 +224,8 @@ def main():
     set_github_output("tag_name", tag_name)
     set_github_output("version_name", version_name)
     set_github_output("version_code", version_code)
-    set_github_output("apk_path", apk_path)
+    set_github_output("apk_path", apk_path if os.path.exists(apk_path) else "")
+    set_github_output("aab_path", aab_path if (aab_path and os.path.exists(aab_path)) else "")
 
     if bot_token and chat_id:
         if exit_code == 0:
@@ -267,28 +252,22 @@ def main():
                 print("Sending text notification to Telegram...")
                 send_telegram_message(bot_token, chat_id, caption, thread_id=thread_id)
 
-            # Send the complete build log as a file document
-            if os.path.exists(log_file):
-                log_caption = f"📄 <b>Build Log ({build_type.upper()})</b> — {html.escape(tag_name)} ({duration}s)"
-                print(f"Sending whole build log file ({log_file}) to Telegram...")
-                send_telegram_document(bot_token, chat_id, log_file, caption=log_caption, thread_id=thread_id)
-
         else:
+            run_url = get_actions_run_url()
+            run_line = f'\n<b>Run:</b> <a href="{html.escape(run_url)}">View Workflow Run</a>' if run_url else ""
             caption = (
-                f"❌ <b>Build Failed ({build_type.upper()})</b>\n\n"
+                f"<b>Build Failed ({build_type.upper()})</b>\n\n"
                 f"<b>Branch:</b> {html.escape(branch)}\n"
                 f"<b>Commit:</b> #{commit_short}\n"
                 f"<b>Version Code:</b> {html.escape(version_code)}\n"
-                f"<b>Duration:</b> {duration}s\n\n"
+                f"<b>Duration:</b> {duration}s{run_line}\n\n"
                 f"<b>Message:</b> {html.escape(commit_msg)}"
             )
-            print("Sending build failure log to Telegram...")
-            if os.path.exists(log_file):
-                send_telegram_document(bot_token, chat_id, log_file, caption=caption, thread_id=thread_id)
-            else:
-                send_telegram_message(bot_token, chat_id, caption, thread_id=thread_id)
+            print("Sending build failure summary to Telegram (without build log)...")
+            send_telegram_message(bot_token, chat_id, caption, thread_id=thread_id)
 
     sys.exit(exit_code)
+
 
 if __name__ == "__main__":
     main()

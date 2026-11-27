@@ -388,19 +388,6 @@ public class BlockArg extends BlockBase {
                 return;
             }
 
-            if ("unit".equalsIgnoreCase(menuName)) {
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
-                dialog.setTitle("Select Unit")
-                      .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
-                dialog.showUnitInput(new UniversalM3Dialog.OnText() {
-                    @Override
-                    public void onText(String value) {
-                        applyArgValueChange(value);
-                    }
-                });
-                return;
-            }
-
             if ("fontFamily".equalsIgnoreCase(menuName)) {
                 String currentVal = this.argValue != null ? this.argValue.toString() : "";
                 if (getContext() instanceof androidx.fragment.app.FragmentActivity) {

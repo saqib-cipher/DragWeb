@@ -256,4 +256,71 @@ document.getElementById("btn").addEventListener("click", function() {
             assert_ne!(b.block_type, "normal", "block_type must use space command shape, never normal");
         }
     }
+
+    #[test]
+    fn test_unit_blocks_and_single_vs_multi_border_radius() {
+        let html_single = "<div style=\"width: 100%; padding: 16px; border-radius: 8px;\">Hi</div>";
+        let blocks_single = generate_dragweb_blocks(html_single, "[]");
+        let radius_single = blocks_single
+            .iter()
+            .find(|b| b.op_code == "setRadius")
+            .expect("single border-radius must select setRadius, not setRadiusMulti");
+        assert_eq!(radius_single.parameters, vec!["8", "px"]);
+        assert!(
+            blocks_single.iter().all(|b| b.op_code != "setRadiusMulti"),
+            "single-value border-radius must not produce setRadiusMulti"
+        );
+        let width_blk = blocks_single.iter().find(|b| b.op_code == "setWidth").expect("setWidth");
+        assert_eq!(width_blk.parameters, vec!["100", "%"]);
+        let pad_blk = blocks_single.iter().find(|b| b.op_code == "setPadding").expect("setPadding");
+        assert_eq!(pad_blk.parameters, vec!["16", "px"]);
+
+        let json_single = serde_json::to_string(&blocks_single).unwrap();
+        let regenerated_single = generate_html_from_blocks(&json_single);
+        assert!(regenerated_single.contains("border-radius: 8px"), "{}", regenerated_single);
+        assert!(regenerated_single.contains("width: 100%"), "{}", regenerated_single);
+        assert!(regenerated_single.contains("padding: 16px"), "{}", regenerated_single);
+
+        let html_multi = "<div style=\"border-radius: 4px 8px 12px 16px;\">Hi</div>";
+        let blocks_multi = generate_dragweb_blocks(html_multi, "[]");
+        let radius_multi = blocks_multi
+            .iter()
+            .find(|b| b.op_code == "setRadiusMulti")
+            .expect("4-corner border-radius must select setRadiusMulti");
+        assert_eq!(
+            radius_multi.parameters,
+            vec!["4", "px", "8", "px", "12", "px", "16", "px"]
+        );
+        let json_multi = serde_json::to_string(&blocks_multi).unwrap();
+        let regenerated_multi = generate_html_from_blocks(&json_multi);
+        assert!(
+            regenerated_multi.contains("border-radius: 4px 8px 12px 16px"),
+            "{}",
+            regenerated_multi
+        );
+    }
+
+    #[test]
+    fn test_js_blocks_json_reference_scan() {
+        let real_blocks_json = include_str!("../../app/src/main/assets/blocks.json");
+        let js = r#"
+// Initialize card
+const btn = document.getElementById("submitBtn");
+localStorage.setItem("theme", "dark");
+setTimeout(() => {
+  console.log("ready");
+}, 250);
+"#;
+        let blocks = generate_js_blocks(js, real_blocks_json);
+        let comment = blocks.iter().find(|b| b.op_code == "commentBlock").expect("commentBlock");
+        assert_eq!(comment.parameters, vec!["Initialize card"]);
+        let get_id = blocks.iter().find(|b| b.op_code == "jsConstGetById").expect("jsConstGetById");
+        assert_eq!(get_id.parameters, vec!["btn", "submitBtn"]);
+        let ls = blocks.iter().find(|b| b.op_code == "jsLocalStorageSet").expect("jsLocalStorageSet");
+        assert_eq!(ls.parameters, vec!["theme", "\"dark\""]);
+        let timeout = blocks.iter().find(|b| b.op_code == "jsSetTimeout").expect("jsSetTimeout");
+        assert_eq!(timeout.parameters, vec!["250"]);
+        assert_eq!(timeout.block_type, "c");
+        assert!(timeout.sub_stack1 >= 0);
+    }
 }

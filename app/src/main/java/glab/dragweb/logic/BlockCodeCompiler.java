@@ -399,6 +399,7 @@ public class BlockCodeCompiler {
         String formatted = "";
         try {
             formatted = String.format(normalizedTemplate, compiledParams.toArray());
+            formatted = formatted.replaceAll("\\b[0-9.-]+auto\\b", "auto");
         } catch (Exception e) {
             e.printStackTrace();
             formatted = normalizedTemplate;

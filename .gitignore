@@ -11,3 +11,10 @@ target/
 __pycache__/
 .artifacts/
 .agents/
+*.jks
+*.keystore
+*.p12
+keystore.properties
+*.aab
+*.apk
+CHANGELOG.txt
