@@ -150,6 +150,7 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 		private boolean isUndoRedoAction = false;
 		private BlockArg pendingTextEditorArg = null;
 		private androidx.activity.result.ActivityResultLauncher<Intent> textEditorLauncher;
+		private androidx.activity.result.ActivityResultLauncher<Intent> html2BlockLauncher;
 		private List<LogicLinter.LintProblem> currentLintProblems = new ArrayList<>();
 		private LinearLayout btnProblemsPill;
 		private LinearLayout layoutPillAllGood;
@@ -634,6 +635,36 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						if (htmlCode != null && !htmlCode.trim().isEmpty()) {
 								blocks = glab.dragweb.core.BlocksLoader.generateHtmlBlocksFromCode(this, htmlCode);
 						}
+				} else if (isCssEvent()) {
+						ThemeManager tm = ProjectCodeGenerator.getProjectThemeManager(this, this.projectId);
+						boolean useInline = (tm == null || tm.isUseInlineStyles());
+						if (useInline) {
+								// Inline styling ON: show only explicit CSS logic blocks, never canvas widget inline styles
+								blocks = DesignDataManager.getBlocks(cleanPName, eventKey);
+								if (blocks == null || blocks.isEmpty()) {
+										blocks = DesignDataManager.getBlocks(filename, eventKey);
+								}
+						} else {
+								// Inline styling OFF: show external CSS (logic blocks + canvas widget rules) in CSS Logic Editor
+								String cssPageKey = DesignDataManager.getCleanPageName("css/style.css");
+								String compiledCss = ProjectCodeGenerator.compileCssForFile(this, this.projectId, cssPageKey);
+								String cleanCss = stripCssImports(compiledCss);
+								if ((cleanCss == null || cleanCss.isEmpty())) {
+										File cssFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/assets/css/style.css");
+										if (cssFile.exists()) {
+												cleanCss = stripCssImports(FileUtil.readFile(cssFile.getAbsolutePath()));
+										}
+								}
+								if (cleanCss != null && !cleanCss.isEmpty()) {
+										blocks = glab.dragweb.core.BlocksLoader.generateCssBlocksFromCode(this, cleanCss);
+								}
+								if (blocks == null || blocks.isEmpty()) {
+										blocks = DesignDataManager.getBlocks(cleanPName, eventKey);
+										if (blocks == null || blocks.isEmpty()) {
+												blocks = DesignDataManager.getBlocks(filename, eventKey);
+										}
+								}
+						}
 				} else {
 						blocks = DesignDataManager.getBlocks(cleanPName, eventKey);
 						if (blocks == null || blocks.isEmpty()) {
@@ -655,72 +686,79 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						}
 				}
 				if (blocks != null) {
-						java.util.Collections.sort(blocks, (b1, b2) -> {
-								BlockBean bean1 = (BlockBean) b1;
-								BlockBean bean2 = (BlockBean) b2;
-								return Integer.compare(bean1.stackIndex, bean2.stackIndex);
-						});
+						populateBlocksIntoPane(blocks);
+				}
+				this.isLogicLoaded = true;
+		}
 
-						Iterator it = blocks.iterator();
-						while (it.hasNext()) {
-								BlockBean bBean = (BlockBean) it.next();
-								Block makeBlockFromBean = makeBlockFromBean(bBean);
-								int bId = ((Integer) makeBlockFromBean.getTag()).intValue();
-								hashMap.put(Integer.valueOf(bId), makeBlockFromBean);
-								this.pane.blockId = Math.max(this.pane.blockId, bId + 1);
-								this.pane.addBlock(makeBlockFromBean, 0, 0);
-								if (bBean.x != 0 || bBean.y != 0) {
-										makeBlockFromBean.setX(bBean.x);
-										makeBlockFromBean.setY(bBean.y);
-								}
-								makeBlockFromBean.setOnTouchListener(this);
+		private void populateBlocksIntoPane(ArrayList blocks) {
+				if (blocks == null || this.pane == null) return;
+				Map<Integer, Block> hashMap = new HashMap<>();
+				java.util.Collections.sort(blocks, (b1, b2) -> {
+						BlockBean bean1 = (BlockBean) b1;
+						BlockBean bean2 = (BlockBean) b2;
+						return Integer.compare(bean1.stackIndex, bean2.stackIndex);
+				});
+
+				Iterator it = blocks.iterator();
+				while (it.hasNext()) {
+						BlockBean bBean = (BlockBean) it.next();
+						Block makeBlockFromBean = makeBlockFromBean(bBean);
+						int bId = ((Integer) makeBlockFromBean.getTag()).intValue();
+						hashMap.put(Integer.valueOf(bId), makeBlockFromBean);
+						this.pane.blockId = Math.max(this.pane.blockId, bId + 1);
+						this.pane.addBlock(makeBlockFromBean, 0, 0);
+						if (bBean.x != 0 || bBean.y != 0) {
+								makeBlockFromBean.setX(bBean.x);
+								makeBlockFromBean.setY(bBean.y);
 						}
-						Iterator it2 = blocks.iterator();
-						while (it2.hasNext()) {
-								BlockBean blockBean = (BlockBean) it2.next();
-								int beanId = safeParseInt(blockBean.id);
-								Block block = (Block) hashMap.get(Integer.valueOf(beanId));
-								if (block != null) {
-										Block block2;
-										if (blockBean.subStack1 >= 0) {
-												block2 = (Block) hashMap.get(Integer.valueOf(blockBean.subStack1));
-												if (block2 != null) {
-														block.insertBlockSub1(block2);
-												}
+						makeBlockFromBean.setOnTouchListener(this);
+				}
+				Iterator it2 = blocks.iterator();
+				while (it2.hasNext()) {
+						BlockBean blockBean = (BlockBean) it2.next();
+						int beanId = safeParseInt(blockBean.id);
+						Block block = (Block) hashMap.get(Integer.valueOf(beanId));
+						if (block != null) {
+								Block block2;
+								if (blockBean.subStack1 >= 0) {
+										block2 = (Block) hashMap.get(Integer.valueOf(blockBean.subStack1));
+										if (block2 != null) {
+												block.insertBlockSub1(block2);
 										}
-										if (blockBean.subStack2 >= 0) {
-												block2 = (Block) hashMap.get(Integer.valueOf(blockBean.subStack2));
-												if (block2 != null) {
-														block.insertBlockSub2(block2);
-												}
+								}
+								if (blockBean.subStack2 >= 0) {
+										block2 = (Block) hashMap.get(Integer.valueOf(blockBean.subStack2));
+										if (block2 != null) {
+												block.insertBlockSub2(block2);
 										}
-										if (blockBean.nextBlock >= 0) {
-												block2 = (Block) hashMap.get(Integer.valueOf(blockBean.nextBlock));
-												if (block2 != null) {
-														block.insertBlock(block2);
-												}
+								}
+								if (blockBean.nextBlock >= 0) {
+										block2 = (Block) hashMap.get(Integer.valueOf(blockBean.nextBlock));
+										if (block2 != null) {
+												block.insertBlock(block2);
 										}
-										if (blockBean.parameters != null && block.args != null) {
-												int size = blockBean.parameters.size();
-												for (int i2 = 0; i2 < size; i2++) {
-														String str = (String) blockBean.parameters.get(i2);
-														if (str != null && str.length() > 0) {
-																if (str.charAt(0) == '@') {
-																		int refId = safeParseInt(str.substring(1));
-																		block2 = (Block) hashMap.get(Integer.valueOf(refId));
-																		if (block2 != null && i2 < block.args.size()) {
-																				View targetArg = (View) block.args.get(i2);
-																				if (targetArg instanceof BlockBase) {
-																						block.replaceArgWithBlock((BlockBase) targetArg, block2);
-																				}
+								}
+								if (blockBean.parameters != null && block.args != null) {
+										int size = blockBean.parameters.size();
+										for (int i2 = 0; i2 < size; i2++) {
+												String str = (String) blockBean.parameters.get(i2);
+												if (str != null && str.length() > 0) {
+														if (str.charAt(0) == '@') {
+																int refId = safeParseInt(str.substring(1));
+																block2 = (Block) hashMap.get(Integer.valueOf(refId));
+																if (block2 != null && i2 < block.args.size()) {
+																		View targetArg = (View) block.args.get(i2);
+																		if (targetArg instanceof BlockBase) {
+																				block.replaceArgWithBlock((BlockBase) targetArg, block2);
 																		}
-																} else {
-																		if (i2 < block.args.size()) {
-																				View targetArg = (View) block.args.get(i2);
-																				if (targetArg instanceof BlockArg) {
-																						((BlockArg) targetArg).setArgValue(str);
-																						block.recalcWidthToParent();
-																				}
+																}
+														} else {
+																if (i2 < block.args.size()) {
+																		View targetArg = (View) block.args.get(i2);
+																		if (targetArg instanceof BlockArg) {
+																				((BlockArg) targetArg).setArgValue(str);
+																				block.recalcWidthToParent();
 																		}
 																}
 														}
@@ -728,60 +766,87 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 										}
 								}
 						}
+				}
 
-						// Connect the root child block if it was originally attached to getRoot()
-						Block rootChild = null;
+				// Connect the root child block if it was originally attached to getRoot()
+				Block rootChild = null;
+				for (Object obj : blocks) {
+						if (obj instanceof BlockBean) {
+								BlockBean bb = (BlockBean) obj;
+								Block b = (Block) hashMap.get(Integer.valueOf(safeParseInt(bb.id)));
+								if (b != null && b.parentBlock == null && !b.isReporter && b != this.pane.getRoot()) {
+										if (bb.isConnectedToRoot) {
+												rootChild = b;
+												break;
+										}
+								}
+						}
+				}
+
+				// Robust fallback: find ANY unparented statement block to connect to getRoot()
+				if (rootChild == null && !blocks.isEmpty()) {
 						for (Object obj : blocks) {
 								if (obj instanceof BlockBean) {
 										BlockBean bb = (BlockBean) obj;
 										Block b = (Block) hashMap.get(Integer.valueOf(safeParseInt(bb.id)));
 										if (b != null && b.parentBlock == null && !b.isReporter && b != this.pane.getRoot()) {
-												if (bb.isConnectedToRoot) {
-														rootChild = b;
-														break;
-												}
+												rootChild = b;
+												break;
 										}
 								}
 						}
+				}
 
-						// Robust fallback: find ANY unparented statement block to connect to getRoot()
-						if (rootChild == null && !blocks.isEmpty()) {
-								for (Object obj : blocks) {
-										if (obj instanceof BlockBean) {
-												BlockBean bb = (BlockBean) obj;
-												Block b = (Block) hashMap.get(Integer.valueOf(safeParseInt(bb.id)));
-												if (b != null && b.parentBlock == null && !b.isReporter && b != this.pane.getRoot()) {
-														rootChild = b;
-														break;
-												}
+				if (rootChild != null) {
+						this.pane.getRoot().insertBlock(rootChild);
+						Block currentTail = rootChild.bottomBlock();
+						for (Object obj : blocks) {
+								if (obj instanceof BlockBean) {
+										BlockBean bb = (BlockBean) obj;
+										Block b = (Block) hashMap.get(Integer.valueOf(safeParseInt(bb.id)));
+										if (b != null && b != rootChild && b.parentBlock == null && !b.isReporter && b != this.pane.getRoot()) {
+												currentTail.insertBlock(b);
+												currentTail = b.bottomBlock();
 										}
 								}
 						}
+				}
 
-						if (rootChild != null) {
-								this.pane.getRoot().insertBlock(rootChild);
-								Block currentTail = rootChild.bottomBlock();
-								for (Object obj : blocks) {
-										if (obj instanceof BlockBean) {
-												BlockBean bb = (BlockBean) obj;
-												Block b = (Block) hashMap.get(Integer.valueOf(safeParseInt(bb.id)));
-												if (b != null && b != rootChild && b.parentBlock == null && !b.isReporter && b != this.pane.getRoot()) {
-														currentTail.insertBlock(b);
-														currentTail = b.bottomBlock();
-												}
-										}
-								}
+				this.pane.getRoot().fixLayout();
+				for (Block b : hashMap.values()) {
+						if (b != null && b.parentBlock == null && b != this.pane.getRoot()) {
+								b.fixLayout();
 						}
+				}
+				this.pane.calculateWidthHeight();
+		}
 
-						this.pane.getRoot().fixLayout();
-						for (Block b : hashMap.values()) {
-								if (b != null && b.parentBlock == null && b != this.pane.getRoot()) {
-										b.fixLayout();
-								}
+		public void applyConvertedBlocks(ArrayList<BlockBean> blocks) {
+				if (this.pane == null) return;
+				Block root = this.pane.getRoot();
+				for (int i = this.pane.getChildCount() - 1; i >= 0; i--) {
+						View child = this.pane.getChildAt(i);
+						if (child instanceof Block && child != root) {
+								this.pane.removeRelation((Block) child);
+								this.pane.removeView(child);
+						}
+				}
+				if (root != null) {
+						root.nextBlock = -1;
+				}
+				this.pane.blockId = 10;
+				if (blocks != null && !blocks.isEmpty()) {
+						populateBlocksIntoPane(blocks);
+				} else {
+						if (root != null) {
+								root.fixLayout();
 						}
 						this.pane.calculateWidthHeight();
 				}
 				this.isLogicLoaded = true;
+				saveUndoState();
+				runLintCheck();
+				saveLogicSynchronous();
 		}
 		
 		private void makeBlockWithSpec(ViewGroup viewGroup, ViewGroup viewGroup2, Block block, String str, ArrayList<Pair<String, String>> arrayList) {
@@ -946,6 +1011,46 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						DesignDataManager.setBlocks(LogicBlockActivity.filename, "onPageLoad_onPageLoad", beans);
 				}
 				DesignDataManager.saveSavedLogic(getApplicationContext(), this.projectId, LogicBlockActivity.filename);
+		}
+
+		public static boolean isLockedThemeCss(String nameOrPath) {
+			if (nameOrPath == null) return false;
+			String norm = nameOrPath.trim().replace('\\', '/').toLowerCase(java.util.Locale.US);
+			return "theme.css".equals(norm)
+					|| norm.endsWith("/theme.css")
+					|| "css_theme".equals(norm)
+					|| "theme".equals(norm)
+					|| "css/theme".equals(norm);
+		}
+
+		private static String stripCssImports(String css) {
+			if (css == null || css.isEmpty()) return "";
+			return css.replaceAll("(?im)^\\s*@import\\b[^;]*;\\s*$", "").trim();
+		}
+
+		private void addBlockDefToPalette(BlockDef def, int fallbackColor) {
+			if (def == null) return;
+			int blockColor = fallbackColor;
+			try {
+				String c = def.resolvedColor();
+				if (c != null && !c.isEmpty()) {
+					blockColor = android.graphics.Color.parseColor(c);
+				}
+			} catch (Exception ignored) {}
+
+			java.util.List<ChipInput> derived = def.resolvedInputs();
+			Object[] defaultParams = new Object[derived.size()];
+			for (int k = 0; k < derived.size(); k++) {
+				String dv = derived.get(k).defaultValue;
+				defaultParams[k] = dv != null ? dv : "";
+			}
+
+			BlockBase added = this.paletteBlock.addBlock(def.getSpec(), def.getType(), def.getOpCode(), blockColor, defaultParams);
+			if (added instanceof Block) {
+				((Block) added).applySpec2AndMeta(def.getSpec2(), def.category, def.resolvedTemplate());
+			}
+			added.setClickable(true);
+			added.setOnTouchListener(this);
 		}
 
 		private ArrayList<BlockBean> getBlocksWithoutDefinedFunc() {
@@ -1908,8 +2013,7 @@ startActivityForResult(intent, 209);
 				}
 
 				Block block = new Block(this, idVal, spec, type, blockBean.opCode, new Object[]{Integer.valueOf(color)});
-				if (blockBean.category != null) block.mCategory = blockBean.category;
-				if (blockBean.code != null) block.mCode = blockBean.code;
+				block.applySpec2AndMeta(blockBean.spec2, blockBean.category, blockBean.code);
 				return block;
 		}
 		
@@ -1939,55 +2043,48 @@ startActivityForResult(intent, 209);
 				// No separate HTML logic blocks in logic file.
 				if (isHtmlEvent()) {
 					try {
-						ArrayList<BlockBean> activeBeans = getActiveCanvasBeans();
-						if (activeBeans == null || activeBeans.isEmpty()) {
-							activeBeans = beans;
-						}
 						PageManager pm = new PageManager(appCtx, pId);
-						if (activeBeans == null || activeBeans.isEmpty()) {
-							// All blocks deleted: clear canvas layout and generated HTML
+						if (beans == null || beans.isEmpty()) {
+							// All rooted blocks deleted: clear canvas layout and generated HTML
 							pm.savePageLayout(cleanTarget, "[]");
 							File htmlFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/" + cleanTarget + ".html");
 							if (htmlFile.exists()) FileUtil.deleteFile(htmlFile.getAbsolutePath());
 							File assetHtml = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/assets/" + cleanTarget + ".html");
 							FileUtil.writeFile(assetHtml.getAbsolutePath(), "");
 						} else {
-							String updatedHtml = glab.dragweb.core.BlocksLoader.generateHtmlFromBlocks(appCtx, activeBeans);
-							if (updatedHtml == null || updatedHtml.trim().isEmpty()) {
-								try {
-									BlockCodeCompiler compiler = new BlockCodeCompiler(appCtx, pId);
-									updatedHtml = compiler.getSource(0, activeBeans);
-								} catch (Exception ignored) {}
+							String updatedHtml = glab.dragweb.core.BlocksLoader.generateHtmlFromBlocks(appCtx, beans);
+							if (updatedHtml == null) {
+								updatedHtml = "";
 							}
-							if (updatedHtml != null) {
-								File htmlFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/" + cleanTarget + ".html");
-								if (htmlFile.exists()) FileUtil.deleteFile(htmlFile.getAbsolutePath());
+							File htmlFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/" + cleanTarget + ".html");
+							if (htmlFile.exists()) FileUtil.deleteFile(htmlFile.getAbsolutePath());
 
-								// Save directly to assets/<cleanTarget>.html
-								File assetHtml = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/assets/" + cleanTarget + ".html");
-								if (assetHtml.exists()) {
-									String existingFull = FileUtil.readFile(assetHtml.getAbsolutePath());
-									if (existingFull != null && (existingFull.contains("<body") || existingFull.contains("<html"))) {
-										String replaced = replaceBodyContent(existingFull, updatedHtml);
-										FileUtil.writeFile(assetHtml.getAbsolutePath(), replaced);
-									} else {
-										FileUtil.writeFile(assetHtml.getAbsolutePath(), updatedHtml);
-									}
+							// Save directly to assets/<cleanTarget>.html
+							File assetHtml = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/assets/" + cleanTarget + ".html");
+							if (assetHtml.exists()) {
+								String existingFull = FileUtil.readFile(assetHtml.getAbsolutePath());
+								if (existingFull != null && (existingFull.contains("<body") || existingFull.contains("<html"))) {
+									String replaced = replaceBodyContent(existingFull, updatedHtml);
+									FileUtil.writeFile(assetHtml.getAbsolutePath(), replaced);
 								} else {
 									FileUtil.writeFile(assetHtml.getAbsolutePath(), updatedHtml);
 								}
+							} else {
+								FileUtil.writeFile(assetHtml.getAbsolutePath(), updatedHtml);
+							}
 
-								// Apply changes back to Canvas layout tree
-								try {
-									HtmlCssImporter importer = new HtmlCssImporter(appCtx);
-									HtmlCssImporter.ImportResult res = importer.importHtmlCss(updatedHtml, null);
-									if (res != null && res.success && res.widgetTree != null) {
-										String layoutJson = new com.google.gson.Gson().toJson(res.widgetTree);
-										pm.savePageLayout(cleanTarget, layoutJson);
-									}
-								} catch (Exception e) {
-									android.util.Log.e("LogicBlockActivity", "Failed to sync canvas layout from blocks: " + e.getMessage());
+							// Apply changes back to Canvas layout tree cleanly
+							try {
+								HtmlCssImporter importer = new HtmlCssImporter(appCtx);
+								HtmlCssImporter.ImportResult res = importer.importHtmlCssForBlockSync(updatedHtml);
+								if (res != null && res.success) {
+									String layoutJson = (res.widgetTree != null)
+											? new com.google.gson.Gson().toJson(res.widgetTree)
+											: "[]";
+									pm.savePageLayout(cleanTarget, layoutJson);
 								}
+							} catch (Exception e) {
+								android.util.Log.e("LogicBlockActivity", "Failed to sync canvas layout from blocks: " + e.getMessage());
 							}
 						}
 
@@ -1996,6 +2093,8 @@ startActivityForResult(intent, 209);
 							DesignDataManager.mapBlocks.remove(cleanTarget);
 							DesignDataManager.mapBlocks.remove(targetFile);
 						}
+						isSaved = true;
+						setResult(RESULT_OK);
 					} catch (Exception e) {
 						android.util.Log.e("LogicBlockActivity", "Failed to sync HTML from blocks: " + e.getMessage());
 					}
@@ -2043,7 +2142,23 @@ startActivityForResult(intent, 209);
 				DesignDataManager.saveSavedLogic(appCtx, pId, cleanTarget);
 
 				// Clean up redundant style_logic.json if css_style is saved
-				if ("css_style".equals(cleanTarget)) {
+				if ("css_style".equals(cleanTarget) || isCssEvent()) {
+					try {
+						ArrayList<BlockBean> activeBeans = getActiveCanvasBeans();
+						if (activeBeans == null || activeBeans.isEmpty()) activeBeans = beans;
+						if (activeBeans != null && !activeBeans.isEmpty()) {
+							String cssCode = glab.dragweb.core.BlocksLoader.generateCssFromBlocks(appCtx, activeBeans);
+							if (cssCode != null && !cssCode.trim().isEmpty()) {
+								File cssFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/assets/css/style.css");
+								if (cssFile.getParentFile() != null && !cssFile.getParentFile().exists()) {
+									cssFile.getParentFile().mkdirs();
+								}
+								FileUtil.writeFile(cssFile.getAbsolutePath(), cssCode);
+							}
+						}
+					} catch (Exception e) {
+						android.util.Log.e("LogicBlockActivity", "Failed to sync CSS from blocks: " + e.getMessage());
+					}
 					File redundantStyle = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/style_logic.json");
 					if (redundantStyle.exists()) {
 						FileUtil.deleteFile(redundantStyle.getAbsolutePath());
@@ -2283,15 +2398,7 @@ startActivityForResult(intent, 209);
 								addButtonToPalette(headerTitle, "label_widget_" + w.id);
 
 								for (BlockDef def : widgetBlocks) {
-										int blockColor;
-										try {
-												blockColor = (def.color != null && !def.color.isEmpty())
-																? android.graphics.Color.parseColor(def.color)
-																: (fallbackColor != 0 ? fallbackColor : android.graphics.Color.parseColor("#00BFA5"));
-										} catch (Exception ex) {
-												blockColor = fallbackColor != 0 ? fallbackColor : android.graphics.Color.parseColor("#00BFA5");
-										}
-										addBlockToPalette(def.getSpec(), def.getType(), def.getOpCode(), blockColor, new Object[0]);
+										addBlockDefToPalette(def, fallbackColor != 0 ? fallbackColor : android.graphics.Color.parseColor("#00BFA5"));
 								}
 						}
 				}
@@ -2332,18 +2439,41 @@ startActivityForResult(intent, 209);
 						if ("widgets".equalsIgnoreCase(selectedCat.originalCategory)) {
 								loadWidgetsPalette(selectedCat.color);
 						} else {
-								for (BlockDef def : BlockDef.getDefinitions(this.context)) {
-								if (def.category != null && def.category.equalsIgnoreCase(selectedCat.originalCategory)) {
-										int blockColor;
-										try {
-												blockColor = (def.color != null && !def.color.isEmpty()) ? android.graphics.Color.parseColor(def.color) : i2;
-										} catch (Exception ex) {
-												blockColor = i2;
+								boolean isHtml = isHtmlEvent();
+								if (isHtml) {
+										BlockPalette foundPalette = null;
+										for (BlockPalette p : glab.dragweb.core.BlocksLoader.getPalettes("html")) {
+												if (p.getName() != null && p.getName().equalsIgnoreCase(selectedCat.originalCategory)) {
+														foundPalette = p;
+														break;
+												}
 										}
-										addBlockToPalette(def.getSpec(), def.getType(), def.getOpCode(), blockColor, new Object[0]);
+										if (foundPalette != null) {
+												String lastHeader = null;
+												for (BlockBean b : foundPalette.getBlocks()) {
+														if (b.headerText != null && !b.headerText.trim().isEmpty() && !b.headerText.equals(lastHeader)) {
+																lastHeader = b.headerText;
+																addButtonToPalette(b.headerText, "label_" + b.headerText);
+														}
+														int blockColor = b.color != 0 ? b.color : (foundPalette.getColor() != 0 ? foundPalette.getColor() : i2);
+														Object[] defaultParams = (b.parameters != null && !b.parameters.isEmpty()) ? b.parameters.toArray() : new Object[0];
+														BlockBase added = this.paletteBlock.addBlock(b.spec, b.type, b.opCode, blockColor, defaultParams);
+														if (added instanceof Block) {
+																((Block) added).applySpec2AndMeta(b.spec2, b.category, b.code);
+														}
+														added.setClickable(true);
+														added.setOnTouchListener(this);
+												}
+										}
+								} else {
+										// CSS and JS palettes load directly from assets/blocks.json (plus custom blocks)
+										for (BlockDef def : BlockDef.getDefinitions(this.context)) {
+												if (def.category != null && def.category.equalsIgnoreCase(selectedCat.originalCategory)) {
+														addBlockDefToPalette(def, i2);
+												}
+										}
 								}
 						}
-				}
 				} else if (selectedCat.type == 3) {
 						collectionBlocksMap.clear();
 						java.io.File listFile = new java.io.File(FileUtil.getDragWebDir(), "collection/blocks/list.json");
@@ -2732,6 +2862,18 @@ startActivityForResult(intent, 209);
 						}
 				);
 
+				this.html2BlockLauncher = registerForActivityResult(
+						new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+						result -> {
+								if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+										ArrayList<BlockBean> converted = result.getData().getParcelableArrayListExtra(Html2BlockEditorActivity.RESULT_EXTRA_BLOCKS);
+										if (converted != null) {
+												applyConvertedBlocks(converted);
+										}
+								}
+						}
+				);
+
 				this.projectId = getIntent().getStringExtra("project_id");
 				this.pageName = getIntent().getStringExtra("page_name");
 
@@ -2794,8 +2936,7 @@ startActivityForResult(intent, 209);
 				
 				this.context = this.getApplicationContext();
 
-				if (this.pageName != null && (this.pageName.toLowerCase().contains("theme.css"))) {
-						Toast.makeText(this, "theme.css is a system-locked stylesheet and cannot be edited.", Toast.LENGTH_LONG).show();
+				if (isLockedThemeCss(this.pageName) || isLockedThemeCss(filename)) {
 						finish();
 						return;
 				}
@@ -3174,6 +3315,21 @@ startActivityForResult(intent, 209);
 										blocks = fullBlocks;
 								}
 						}
+				}
+				if (isHtmlEvent()) {
+						ArrayList<BlockBean> htmlBeans = getBlocksWithoutDefinedFunc();
+						String htmlSource = glab.dragweb.core.BlocksLoader.generateHtmlFromBlocks(this, htmlBeans);
+						if (htmlSource == null) {
+								htmlSource = "";
+						}
+						Intent intent = new Intent(this, Html2BlockEditorActivity.class);
+						intent.putExtra(Html2BlockEditorActivity.EXTRA_HTML_CONTENT, htmlSource);
+						String displayPage = (this.pageName != null && !this.pageName.isEmpty()) ? this.pageName : filename;
+						intent.putExtra(Html2BlockEditorActivity.EXTRA_PAGE_NAME, displayPage);
+						if (this.html2BlockLauncher != null) {
+								this.html2BlockLauncher.launch(intent);
+						}
+						return;
 				}
 				String result;
 				if (isHtmlEvent()) {

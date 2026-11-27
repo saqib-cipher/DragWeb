@@ -181,6 +181,7 @@ public class BlockPane extends RelativeLayout {
             objArr[INSERT_NORMAL] = Integer.valueOf(block.mColor);
             objArr[INSERT_ABOVE] = block.defaultArgValues;
             block2 = new Block(context, i3, str, str2, str3, objArr);
+            block2.applySpec2AndMeta(block.mSpec2, block.mCategory, block.mCode);
             if (block.args != null && block2.args != null) {
                 for (int a = 0; a < block.args.size() && a < block2.args.size(); a++) {
                     View oldArg = block.args.get(a);

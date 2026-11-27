@@ -468,29 +468,47 @@ public class ProjectCodeGenerator {
         StringBuilder cssSb = new StringBuilder();
         appendCssLogicBlocks(context, projectId, cleanPage, cssSb);
 
-        // 2. Compile visual layout and widget preset styles into CSS
+        // 2. Compile visual layout and widget preset styles into external CSS ONLY when inline styles toggle is disabled
         ThemeManager themeManager = getProjectThemeManager(context, projectId);
         boolean noStyles = (themeManager != null && themeManager.isDisableAllStyling());
-        if (!noStyles) {
+        boolean useInline = (themeManager == null || themeManager.isUseInlineStyles());
+        if (!noStyles && !useInline) {
             PageManager pm = new PageManager(context, projectId);
-            String layoutJson = pm.loadPageLayout(cleanPage);
-            List<Map<String, Object>> widgetTree = PageManager.parseLayoutTree(layoutJson);
-            if (widgetTree != null && !widgetTree.isEmpty()) {
-                collectStylesFromTree(widgetTree, cssSb);
+            String cssPageKey = DesignDataManager.getCleanPageName("css/style.css");
+            List<String> targetPages = new ArrayList<>();
+            if (cssPageKey.equals(cleanPage)) {
+                List<String> pages = pm.getPages();
+                if (pages != null && !pages.isEmpty()) {
+                    for (String p : pages) {
+                        targetPages.add(DesignDataManager.getCleanPageName(p));
+                    }
+                } else {
+                    targetPages.add("index");
+                }
             } else {
-                File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages/" + cleanPage + ".json");
-                if (layoutFile.exists()) {
-                    try {
-                        String legacyJson = FileUtil.readFile(layoutFile.getAbsolutePath());
-                        if (legacyJson != null && !legacyJson.trim().isEmpty()) {
-                            java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
-                            ArrayList<Map<String, Object>> legacyTree = new com.google.gson.Gson().fromJson(legacyJson, listType);
-                            if (legacyTree != null) {
-                                collectStylesFromTree(legacyTree, cssSb);
+                targetPages.add(cleanPage);
+            }
+
+            for (String pageToCollect : targetPages) {
+                String layoutJson = pm.loadPageLayout(pageToCollect);
+                List<Map<String, Object>> widgetTree = PageManager.parseLayoutTree(layoutJson);
+                if (widgetTree != null && !widgetTree.isEmpty()) {
+                    collectStylesFromTree(widgetTree, cssSb);
+                } else {
+                    File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages/" + pageToCollect + ".json");
+                    if (layoutFile.exists()) {
+                        try {
+                            String legacyJson = FileUtil.readFile(layoutFile.getAbsolutePath());
+                            if (legacyJson != null && !legacyJson.trim().isEmpty()) {
+                                java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
+                                ArrayList<Map<String, Object>> legacyTree = new com.google.gson.Gson().fromJson(legacyJson, listType);
+                                if (legacyTree != null) {
+                                    collectStylesFromTree(legacyTree, cssSb);
+                                }
                             }
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
                     }
                 }
             }

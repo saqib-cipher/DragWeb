@@ -298,6 +298,7 @@ public class BlockArg extends BlockBase {
                     || "html_convert".equalsIgnoreCase(menuName) || "html_convert_leaf".equalsIgnoreCase(menuName)) {
                 UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
                 dialog.setTitle("Convert View");
+
                 BlockParamTypeManager pManager = new BlockParamTypeManager(this.getContext());
                 java.util.List<String> options = null;
                 if (pManager.hasType("htmlTag")) {
@@ -484,6 +485,46 @@ public class BlockArg extends BlockBase {
             if (menuName.equals("list") || menuName.endsWith(".list") || "l".equalsIgnoreCase(this.mType)) {
                 UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
                 dialog.showListSelector(LogicBlockActivity.filename, this.argValue != null ? this.argValue.toString() : "", new UniversalM3Dialog.OnText() {
+                    @Override
+                    public void onText(String value) {
+                        applyArgValueChange(value);
+                    }
+                });
+                return;
+            }
+
+            if ("Convert".equalsIgnoreCase(menuName) || "m.Convert".equalsIgnoreCase(menuName)) {
+                String[] htmlTags = new String[] {
+                    "div", "section", "header", "footer", "nav", "main", "article", "aside",
+                    "p", "span", "h1", "h2", "h3", "h4", "h5", "h6",
+                    "button", "input", "img", "a", "form", "label", "textarea", "select", "option",
+                    "table", "thead", "tbody", "tr", "th", "td",
+                    "ul", "ol", "li",
+                    "iframe", "video", "audio", "canvas", "figure", "figcaption",
+                    "blockquote", "hr", "br", "strong", "em", "code", "pre"
+                };
+                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                dialog.setTitle("Convert View")
+                      .setOptions(htmlTags)
+                      .setInitialValue(this.argValue != null ? this.argValue.toString() : "div")
+                      .setNeutralButton("Code Editor", new UniversalM3Dialog.OnNeutralAction() {
+                          @Override
+                          public void onNeutral(String currentText) {
+                              UniversalM3Dialog customDialog = new UniversalM3Dialog(BlockArg.this.getContext());
+                              customDialog.setTitle("Custom HTML Tag")
+                                          .setHint("Enter tag name (e.g. custom-element)")
+                                          .setInitialValue(currentText != null ? currentText : "")
+                                          .showTextInput(new UniversalM3Dialog.OnText() {
+                                              @Override
+                                              public void onText(String value) {
+                                                  if (value != null && !value.trim().isEmpty()) {
+                                                      applyArgValueChange(value.trim().toLowerCase());
+                                                  }
+                                              }
+                                          });
+                          }
+                      });
+                dialog.showChoiceInput(new UniversalM3Dialog.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);

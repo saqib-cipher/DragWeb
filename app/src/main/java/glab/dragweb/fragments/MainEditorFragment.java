@@ -91,6 +91,8 @@ public class MainEditorFragment extends Fragment {
 	private HierarchyTreeAdapter hierarchyAdapter;
 	private PageManager pageManager;
 	private ActivityResultLauncher<Intent> logicBlockLauncher;
+	private int layoutLoadGeneration = 0;
+	private boolean skipNextResumeReload = false;
 	private ViewPager2 viewPager;
 	private FileExplorerAdapter fileExplorerAdapter;
 
@@ -183,16 +185,9 @@ public class MainEditorFragment extends Fragment {
 		logicBlockLauncher = registerForActivityResult(
 			new ActivityResultContracts.StartActivityForResult(),
 			result -> {
-				// Always reload logic and layout from .dragweb after returning from LogicBlockActivity
-				if (pageManager != null) {
-					pageManager.invalidateCache(null);
-				}
-				String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
-				String cleanPage = DesignDataManager.getCleanPageName(pageName);
-				DesignDataManager.initialize(requireContext(), projectId, cleanPage);
-				loadCurrentPageLayout();
-				refreshHierarchy();
-				refreshLogicBlocksUI();
+				// Avoid redundant duplicate async load inside onResume immediately following this result
+				skipNextResumeReload = true;
+				reloadLayoutFromStorage();
 			}
 		);
 
@@ -1972,6 +1967,19 @@ public class MainEditorFragment extends Fragment {
 			.show();
 	}
 
+	public void flushLayoutToStorage() {
+		saveCurrentPageLayout(true);
+		final android.content.Context appCtx = getContext() != null ? getContext().getApplicationContext() : null;
+		if (appCtx != null && projectId != null && themeManager != null) {
+			final String curPage = pageManager != null ? pageManager.getCurrentPage() : "index";
+			AppExecutors.io().execute(() -> {
+				try {
+					ProjectCodeGenerator.generateAndSaveAssets(appCtx, projectId, curPage);
+				} catch (Exception ignored) {}
+			});
+		}
+	}
+
 	private void saveCurrentPageLayout() {
 		saveCurrentPageLayout(false);
 	}
@@ -1992,6 +2000,7 @@ public class MainEditorFragment extends Fragment {
 
 	private void loadCurrentPageLayout() {
 		isProjectLoaded = false;
+		final int loadGen = ++layoutLoadGeneration;
 		// Show loading immediately on the UI thread
 		if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
 
@@ -2018,7 +2027,7 @@ public class MainEditorFragment extends Fragment {
 
 			if (act == null) return;
 			act.runOnUiThread(() -> {
-				if (!isAdded()) return;
+				if (!isAdded() || loadGen != layoutLoadGeneration) return;
 				screen.removeAllViews();
 				WidgetCanvasStyler styler = WidgetCanvasStyler.getInstance(requireContext());
 				styler.loadCssRules(finalCssLogic);
@@ -2814,9 +2823,28 @@ public class MainEditorFragment extends Fragment {
 		syncProjectAssets();
 	}
 
+	public void reloadLayoutFromStorage() {
+		if (pageManager != null) {
+			pageManager.invalidateCache(null);
+		}
+		String pageName = pageManager != null ? pageManager.getCurrentPage() : "index";
+		String cleanPage = DesignDataManager.getCleanPageName(pageName);
+		if (getContext() != null) {
+			DesignDataManager.initialize(getContext(), projectId, cleanPage);
+		}
+		loadCurrentPageLayout();
+		refreshHierarchy();
+		refreshLogicBlocksUI();
+	}
+
 	@Override
 	public void onResume() {
 		super.onResume();
+		if (skipNextResumeReload) {
+			skipNextResumeReload = false;
+		} else {
+			reloadLayoutFromStorage();
+		}
 		if (widgetRegistry != null) {
 			try {
 				refreshWidgetList();
@@ -3125,7 +3153,7 @@ public class MainEditorFragment extends Fragment {
 	private void saveUndoState() {
 		undoRedoManager.saveState(screen);
 		refreshHierarchy();
-		saveCurrentPageLayout();
+		saveCurrentPageLayout(true);
 	}
 
 	public void syncHtmlLogicWithCanvas() {
@@ -3150,7 +3178,7 @@ public class MainEditorFragment extends Fragment {
 			hierarchyAdapter.setLoading(false);
 		}
 		refreshHierarchy();
-		saveCurrentPageLayout();
+		saveCurrentPageLayout(true);
 	}
 
 	private void rebuildView(Map<String, Object> nodeMap, ViewGroup parent) {
@@ -3545,13 +3573,20 @@ public class MainEditorFragment extends Fragment {
 				}
 				themeManager.setCustomCssVars(newVars);
 
-				// Persist theme changes immediately
+				// Persist theme changes and re-sync CSS/JS/HTML assets (inline vs external style.css)
+				final android.content.Context appCtx = requireContext().getApplicationContext();
+				final String curPage = pageManager != null ? pageManager.getCurrentPage() : "index";
 				try {
 					File dir = new File(FileUtil.getDragWebDir(requireContext()), "projects/" + projectId);
 					if (!dir.exists()) dir.mkdirs();
 					File themeFile = new File(dir, "theme.json");
 					FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
 					saveProjectToExternal();
+					AppExecutors.io().execute(() -> {
+						try {
+							ProjectCodeGenerator.generateAndSaveAssets(appCtx, projectId, curPage);
+						} catch (Exception ignored) {}
+					});
 				} catch (Exception e) {
 					Log.w("MainActivity", "Failed to auto-save theme: " + e.getMessage());
 				}

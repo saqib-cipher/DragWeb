@@ -95,13 +95,19 @@ public class BlockDef {
     }
 
     public String getType() {
-        if (type != null && !type.isEmpty()) return type;
-        if (blockType != null && !blockType.isEmpty()) {
-            if (blockType.equals("normal") || blockType.equals("v") || blockType.equals(" ")) {
+        String raw = (type != null && !type.isEmpty()) ? type : blockType;
+        if (raw != null && !raw.isEmpty()) {
+            if ("normal".equalsIgnoreCase(raw) || "v".equals(raw) || "stack".equalsIgnoreCase(raw)) {
                 return " ";
             }
-            return blockType;
+            return raw;
         }
+        String sh = resolvedShape();
+        if ("cblock".equals(sh) || "loop".equals(sh)) return "c";
+        if ("condition".equals(sh)) return "e";
+        if ("boolean".equals(sh)) return "b";
+        if ("value".equals(sh) || "reporter".equals(sh)) return "s";
+        if ("event".equals(sh)) return "h";
         return " ";
     }
 

@@ -372,29 +372,8 @@ public class PageCodeGenerator {
 
 
 
-        // Tag-specific attributes
-        if ("img".equals(tag) && function.containsKey("src")) {
-            html.append(" src=\"").append(escapeAttr(resolveAssetPath(function.get("src").toString()))).append("\"");
-            html.append(" alt=\"Image\"");
-        }
-        if (("input".equals(tag) || "textarea".equals(tag)) && function.containsKey("type")) {
-            html.append(" type=\"").append(escapeAttr(function.get("type").toString())).append("\"");
-        }
-        if (("input".equals(tag) || "textarea".equals(tag)) && function.containsKey("placeholder")) {
-            html.append(" placeholder=\"").append(escapeAttr(function.get("placeholder").toString())).append("\"");
-        }
-        if ("a".equals(tag) && function.containsKey("href")) {
-            html.append(" href=\"").append(escapeAttr(function.get("href").toString())).append("\"");
-        }
-        if (("video".equals(tag) || "audio".equals(tag)) && function.containsKey("src")) {
-            html.append(" src=\"").append(escapeAttr(function.get("src").toString())).append("\"");
-        }
-        if (("video".equals(tag) || "audio".equals(tag)) && "true".equals(String.valueOf(function.get("controls")))) {
-            html.append(" controls");
-        }
-        if ("iframe".equals(tag) && function.containsKey("src")) {
-            html.append(" src=\"").append(escapeAttr(function.get("src").toString())).append("\"");
-        }
+        // Tag-specific & extra HTML attributes
+        appendAttributesFromFunction(html, tag, function);
 
         // Self-closing tags
         if ("input".equals(tag) || "img".equals(tag) || "hr".equals(tag) || "br".equals(tag)) {
@@ -494,29 +473,8 @@ public class PageCodeGenerator {
 
 
 
-        // Tag-specific attributes
-        if ("img".equals(tag) && function.containsKey("src")) {
-            html.append(" src=\"").append(escapeAttr(resolveAssetPath(function.get("src").toString()))).append("\"");
-            html.append(" alt=\"Image\"");
-        }
-        if (("input".equals(tag) || "textarea".equals(tag)) && function.containsKey("type")) {
-            html.append(" type=\"").append(escapeAttr(function.get("type").toString())).append("\"");
-        }
-        if (("input".equals(tag) || "textarea".equals(tag)) && function.containsKey("placeholder")) {
-            html.append(" placeholder=\"").append(escapeAttr(function.get("placeholder").toString())).append("\"");
-        }
-        if ("a".equals(tag) && function.containsKey("href")) {
-            html.append(" href=\"").append(escapeAttr(function.get("href").toString())).append("\"");
-        }
-        if (("video".equals(tag) || "audio".equals(tag)) && function.containsKey("src")) {
-            html.append(" src=\"").append(escapeAttr(function.get("src").toString())).append("\"");
-        }
-        if (("video".equals(tag) || "audio".equals(tag)) && "true".equals(String.valueOf(function.get("controls")))) {
-            html.append(" controls");
-        }
-        if ("iframe".equals(tag) && function.containsKey("src")) {
-            html.append(" src=\"").append(escapeAttr(function.get("src").toString())).append("\"");
-        }
+        // Tag-specific & extra HTML attributes
+        appendAttributesFromFunction(html, tag, function);
 
         // Self-closing tags
         if ("input".equals(tag) || "img".equals(tag) || "hr".equals(tag) || "br".equals(tag)) {
@@ -578,6 +536,65 @@ public class PageCodeGenerator {
     }
 
 
+
+    private static final java.util.Set<String> BOOLEAN_HTML_ATTRS = new java.util.HashSet<>(
+            java.util.Arrays.asList("disabled", "checked", "readonly", "required", "controls", "selected", "multiple", "hidden"));
+
+    private void appendAttributesFromFunction(StringBuilder html, String tag, Map<String, Object> function) {
+        if (function == null) return;
+
+        if ("img".equals(tag) && function.containsKey("src") && function.get("src") != null) {
+            html.append(" src=\"").append(escapeAttr(resolveAssetPath(function.get("src").toString()))).append("\"");
+            String altVal = function.containsKey("alt") && function.get("alt") != null
+                    ? function.get("alt").toString()
+                    : "Image";
+            html.append(" alt=\"").append(escapeAttr(altVal)).append("\"");
+        }
+        if (("input".equals(tag) || "textarea".equals(tag)) && function.containsKey("type") && function.get("type") != null) {
+            html.append(" type=\"").append(escapeAttr(function.get("type").toString())).append("\"");
+        }
+        if (("input".equals(tag) || "textarea".equals(tag)) && function.containsKey("placeholder") && function.get("placeholder") != null) {
+            html.append(" placeholder=\"").append(escapeAttr(function.get("placeholder").toString())).append("\"");
+        }
+        if ("a".equals(tag) && function.containsKey("href") && function.get("href") != null) {
+            html.append(" href=\"").append(escapeAttr(function.get("href").toString())).append("\"");
+        }
+        if (("video".equals(tag) || "audio".equals(tag)) && function.containsKey("src") && function.get("src") != null) {
+            html.append(" src=\"").append(escapeAttr(function.get("src").toString())).append("\"");
+        }
+        if (("video".equals(tag) || "audio".equals(tag)) && "true".equals(String.valueOf(function.get("controls")))) {
+            html.append(" controls");
+        }
+        if ("iframe".equals(tag) && function.containsKey("src") && function.get("src") != null) {
+            html.append(" src=\"").append(escapeAttr(function.get("src").toString())).append("\"");
+        }
+
+        // Preserve any extra valid HTML attributes (name, value, title, target, role, data-*, aria-*, boolean attrs, etc.)
+        for (Map.Entry<String, Object> entry : function.entrySet()) {
+            String key = entry.getKey();
+            Object valObj = entry.getValue();
+            if (key == null || valObj == null) continue;
+            if ("src".equals(key) || "alt".equals(key) || "type".equals(key)
+                    || "placeholder".equals(key) || "href".equals(key) || "controls".equals(key)) {
+                continue;
+            }
+            boolean forceInclude = "name".equalsIgnoreCase(key) || "hidden".equalsIgnoreCase(key);
+            if (!forceInclude && ExportManager.isInternalFunctionKey(key, valObj)) {
+                continue;
+            }
+            if (!key.matches("^[a-zA-Z_:][a-zA-Z0-9_.:-]*$")) {
+                continue;
+            }
+            String val = String.valueOf(valObj).trim();
+            if (BOOLEAN_HTML_ATTRS.contains(key.toLowerCase())) {
+                if ("true".equalsIgnoreCase(val) || val.isEmpty() || key.equalsIgnoreCase(val)) {
+                    html.append(" ").append(key.toLowerCase());
+                }
+            } else {
+                html.append(" ").append(key).append("=\"").append(escapeAttr(val)).append("\"");
+            }
+        }
+    }
 
     private void collectWidgetScript(Map<String, Object> function) {
         if (function == null) return;

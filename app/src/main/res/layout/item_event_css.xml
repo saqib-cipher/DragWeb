@@ -104,18 +104,33 @@
                 android:textColor="?attr/colorOnSurfaceVariant"
                 tools:text="css/style.css" />
         </LinearLayout>
-            <Button
-                android:id="@+id/btn_delete_item"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:padding="10dp"
-                app:iconSize="18dp"
-                app:icon="@drawable/trash"
-                app:iconTint="?attr/colorOnError"
-                app:backgroundTint="?attr/colorError"
-                app:materialSizeOverlay="@style/SizeOverlay.Material3Expressive.Button.IconButton.Xsmall.Narrow"
-                style="@style/Widget.Material3Expressive.Button.IconButton"/>
+
+        <Button
+            android:id="@+id/btn_import_item"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginEnd="6dp"
+            android:padding="10dp"
+            app:iconSize="18dp"
+            app:icon="@drawable/code_plus"
+            app:iconTint="?attr/colorOnSecondaryContainer"
+            app:backgroundTint="?attr/colorSecondaryContainer"
+            app:materialSizeOverlay="@style/SizeOverlay.Material3Expressive.Button.IconButton.Xsmall.Narrow"
+            style="@style/Widget.Material3Expressive.Button.IconButton"/>
+
+        <Button
+            android:id="@+id/btn_delete_item"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:padding="10dp"
+            app:iconSize="18dp"
+            app:icon="@drawable/trash"
+            app:iconTint="?attr/colorOnError"
+            app:backgroundTint="?attr/colorError"
+            app:materialSizeOverlay="@style/SizeOverlay.Material3Expressive.Button.IconButton.Xsmall.Narrow"
+            style="@style/Widget.Material3Expressive.Button.IconButton"/>
     </LinearLayout>
 </com.google.android.material.listitem.ListItemCardView>
 </com.google.android.material.listitem.ListItemLayout>

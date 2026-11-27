@@ -126,7 +126,20 @@ public class WidgetBuilderEngine {
             case "form":
             case "ul":
             case "ol":
-            case "li": {
+            case "li":
+            case "thead":
+            case "tbody":
+            case "tfoot":
+            case "tr":
+            case "td":
+            case "th":
+            case "figure":
+            case "figcaption":
+            case "details":
+            case "summary":
+            case "dialog":
+            case "picture":
+            case "fieldset": {
                 LinearLayout layoutView = new LinearLayout(context);
                 layoutView.setOrientation(LinearLayout.VERTICAL);
                 layoutView.setMinimumHeight(dpToPx(60));

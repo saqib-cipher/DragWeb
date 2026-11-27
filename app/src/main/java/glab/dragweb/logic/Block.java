@@ -348,12 +348,16 @@ public class Block extends BlockBase {
 
         this.mSpec2 = "";
         if (this.mOpCode != null) {
-            java.util.List<BlockDef> defs = BlockDef.getDefinitions(var1);
-            if (defs != null) {
-                for (BlockDef def : defs) {
-                    if (this.mOpCode.equalsIgnoreCase(def.id) || this.mOpCode.equalsIgnoreCase(def.getOpCode())) {
-                        this.mSpec2 = def.getSpec2();
-                        break;
+            if ("view_convert".equals(this.mOpCode)) {
+                this.mSpec2 = "children";
+            } else {
+                java.util.List<BlockDef> defs = BlockDef.getDefinitions(var1);
+                if (defs != null) {
+                    for (BlockDef def : defs) {
+                        if (this.mOpCode.equalsIgnoreCase(def.id) || this.mOpCode.equalsIgnoreCase(def.getOpCode())) {
+                            this.mSpec2 = def.getSpec2();
+                            break;
+                        }
                     }
                 }
             }
@@ -368,7 +372,11 @@ public class Block extends BlockBase {
         textView.setTextSize(10.0f);
         textView.setPadding(0, 0, 0, 0);
         textView.setGravity(16);
-        textView.setTextColor(-1);
+        int bg = this.mColor;
+        double luminance = (0.299 * android.graphics.Color.red(bg))
+                + (0.587 * android.graphics.Color.green(bg))
+                + (0.114 * android.graphics.Color.blue(bg));
+        textView.setTextColor(luminance > 180.0 ? 0xFF1C1B1F : -1);
         textView.setTypeface(null, BLOCK_TYPE_INPALETTE);
         LayoutParams layoutParams = new LayoutParams(-2, this.labelAndArgHeight);
         layoutParams.setMargins(0, 0, 0, 0);
@@ -439,7 +447,7 @@ public class Block extends BlockBase {
             var1 = Math.max(var1, this.minReporterWidth);
         }
 
-        if(this.mType.equals(" ") || this.mType.equals("") || this.mType.equals("f")) {
+        if(this.mType.equals(" ") || this.mType.equals("") || "normal".equalsIgnoreCase(this.mType) || this.mType.equals("f")) {
             var1 = Math.max(var1, this.minCommandWidth);
         }
 
@@ -706,7 +714,7 @@ public class Block extends BlockBase {
         if (this.mType.equals("b") || this.mType.equals("d") || this.mType.equals("s")) {
             i2 = Math.max(i2, this.minReporterWidth);
         }
-        if (this.mType.equals(" ") || this.mType.equals("") || this.mType.equals("o")) {
+        if (this.mType.equals(" ") || this.mType.equals("") || "normal".equalsIgnoreCase(this.mType) || this.mType.equals("o")) {
             i2 = Math.max(i2, this.minCommandWidth);
         }
         if (this.mType.equals("c") || this.mType.equals("cf") || this.mType.equals("e")) {
@@ -836,7 +844,8 @@ public class Block extends BlockBase {
         if (this.mType.equals("e")) {
             String effectiveSpec2 = this.mSpec2;
             if ((effectiveSpec2 == null || effectiveSpec2.trim().isEmpty()) &&
-                ((this.mCategory != null && this.mCategory.toLowerCase().startsWith("html")) ||
+                ("view_convert".equals(this.mOpCode) ||
+                 (this.mCategory != null && this.mCategory.toLowerCase().startsWith("html")) ||
                  (this.mOpCode != null && this.mOpCode.toLowerCase().startsWith("html")))) {
                 effectiveSpec2 = "children";
             }
@@ -879,6 +888,15 @@ public class Block extends BlockBase {
             }
         }
         fixLayout();
+    }
+
+    public void applySpec2AndMeta(String spec2, String category, String code) {
+        if (category != null) this.mCategory = category;
+        if (code != null) this.mCode = code;
+        if (spec2 != null && !spec2.equals(this.mSpec2)) {
+            this.mSpec2 = spec2;
+            setSpec(this.mSpec, this.defaultArgValues);
+        }
     }
 
     public Block topBlock() {

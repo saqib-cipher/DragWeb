@@ -248,15 +248,21 @@ public class HtmlCode2Block {
         }
 
         // 2. Comment Block
-        if ("htmlComment".equals(block.opCode)) {
+        if ("htmlComment".equals(block.opCode) || "html_comment".equals(block.opCode)) {
             String text = (!block.parameters.isEmpty() && block.parameters.get(0) != null)
-                    ? block.parameters.get(0) : "";
+                    ? block.parameters.get(0).trim() : "";
             sb.append(indent).append("<!-- ").append(text).append(" -->\n");
             return;
         }
 
+        // 2b. Doctype Block
+        if ("html_doctype".equals(block.opCode)) {
+            sb.append(indent).append("<!DOCTYPE html>\n");
+            return;
+        }
+
         // 3. Raw Source / ASD Block
-        if ("asdHtml".equals(block.opCode) || "asdN".equals(block.opCode) || "addSourceDirectly".equals(block.opCode)) {
+        if ("html_direct_code".equals(block.opCode) || "asdHtml".equals(block.opCode) || "asdN".equals(block.opCode) || "addSourceDirectly".equals(block.opCode)) {
             String raw = (!block.parameters.isEmpty() && block.parameters.get(0) != null)
                     ? block.parameters.get(0) : "";
             sb.append(indent).append(raw).append("\n");
@@ -268,18 +274,39 @@ public class HtmlCode2Block {
 
         sb.append(indent).append("<").append(tagName);
 
-        // Render attributes from subStack1
+        String idAttr = null;
+        String classAttr = null;
+        Map<String, String> inlineStyles = new LinkedHashMap<>();
+        List<String> otherAttrs = new ArrayList<>();
+        String directText = null;
+
+        // Render attributes & properties from subStack1
         if (block.subStack1 >= 0) {
             BlockBean attrCurr = map.get(String.valueOf(block.subStack1));
             Set<String> attrVisited = new HashSet<>();
             while (attrCurr != null && attrVisited.add(attrCurr.id)) {
-                String attrStr = formatAttributeBlock(attrCurr);
-                if (attrStr != null && !attrStr.isEmpty()) {
-                    if (!attrStr.startsWith(" ")) {
-                        sb.append(" ");
+                String op = attrCurr.opCode != null ? attrCurr.opCode : "";
+                String p0 = (attrCurr.parameters != null && !attrCurr.parameters.isEmpty() && attrCurr.parameters.get(0) != null)
+                        ? attrCurr.parameters.get(0) : "";
+
+                if ("htmlAttrId".equals(op) || "id".equalsIgnoreCase(op)) {
+                    idAttr = p0;
+                } else if ("htmlAttrClass".equals(op) || "class".equalsIgnoreCase(op)) {
+                    classAttr = p0;
+                } else if ("htmlText".equalsIgnoreCase(op) || "text".equalsIgnoreCase(op) || "html_text".equalsIgnoreCase(op)
+                        || "setText".equalsIgnoreCase(op) || "content".equalsIgnoreCase(op) || "textContent".equalsIgnoreCase(op)) {
+                    directText = p0;
+                } else if ("htmlAttrStyle".equals(op) || "style".equalsIgnoreCase(op)) {
+                    parseCssDeclarationsInto(p0, inlineStyles);
+                } else if (isCssPropertyBlock(attrCurr)) {
+                    extractCssProperty(attrCurr, inlineStyles);
+                } else {
+                    String attrStr = formatAttributeBlock(attrCurr);
+                    if (attrStr != null && !attrStr.trim().isEmpty()) {
+                        otherAttrs.add(attrStr.trim());
                     }
-                    sb.append(attrStr.trim());
                 }
+
                 if (attrCurr.nextBlock >= 0) {
                     attrCurr = map.get(String.valueOf(attrCurr.nextBlock));
                 } else {
@@ -288,12 +315,32 @@ public class HtmlCode2Block {
             }
         }
 
-        // Render children or self-close
+        if (idAttr != null && !idAttr.trim().isEmpty()) {
+            sb.append(" id=\"").append(idAttr.trim()).append("\"");
+        }
+        if (classAttr != null && !classAttr.trim().isEmpty()) {
+            sb.append(" class=\"").append(classAttr.trim()).append("\"");
+        }
+        if (!inlineStyles.isEmpty()) {
+            StringBuilder styleSb = new StringBuilder();
+            for (Map.Entry<String, String> entry : inlineStyles.entrySet()) {
+                styleSb.append(entry.getKey()).append(": ").append(entry.getValue()).append("; ");
+            }
+            sb.append(" style=\"").append(styleSb.toString().trim()).append("\"");
+        }
+        for (String attrStr : otherAttrs) {
+            sb.append(" ").append(attrStr);
+        }
+
+        // Render children or direct text
         if (isVoid) {
             sb.append(" />\n");
         } else {
             if (block.subStack2 >= 0) {
                 sb.append(">\n");
+                if (directText != null && !directText.isEmpty()) {
+                    sb.append(indent).append("  ").append(directText).append("\n");
+                }
                 BlockBean childCurr = map.get(String.valueOf(block.subStack2));
                 Set<String> childVisited = new HashSet<>();
                 while (childCurr != null && childVisited.add(childCurr.id)) {
@@ -305,10 +352,85 @@ public class HtmlCode2Block {
                     }
                 }
                 sb.append(indent).append("</").append(tagName).append(">\n");
+            } else if (directText != null) {
+                sb.append(">").append(directText).append("</").append(tagName).append(">\n");
             } else {
                 sb.append("></").append(tagName).append(">\n");
             }
         }
+    }
+
+    public static boolean isCssPropertyBlock(BlockBean b) {
+        if (b == null) return false;
+        String op = b.opCode != null ? b.opCode : "";
+        if (op.startsWith("set") && op.length() > 3) return true;
+        if (op.startsWith("css_") || "asdCss".equals(op)) return true;
+        String cat = b.category != null ? b.category.toLowerCase() : "";
+        if (cat.startsWith("css") && !"cssselector".equalsIgnoreCase(op) && !"csshover".equalsIgnoreCase(op) && !"cssfocus".equalsIgnoreCase(op) && !"cssmediaquery".equalsIgnoreCase(op)) return true;
+        if (b.code != null && b.code.contains(": %") && !op.startsWith("htmlAttr")) return true;
+        return false;
+    }
+
+    public static void extractCssProperty(BlockBean b, Map<String, String> inlineStyles) {
+        if (b == null || inlineStyles == null) return;
+        String p0 = (b.parameters != null && !b.parameters.isEmpty() && b.parameters.get(0) != null) ? b.parameters.get(0) : "";
+        if (p0.trim().isEmpty()) return;
+
+        String op = b.opCode != null ? b.opCode : "";
+        String propName = null;
+
+        if (b.code != null && b.code.contains(":")) {
+            String candidate = b.code.split(":")[0].trim();
+            if (!candidate.isEmpty() && !candidate.contains(" ") && !candidate.startsWith("<") && !candidate.startsWith("%")) {
+                propName = candidate.toLowerCase();
+            }
+        }
+
+        if (propName == null && op.startsWith("set") && op.length() > 3) {
+            String namePart = op.substring(3);
+            propName = camelToKebab(namePart);
+            if ("radius".equals(propName)) propName = "border-radius";
+        }
+
+        if (propName == null && op.startsWith("css_")) {
+            propName = op.substring(4).replace('_', '-').toLowerCase();
+        }
+
+        if (propName != null) {
+            inlineStyles.put(propName, p0.trim());
+        }
+    }
+
+    public static void parseCssDeclarationsInto(String css, Map<String, String> inlineStyles) {
+        if (css == null || inlineStyles == null) return;
+        String[] decls = css.split(";");
+        for (String decl : decls) {
+            decl = decl.trim();
+            if (decl.isEmpty()) continue;
+            int idx = decl.indexOf(':');
+            if (idx > 0) {
+                String key = decl.substring(0, idx).trim().toLowerCase();
+                String val = decl.substring(idx + 1).trim();
+                if (!key.isEmpty() && !val.isEmpty()) {
+                    inlineStyles.put(key, val);
+                }
+            }
+        }
+    }
+
+    public static String camelToKebab(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isUpperCase(c)) {
+                if (sb.length() > 0) sb.append('-');
+                sb.append(Character.toLowerCase(c));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     private static String resolveTagNameFromBlock(BlockBean block) {
@@ -521,13 +643,15 @@ public class HtmlCode2Block {
                 viewBlock.parameters.add(elem.tagName);
             }
 
-            // 1. Process Attributes (subStack1)
+            // 1. Process Attributes & Styles (subStack1)
             int firstAttrId = -1;
             BlockBean prevAttr = null;
 
+            // Non-style attributes first
             for (Map.Entry<String, String> entry : elem.attributes.entrySet()) {
                 String attrName = entry.getKey();
                 String attrVal = entry.getValue();
+                if ("style".equalsIgnoreCase(attrName)) continue;
 
                 BlockDef attrDef = ctx.attrMap.get(attrName.toLowerCase());
                 int attrId = ctx.nextId();
@@ -538,6 +662,12 @@ public class HtmlCode2Block {
                     if (attrBlock.spec.contains("%")) {
                         attrBlock.parameters.add(attrVal);
                     }
+                } else if ("id".equalsIgnoreCase(attrName)) {
+                    attrBlock = createBlockFromDef(null, "htmlAttrId", "id=\" %s.inputOnly \"", "normal", "#43A047", attrId);
+                    attrBlock.parameters.add(attrVal);
+                } else if ("class".equalsIgnoreCase(attrName)) {
+                    attrBlock = createBlockFromDef(null, "htmlAttrClass", "class=\" %s.inputOnly \"", "normal", "#43A047", attrId);
+                    attrBlock.parameters.add(attrVal);
                 } else if (attrName.toLowerCase().startsWith("data-")) {
                     BlockDef dataDef = ctx.attrMap.get("data");
                     attrBlock = createBlockFromDef(dataDef, "htmlAttrData", "data- %s.inputOnly =\" %s.inputOnly \"", " ", "#78909C", attrId);
@@ -555,10 +685,52 @@ public class HtmlCode2Block {
                 ctx.addBlock(attrBlock);
             }
 
+            // Unpack style="..." into separate property blocks in subStack1
+            if (elem.attributes.containsKey("style")) {
+                String styleVal = elem.attributes.get("style");
+                Map<String, String> decls = new LinkedHashMap<>();
+                parseCssDeclarationsInto(styleVal, decls);
+                for (Map.Entry<String, String> decl : decls.entrySet()) {
+                    String propKey = decl.getKey();
+                    String propVal = decl.getValue();
+                    int propId = ctx.nextId();
+                    BlockBean propBlock = createCssPropBlock(propKey, propVal, propId, ctx);
+
+                    if (firstAttrId == -1) firstAttrId = propId;
+                    if (prevAttr != null) prevAttr.nextBlock = propId;
+                    prevAttr = propBlock;
+                    ctx.addBlock(propBlock);
+                }
+            }
+
+            // If leaf / text element has direct text content and no child elements: attach text to subStack1
+            boolean hasChildElements = false;
+            StringBuilder textContent = new StringBuilder();
+            for (HtmlNode ch : elem.children) {
+                if (ch instanceof HtmlElementNode) hasChildElements = true;
+                else if (ch instanceof HtmlTextNode tn) {
+                    String tr = tn.text.trim();
+                    if (!tr.isEmpty()) {
+                        if (textContent.length() > 0) textContent.append(" ");
+                        textContent.append(tr);
+                    }
+                }
+            }
+
+            if (!hasChildElements && textContent.length() > 0) {
+                int textId = ctx.nextId();
+                BlockBean textBlock = createBlockFromDef(ctx.textDef, "htmlText", "text %s.inputOnly", "normal", "#3949AB", textId);
+                textBlock.parameters.add(textContent.toString());
+                if (firstAttrId == -1) firstAttrId = textId;
+                if (prevAttr != null) prevAttr.nextBlock = textId;
+                prevAttr = textBlock;
+                ctx.addBlock(textBlock);
+            }
+
             viewBlock.subStack1 = firstAttrId;
 
-            // 2. Process Children (subStack2)
-            if (!isVoid && !elem.children.isEmpty()) {
+            // 2. Process Children (subStack2) only if container has child elements
+            if (!isVoid && hasChildElements) {
                 int firstChildId = -1;
                 BlockBean prevChild = null;
 
@@ -610,6 +782,178 @@ public class HtmlCode2Block {
         bean.paramTypes = parseSpecParamTypes(bean.spec);
 
         return bean;
+    }
+
+    private static BlockBean createCssPropBlock(String propKey, String propVal, int propId, GeneratorContext ctx) {
+        String kebab = camelToKebab(propKey).toLowerCase();
+        BlockDef matched = null;
+        if (ctx.attrMap != null) {
+            matched = ctx.attrMap.get(kebab);
+        }
+        if (matched == null && "border-radius".equals(kebab) && ctx.attrMap != null) {
+            matched = ctx.attrMap.get("radius");
+        }
+
+        BlockBean bean = new BlockBean();
+        bean.id = String.valueOf(propId);
+        bean.subStack1 = -1;
+        bean.subStack2 = -1;
+        bean.nextBlock = -1;
+        bean.stackIndex = 0;
+        bean.isConnectedToRoot = false;
+
+        String colorHex = "#EF6C00";
+        String category = "css_layout";
+        if (kebab.contains("color") && !kebab.contains("background") && !kebab.contains("border")) {
+            colorHex = "#3949AB";
+            category = "css_text";
+        } else if (kebab.contains("font") || kebab.contains("text")) {
+            colorHex = "#3949AB";
+            category = "css_text";
+        } else if (kebab.contains("background") || kebab.contains("border") || kebab.contains("radius") || kebab.contains("shadow")) {
+            colorHex = "#8E24AA";
+            category = "css_background";
+        }
+
+        if (matched != null) {
+            bean.opCode = matched.getOpCode();
+            bean.spec = matched.getSpec();
+            bean.type = matched.getType();
+            bean.category = matched.category;
+            try {
+                bean.color = Color.parseColor(matched.color != null ? matched.color : colorHex);
+            } catch (Exception e) {
+                bean.color = Color.parseColor(colorHex);
+            }
+            bean.code = matched.code;
+        } else {
+            String op = "set" + Character.toUpperCase(kebab.charAt(0)) + (kebab.length() > 1 ? kebab.substring(1) : "");
+            bean.opCode = op;
+            bean.spec = kebab + " %s.inputOnly";
+            bean.type = "normal";
+            bean.category = category;
+            bean.color = Color.parseColor(colorHex);
+            bean.code = kebab + ": %1$s;\n";
+        }
+        bean.parameters.add(propVal);
+        bean.paramTypes = parseSpecParamTypes(bean.spec);
+        return bean;
+    }
+
+    // =========================================================================
+    // CSS Code -> BlockBeans and BlockBeans -> CSS Code APIs
+    // =========================================================================
+
+    public static BlockResult convertCssCode(Context context, String cssCode) {
+        return glab.dragweb.core.BlocksLoader.convertCssCode(context, cssCode);
+    }
+
+    public static BlockResult convertCssCodeInternal(Context context, String cssCode) {
+        if (cssCode == null || cssCode.trim().isEmpty()) {
+            return new BlockResult(new ArrayList<>());
+        }
+        try {
+            ArrayList<BlockBean> blocks = generateCssBlocksFromCode(context, cssCode);
+            return new BlockResult(blocks);
+        } catch (Exception e) {
+            return new BlockResult("CSS Conversion failed: " + e.getMessage());
+        }
+    }
+
+    public static ArrayList<BlockBean> generateCssBlocksFromCode(Context context, String cssCode) {
+        ArrayList<BlockBean> blocks = new ArrayList<>();
+        if (cssCode == null || cssCode.trim().isEmpty()) return blocks;
+
+        try {
+            HtmlCssImporter importer = new HtmlCssImporter(context);
+            List<Map<String, Object>> rawBlocks = importer.importCssOnly(cssCode);
+            if (rawBlocks != null && !rawBlocks.isEmpty()) {
+                ArrayList<BlockBean> beans = importer.convertRawMapsToBeans(rawBlocks);
+                if (beans != null) {
+                    return beans;
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return blocks;
+    }
+
+    public static String generateCssFromBlocks(Context context, ArrayList<BlockBean> blocks) {
+        if (blocks == null || blocks.isEmpty()) return "";
+        Map<String, BlockBean> map = new HashMap<>();
+        Set<Integer> nonRootIds = new HashSet<>();
+        for (BlockBean b : blocks) {
+            if (b.id != null) map.put(b.id, b);
+            if (b.nextBlock >= 0) nonRootIds.add(b.nextBlock);
+            if (b.subStack1 >= 0) nonRootIds.add(b.subStack1);
+            if (b.subStack2 >= 0) nonRootIds.add(b.subStack2);
+        }
+        List<BlockBean> roots = new ArrayList<>();
+        for (BlockBean b : blocks) {
+            try {
+                int idInt = Integer.parseInt(b.id);
+                if (!nonRootIds.contains(idInt)) roots.add(b);
+            } catch (NumberFormatException ignored) {}
+        }
+        if (roots.isEmpty()) roots.add(blocks.get(0));
+
+        StringBuilder sb = new StringBuilder();
+        Set<String> visited = new HashSet<>();
+        for (BlockBean root : roots) {
+            BlockBean curr = root;
+            while (curr != null && visited.add(curr.id)) {
+                renderCssRuleBlock(curr, map, sb, 0);
+                if (curr.nextBlock >= 0) {
+                    curr = map.get(String.valueOf(curr.nextBlock));
+                } else {
+                    break;
+                }
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private static void renderCssRuleBlock(BlockBean block, Map<String, BlockBean> map, StringBuilder sb, int indentLevel) {
+        if (block == null) return;
+        String indent = "  ".repeat(indentLevel);
+        String op = block.opCode != null ? block.opCode : "";
+
+        if ("cssMediaQuery".equals(op)) {
+            String mq = (!block.parameters.isEmpty() && block.parameters.get(0) != null) ? block.parameters.get(0) : "";
+            sb.append(indent).append("@media ").append(mq).append(" {\n");
+            if (block.subStack1 >= 0) {
+                BlockBean child = map.get(String.valueOf(block.subStack1));
+                Set<String> visited = new HashSet<>();
+                while (child != null && visited.add(child.id)) {
+                    renderCssRuleBlock(child, map, sb, indentLevel + 1);
+                    if (child.nextBlock >= 0) child = map.get(String.valueOf(child.nextBlock));
+                    else break;
+                }
+            }
+            sb.append(indent).append("}\n\n");
+            return;
+        }
+
+        String selector = (!block.parameters.isEmpty() && block.parameters.get(0) != null) ? block.parameters.get(0) : "";
+        if ("cssHover".equals(op)) selector = selector + ":hover";
+        else if ("cssFocus".equals(op)) selector = selector + ":focus";
+        else if ("cssActive".equals(op)) selector = selector + ":active";
+
+        sb.append(indent).append(selector).append(" {\n");
+        if (block.subStack1 >= 0) {
+            BlockBean propCurr = map.get(String.valueOf(block.subStack1));
+            Set<String> visited = new HashSet<>();
+            while (propCurr != null && visited.add(propCurr.id)) {
+                Map<String, String> inlineStyles = new LinkedHashMap<>();
+                extractCssProperty(propCurr, inlineStyles);
+                for (Map.Entry<String, String> e : inlineStyles.entrySet()) {
+                    sb.append(indent).append("  ").append(e.getKey()).append(": ").append(e.getValue()).append(";\n");
+                }
+                if (propCurr.nextBlock >= 0) propCurr = map.get(String.valueOf(propCurr.nextBlock));
+                else break;
+            }
+        }
+        sb.append(indent).append("}\n\n");
     }
 
     public static ArrayList<String> parseSpecParamTypes(String spec) {

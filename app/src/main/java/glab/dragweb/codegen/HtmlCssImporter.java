@@ -49,6 +49,7 @@ public class HtmlCssImporter {
     // Logic blocks parsed during CSS import
     private final List<Map<String, Object>> importedLogicBlocks = new ArrayList<>();
 
+    private boolean preserveExactTagsAndStyles = false;
     private android.content.Context context;
     private final List<JsBlockMatcher> jsMatchers = new ArrayList<>();
     private boolean jsMatchersInitialized = false;
@@ -224,6 +225,23 @@ public class HtmlCssImporter {
     }
 
     /**
+     * Parse HTML content into a DragWeb widget tree while preserving exact HTML tag names,
+     * nested children, attributes, and explicit inline styles (no synthetic default styles).
+     */
+    public ImportResult importHtmlCssForBlockSync(String htmlContent) {
+        if (htmlContent == null || htmlContent.trim().isEmpty()) {
+            return new ImportResult(true, "Empty HTML cleared", new ArrayList<>());
+        }
+        boolean prev = preserveExactTagsAndStyles;
+        preserveExactTagsAndStyles = true;
+        try {
+            return importHtmlCss(htmlContent, null);
+        } finally {
+            preserveExactTagsAndStyles = prev;
+        }
+    }
+
+    /**
      * Parse HTML content (and optionally CSS) into a DragWeb widget tree.
      */
     public ImportResult importHtmlCss(String htmlContent, String cssContent) {
@@ -273,6 +291,9 @@ public class HtmlCssImporter {
             List<Map<String, Object>> widgetTree = parseHtmlNodes(bodyContent);
 
             if (widgetTree.isEmpty()) {
+                if (preserveExactTagsAndStyles) {
+                    return new ImportResult(true, "No HTML elements found", widgetTree, new ArrayList<>(importedLogicBlocks), enabledLibraries);
+                }
                 return new ImportResult(false, "No supported HTML elements found", null);
             }
 
@@ -2733,30 +2754,27 @@ public class HtmlCssImporter {
             if (closingPos >= 0) {
                 String innerHtml = html.substring(pos, closingPos);
 
-                if (isContainerTag(parsedTag.tagName)) {
-                    // Parse children for container elements
+                boolean hasChildTags = innerHtml.contains("<");
+                boolean parseChildren = hasChildTags && (preserveExactTagsAndStyles || isContainerTag(parsedTag.tagName));
+                if (parseChildren) {
+                    // Parse children for container / nested elements
                     List<Map<String, Object>> children = parseHtmlNodes(innerHtml);
                     if (!children.isEmpty()) {
                         widgetNode.put("children", children);
                     } else {
-                        // If container has only text content (e.g. <a>Link</a> or <button>Submit</button>)
                         String textContent = innerHtml.replaceAll("<[^>]*>", "").trim();
-                        if (!textContent.isEmpty()) {
-                            String decoded = decodeHtmlEntities(textContent);
-                            Map<String, Object> function = (Map<String, Object>) widgetNode.get("function");
-                            if (function != null) function.put("text", decoded);
-                            widgetNode.put("text", decoded);
-                        }
-                    }
-                } else {
-                    // For leaf elements, extract text content
-                    String textContent = innerHtml.replaceAll("<[^>]*>", "").trim();
-                    if (!textContent.isEmpty()) {
                         String decoded = decodeHtmlEntities(textContent);
                         Map<String, Object> function = (Map<String, Object>) widgetNode.get("function");
                         if (function != null) function.put("text", decoded);
                         widgetNode.put("text", decoded);
                     }
+                } else {
+                    // For leaf elements or containers with direct text (e.g. <button>Submit</button>, <p>Hello</p>, <a>Link</a>)
+                    String textContent = innerHtml.replaceAll("<[^>]*>", "").trim();
+                    String decoded = decodeHtmlEntities(textContent);
+                    Map<String, Object> function = (Map<String, Object>) widgetNode.get("function");
+                    if (function != null) function.put("text", decoded);
+                    widgetNode.put("text", decoded);
                 }
 
                 pos = closingPos + ("</" + parsedTag.tagName + ">").length();
@@ -3038,8 +3056,10 @@ public class HtmlCssImporter {
             }
         }
 
-        // Apply default heading styles
-        applyDefaultTagStyles(styleMap, parsedTag.tagName);
+        // Apply default heading styles (skip during block->canvas sync to avoid synthetic styles)
+        if (!preserveExactTagsAndStyles) {
+            applyDefaultTagStyles(styleMap, parsedTag.tagName);
+        }
 
         function.put("style", styleMap);
         node.put("function", function);
@@ -3168,6 +3188,9 @@ public class HtmlCssImporter {
      * Map HTML5 tags to the closest supported DragWeb tag.
      */
     private String mapTag(String htmlTag) {
+        if (preserveExactTagsAndStyles) {
+            return htmlTag;
+        }
         switch (htmlTag) {
             case "thead":
             case "tbody":

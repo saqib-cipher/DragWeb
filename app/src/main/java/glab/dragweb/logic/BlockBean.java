@@ -49,6 +49,19 @@ public class BlockBean extends BaseBean implements Parcelable {
     public boolean isConnectedToRoot = false;
     public int x = 0;
     public int y = 0;
+    public String headerText = "";
+    public ArrayList<String> tokenizedSpec = new ArrayList<>();
+
+    public BlockBean setOpCode(String opCode) { this.opCode = opCode; return this; }
+    public BlockBean setHeaderText(String headerText) { this.headerText = headerText; return this; }
+    public BlockBean setColor(int color) { this.color = color; return this; }
+    public BlockBean setType(String type) { this.type = type; this.blockType = type; return this; }
+    public BlockBean setCode(String code) { this.code = code; return this; }
+    public BlockBean setSpec(String spec) { this.spec = spec; return this; }
+    public BlockBean setSpec2(String spec2) { this.spec2 = spec2; return this; }
+    public BlockBean setCategory(String category) { this.category = category != null ? category : ""; return this; }
+    public BlockBean setTokenizedSpec(ArrayList<String> tokenizedSpec) { this.tokenizedSpec = tokenizedSpec != null ? tokenizedSpec : new ArrayList<>(); return this; }
+    public BlockBean setParameters(ArrayList<String> parameters) { this.parameters = parameters != null ? parameters : new ArrayList<>(); return this; }
 
     public BlockBean() {
         this.parameters = new ArrayList();

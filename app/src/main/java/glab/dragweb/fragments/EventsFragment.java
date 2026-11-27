@@ -8,6 +8,7 @@ import glab.dragweb.ui.*;
 import glab.dragweb.logic.*;
 import glab.dragweb.codegen.*;
 import glab.dragweb.data.*;
+import glab.dragweb.core.BlocksLoader;
 import glab.dragweb.adapters.*;
 import glab.dragweb.models.*;
 import glab.dragweb.util.*;
@@ -27,6 +28,7 @@ import android.view.ViewParent;
 import androidx.viewpager2.widget.ViewPager2;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
@@ -68,6 +70,7 @@ public class EventsFragment extends Fragment {
     private TextView tvSectionTitle;
     private RecyclerView rvEvents;
     private Button btnResetLogic;
+    private Button btnImportCode;
 
     private int currentTab = 0; // 0: CSS, 1: JS, 2: HTML, 3: Functions (MoreBlocks)
 
@@ -107,8 +110,13 @@ public class EventsFragment extends Fragment {
         logicBlockLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
-                if (result.getResultCode() == Activity.RESULT_OK) {
-                    refreshLogicList();
+                invalidateProjectFilesCache();
+                refreshLogicList();
+                if (getActivity() instanceof MainActivity) {
+                    MainEditorFragment mef = ((MainActivity) getActivity()).getMainEditorFragment();
+                    if (mef != null) {
+                        mef.reloadLayoutFromStorage();
+                    }
                 }
             }
         );
@@ -141,6 +149,10 @@ public class EventsFragment extends Fragment {
         tvSectionTitle = view.findViewById(R.id.tvSectionTitle);
         rvEvents = view.findViewById(R.id.rv_events);
         btnResetLogic = view.findViewById(R.id.btnResetLogic);
+        btnImportCode = view.findViewById(R.id.btnImportCode);
+        if (btnImportCode != null) {
+            btnImportCode.setOnClickListener(v -> showImportCodeDialog(null));
+        }
 
         pageManager = new PageManager(getContext(), projectId);
         rvEvents.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -215,7 +227,12 @@ public class EventsFragment extends Fragment {
                     .setNegativeButton("Cancel", null)
                     .show();
             } else {
-                List<String> files = getProjectFiles();
+                List<String> files = new ArrayList<>();
+                for (String f : getProjectFiles()) {
+                    if (!isLockedThemeCss(f)) {
+                        files.add(f);
+                    }
+                }
                 String[] items = files.toArray(new String[0]);
                 new MaterialAlertDialogBuilder(getContext())
                     .setTitle("Select stylesheet/script to reset")
@@ -554,6 +571,7 @@ public class EventsFragment extends Fragment {
             View actionContainer;
             ListItemCardView cardView;
             Button btnDeleteItem;
+            Button btnImportItem;
 
             ViewHolder(View view) {
                 super(view);
@@ -564,6 +582,7 @@ public class EventsFragment extends Fragment {
                 cardView = view.findViewById(R.id.cardView);
                 actionContainer = view.findViewById(R.id.action_container);
                 btnDeleteItem = view.findViewById(R.id.btn_delete_item);
+                btnImportItem = view.findViewById(R.id.btn_import_item);
             }
         }
 
@@ -591,21 +610,39 @@ public class EventsFragment extends Fragment {
                 holder.tvLinkedStyleName.setTypeface(null, android.graphics.Typeface.NORMAL);
             }
 
+            boolean isLocked = !item.isFunction && isLockedThemeCss(item.targetPath);
+
             if (holder.tvBlocksCount != null) {
-                holder.tvBlocksCount.setText(String.valueOf(item.blockCount));
+                holder.tvBlocksCount.setText(isLocked ? "0" : String.valueOf(item.blockCount));
             }
 
             if (holder.tvPreview != null) {
-                holder.tvPreview.setText(item.tag);
+                holder.tvPreview.setText(isLocked ? "LOCKED • CSS" : item.tag);
             }
 
-            android.view.View.OnClickListener clickListener = v -> openLogicEditor(item);
+            android.view.View.OnClickListener clickListener = v -> {
+                if (isLocked) {
+                    showThemeCssLockedDialog();
+                } else {
+                    openLogicEditor(item);
+                }
+            };
             holder.itemView.setOnClickListener(clickListener);
             if (holder.cardView != null) {
                 holder.cardView.setOnClickListener(clickListener);
             }
 
+            if (holder.btnImportItem != null) {
+                if (item.isFunction || isLocked) {
+                    holder.btnImportItem.setVisibility(View.GONE);
+                } else {
+                    holder.btnImportItem.setVisibility(View.VISIBLE);
+                    holder.btnImportItem.setOnClickListener(v -> showImportCodeDialog(item.targetPath));
+                }
+            }
+
             if (holder.btnDeleteItem != null) {
+                holder.btnDeleteItem.setVisibility(isLocked ? View.GONE : View.VISIBLE);
                 holder.btnDeleteItem.setOnClickListener(v -> {
                     if (item.isFunction) {
                         String targetFunc = item.funcName != null ? item.funcName : item.title;
@@ -656,6 +693,10 @@ public class EventsFragment extends Fragment {
         }
 
         private void openLogicEditor(EventListItem item) {
+            if (!item.isFunction && isLockedThemeCss(item.targetPath)) {
+                showThemeCssLockedDialog();
+                return;
+            }
             Intent intent = new Intent(getContext(), LogicBlockActivity.class);
             intent.putExtra("project_id", projectId);
             String cleanName = DesignDataManager.getCleanPageName(item.targetPath);
@@ -680,6 +721,150 @@ public class EventsFragment extends Fragment {
         }
     }
 
+    private void showImportCodeDialog(final String preselectedFile) {
+        if (getContext() == null) return;
+
+        final List<String> availableFiles;
+        if (preselectedFile != null && !preselectedFile.isEmpty()) {
+            availableFiles = new ArrayList<>();
+            availableFiles.add(preselectedFile);
+        } else {
+            availableFiles = getFilteredFiles(currentTab);
+            if (availableFiles.isEmpty()) {
+                availableFiles.addAll(getProjectFiles());
+            }
+        }
+
+        if (availableFiles.isEmpty()) {
+            Toast.makeText(getContext(), "No files available to import code into", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        final String targetPath = preselectedFile != null ? preselectedFile : availableFiles.get(0);
+
+        LinearLayout dialogView = new LinearLayout(getContext());
+        dialogView.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(20);
+        dialogView.setPadding(pad, dp(12), pad, dp(8));
+
+        TextView lblFile = new TextView(getContext());
+        lblFile.setText("Target File: " + targetPath);
+        lblFile.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14);
+        lblFile.setTypeface(null, android.graphics.Typeface.BOLD);
+        lblFile.setPadding(0, 0, 0, dp(8));
+        dialogView.addView(lblFile);
+
+        com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(getContext());
+        til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        til.setHint("Paste source code here...");
+
+        com.google.android.material.textfield.TextInputEditText editCode = new com.google.android.material.textfield.TextInputEditText(getContext());
+        editCode.setMinLines(8);
+        editCode.setMaxLines(16);
+        editCode.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
+        editCode.setTypeface(android.graphics.Typeface.MONOSPACE);
+        editCode.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13);
+        til.addView(editCode);
+
+        dialogView.addView(til, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        String title = "Import Code (" + targetPath + ")";
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext())
+            .setTitle(title)
+            .setView(dialogView)
+            .setPositiveButton("Import & Convert", (d, w) -> {
+                String inputCode = editCode.getText() != null ? editCode.getText().toString().trim() : "";
+                if (inputCode.isEmpty()) {
+                    Toast.makeText(getContext(), "Code input was empty", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                processCodeImport(targetPath, inputCode);
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    private void processCodeImport(final String filePath, final String code) {
+        if (getContext() == null || filePath == null || code == null) return;
+        final android.content.Context ctx = getContext().getApplicationContext();
+        final String cleanName = DesignDataManager.getCleanPageName(filePath);
+        final String lower = filePath.toLowerCase();
+
+        bgExecutor.execute(() -> {
+            try {
+                if (lower.endsWith(".html") || lower.endsWith(".htm")) {
+                    ArrayList<BlockBean> blocks = BlocksLoader.generateHtmlBlocksFromCode(ctx, code);
+                    HtmlCssImporter importer = new HtmlCssImporter(ctx);
+                    HtmlCssImporter.ImportResult res = importer.importHtmlCss(code, null);
+                    if (res != null && res.success && res.widgetTree != null) {
+                        PageManager pm = new PageManager(ctx, projectId);
+                        String layoutJson = new com.google.gson.Gson().toJson(res.widgetTree);
+                        pm.savePageLayout(cleanName, layoutJson);
+                    }
+                    File assetHtml = new File(FileUtil.getDragWebDir(ctx), "projects/" + projectId + "/assets/" + cleanName + ".html");
+                    FileUtil.writeFile(assetHtml.getAbsolutePath(), code);
+
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            if (getActivity() instanceof MainActivity) {
+                                MainEditorFragment mef = ((MainActivity) getActivity()).getMainEditorFragment();
+                                if (mef != null) {
+                                    mef.reloadLayoutFromStorage();
+                                }
+                            }
+                            invalidateProjectFilesCache();
+                            refreshLogicList();
+                            Toast.makeText(ctx, "Imported " + blocks.size() + " HTML blocks and updated canvas!", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                } else if (lower.endsWith(".css")) {
+                    ArrayList<BlockBean> blocks = BlocksLoader.generateCssBlocksFromCode(ctx, code);
+                    DesignDataManager.setBlocks(cleanName, "onCreate_initializeLogic", blocks);
+                    DesignDataManager.saveAllSavedLogic(ctx, projectId);
+                    File assetCss = new File(FileUtil.getDragWebDir(ctx), "projects/" + projectId + "/assets/" + filePath);
+                    FileUtil.writeFile(assetCss.getAbsolutePath(), code);
+
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            if (getActivity() instanceof MainActivity) {
+                                MainEditorFragment mef = ((MainActivity) getActivity()).getMainEditorFragment();
+                                if (mef != null) {
+                                    mef.reloadLayoutFromStorage();
+                                }
+                            }
+                            invalidateProjectFilesCache();
+                            refreshLogicList();
+                            Toast.makeText(ctx, "Imported " + blocks.size() + " CSS blocks!", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                } else {
+                    // JavaScript
+                    ArrayList<BlockBean> blocks = BlocksLoader.generateJsBlocksFromCode(ctx, code);
+                    DesignDataManager.setBlocks(cleanName, "onPageLoad_onPageLoad", blocks);
+                    DesignDataManager.saveAllSavedLogic(ctx, projectId);
+                    File assetJs = new File(FileUtil.getDragWebDir(ctx), "projects/" + projectId + "/assets/" + filePath);
+                    FileUtil.writeFile(assetJs.getAbsolutePath(), code);
+
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            invalidateProjectFilesCache();
+                            refreshLogicList();
+                            Toast.makeText(ctx, "Imported " + blocks.size() + " JS blocks!", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("EventsFragment", "Failed to import code: " + e.getMessage(), e);
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        Toast.makeText(ctx, "Failed to import code: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    });
+                }
+            }
+        });
+    }
+
     private void disallowAllParentsIntercept(View v, boolean disallow) {
         if (v == null) return;
         ViewParent p = v.getParent();
@@ -695,6 +880,19 @@ public class EventsFragment extends Fragment {
                 vp.setUserInputEnabled(!disallow);
             }
         }
+    }
+
+    private static boolean isLockedThemeCss(String pathOrName) {
+        return LogicBlockActivity.isLockedThemeCss(pathOrName);
+    }
+
+    private void showThemeCssLockedDialog() {
+        if (getContext() == null) return;
+        new MaterialAlertDialogBuilder(getContext())
+                .setTitle("theme.css is Locked")
+                .setMessage("theme.css is auto-generated from your Theme Settings (light/dark CSS variables and base resets) and cannot be edited in the logic editor.")
+                .setPositiveButton("OK", null)
+                .show();
     }
 
     private int dp(int value) {

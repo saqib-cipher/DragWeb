@@ -66,7 +66,7 @@ public class TextEditorActivity extends AppCompatActivity {
         filePath = getIntent().getStringExtra("file_path");
         projectId = getIntent().getStringExtra("project_id");
         relativePath = getIntent().getStringExtra("relative_path");
-        isReadOnly = getIntent().getBooleanExtra("read_only", false) || getIntent().getBooleanExtra("is_read_only", false);
+        isReadOnly = getIntent().getBooleanExtra("read_only", false) || getIntent().getBooleanExtra("is_read_only", false) || LogicBlockActivity.isLockedThemeCss(filePath) || LogicBlockActivity.isLockedThemeCss(relativePath);
 
         if ((filePath == null || filePath.isEmpty()) && !getIntent().hasExtra("content") && !getIntent().hasExtra("code")) {
             Toast.makeText(this, "No file specified", Toast.LENGTH_SHORT).show();

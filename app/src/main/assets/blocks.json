@@ -1,3851 +1,2833 @@
 [
-    {
-        "id": "commentBlockCss",
-        "category": "comment",
-        "blockType": "c",
-        "color": "#546E7A",
-        "spec": "//Comment %s.inputOnly",
-        "code": "/* %1$s */ %2$s"
-    },
-    {
-        "id": "commentBlockBold",
-        "category": "comment",
-        "blockType": "c",
-        "color": "#546E7A",
-        "spec": "//Comment BOLD %s.inputOnly",
-        "code": "/*===== %1$s =====*/ \n %2$s"
-    },
-    {
-        "id": "cssSelector",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "Widget %selector",
-        "code": "%1$s {\n %2$s\n}\n"
-    },
-    {
-        "id": "cssSelectorS",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "Widget %selector : %s.inputOnly",
-        "code": "%1$s%2$s {\n %3$s\n}\n"
-    },
-    {
-        "id": "cssControlS",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": "%selector : %s.inputOnly",
-        "code": " %1$s%2$s"
-    },
-    {
-        "id": "cssCNot",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": "not: %s.inputOnly",
-        "code": ":not(%1$s)"
-    },
-    {
-        "id": "cssCjoin",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": "%s.inputOnly + %s.inputOnly",
-        "code": "%1$s%2$s"
-    },
-    {
-        "id": "cssCFirst",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": ":first-child",
-        "code": ":first-child"
-    },
-    {
-        "id": "cssClast",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": ":last-child",
-        "code": ":last-child"
-    },
-    {
-        "id": "cssCNth",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": ":%s.inputOnly-child",
-        "code": ":nth-child(%1$s)"
-    },
-    {
-        "id": "cssCHover",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": ":hover",
-        "code": ":hover"
-    },
-    {
-        "id": "cssCFocus",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": ":focus",
-        "code": ":focus"
-    },
-    {
-        "id": "cssCBefore",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": ":before",
-        "code": ":before"
-    },
-    {
-        "id": "cssCafter",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": ":after",
-        "code": ":after"
-    },
-    {
-        "id": "cssCVisited",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": ":visited",
-        "code": ":visited"
-    },
-    {
-        "id": "cssCActive",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": "Active",
-        "code": ".active"
-    },
-    {
-        "id": "cssCUnits",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": "Top|Bottom %m.unit Left|Right %m.unit",
-        "code": "%1$s %2$s"
-    },
-    {
-        "id": "cssCUnits2",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": "Top %m.unit Left|Right %m.unit Bottom %m.unit",
-        "code": "%1$s %2$s %3$s"
-    },
-    {
-        "id": "cssCUnits3",
-        "category": "cssControl",
-        "blockType": "s",
-        "color": "#549159",
-        "spec": "Top %m.unit Right %m.unit Bottom %m.unit Left $m.unit",
-        "code": "%1$s %2$s %3$s %4$s"
-    },
-    {
-        "id": "cssHover",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "%selector hover",
-        "code": "%1$s:hover {\n %2$s\n}\n"
-    },
-    {
-        "id": "cssFocus",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "%selector focus",
-        "code": "%1$s:focus {\n %2$s\n}\n"
-    },
-    {
-        "id": "cssActive",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "%selector active",
-        "code": "%1$s:active {\n %2$s\n}\n"
-    },
-    {
-        "id": "cssVisited",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "%selector visited",
-        "code": "%1$s:visited {\n%2$s\n}\n"
-    },
-    {
-        "id": "cssBefore",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "%selector before",
-        "code": "%1$s::before {\n%2$s\n}\n"
-    },
-    {
-        "id": "cssAfter",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "%selector after",
-        "code": "%1$s::after {\n%2$s\n}\n"
-    },
-    {
-        "id": "cssFirstChild",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "%selector first-child",
-        "code": "%1$s:first-child {\n%2$s\n}\n"
-    },
-    {
-        "id": "cssLastChild",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "%selector last-child",
-        "code": "%1$s:last-child {\n%2$s\n}\n"
-    },
-    {
-        "id": "cssNthChild",
-        "category": "css",
-        "blockType": "c",
-        "color": "#1976D2",
-        "spec": "%selector %dth-child",
-        "code": "%1$s:nth-child(%2$s) {\n%3$s\n}\n"
-    },
-    {
-        "id": "cssMediaQuery",
-        "category": "responsive",
-        "blockType": "c",
-        "color": "#1565C0",
-        "spec": "@media max-width %d",
-        "code": "@media (max-width: %1$s) {\n%2$s\n}"
-    },
-    {
-        "id": "setDisplay",
-        "category": "css",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "display %m.display",
-        "code": "display: %1$s;\n"
-    },
-    {
-        "id": "setPosition",
-        "category": "css",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "position %m.position",
-        "code": "position: %1$s;\n"
-    },
-    {
-        "id": "setOverflow",
-        "category": "css",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "overflow %m.overflow",
-        "code": "overflow: %1$s;\n"
-    },
-    {
-        "id": "setColor",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "color %m.color",
-        "code": "color: %1$s;\n"
-    },
-    {
-        "id": "setBackground",
-        "category": "css_background",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "background %m.color",
-        "code": "background-color: %1$s;\n"
-    },
-    {
-        "id": "setBackgroundImage",
-        "category": "css_background",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "background-image url %s.inputOnly",
-        "code": "background-image: url(%1$s);\n"
-    },
-    {
-        "id": "setWidth",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "width %m.unit",
-        "code": "width: %1$s;\n"
-    },
-    {
-        "id": "setHeight",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "height %m.unit",
-        "code": "height: %1$s;\n"
-    },
-    {
-        "id": "setMaxWidth",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "max-width %m.unit",
-        "code": "max-width: %1$s;\n"
-    },
-    {
-        "id": "setMaxHeight",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "max-height %m.unit",
-        "code": "max-height: %1$s;\n"
-    },
-    {
-        "id": "setMinWidth",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "min-width %m.unit",
-        "code": "min-width: %1$s;\n"
-    },
-    {
-        "id": "setMinHeight",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "min-height %m.unit",
-        "code": "min-height: %1$s;\n"
-    },
-    {
-        "id": "setMargin",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "margin %m.unit",
-        "code": "margin: %1$s;\n"
-    },
-    {
-        "id": "setMarginMulti",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#549159",
-        "spec": "margin %s.inputOnly",
-        "code": "margin: %1$s;\n"
-    },
-    {
-        "id": "setPadding",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "padding %m.unit",
-        "code": "padding: %1$s;\n"
-    },
-    {
-        "id": "setPaddingMulti",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#549159",
-        "spec": "padding %s.inputOnly",
-        "code": "padding: %1$s;\n"
-    },
-    {
-        "id": "setBorder",
-        "category": "css_background",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "border %m.unit solid %m.color",
-        "code": "border: %1$s solid %2$s;\n"
-    },
-    {
-        "id": "setRadius",
-        "category": "css_background",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "border-radius %m.unit",
-        "code": "border-radius: %1$s;\n"
-    },
-    {
-        "id": "setRadiusMulti",
-        "category": "css_background",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "border-radius TL %m.unit TR %m.unit BR %m.unit BL %m.unit",
-        "code": "border-radius: %1$s %2$s %3$s %4$s;\n"
-    },
-    {
-        "id": "setBoxShadow",
-        "category": "css_effects",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "box-shadow h-offset: %d px v-offset: %d px blur: %d px spread: %d px color: %m.color type: %m.shadowType",
-        "code": "box-shadow: %1$spx %2$spx %3$spx %4$spx %5$s %6$s;\n"
-    },
-    {
-        "id": "setFontSize",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "font-size %m.unit",
-        "code": "font-size: %1$s;\n"
-    },
-    {
-        "id": "setFontFamily",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "font-family %m.fontFamily",
-        "code": "font-family: %1$s;\n"
-    },
-    {
-        "id": "setFontWeight",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "font-weight %m.fontWeight",
-        "code": "font-weight: %1$s;\n"
-    },
-    {
-        "id": "setFontStyle",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "font-style %m.fontStyle",
-        "code": "font-style: %1$s;\n"
-    },
-    {
-        "id": "setTextAlign",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "text-align %m.textAlign",
-        "code": "text-align: %1$s;\n"
-    },
-    {
-        "id": "setTextDecoration",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "text-decoration %m.textDecoration",
-        "code": "text-decoration: %1$s;\n"
-    },
-    {
-        "id": "setLineHeight",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "line-height %d",
-        "code": "line-height: %1$s;\n"
-    },
-    {
-        "id": "setLetterSpacing",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "letter-spacing %m.unit",
-        "code": "letter-spacing: %1$s;\n"
-    },
-    {
-        "id": "setOpacity",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "opacity %d",
-        "code": "opacity: %1$s;\n"
-    },
-    {
-        "id": "setZIndex",
-        "category": "css",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "z-index %d",
-        "code": "z-index: %1$s;\n"
-    },
-    {
-        "id": "setCursor",
-        "category": "css",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "cursor %m.cursor",
-        "code": "cursor: %1$s;\n"
-    },
-    {
-        "id": "setFlexDirection",
-        "category": "css_flex",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "flex-direction %m.flexDirection",
-        "code": "flex-direction: %1$s;\n"
-    },
-    {
-        "id": "setJustifyContent",
-        "category": "css_flex",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "justify-content %m.justifyContent",
-        "code": "justify-content: %1$s;\n"
-    },
-    {
-        "id": "setAlignItems",
-        "category": "css_flex",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "align-items %m.alignItems",
-        "code": "align-items: %1$s;\n"
-    },
-    {
-        "id": "setGap",
-        "category": "css_flex",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "gap %m.unit",
-        "code": "gap: %1$s;\n"
-    },
-    {
-        "id": "setGridTemplateColumns",
-        "category": "css_grid",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "grid columns %s.inputOnly",
-        "code": "grid-template-columns: %1$s;\n"
-    },
-    {
-        "id": "setTransform",
-        "category": "css_transform",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "transform %s.inputOnly",
-        "code": "transform: %1$s;\n"
-    },
-    {
-        "id": "setFilter",
-        "category": "css_effects",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "filter: %m.filterType Value %s.inputOnly",
-        "code": "filter: %1$s;\n"
-    },
-    {
-        "id": "filterBlur",
-        "category": "css_effects",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "filter: blur %d px",
-        "code": "filter: blur(%1$spx);\n"
-    },
-    {
-        "id": "filterDropShadow",
-        "category": "css_effects",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "filter: drop-shadow h-offset: %d px v-offset: %d px blur: %d px color: %m.color",
-        "code": "filter: drop-shadow(%1$spx %2$spx %3$spx %4$s);\n"
-    },
-    {
-        "id": "filterNone",
-        "category": "css_effects",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "filter: none",
-        "code": "filter: none;\n"
-    },
-    {
-        "id": "animateFadeIn",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "animate fade-in %d",
-        "code": "animation: fadeIn %1$ss;\n"
-    },
-    {
-        "id": "animateFadeOut",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "animate fade-out %d",
-        "code": "animation: fadeOut %1$ss;\n"
-    },
-    {
-        "id": "animateSlideIn",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "animate slide-in %d",
-        "code": "animation: slideIn %1$ss;\n"
-    },
-    {
-        "id": "animateSlideOut",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "animate slide-out %d",
-        "code": "animation: slideOut %1$ss;\n"
-    },
-    {
-        "id": "animateBounce",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "animate bounce %d",
-        "code": "animation: bounce %1$ss;\n"
-    },
-    {
-        "id": "animatePulse",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "animate pulse %d",
-        "code": "animation: pulse %1$ss;\n"
-    },
-    {
-        "id": "animateRotate",
-        "category": "css_transform",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "animate rotate %d",
-        "code": "animation: rotate %1$ss;\n"
-    },
-    {
-        "id": "animateShake",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "animate shake %d",
-        "code": "animation: shake %1$ss;\n"
-    },
-    {
-        "id": "transitionAll",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "transition all %d s",
-        "code": "transition: all %1$ss;\n"
-    },
-    {
-        "id": "transitionColor",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "transition color %d s",
-        "code": "transition: color %1$ss;\n"
-    },
-    {
-        "id": "transitionTransform",
-        "category": "css_transform",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "transition transform %d s",
-        "code": "transition: transform %1$ss;\n"
-    },
-    {
-        "id": "animateSlideUp",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "slide-up %s.inputOnly",
-        "code": "animation: slideUp %1$ss ease both;\n"
-    },
-    {
-        "id": "animateSlideDown",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "slide-down %s.inputOnly",
-        "code": "animation: slideDown %1$ss ease both;\n"
-    },
-    {
-        "id": "animateSlideLeft",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "slide-left %s.inputOnly",
-        "code": "animation: slideLeft %1$ss ease both;\n"
-    },
-    {
-        "id": "animateSlideRight",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "slide-right %s.inputOnly",
-        "code": "animation: slideRight %1$ss ease both;\n"
-    },
-    {
-        "id": "animateZoomIn",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "zoom-in %s.inputOnly",
-        "code": "animation: zoomIn %1$ss ease both;\n"
-    },
-    {
-        "id": "animateZoomOut",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "zoom-out %s.inputOnly",
-        "code": "animation: zoomOut %1$ss ease both;\n"
-    },
-    {
-        "id": "animateFlip",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "flip %s.inputOnly",
-        "code": "animation: flip %1$ss ease both;\n"
-    },
-    {
-        "id": "transitionCustom",
-        "category": "css_animation",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "transition property %m.transitionProperty duration: %d s timing: %m.timingFunction delay: %d s",
-        "code": "transition: %1$s %2$ss %3$s %4$ss;\n"
-    },
-    {
-        "id": "hoverScale",
-        "category": "css_transform",
-        "blockType": "normal",
-        "color": "#9C27B0",
-        "spec": "hover scale %d",
-        "code": "transition: transform 0.2s ease; transform: scale(%1$s);\n"
-    },
-    {
-        "id": "asdN",
-        "category": "asd",
-        "blockType": "normal",
-        "color": "#455A64",
-        "spec": "Add source directly %s.inputOnly",
-        "code": "%1$s\n"
-    },
-    {
-        "id": "asdD",
-        "category": "asd",
-        "blockType": "d",
-        "color": "#455A64",
-        "spec": "Number source %s.inputOnly",
-        "code": "%1$s\n"
-    },
-    {
-        "id": "asdS",
-        "category": "asd",
-        "blockType": "s",
-        "color": "#455A64",
-        "spec": "String source %s.inputOnly",
-        "code": "%1$s\n"
-    },
-    {
-        "id": "asdB",
-        "category": "asd",
-        "blockType": "b",
-        "color": "#455A64",
-        "spec": "Boolean source %s.inputOnly",
-        "code": "%1$s\n"
-    },
-    {
-        "id": "constDefine",
-        "category": "js_logic",
-        "blockType": "normal",
-        "color": "#E91E63",
-        "spec": "const %s.inputOnly = %s",
-        "code": "const %1$s = %2$s;\n"
-    },
-    {
-        "id": "jsAlert",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#E91E63",
-        "spec": "alert %s",
-        "code": "alert(%1$s);\n"
-    },
-    {
-        "id": "jsConsoleLog",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#E91E63",
-        "spec": "console.log %s",
-        "code": "console.log(%1$s);\n"
-    },
-    {
-        "id": "jsSetInnerHTML",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#E91E63",
-        "spec": "set innerHTML of element %s.inputOnly to %s",
-        "code": "document.querySelector('%1$s').innerHTML = %2$s;\n"
-    },
-    {
-        "id": "jsSetStyle",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#E91E63",
-        "spec": "on element %s.inputOnly set style %s.inputOnly to %s",
-        "code": "document.querySelector('%1$s').style['%2$s'] = %3$s;\n"
-    },
-    {
-        "id": "jsSetTimeout",
-        "category": "js_timing",
-        "blockType": "c",
-        "color": "#E91E63",
-        "spec": "run after %d ms",
-        "code": "setTimeout(function() {\n%2$s\n}, %1$s);\n"
-    },
-    {
-        "id": "jsWindowLocation",
-        "category": "js_window",
-        "blockType": "normal",
-        "color": "#E91E63",
-        "spec": "redirect to url %s",
-        "code": "window.location.href = %1$s;\n"
-    },
-    {
-        "id": "jsQuerySelector",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#F57C00",
-        "spec": "querySelector %selector",
-        "code": "document.querySelector(\"%1$s\")\n"
-    },
-    {
-        "id": "jsQuerySelectorAll",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#F57C00",
-        "spec": "querySelectorAll %selector",
-        "code": "document.querySelectorAll(\"%1$s\")\n"
-    },
-    {
-        "id": "jsGetById",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#F57C00",
-        "spec": "getElementById %id.selector",
-        "code": "document.getElementById(\"%1$s\")\n"
-    },
-    {
-        "id": "jsQueryOnVar",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#F57C00",
-        "spec": "%s.inputOnly .querySelector %selector",
-        "code": "%1$s.querySelector('%2$s')\n"
-    },
-    {
-        "id": "jsQueryAllOnVar",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#F57C00",
-        "spec": "%s.inputOnly .querySelectorAll %selector",
-        "code": "%1$s.querySelectorAll('%2$s')\n"
-    },
-    {
-        "id": "jsParentElement",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#F57C00",
-        "spec": "%s.inputOnly .parentElement",
-        "code": "%1$s.parentElement\n"
-    },
-    {
-        "id": "jsClosest",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#F57C00",
-        "spec": "%s.inputOnly .closest %selector",
-        "code": "%1$s.closest('%2$s')\n"
-    },
-    {
-        "id": "jsAddClass",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#EF6C00",
-        "spec": "%var .addClass %c.selector",
-        "code": "%1$s.classList.add(\"%2$s\");\n"
-    },
-    {
-        "id": "jsRemoveClass",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#EF6C00",
-        "spec": "%var .removeClass %c.selector",
-        "code": "%1$s.classList.remove(\"%2$s\");\n"
-    },
-    {
-        "id": "jsToggleClass",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#EF6C00",
-        "spec": "%var .toggleClass %c.selector",
-        "code": "%1$s.classList.toggle(\"%2$s\");\n"
-    },
-    {
-        "id": "jsHasClass",
-        "category": "js_dom",
-        "blockType": "b",
-        "color": "#EF6C00",
-        "spec": "%var .hasClass %c.selector",
-        "code": "%1$s.classList.contains(\"%2$s\")"
-    },
-    {
-        "id": "jsReplaceClass",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#EF6C00",
-        "spec": "%var .replaceClass %s.inputOnly → %s.inputOnly",
-        "code": "%1$s.classList.replace('%2$s', '%3$s');\n"
-    },
-    {
-        "id": "jsRemoveClassAll",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#EF6C00",
-        "spec": "remove class %s.inputOnly from all %s.inputOnly",
-        "code": "document.querySelectorAll('%1$s').forEach(el => el.classList.remove('%2$s'));\n"
-    },
-    {
-        "id": "jsSetStyleProp",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#E65100",
-        "spec": "%var .style %s.inputOnly = %s.inputOnly",
-        "code": "%1$s.style['%2$s'] = '%3$s';\n"
-    },
-    {
-        "id": "jsSetStyleColor",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#E65100",
-        "spec": "%var .style color = %m.color",
-        "code": "%1$s.style['color'] = '%2$s';\n"
-    },
-    {
-        "id": "jsSetStyleBg",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#E65100",
-        "spec": "%var .style background = %m.color",
-        "code": "%1$s.style['background'] = '%2$s';\n"
-    },
-    {
-        "id": "jsSetStyleDisplay",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#E65100",
-        "spec": "%var .style display = %m.display",
-        "code": "%1$s.style['display'] = '%2$s';\n"
-    },
-    {
-        "id": "jsSetStyleOpacity",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#E65100",
-        "spec": "%var .style opacity = %d",
-        "code": "%1$s.style['opacity'] = %2$s;\n"
-    },
-    {
-        "id": "jsSetCSSVar",
-        "category": "js_logic",
-        "blockType": "normal",
-        "color": "#E65100",
-        "spec": "CSS var --%s = %s.inputOnly on %s.inputOnly",
-        "code": "%1$s.style.setProperty('--%2$s', '%3$s');\n"
-    },
-    {
-        "id": "jsGetCSSVar",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#E65100",
-        "spec": "get CSS var --%s from %s.inputOnly",
-        "code": "getComputedStyle(%1$s).getPropertyValue('--%2$s').trim()\n"
-    },
-    {
-        "id": "jsSetAttribute",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#BF360C",
-        "spec": "%var .setAttribute %s.inputOnly = %s.inputOnly",
-        "code": "%1$s.setAttribute('%2$s', '%3$s');\n"
-    },
-    {
-        "id": "jsGetAttribute",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#BF360C",
-        "spec": "%var .getAttribute %s.inputOnly",
-        "code": "%1$s.getAttribute('%2$s')\n"
-    },
-    {
-        "id": "jsRemoveAttribute",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#BF360C",
-        "spec": "%var .removeAttribute %s.inputOnly",
-        "code": "%1$s.removeAttribute('%2$s');\n"
-    },
-    {
-        "id": "jsSetInnerText",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#BF360C",
-        "spec": "%var .innerText = %s",
-        "code": "%1$s.innerText = %2$s;\n"
-    },
-    {
-        "id": "jsSetInnerHTML2",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#BF360C",
-        "spec": "%var .innerHTML = %s",
-        "code": "%1$s.innerHTML = %2$s;\n"
-    },
-    {
-        "id": "jsSetValue",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#BF360C",
-        "spec": "%var .value = %s",
-        "code": "%1$s.value = %2$s;\n"
-    },
-    {
-        "id": "jsGetValue",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#BF360C",
-        "spec": "%var .value",
-        "code": "%1$s.value\n"
-    },
-    {
-        "id": "jsCreateElement",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#F57C00",
-        "spec": "createElement %s.inputOnly",
-        "code": "document.createElement('%1$s')\n"
-    },
-    {
-        "id": "jsAppendChild",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#F57C00",
-        "spec": "%var .appendChild %s",
-        "code": "%1$s.appendChild(%2$s);\n"
-    },
-    {
-        "id": "jsRemoveElement",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#F57C00",
-        "spec": "%var .remove",
-        "code": "%1$s.remove();\n"
-    },
-    {
-        "id": "jsCloneElement",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#F57C00",
-        "spec": "%var .cloneNode",
-        "code": "%1$s.cloneNode(true)\n"
-    },
-    {
-        "id": "jsInsertHTML",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#F57C00",
-        "spec": "%var insertAdjacentHTML %s.inputOnly %s",
-        "code": "%1$s.insertAdjacentHTML('%2$s', %3$s);\n"
-    },
-    {
-        "id": "jsVarLet",
-        "category": "js_logic",
-        "blockType": "normal",
-        "color": "#2E7D32",
-        "spec": "let %s.inputOnly = %s.inputOnly",
-        "code": "let %1$s = %2$s;\n"
-    },
-    {
-        "id": "jsVarConst",
-        "category": "js_logic",
-        "blockType": "normal",
-        "color": "#2E7D32",
-        "spec": "const %s.inputOnly = %s.inputOnly",
-        "code": "const %1$s = %2$s;\n"
-    },
-    {
-        "id": "jsVarAssign",
-        "category": "js_logic",
-        "blockType": "normal",
-        "color": "#2E7D32",
-        "spec": "set %var = %s.inputOnly",
-        "code": "%1$s = %2$s;\n"
-    },
-    {
-        "id": "jsVarRef",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#2E7D32",
-        "spec": "%var",
-        "code": "%1$s\n"
-    },
-    {
-        "id": "jsFunctionDefine",
-        "category": "js_dom",
-        "blockType": "c",
-        "color": "#1B5E20",
-        "spec": "function function name %s.inputOnly function %b",
-        "code": "function %1$s(%2$s) {\n%3$s\n}\n"
-    },
-    {
-        "id": "jsFunctionArrow",
-        "category": "js_dom",
-        "blockType": "c",
-        "color": "#1B5E20",
-        "spec": "const %s.inputOnly = %s.inputOnly =>",
-        "code": "const %1$s = (%2$s) => {\n%3$s\n};\n"
-    },
-    {
-        "id": "jsFunctionCall",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#1B5E20",
-        "spec": "call %s.inputOnly %s",
-        "code": "%1$s(%2$s);\n"
-    },
-    {
-        "id": "jsReturn",
-        "category": "js_logic",
-        "blockType": "normal",
-        "color": "#1B5E20",
-        "spec": "return %s",
-        "code": "return %1$s;\n"
-    },
-    {
-        "id": "jsAsyncFunction",
-        "category": "js_dom",
-        "blockType": "c",
-        "color": "#1B5E20",
-        "spec": "async function %s.inputOnly %s.inputOnly",
-        "code": "async function %1$s(%2$s) {\n%3$s\n}\n"
-    },
-    {
-        "id": "jsAwait",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#1B5E20",
-        "spec": "await %s.inputOnly",
-        "code": "await %1$s\n"
-    },
-    {
-        "id": "jsTryCatch",
-        "category": "control",
-        "blockType": "e",
-        "color": "#FF9100",
-        "spec": "try \n",
-        "code": "try {\n%2$s\n} catch (%1$s) {\n%3$s\n}\n",
-        "spec2": "catch %s \n"
-    },
-    {
-        "id": "jsIf",
-        "category": "control",
-        "blockType": "c",
-        "color": "#FF9100",
-        "spec": "if (%b) {\n",
-        "code": "if (%1$s) {\n%2$s\n}\n"
-    },
-    {
-        "id": "jsIfElse",
-        "category": "control",
-        "blockType": "e",
-        "color": "#FF9100",
-        "spec": "if (%b) \n",
-        "code": "if (%1$s) {\n%2$s\n} else {\n%3$s\n}\n",
-        "spec2": "else \n"
-    },
-    {
-        "id": "jsTernary",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#880E4F",
-        "spec": "%s.inputOnly ? %s.inputOnly %s.inputOnly",
-        "code": "(%1$s ? %2$s : %3$s)\n"
-    },
-    {
-        "id": "jsForEach",
-        "category": "control",
-        "blockType": "c",
-        "color": "#FF9100",
-        "spec": "%s.inputOnly .forEach %s.inputOnly =>",
-        "code": "%1$s.forEach(%2$s => {\n%3$s\n});\n"
-    },
-    {
-        "id": "jsSetupList",
-        "category": "js_logic",
-        "blockType": " ",
-        "color": "#CC5500",
-        "spec": "setup list %m.list %s.setupList",
-        "code": "let %1$s = %2$s;\n"
-    },
-    {
-        "id": "jsListGetItemProperty",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#CC5500",
-        "spec": "%m.list get Obj at %d Key %s.inputOnly",
-        "code": "%1$s[%2$s].%3$s"
-    },
-    {
-        "id": "jsListGetItem",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#CC5500",
-        "spec": "%m.list get value at %d",
-        "code": "%1$s[%2$s]"
-    },
-    {
-        "id": "jsListPush",
-        "category": "js_logic",
-        "blockType": " ",
-        "color": "#CC5500",
-        "spec": "%m.list Add at last (push) %s",
-        "code": "%1$s.push(%2$s);\n"
-    },
-    {
-        "id": "jsListPop",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#CC5500",
-        "spec": "%m.list Remove last (pop)",
-        "code": "%1$s.pop()"
-    },
-    {
-        "id": "jsListShift",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#CC5500",
-        "spec": "%m.list remove first (shift)",
-        "code": "%1$s.shift()"
-    },
-    {
-        "id": "jsListUnshift",
-        "category": "js_logic",
-        "blockType": " ",
-        "color": "#CC5500",
-        "spec": "%m.list  Add at first (unshift) %s",
-        "code": "%1$s.unshift(%2$s);\n"
-    },
-    {
-        "id": "jsListLength",
-        "category": "js_logic",
-        "blockType": "d",
-        "color": "#CC5500",
-        "spec": "%m.list length",
-        "code": "%1$s.length"
-    },
-    {
-        "id": "jsListIndexOf",
-        "category": "js_logic",
-        "blockType": "d",
-        "color": "#CC5500",
-        "spec": "indexOf %s in %m.list",
-        "code": "%2$s.indexOf(%1$s)"
-    },
-    {
-        "id": "jsForOf",
-        "category": "control",
-        "blockType": "c",
-        "color": "#FF9100",
-        "spec": "for %s.inputOnly of %s.inputOnly",
-        "code": "for (const %1$s of %2$s) {\n%3$s\n}\n"
-    },
-    {
-        "id": "jsForLoop",
-        "category": "control",
-        "blockType": "c",
-        "color": "#FF9100",
-        "spec": "for (let i = 0; i < %d; i++) {\n",
-        "code": "for (let i = 0; i < %1$s; i++) {\n%2$s\n}\n"
-    },
-    {
-        "id": "jsWhile",
-        "category": "control",
-        "blockType": "c",
-        "color": "#FF9100",
-        "spec": "while (%b) {\n",
-        "code": "while (%1$s) {\n%2$s\n}\n"
-    },
-    {
-        "id": "jsMathRandom",
-        "category": "js_logic",
-        "blockType": "d",
-        "color": "#00897B",
-        "spec": "random number",
-        "code": "Math.random()"
-    },
-    {
-        "id": "jsMathFloor",
-        "category": "js_logic",
-        "blockType": "d",
-        "color": "#00897B",
-        "spec": "Math.floor %d",
-        "code": "Math.floor(%1$s)"
-    },
-    {
-        "id": "jsMathRound",
-        "category": "js_logic",
-        "blockType": "d",
-        "color": "#00897B",
-        "spec": "Math.round %d",
-        "code": "Math.round(%1$s)"
-    },
-    {
-        "id": "jsMathAbs",
-        "category": "js_logic",
-        "blockType": "d",
-        "color": "#00897B",
-        "spec": "Math.abs %d",
-        "code": "Math.abs(%1$s)"
-    },
-    {
-        "id": "jsMathMax",
-        "category": "js_logic",
-        "blockType": "d",
-        "color": "#00897B",
-        "spec": "Math.max %d , %d",
-        "code": "Math.max(%1$s, %2$s)"
-    },
-    {
-        "id": "jsMathMin",
-        "category": "js_logic",
-        "blockType": "d",
-        "color": "#00897B",
-        "spec": "Math.min %d , %d",
-        "code": "Math.min(%1$s, %2$s)"
-    },
-    {
-        "id": "jsStringLength",
-        "category": "js_logic",
-        "blockType": "d",
-        "color": "#00897B",
-        "spec": "length of %s.inputOnly",
-        "code": "%1$s.length"
-    },
-    {
-        "id": "jsStringIncludes",
-        "category": "js_logic",
-        "blockType": "b",
-        "color": "#00897B",
-        "spec": "%s.inputOnly includes %s",
-        "code": "%1$s.includes(%2$s)"
-    },
-    {
-        "id": "jsStringIndexOf",
-        "category": "js_logic",
-        "blockType": "d",
-        "color": "#00897B",
-        "spec": "index of %s in %s.inputOnly",
-        "code": "%2$s.indexOf(%1$s)"
-    },
-    {
-        "id": "jsStringReplace",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "in %s.inputOnly replace %s with %s",
-        "code": "%1$s.replace(%2$s, %3$s)"
-    },
-    {
-        "id": "jsStringSplit",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "split %s.inputOnly by %s",
-        "code": "%1$s.split(%2$s)"
-    },
-    {
-        "id": "jsStringTrim",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "trim %s.inputOnly",
-        "code": "%1$s.trim()"
-    },
-    {
-        "id": "jsStringSubstr",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "substring of %s.inputOnly from %d to %d",
-        "code": "%1$s.substring(%2$s, %3$s)"
-    },
-    {
-        "id": "jsToUpperCase",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "%s.inputOnly to UPPERCASE",
-        "code": "%1$s.toUpperCase()"
-    },
-    {
-        "id": "jsToLowerCase",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "%s.inputOnly to lowercase",
-        "code": "%1$s.toLowerCase()"
-    },
-    {
-        "id": "jsTypeOf",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#2E7D32",
-        "spec": "typeof %s.inputOnly",
-        "code": "typeof %1$s\n"
-    },
-    {
-        "id": "jsConsoleWarn",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#2E7D32",
-        "spec": "console.warn %s",
-        "code": "console.warn(%1$s);\n"
-    },
-    {
-        "id": "jsOnScroll",
-        "category": "js_events",
-        "blockType": "c",
-        "color": "#0277BD",
-        "spec": "window on scroll",
-        "code": "window.addEventListener('scroll', function() {\n%1$s\n});\n"
-    },
-    {
-        "id": "jsOnLoad",
-        "category": "js_events",
-        "blockType": "c",
-        "color": "#0277BD",
-        "spec": "on DOMContentLoaded",
-        "code": "document.addEventListener('DOMContentLoaded', function() {\n%1$s\n});\n"
-    },
-    {
-        "id": "jsAddEventOnVar",
-        "category": "js_events",
-        "blockType": "c",
-        "color": "#0277BD",
-        "spec": "%var addEventListener %m.event",
-        "code": "%1$s.addEventListener(\"%2$s\", (e) => {\n%3$s\n});\n"
-    },
-    {
-        "id": "jsRemoveEventOnVar",
-        "category": "js_events",
-        "blockType": "normal",
-        "color": "#0277BD",
-        "spec": "%var removeEventListener %m.event %s.inputOnly",
-        "code": "%1$s.removeEventListener(\"%2$s\", %3$s);\n"
-    },
-    {
-        "id": "jsDispatchCustomEvent",
-        "category": "js_events",
-        "blockType": "",
-        "color": "#0277BD",
-        "spec": "%s.inputOnly dispatch event %s.inputOnly",
-        "code": "%1$s.dispatchEvent(new CustomEvent('%2$s', {\nbubbles: true\n}));\n"
-    },
-    {
-        "id": "jsStopPropagation",
-        "category": "js_dom",
-        "blockType": "",
-        "color": "#0277BD",
-        "spec": "e.stopPropagation",
-        "code": "e.stopPropagation();\n"
-    },
-    {
-        "id": "jsPreventDefault",
-        "category": "js_events",
-        "blockType": "",
-        "color": "#0277BD",
-        "spec": "e.preventDefault",
-        "code": "e.preventDefault();\n"
-    },
-    {
-        "id": "jsIntersectionObserver",
-        "category": "js_events",
-        "blockType": "c",
-        "color": "#0277BD",
-        "spec": "observe %s.inputOnly on enter",
-        "code": "new IntersectionObserver((entries) => {\nentries.forEach(entry => {\nif (entry.isIntersecting) {\n%2$s\n}\n});\n}).observe(document.querySelector('%1$s'));\n"
-    },
-    {
-        "id": "jsObserveAddClass",
-        "category": "js_dom",
-        "blockType": "",
-        "color": "#0277BD",
-        "spec": "observe %s.inputOnly → add class %s.inputOnly",
-        "code": "new IntersectionObserver((entries) => {\nentries.forEach(entry => {\nif (entry.isIntersecting) entry.target.classList.add('%1$s');\n});\n}, {\nthreshold: 0.1\n}).observe(document.querySelector('%2$s'));\n"
-    },
-    {
-        "id": "jsSetInterval",
-        "category": "js_timing",
-        "blockType": "c",
-        "color": "#00695C",
-        "spec": "every %d ms",
-        "code": "setInterval(function() {\n%2$s\n}, %1$s);\n"
-    },
-    {
-        "id": "jsSetTimeoutSave",
-        "category": "js_timing",
-        "blockType": "normal",
-        "color": "#00695C",
-        "spec": "save timer %s.inputOnly = after %d ms call %s.inputOnly",
-        "code": "const %1$s = setTimeout(%2$s, %3$s);\n"
-    },
-    {
-        "id": "jsClearTimeout",
-        "category": "js_timing",
-        "blockType": "normal",
-        "color": "#00695C",
-        "spec": "clearTimeout %s.inputOnly",
-        "code": "clearTimeout(%1$s);\n"
-    },
-    {
-        "id": "jsClearInterval",
-        "category": "js_timing",
-        "blockType": "normal",
-        "color": "#00695C",
-        "spec": "clearInterval %s.inputOnly",
-        "code": "clearInterval(%1$s);\n"
-    },
-    {
-        "id": "jsRequestAnimFrame",
-        "category": "js_timing",
-        "blockType": "c",
-        "color": "#00695C",
-        "spec": "requestAnimationFrame",
-        "code": "requestAnimationFrame(function() {\n%1$s\n});\n"
-    },
-    {
-        "id": "jsScrollToEl",
-        "category": "js_window",
-        "blockType": "normal",
-        "color": "#4527A0",
-        "spec": "scrollIntoView %s.inputOnly",
-        "code": "document.querySelector('%1$s').scrollIntoView({\nbehavior: 'smooth'\n});\n"
-    },
-    {
-        "id": "jsScrollToTop",
-        "category": "js_window",
-        "blockType": "normal",
-        "color": "#4527A0",
-        "spec": "scroll to top",
-        "code": "window.scrollTo({\ntop: 0, behavior: 'smooth'\n});\n"
-    },
-    {
-        "id": "jsScrollY",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#4527A0",
-        "spec": "window.scrollY",
-        "code": "window.scrollY\n"
-    },
-    {
-        "id": "jsWindowWidth",
-        "category": "js_window",
-        "blockType": "s",
-        "color": "#4527A0",
-        "spec": "window.innerWidth",
-        "code": "window.innerWidth\n"
-    },
-    {
-        "id": "jsWindowHeight",
-        "category": "js_window",
-        "blockType": "s",
-        "color": "#4527A0",
-        "spec": "window.innerHeight",
-        "code": "window.innerHeight\n"
-    },
-    {
-        "id": "jsWindowRedirect",
-        "category": "js_window",
-        "blockType": "normal",
-        "color": "#4527A0",
-        "spec": "redirect to %s.inputOnly",
-        "code": "window.location.href = '%1$s';\n"
-    },
-    {
-        "id": "jsOpenTab",
-        "category": "js_window",
-        "blockType": "normal",
-        "color": "#4527A0",
-        "spec": "open new tab %s.inputOnly",
-        "code": "window.open('%1$s', '_blank');\n"
-    },
-    {
-        "id": "jsLocalStorageSet",
-        "category": "js_window",
-        "blockType": "normal",
-        "color": "#4527A0",
-        "spec": "localStorage set %s.inputOnly = %s",
-        "code": "localStorage.setItem('%1$s', %2$s);\n"
-    },
-    {
-        "id": "jsLocalStorageGet",
-        "category": "js_window",
-        "blockType": "s",
-        "color": "#4527A0",
-        "spec": "localStorage get %s.inputOnly",
-        "code": "localStorage.getItem('%1$s')\n"
-    },
-    {
-        "id": "jsLocalStorageRemove",
-        "category": "js_window",
-        "blockType": "normal",
-        "color": "#4527A0",
-        "spec": "localStorage remove %s.inputOnly",
-        "code": "localStorage.removeItem('%1$s');\n"
-    },
-    {
-        "id": "jsFetch",
-        "category": "js_window",
-        "blockType": "c",
-        "color": "#4527A0",
-        "spec": "fetch %s.inputOnly then",
-        "code": "fetch('%1$s').then(r => r.json()).then(data => {\n%2$s\n});\n"
-    },
-    {
-        "id": "cssKeyframes",
-        "category": "css_animation",
-        "blockType": "c",
-        "color": "#9C27B0",
-        "spec": "â–¾ keyframes %s.inputOnly",
-        "code": "@keyframes %1$s {\n%2$s\n}\n"
-    },
-    {
-        "id": "cssKeyframeStep",
-        "category": "css_animation",
-        "blockType": "c",
-        "color": "#9C27B0",
-        "spec": "â–¾ step %s.inputOnly",
-        "code": "%1$s {\n%2$s\n}\n"
-    },
-    {
-        "id": "setAlignSelf",
-        "category": "css_flex",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "align-self %m.alignItems",
-        "code": "align-self: %1$s;\n"
-    },
-    {
-        "id": "setFlexWrap",
-        "category": "css_flex",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "flex-wrap %m.flexWrap",
-        "code": "flex-wrap: %1$s;\n"
-    },
-    {
-        "id": "setFlexGrow",
-        "category": "css_flex",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "flex-grow %d",
-        "code": "flex-grow: %1$s;\n"
-    },
-    {
-        "id": "setFlexShrink",
-        "category": "css_flex",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "flex-shrink %d",
-        "code": "flex-shrink: %1$s;\n"
-    },
-    {
-        "id": "setOrder",
-        "category": "css_flex",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "order %d",
-        "code": "order: %1$s;\n"
-    },
-    {
-        "id": "setGridTemplateRows",
-        "category": "css_grid",
-        "blockType": "normal",
-        "color": "#00796B",
-        "spec": "grid rows %s.inputOnly",
-        "code": "grid-template-rows: %1$s;\n"
-    },
-    {
-        "id": "setGridColumn",
-        "category": "css_grid",
-        "blockType": "normal",
-        "color": "#00796B",
-        "spec": "grid-column %s.inputOnly",
-        "code": "grid-column: %1$s;\n"
-    },
-    {
-        "id": "setGridRow",
-        "category": "css_grid",
-        "blockType": "normal",
-        "color": "#00796B",
-        "spec": "grid-row %s.inputOnly",
-        "code": "grid-row: %1$s;\n"
-    },
-    {
-        "id": "setGridArea",
-        "category": "css_grid",
-        "blockType": "normal",
-        "color": "#00796B",
-        "spec": "grid-area %s.inputOnly",
-        "code": "grid-area: %1$s;\n"
-    },
-    {
-        "id": "setBackgroundColor",
-        "category": "css_background",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "background-color %m.color",
-        "code": "background-color: %1$s;\n"
-    },
-    {
-        "id": "setBorderColor",
-        "category": "css_background",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "border-color %m.color",
-        "code": "border-color: %1$s;\n"
-    },
-    {
-        "id": "setBorderStyle",
-        "category": "css_background",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "border-style %m.borderStyle",
-        "code": "border-style: %1$s;\n"
-    },
-    {
-        "id": "setTop",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "top %m.unit",
-        "code": "top: %1$s;\n"
-    },
-    {
-        "id": "setBottom",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "bottom %m.unit",
-        "code": "bottom: %1$s;\n"
-    },
-    {
-        "id": "setLeft",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "left %m.unit",
-        "code": "left: %1$s;\n"
-    },
-    {
-        "id": "setRight",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "right %m.unit",
-        "code": "right: %1$s;\n"
-    },
-    {
-        "id": "setTextTransform",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "text-transform %m.textTransform",
-        "code": "text-transform: %1$s;\n"
-    },
-    {
-        "id": "opTrue",
-        "category": "operator",
-        "blockType": "b",
-        "color": "#00E676",
-        "spec": "true",
-        "code": "true"
-    },
-    {
-        "id": "opFalse",
-        "category": "operator",
-        "blockType": "b",
-        "color": "#00E676",
-        "spec": "false",
-        "code": "false"
-    },
-    {
-        "id": "opLess",
-        "category": "operator",
-        "blockType": "b",
-        "color": "#00E676",
-        "spec": "%d < %d",
-        "code": "%1$s < %2$s"
-    },
-    {
-        "id": "opEqual",
-        "category": "operator",
-        "blockType": "b",
-        "color": "#00E676",
-        "spec": "%d === %d",
-        "code": "%1$s === %2$s"
-    },
-    {
-        "id": "opGreater",
-        "category": "operator",
-        "blockType": "b",
-        "color": "#00E676",
-        "spec": "%d > %d",
-        "code": "%1$s > %2$s"
-    },
-    {
-        "id": "opAnd",
-        "category": "operator",
-        "blockType": "b",
-        "color": "#00E676",
-        "spec": "%b and %b",
-        "code": "%1$s && %2$s"
-    },
-    {
-        "id": "opOr",
-        "category": "operator",
-        "blockType": "b",
-        "color": "#00E676",
-        "spec": "%b or %b",
-        "code": "%1$s || %2$s"
-    },
-    {
-        "id": "opNot",
-        "category": "operator",
-        "blockType": "b",
-        "color": "#00E676",
-        "spec": "not %b",
-        "code": "!%1$s"
-    },
-    {
-        "id": "opAdd",
-        "category": "operator",
-        "blockType": "d",
-        "color": "#00E676",
-        "spec": "%d + %d",
-        "code": "%1$s + %2$s"
-    },
-    {
-        "id": "opSub",
-        "category": "operator",
-        "blockType": "d",
-        "color": "#00E676",
-        "spec": "%d - %d",
-        "code": "%1$s - %2$s"
-    },
-    {
-        "id": "opMul",
-        "category": "operator",
-        "blockType": "d",
-        "color": "#00E676",
-        "spec": "%d * %d",
-        "code": "%1$s * %2$s"
-    },
-    {
-        "id": "opDiv",
-        "category": "operator",
-        "blockType": "d",
-        "color": "#00E676",
-        "spec": "%d / %d",
-        "code": "%1$s / %2$s"
-    },
-    {
-        "id": "setVisibility",
-        "category": "css",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "visibility %m.visibility",
-        "code": "visibility: %1$s;\n"
-    },
-    {
-        "id": "setFloat",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "float %m.float",
-        "code": "float: %1$s;\n"
-    },
-    {
-        "id": "setClear",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "clear %m.clear",
-        "code": "clear: %1$s;\n"
-    },
-    {
-        "id": "setWhiteSpace",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "white-space %m.whiteSpace",
-        "code": "white-space: %1$s;\n"
-    },
-    {
-        "id": "setWordBreak",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "word-break %m.wordBreak",
-        "code": "word-break: %1$s;\n"
-    },
-    {
-        "id": "setVerticalAlign",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "vertical-align %m.verticalAlign",
-        "code": "vertical-align: %1$s;\n"
-    },
-    {
-        "id": "setObjectFit",
-        "category": "css_layout",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "object-fit %m.objectFit",
-        "code": "object-fit: %1$s;\n"
-    },
-    {
-        "id": "setOutline",
-        "category": "css_background",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "outline %m.unit solid %m.color",
-        "code": "outline: %1$s solid %2$s;\n"
-    },
-    {
-        "id": "setListStyle",
-        "category": "css_text",
-        "blockType": "normal",
-        "color": "#2196F3",
-        "spec": "list-style %m.listStyle",
-        "code": "list-style: %1$s;\n"
-    },
-    {
-        "id": "html_convert",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "< %m.htmlTag >",
-        "code": "<%1$s%2$s>\n%3$s\n</%1$s>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "html_convert_leaf",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "< %m.htmlTag />",
-        "code": "<%1$s%2$s />\n"
-    },
-    {
-        "id": "htmlText",
-        "category": "html",
-        "blockType": "normal",
-        "color": "#607D8B",
-        "spec": "text %s.inputOnly",
-        "code": "%1$s\n"
-    },
-    {
-        "id": "asdHtml",
-        "category": "html",
-        "blockType": "normal",
-        "color": "#607D8B",
-        "spec": "Add source directly %s.inputOnly",
-        "code": "%1$s\n"
-    },
-    {
-        "id": "htmlComment",
-        "category": "html",
-        "blockType": "normal",
-        "color": "#607D8B",
-        "spec": "<!-- %s.inputOnly -->",
-        "code": "<!-- %1$s -->\n"
-    },
-    {
-        "id": "htmlDiv",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<div>",
-        "code": "<div%1$s>\n%2$s\n</div>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlSpan",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<span>",
-        "code": "<span%1$s>\n%2$s\n</span>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlParagraph",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<p>",
-        "code": "<p%1$s>\n%2$s\n</p>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlHeading",
-        "category": "html",
-        "blockType": "normal",
-        "color": "#607D8B",
-        "spec": "<h%d> %s.inputOnly",
-        "code": "<h%1$s>%2$s</h%1$s>\n"
-    },
-    {
-        "id": "htmlH1",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<h1>",
-        "code": "<h1%1$s>\n%2$s\n</h1>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlH2",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<h2>",
-        "code": "<h2%1$s>\n%2$s\n</h2>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlH3",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<h3>",
-        "code": "<h3%1$s>\n%2$s\n</h3>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlH4",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<h4>",
-        "code": "<h4%1$s>\n%2$s\n</h4>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlH5",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<h5>",
-        "code": "<h5%1$s>\n%2$s\n</h5>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlH6",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<h6>",
-        "code": "<h6%1$s>\n%2$s\n</h6>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlAnchor",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<a>",
-        "code": "<a%1$s>\n%2$s\n</a>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlButton",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<button>",
-        "code": "<button%1$s>\n%2$s\n</button>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlMain",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<main>",
-        "code": "<main%1$s>\n%2$s\n</main>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlSection",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<section>",
-        "code": "<section%1$s>\n%2$s\n</section>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlArticle",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<article>",
-        "code": "<article%1$s>\n%2$s\n</article>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlAside",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<aside>",
-        "code": "<aside%1$s>\n%2$s\n</aside>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlHeader",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<header>",
-        "code": "<header%1$s>\n%2$s\n</header>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlFooter",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<footer>",
-        "code": "<footer%1$s>\n%2$s\n</footer>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlNav",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<nav>",
-        "code": "<nav%1$s>\n%2$s\n</nav>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlImage",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<img />",
-        "code": "<img%1$s />\n"
-    },
-    {
-        "id": "htmlInput",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<input />",
-        "code": "<input%1$s />\n"
-    },
-    {
-        "id": "htmlForm",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<form>",
-        "code": "<form%1$s>\n%2$s\n</form>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlTextarea",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<textarea>",
-        "code": "<textarea%1$s>%2$s</textarea>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlSelect",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<select>",
-        "code": "<select%1$s>\n%2$s\n</select>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlOption",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<option>",
-        "code": "<option%1$s>\n%2$s\n</option>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlLabel",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<label>",
-        "code": "<label%1$s>\n%2$s\n</label>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlFieldset",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<fieldset>",
-        "code": "<fieldset%1$s>\n%2$s\n</fieldset>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlLegend",
-        "category": "html",
-        "blockType": "normal",
-        "color": "#607D8B",
-        "spec": "<legend> %s.inputOnly",
-        "code": "<legend>%1$s</legend>\n"
-    },
-    {
-        "id": "htmlTable",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<table>",
-        "code": "<table%1$s>\n%2$s\n</table>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlThead",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<thead>",
-        "code": "<thead%1$s>\n%2$s\n</thead>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlTbody",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<tbody>",
-        "code": "<tbody%1$s>\n%2$s\n</tbody>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlTr",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<tr>",
-        "code": "<tr%1$s>\n%2$s\n</tr>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlTh",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<th>",
-        "code": "<th%1$s>\n%2$s\n</th>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlTd",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<td>",
-        "code": "<td%1$s>\n%2$s\n</td>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlUnorderedList",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<ul>",
-        "code": "<ul%1$s>\n%2$s\n</ul>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlOrderedList",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<ol>",
-        "code": "<ol%1$s>\n%2$s\n</ol>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlListItem",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<li>",
-        "code": "<li%1$s>\n%2$s\n</li>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlFigure",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<figure>",
-        "code": "<figure%1$s>\n%2$s\n</figure>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlFigCaption",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<figcaption>",
-        "code": "<figcaption%1$s>\n%2$s\n</figcaption>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlDetails",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<details>",
-        "code": "<details%1$s>\n%2$s\n</details>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlSummary",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<summary>",
-        "code": "<summary%1$s>\n%2$s\n</summary>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlVideo",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<video>",
-        "code": "<video%1$s>\n%2$s\n</video>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlAudio",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<audio>",
-        "code": "<audio%1$s>\n%2$s\n</audio>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlPicture",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<picture>",
-        "code": "<picture%1$s>\n%2$s\n</picture>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlSource",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<source />",
-        "code": "<source%1$s />\n"
-    },
-    {
-        "id": "htmlIframe",
-        "category": "html",
-        "blockType": "c",
-        "color": "#607D8B",
-        "spec": "<iframe />",
-        "code": "<iframe%1$s />\n"
-    },
-    {
-        "id": "htmlPre",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<pre>",
-        "code": "<pre%1$s>\n%2$s\n</pre>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlBlockquote",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<blockquote>",
-        "code": "<blockquote%1$s>\n%2$s\n</blockquote>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlHr",
-        "category": "html",
-        "blockType": "normal",
-        "color": "#607D8B",
-        "spec": "<hr>",
-        "code": "<hr>\n"
-    },
-    {
-        "id": "htmlBr",
-        "category": "html",
-        "blockType": "normal",
-        "color": "#607D8B",
-        "spec": "<br>",
-        "code": "<br>\n"
-    },
-    {
-        "id": "htmlProgress",
-        "category": "html",
-        "blockType": "normal",
-        "color": "#607D8B",
-        "spec": "<progress value=\" %d \" max=\" %d \">",
-        "code": "<progress value=\"%1$s\" max=\"%2$s\"></progress>\n"
-    },
-    {
-        "id": "htmlCanvas",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<canvas>",
-        "code": "<canvas%1$s>\n%2$s\n</canvas>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlTemplate",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<template>",
-        "code": "<template%1$s>\n%2$s\n</template>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlStrong",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<strong>",
-        "code": "<strong%1$s>%2$s</strong>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlEm",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<em>",
-        "code": "<em%1$s>%2$s</em>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlMark",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<mark>",
-        "code": "<mark%1$s>%2$s</mark>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlCode",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<code>",
-        "code": "<code%1$s>%2$s</code>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlSmall",
-        "category": "html",
-        "blockType": "e",
-        "color": "#607D8B",
-        "spec": "<small>",
-        "code": "<small%1$s>%2$s</small>\n",
-        "spec2": "children"
-    },
-    {
-        "id": "htmlAttrClass",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "class=\" %s.inputOnly \"",
-        "code": " class=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrId",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "id=\" %s.inputOnly \"",
-        "code": " id=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrStyle",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "style=\" %s.inputOnly \"",
-        "code": " style=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrHref",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "href=\" %s.inputOnly \"",
-        "code": " href=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrSrc",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "src=\" %s.inputOnly \"",
-        "code": " src=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrAlt",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "alt=\" %s.inputOnly \"",
-        "code": " alt=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrTitle",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "title=\" %s.inputOnly \"",
-        "code": " title=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrType",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "type=\" %m.htmlInputType \"",
-        "code": " type=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrName",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "name=\" %s.inputOnly \"",
-        "code": " name=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrValue",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "value=\" %s.inputOnly \"",
-        "code": " value=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrPlaceholder",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "placeholder=\" %s.inputOnly \"",
-        "code": " placeholder=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrTarget",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "target=\" %m.htmlTarget \"",
-        "code": " target=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrRel",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "rel=\" %m.htmlRel \"",
-        "code": " rel=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrWidth",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "width=\" %s.inputOnly \"",
-        "code": " width=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrHeight",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "height=\" %s.inputOnly \"",
-        "code": " height=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrAction",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "action=\" %s.inputOnly \"",
-        "code": " action=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrMethod",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "method=\" %m.htmlMethod \"",
-        "code": " method=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrFor",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "for=\" %s.inputOnly \"",
-        "code": " for=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrRole",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "role=\" %m.htmlRole \"",
-        "code": " role=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrAriaLabel",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "aria-label=\" %s.inputOnly \"",
-        "code": " aria-label=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrDisabled",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "disabled",
-        "code": " disabled"
-    },
-    {
-        "id": "htmlAttrChecked",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "checked",
-        "code": " checked"
-    },
-    {
-        "id": "htmlAttrRequired",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "required",
-        "code": " required"
-    },
-    {
-        "id": "htmlAttrReadonly",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "readonly",
-        "code": " readonly"
-    },
-    {
-        "id": "htmlAttrHidden",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "hidden",
-        "code": " hidden"
-    },
-    {
-        "id": "htmlAttrAutofocus",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "autofocus",
-        "code": " autofocus"
-    },
-    {
-        "id": "htmlAttrMultiple",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "multiple",
-        "code": " multiple"
-    },
-    {
-        "id": "htmlAttrSelected",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "selected",
-        "code": " selected"
-    },
-    {
-        "id": "htmlAttrData",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "data- %s.inputOnly =\" %s.inputOnly \"",
-        "code": " data-%1$s=\"%2$s\""
-    },
-    {
-        "id": "htmlAttrGeneric",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "%s.inputOnly =\" %s.inputOnly \"",
-        "code": " %1$s=\"%2$s\""
-    },
-    {
-        "id": "httpFetchGet",
-        "category": "js_network",
-        "blockType": "c",
-        "color": "#00897B",
-        "spec": "fetch GET %s.inputOnly then response =>",
-        "code": "fetch(%1$s)\n  .then(response => response.json())\n  .then(data => {\n%2$s\n})\n  .catch(error => console.error(\"HTTP Error:\", error));\n"
-    },
-    {
-        "id": "httpFetchPost",
-        "category": "js_network",
-        "blockType": "c",
-        "color": "#00897B",
-        "spec": "fetch POST %s.inputOnly json body %s.inputOnly then data =>",
-        "code": "fetch(%1$s, {\n  method: \"POST\",\n  headers: { \"Content-Type\": \"application/json\" },\n  body: JSON.stringify(%2$s)\n})\n  .then(response => response.json())\n  .then(data => {\n%3$s\n})\n  .catch(error => console.error(\"HTTP Error:\", error));\n"
-    },
-    {
-        "id": "httpFetchRequest",
-        "category": "js_network",
-        "blockType": "c",
-        "color": "#00897B",
-        "spec": "fetch %s.inputOnly method %s.inputOnly headers %s.inputOnly body %s.inputOnly then data =>",
-        "code": "fetch(%1$s, {\n  method: %2$s,\n  headers: %3$s,\n  body: typeof %4$s === \"object\" ? JSON.stringify(%4$s) : %4$s\n})\n  .then(response => response.json())\n  .then(data => {\n%5$s\n})\n  .catch(error => console.error(\"HTTP Error:\", error));\n"
-    },
-    {
-        "id": "httpAsyncFetchGet",
-        "category": "js_network",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "await fetch GET %s.inputOnly json",
-        "code": "await (await fetch(%1$s)).json()"
-    },
-    {
-        "id": "httpAsyncFetchPost",
-        "category": "js_network",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "await fetch POST %s.inputOnly json body %s.inputOnly",
-        "code": "await (await fetch(%1$s, { method: \"POST\", headers: { \"Content-Type\": \"application/json\" }, body: JSON.stringify(%2$s) })).json()"
-    },
-    {
-        "id": "httpXHR",
-        "category": "js_network",
-        "blockType": "c",
-        "color": "#00897B",
-        "spec": "XMLHttpRequest method %s.inputOnly url %s.inputOnly on load",
-        "code": "const xhr = new XMLHttpRequest();\nxhr.open(%1$s, %2$s);\nxhr.onload = function() {\n  if (xhr.status >= 200 && xhr.status < 300) {\n    const data = JSON.parse(xhr.responseText);\n%3$s\n  }\n};\nxhr.send();\n"
-    },
-    {
-        "id": "httpUrlParams",
-        "category": "js_network",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "get query param %s.inputOnly from URL %s.inputOnly",
-        "code": "new URLSearchParams(new URL(%2$s).search).get(%1$s)"
-    },
-    {
-        "id": "httpCurrentUrl",
-        "category": "js_network",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "current page URL",
-        "code": "window.location.href"
-    },
-    {
-        "id": "httpCurrentPath",
-        "category": "js_network",
-        "blockType": "s",
-        "color": "#00897B",
-        "spec": "current page path",
-        "code": "window.location.pathname"
-    },
-    {
-        "id": "jsonParse",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#FF9100",
-        "spec": "JSON.parse %s.inputOnly",
-        "code": "JSON.parse(%1$s)"
-    },
-    {
-        "id": "jsonStringify",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#FF9100",
-        "spec": "JSON.stringify %s.inputOnly",
-        "code": "JSON.stringify(%1$s)"
-    },
-    {
-        "id": "jsonObjectGet",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#FF9100",
-        "spec": "property %s.inputOnly of object %s.inputOnly",
-        "code": "%2$s.%1$s"
-    },
-    {
-        "id": "jsonObjectSet",
-        "category": "js_logic",
-        "blockType": "normal",
-        "color": "#FF9100",
-        "spec": "set property %s.inputOnly of object %s.inputOnly to %s",
-        "code": "%2$s.%1$s = %3$s;\n"
-    },
-    {
-        "id": "jsonObjectCreate",
-        "category": "js_logic",
-        "blockType": "s",
-        "color": "#FF9100",
-        "spec": "new JS Object {}",
-        "code": "{}"
-    },
-    {
-        "id": "jsConstGetById",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#F57C00",
-        "spec": "const %s.inputOnly = document.getElementById %id.selector",
-        "code": "const %1$s = document.getElementById(\"%2$s\");\n"
-    },
-    {
-        "id": "jsLetGetById",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#F57C00",
-        "spec": "let %s.inputOnly = document.getElementById %id.selector",
-        "code": "let %1$s = document.getElementById(\"%2$s\");\n"
-    },
-    {
-        "id": "jsAssignGetById",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#F57C00",
-        "spec": "%var = document.getElementById %id.selector",
-        "code": "%1$s = document.getElementById(\"%2$s\");\n"
-    },
-    {
-        "id": "jsConstQuerySelector",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#F57C00",
-        "spec": "const %s.inputOnly = document.querySelector %selector",
-        "code": "const %1$s = document.querySelector(\"%2$s\");\n"
-    },
-    {
-        "id": "jsAddEventAsyncOnVar",
-        "category": "js_events",
-        "blockType": "c",
-        "color": "#0277BD",
-        "spec": "%var addEventListener %m.event (async)",
-        "code": "%1$s.addEventListener(\"%2$s\", async (e) => {\n%3$s\n});\n"
-    },
-    {
-        "id": "jsSetTextContent",
-        "category": "js_dom",
-        "blockType": "normal",
-        "color": "#EF6C00",
-        "spec": "%var .textContent = %s",
-        "code": "%1$s.textContent = %2$s;\n"
-    },
-    {
-        "id": "jsGetTextContent",
-        "category": "js_dom",
-        "blockType": "s",
-        "color": "#EF6C00",
-        "spec": "%var .textContent",
-        "code": "%1$s.textContent\n"
-    },
-    {
-        "id": "httpAwaitFetch",
-        "category": "js_network",
-        "blockType": "normal",
-        "color": "#00838F",
-        "spec": "const %s.inputOnly = await fetch %s",
-        "code": "const %1$s = await fetch(%2$s);\n"
-    },
-    {
-        "id": "httpAwaitJson",
-        "category": "js_network",
-        "blockType": "normal",
-        "color": "#00838F",
-        "spec": "const %s.inputOnly = await %var .json()",
-        "code": "const %1$s = await %2$s.json();\n"
-    },
-    {
-        "id": "httpAwaitFetchExpr",
-        "category": "js_network",
-        "blockType": "s",
-        "color": "#00838F",
-        "spec": "await fetch %s",
-        "code": "await fetch(%1$s)"
-    },
-    {
-        "id": "httpAwaitJsonExpr",
-        "category": "js_network",
-        "blockType": "s",
-        "color": "#00838F",
-        "spec": "await %var .json()",
-        "code": "await %1$s.json()"
-    },
-    {
-        "id": "navbarToggleMenu",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "navbar %selector toggle menu",
-        "code": "toggleNavbarMenu('%1$s');\n",
-        "linkedWidget": "nav,navbar",
-        "linkedWIdget": "nav,navbar",
-        "eventType": "js"
-    },
-    {
-        "id": "navbarSetBrand",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "navbar %selector set brand to %s",
-        "code": "setNavbarBrand('%1$s', %2$s);\n",
-        "linkedWidget": "nav,navbar",
-        "linkedWIdget": "nav,navbar",
-        "eventType": "js"
-    },
-    {
-        "id": "navbarSetBackground",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "navbar %selector set background to %color",
-        "code": "%1$s { background-color: %2$s !important; }\n",
-        "linkedWidget": "nav,navbar",
-        "linkedWIdget": "nav,navbar",
-        "eventType": "css"
-    },
-    {
-        "id": "navbarSetTextColor",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "navbar %selector set link color to %color",
-        "code": "%1$s a, %1$s { color: %2$s !important; }\n",
-        "linkedWidget": "nav,navbar",
-        "linkedWIdget": "nav,navbar",
-        "eventType": "css"
-    },
-    {
-        "id": "navbarSetShadow",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "navbar %selector set shadow %s",
-        "code": "%1$s { box-shadow: %2$s !important; }\n",
-        "linkedWidget": "nav,navbar",
-        "linkedWIdget": "nav,navbar",
-        "eventType": "css"
-    },
-    {
-        "id": "navbarSetHeight",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "navbar %selector set height to %d px",
-        "code": "%1$s { height: %2$spx !important; }\n",
-        "linkedWidget": "nav,navbar",
-        "linkedWIdget": "nav,navbar",
-        "eventType": "css"
-    },
-    {
-        "id": "navbarAddBrandLink",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "navbar %selector brand title %s link %s",
-        "code": "<a class=\"nav-brand\" href=\"%2$s\">%1$s</a>\n",
-        "linkedWidget": "nav,navbar",
-        "linkedWIdget": "nav,navbar",
-        "eventType": "html"
-    },
-    {
-        "id": "listAddItem",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "list %selector add item %s",
-        "code": "addListItem('%1$s', %2$s);\n",
-        "linkedWidget": "ul,ol,list",
-        "linkedWIdget": "ul,ol,list",
-        "eventType": "js"
-    },
-    {
-        "id": "listRemoveItem",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "list %selector remove item at index %d",
-        "code": "removeListItem('%1$s', %2$s);\n",
-        "linkedWidget": "ul,ol,list",
-        "linkedWIdget": "ul,ol,list",
-        "eventType": "js"
-    },
-    {
-        "id": "listClear",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "list %selector clear all items",
-        "code": "clearList('%1$s');\n",
-        "linkedWidget": "ul,ol,list",
-        "linkedWIdget": "ul,ol,list",
-        "eventType": "js"
-    },
-    {
-        "id": "listSetBulletStyle",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "list %selector bullet style %s",
-        "code": "%1$s { list-style-type: %2$s !important; }\n",
-        "linkedWidget": "ul,ol,list",
-        "linkedWIdget": "ul,ol,list",
-        "eventType": "css"
-    },
-    {
-        "id": "listSetItemSpacing",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "list %selector item spacing %d px",
-        "code": "%1$s li { margin-bottom: %2$spx !important; }\n",
-        "linkedWidget": "ul,ol,list",
-        "linkedWIdget": "ul,ol,list",
-        "eventType": "css"
-    },
-    {
-        "id": "listSetHoverColor",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "list %selector item hover color %color",
-        "code": "%1$s li:hover { background-color: %2$s !important; }\n",
-        "linkedWidget": "ul,ol,list",
-        "linkedWIdget": "ul,ol,list",
-        "eventType": "css"
-    },
-    {
-        "id": "listAppendItem",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "list %selector item content %s",
-        "code": "<li>%2$s</li>\n",
-        "linkedWidget": "ul,ol,list",
-        "linkedWIdget": "ul,ol,list",
-        "eventType": "html"
-    },
-    {
-        "id": "progressSetValue",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "progress %selector set value %d %%",
-        "code": "setProgress('%1$s', %2$s);\n",
-        "linkedWidget": "progress,progressbar,progress bar",
-        "linkedWIdget": "progress,progressbar,progress bar",
-        "eventType": "js"
-    },
-    {
-        "id": "progressIncrement",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "progress %selector increment by %d %%",
-        "code": "incrementProgress('%1$s', %2$s);\n",
-        "linkedWidget": "progress,progressbar,progress bar",
-        "linkedWIdget": "progress,progressbar,progress bar",
-        "eventType": "js"
-    },
-    {
-        "id": "progressGetValue",
-        "category": "widgets",
-        "blockType": "d",
-        "color": "#00BFA5",
-        "spec": "progress %selector get value",
-        "code": "getProgress('%1$s')",
-        "linkedWidget": "progress,progressbar,progress bar",
-        "linkedWIdget": "progress,progressbar,progress bar",
-        "eventType": "js"
-    },
-    {
-        "id": "progressSetHeight",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "progress %selector height %d px",
-        "code": "%1$s { height: %2$spx !important; }\n",
-        "linkedWidget": "progress,progressbar,progress bar",
-        "linkedWIdget": "progress,progressbar,progress bar",
-        "eventType": "css"
-    },
-    {
-        "id": "progressSetFillColor",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "progress %selector fill color %color",
-        "code": "%1$s .progress-fill, %1$s .progress-bar { background-color: %2$s !important; }\n",
-        "linkedWidget": "progress,progressbar,progress bar",
-        "linkedWIdget": "progress,progressbar,progress bar",
-        "eventType": "css"
-    },
-    {
-        "id": "progressSetTrackColor",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "progress %selector track color %color",
-        "code": "%1$s { background-color: %2$s !important; }\n",
-        "linkedWidget": "progress,progressbar,progress bar",
-        "linkedWIdget": "progress,progressbar,progress bar",
-        "eventType": "css"
-    },
-    {
-        "id": "tableFilter",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "table %selector filter rows by %s",
-        "code": "filterTable('%1$s', %2$s);\n",
-        "linkedWidget": "table",
-        "linkedWIdget": "table",
-        "eventType": "js"
-    },
-    {
-        "id": "tableSort",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "table %selector sort by column index %d",
-        "code": "sortTable('%1$s', %2$s);\n",
-        "linkedWidget": "table",
-        "linkedWIdget": "table",
-        "eventType": "js"
-    },
-    {
-        "id": "tableSetZebraStripe",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "table %selector zebra stripe %color",
-        "code": "%1$s tr:nth-child(even) { background-color: %2$s !important; }\n",
-        "linkedWidget": "table",
-        "linkedWIdget": "table",
-        "eventType": "css"
-    },
-    {
-        "id": "tableSetHeaderBg",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "table %selector header color %color",
-        "code": "%1$s th { background-color: %2$s !important; }\n",
-        "linkedWidget": "table",
-        "linkedWIdget": "table",
-        "eventType": "css"
-    },
-    {
-        "id": "tableSetBorder",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "table %selector border style %s",
-        "code": "%1$s, %1$s th, %1$s td { border: %2$s !important; border-collapse: collapse !important; }\n",
-        "linkedWidget": "table",
-        "linkedWIdget": "table",
-        "eventType": "css"
-    },
-    {
-        "id": "tableAddRow",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "table %selector add row cell %s",
-        "code": "<tr><td>%2$s</td></tr>\n",
-        "linkedWidget": "table",
-        "linkedWIdget": "table",
-        "eventType": "html"
-    },
-    {
-        "id": "formSubmit",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "form %selector submit",
-        "code": "submitForm('%1$s');\n",
-        "linkedWidget": "form",
-        "linkedWIdget": "form",
-        "eventType": "js"
-    },
-    {
-        "id": "formReset",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "form %selector reset",
-        "code": "resetForm('%1$s');\n",
-        "linkedWidget": "form",
-        "linkedWIdget": "form",
-        "eventType": "js"
-    },
-    {
-        "id": "modalOpen",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "modal %selector open dialog",
-        "code": "openModal('%1$s');\n",
-        "linkedWidget": "dialog,modal,modal dialog",
-        "linkedWIdget": "dialog,modal,modal dialog",
-        "eventType": "js"
-    },
-    {
-        "id": "modalClose",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "modal %selector close dialog",
-        "code": "closeModal('%1$s');\n",
-        "linkedWidget": "dialog,modal,modal dialog",
-        "linkedWIdget": "dialog,modal,modal dialog",
-        "eventType": "js"
-    },
-    {
-        "id": "modalSetBackdropBlur",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "modal %selector backdrop blur %d px",
-        "code": "%1$s::backdrop, %1$s .modal-overlay { backdrop-filter: blur(%2$spx) !important; }\n",
-        "linkedWidget": "dialog,modal,modal dialog",
-        "linkedWIdget": "dialog,modal,modal dialog",
-        "eventType": "css"
-    },
-    {
-        "id": "modalSetBorderRadius",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "modal %selector border radius %d px",
-        "code": "%1$s, %1$s .modal-content { border-radius: %2$spx !important; }\n",
-        "linkedWidget": "dialog,modal,modal dialog",
-        "linkedWIdget": "dialog,modal,modal dialog",
-        "eventType": "css"
-    },
-    {
-        "id": "accordionToggle",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "accordion %selector toggle panel",
-        "code": "toggleAccordion('%1$s');\n",
-        "linkedWidget": "details,accordion",
-        "linkedWIdget": "details,accordion",
-        "eventType": "js"
-    },
-    {
-        "id": "accordionSetBorderColor",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "accordion %selector border color %color",
-        "code": "%1$s { border: 1px solid %2$s !important; }\n",
-        "linkedWidget": "details,accordion",
-        "linkedWIdget": "details,accordion",
-        "eventType": "css"
-    },
-    {
-        "id": "accordionSetHeaderBg",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "accordion %selector header bg %color",
-        "code": "%1$s summary, %1$s .accordion-header { background-color: %2$s !important; }\n",
-        "linkedWidget": "details,accordion",
-        "linkedWIdget": "details,accordion",
-        "eventType": "css"
-    },
-    {
-        "id": "toastShow",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "toast %selector show alert %s",
-        "code": "showToast('%1$s', %2$s);\n",
-        "linkedWidget": "toast,toast alert,alert",
-        "linkedWIdget": "toast,toast alert,alert",
-        "eventType": "js"
-    },
-    {
-        "id": "toastHide",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "toast %selector hide alert",
-        "code": "hideToast('%1$s');\n",
-        "linkedWidget": "toast,toast alert,alert",
-        "linkedWIdget": "toast,toast alert,alert",
-        "eventType": "js"
-    },
-    {
-        "id": "toastSetBottomOffset",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "toast %selector bottom offset %d px",
-        "code": "%1$s { bottom: %2$spx !important; position: fixed !important; }\n",
-        "linkedWidget": "toast,toast alert,alert",
-        "linkedWIdget": "toast,toast alert,alert",
-        "eventType": "css"
-    },
-    {
-        "id": "toastSetAlertBg",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "toast %selector alert bg %color",
-        "code": "%1$s { background-color: %2$s !important; }\n",
-        "linkedWidget": "toast,toast alert,alert",
-        "linkedWIdget": "toast,toast alert,alert",
-        "eventType": "css"
-    },
-    {
-        "id": "carouselNextSlide",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "carousel %selector next slide",
-        "code": "carouselNext('%1$s');\n",
-        "linkedWidget": "carousel",
-        "linkedWIdget": "carousel",
-        "eventType": "js"
-    },
-    {
-        "id": "carouselPrevSlide",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "carousel %selector previous slide",
-        "code": "carouselPrev('%1$s');\n",
-        "linkedWidget": "carousel",
-        "linkedWIdget": "carousel",
-        "eventType": "js"
-    },
-    {
-        "id": "dropdownToggleMenu",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "dropdown %selector toggle menu",
-        "code": "toggleDropdown('%1$s');\n",
-        "linkedWidget": "dropdown,dropdown menu",
-        "linkedWIdget": "dropdown,dropdown menu",
-        "eventType": "js"
-    },
-    {
-        "id": "buttonSetText",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "button %selector set text %s",
-        "code": "var b = document.getElementById('%1$s'); if (b) b.innerText = %2$s;\n",
-        "linkedWidget": "button",
-        "linkedWIdget": "button",
-        "eventType": "js"
-    },
-    {
-        "id": "buttonSetDisabled",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "button %selector set disabled %b",
-        "code": "var b = document.getElementById('%1$s'); if (b) b.disabled = %2$s;\n",
-        "linkedWidget": "button",
-        "linkedWIdget": "button",
-        "eventType": "js"
-    },
-    {
-        "id": "buttonTriggerClick",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "button %selector click()",
-        "code": "var b = document.getElementById('%1$s'); if (b) b.click();\n",
-        "linkedWidget": "button",
-        "linkedWIdget": "button",
-        "eventType": "js"
-    },
-    {
-        "id": "buttonSetBackground",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "button %selector background %color",
-        "code": "%1$s { background-color: %2$s !important; }\n",
-        "linkedWidget": "button",
-        "linkedWIdget": "button",
-        "eventType": "css"
-    },
-    {
-        "id": "buttonSetTextColor",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "button %selector text color %color",
-        "code": "%1$s { color: %2$s !important; }\n",
-        "linkedWidget": "button",
-        "linkedWIdget": "button",
-        "eventType": "css"
-    },
-    {
-        "id": "buttonSetRadius",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "button %selector border radius %d px",
-        "code": "%1$s { border-radius: %2$spx !important; }\n",
-        "linkedWidget": "button",
-        "linkedWIdget": "button",
-        "eventType": "css"
-    },
-    {
-        "id": "buttonHoverScale",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "button %selector hover scale %d %%",
-        "code": "%1$s:hover { transform: scale(%2$s / 100) !important; transition: transform 0.2s ease !important; }\n",
-        "linkedWidget": "button",
-        "linkedWIdget": "button",
-        "eventType": "css"
-    },
-    {
-        "id": "buttonSetLabelHtml",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "button %selector label %s",
-        "code": "%2$s",
-        "linkedWidget": "button",
-        "linkedWIdget": "button",
-        "eventType": "html"
-    },
-    {
-        "id": "inputSetVal",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "input %selector set value %s",
-        "code": "var inp = document.getElementById('%1$s'); if (inp) inp.value = %2$s;\n",
-        "linkedWidget": "input,textarea",
-        "linkedWIdget": "input,textarea",
-        "eventType": "js"
-    },
-    {
-        "id": "inputGetVal",
-        "category": "widgets",
-        "blockType": "s",
-        "color": "#00BFA5",
-        "spec": "input %selector get value",
-        "code": "(document.getElementById('%1$s') ? document.getElementById('%1$s').value : '')",
-        "linkedWidget": "input,textarea",
-        "linkedWIdget": "input,textarea",
-        "eventType": "js"
-    },
-    {
-        "id": "inputClearVal",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "input %selector clear",
-        "code": "var inp = document.getElementById('%1$s'); if (inp) inp.value = '';\n",
-        "linkedWidget": "input,textarea",
-        "linkedWIdget": "input,textarea",
-        "eventType": "js"
-    },
-    {
-        "id": "inputFocusRing",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "input %selector focus outline %color",
-        "code": "%1$s:focus { outline: 2px solid %2$s !important; }\n",
-        "linkedWidget": "input,textarea",
-        "linkedWIdget": "input,textarea",
-        "eventType": "css"
-    },
-    {
-        "id": "inputBorderRadius",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "input %selector border radius %d px",
-        "code": "%1$s { border-radius: %2$spx !important; }\n",
-        "linkedWidget": "input,textarea",
-        "linkedWIdget": "input,textarea",
-        "eventType": "css"
-    },
-    {
-        "id": "imageSetSource",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "image %selector set src %s",
-        "code": "var img = document.getElementById('%1$s'); if (img) img.src = %2$s;\n",
-        "linkedWidget": "img,image",
-        "linkedWIdget": "img,image",
-        "eventType": "js"
-    },
-    {
-        "id": "imageSetAltText",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "image %selector set alt %s",
-        "code": "var img = document.getElementById('%1$s'); if (img) img.alt = %2$s;\n",
-        "linkedWidget": "img,image",
-        "linkedWIdget": "img,image",
-        "eventType": "js"
-    },
-    {
-        "id": "imageBorderRadius",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "image %selector border radius %d px",
-        "code": "%1$s { border-radius: %2$spx !important; }\n",
-        "linkedWidget": "img,image",
-        "linkedWIdget": "img,image",
-        "eventType": "css"
-    },
-    {
-        "id": "imageObjectFit",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "image %selector fit mode %s",
-        "code": "%1$s { object-fit: %2$s !important; }\n",
-        "linkedWidget": "img,image",
-        "linkedWIdget": "img,image",
-        "eventType": "css"
-    },
-    {
-        "id": "imageHtmlSetSrc",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "image %selector src %s",
-        "code": "src=\"%2$s\"",
-        "linkedWidget": "img,image",
-        "linkedWIdget": "img,image",
-        "eventType": "html"
-    },
-    {
-        "id": "videoPlay",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "video %selector play video",
-        "code": "var v = document.getElementById('%1$s'); if (v) v.play();\n",
-        "linkedWidget": "video",
-        "linkedWIdget": "video",
-        "eventType": "js"
-    },
-    {
-        "id": "videoPause",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "video %selector pause video",
-        "code": "var v = document.getElementById('%1$s'); if (v) v.pause();\n",
-        "linkedWidget": "video",
-        "linkedWIdget": "video",
-        "eventType": "js"
-    },
-    {
-        "id": "widgetSetHtmlAttr",
-        "category": "widgets",
-        "blockType": "normal",
-        "color": "#00BFA5",
-        "spec": "widget %selector set attr %s to %s",
-        "code": "%2$s=\"%3$s\"",
-        "linkedWidget": "*",
-        "linkedWIdget": "*",
-        "eventType": "html"
-    },
-    {
-        "id": "htmlAttrLoading",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "loading=\" %m.htmlLoading \"",
-        "code": " loading=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrDecoding",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "decoding=\" %m.htmlDecoding \"",
-        "code": " decoding=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrPreload",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "preload=\" %m.htmlPreload \"",
-        "code": " preload=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrWrap",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "wrap=\" %m.htmlWrap \"",
-        "code": " wrap=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrDir",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "dir=\" %m.htmlDir \"",
-        "code": " dir=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrCrossorigin",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "crossorigin=\" %m.htmlCrossorigin \"",
-        "code": " crossorigin=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrShape",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "shape=\" %m.htmlShape \"",
-        "code": " shape=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrButtonType",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "type (button)=\" %m.htmlButtonType \"",
-        "code": " type=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrFormEnctype",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "enctype=\" %m.htmlFormEnctype \"",
-        "code": " enctype=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrTabindex",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "tabindex=\" %d \"",
-        "code": " tabindex=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrLang",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "lang=\" %s.inputOnly \"",
-        "code": " lang=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrDownload",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "download=\" %s.inputOnly \"",
-        "code": " download=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrAriaExpanded",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "aria-expanded=\" %b \"",
-        "code": " aria-expanded=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrAriaHidden",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "aria-hidden=\" %b \"",
-        "code": " aria-hidden=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrAriaDescribedby",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "aria-describedby=\" %s.inputOnly \"",
-        "code": " aria-describedby=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrMin",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "min=\" %s.inputOnly \"",
-        "code": " min=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrMax",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "max=\" %s.inputOnly \"",
-        "code": " max=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrStep",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "step=\" %s.inputOnly \"",
-        "code": " step=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrPattern",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "pattern=\" %s.inputOnly \"",
-        "code": " pattern=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrMaxlength",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "maxlength=\" %d \"",
-        "code": " maxlength=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrCols",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "cols=\" %d \"",
-        "code": " cols=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrRows",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "rows=\" %d \"",
-        "code": " rows=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrColspan",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "colspan=\" %d \"",
-        "code": " colspan=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrRowspan",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "rowspan=\" %d \"",
-        "code": " rowspan=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrSrcset",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "srcset=\" %s.inputOnly \"",
-        "code": " srcset=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrMedia",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "media=\" %s.inputOnly \"",
-        "code": " media=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrAccept",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "accept=\" %s.inputOnly \"",
-        "code": " accept=\"%1$s\""
-    },
-    {
-        "id": "htmlAttrCharset",
-        "category": "html_attr",
-        "blockType": "normal",
-        "color": "#78909C",
-        "spec": "charset=\" %s.inputOnly \"",
-        "code": " charset=\"%1$s\""
-    }
+  {
+    "id": "commentBlockCss",
+    "category": "comment",
+    "blockType": "c",
+    "color": "#546E7A",
+    "spec": "//Comment %s.inputOnly",
+    "code": "/* %1$s */ %2$s"
+  },
+  {
+    "id": "commentBlockBold",
+    "category": "comment",
+    "blockType": "c",
+    "color": "#546E7A",
+    "spec": "//Comment BOLD %s.inputOnly",
+    "code": "/*===== %1$s =====*/ \n %2$s"
+  },
+  {
+    "id": "cssSelector",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "Widget %selector",
+    "code": "%1$s {\n %2$s\n}\n"
+  },
+  {
+    "id": "cssSelectorS",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "Widget %selector : %s.inputOnly",
+    "code": "%1$s%2$s {\n %3$s\n}\n"
+  },
+  {
+    "id": "cssControlS",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "%selector : %s.inputOnly",
+    "code": " %1$s%2$s"
+  },
+  {
+    "id": "cssCNot",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "not: %s.inputOnly",
+    "code": ":not(%1$s)"
+  },
+  {
+    "id": "cssCjoin",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "%s.inputOnly + %s.inputOnly",
+    "code": "%1$s%2$s"
+  },
+  {
+    "id": "cssCFirst",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": ":first-child",
+    "code": ":first-child"
+  },
+  {
+    "id": "cssClast",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": ":last-child",
+    "code": ":last-child"
+  },
+  {
+    "id": "cssCNth",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": ":%s.inputOnly-child",
+    "code": ":nth-child(%1$s)"
+  },
+  {
+    "id": "cssCHover",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": ":hover",
+    "code": ":hover"
+  },
+  {
+    "id": "cssCFocus",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": ":focus",
+    "code": ":focus"
+  },
+  {
+    "id": "cssCBefore",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": ":before",
+    "code": ":before"
+  },
+  {
+    "id": "cssCafter",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": ":after",
+    "code": ":after"
+  },
+  {
+    "id": "cssCVisited",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": ":visited",
+    "code": ":visited"
+  },
+  {
+    "id": "cssCActive",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "Active",
+    "code": ".active"
+  },
+  {
+    "id": "cssCUnits",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "Top|Bottom %m.unit Left|Right %m.unit",
+    "code": "%1$s %2$s"
+  },
+  {
+    "id": "cssCUnits2",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "Top %m.unit Left|Right %m.unit Bottom %m.unit",
+    "code": "%1$s %2$s %3$s"
+  },
+  {
+    "id": "cssCUnits3",
+    "category": "cssControl",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "Top %m.unit Right %m.unit Bottom %m.unit Left $m.unit",
+    "code": "%1$s %2$s %3$s %4$s"
+  },
+  {
+    "id": "cssHover",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "%selector hover",
+    "code": "%1$s:hover {\n %2$s\n}\n"
+  },
+  {
+    "id": "cssFocus",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "%selector focus",
+    "code": "%1$s:focus {\n %2$s\n}\n"
+  },
+  {
+    "id": "cssActive",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "%selector active",
+    "code": "%1$s:active {\n %2$s\n}\n"
+  },
+  {
+    "id": "cssVisited",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "%selector visited",
+    "code": "%1$s:visited {\n%2$s\n}\n"
+  },
+  {
+    "id": "cssBefore",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "%selector before",
+    "code": "%1$s::before {\n%2$s\n}\n"
+  },
+  {
+    "id": "cssAfter",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "%selector after",
+    "code": "%1$s::after {\n%2$s\n}\n"
+  },
+  {
+    "id": "cssFirstChild",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "%selector first-child",
+    "code": "%1$s:first-child {\n%2$s\n}\n"
+  },
+  {
+    "id": "cssLastChild",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "%selector last-child",
+    "code": "%1$s:last-child {\n%2$s\n}\n"
+  },
+  {
+    "id": "cssNthChild",
+    "category": "css",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "%selector %dth-child",
+    "code": "%1$s:nth-child(%2$s) {\n%3$s\n}\n"
+  },
+  {
+    "id": "cssMediaQuery",
+    "category": "responsive",
+    "blockType": "c",
+    "color": "#1976D2",
+    "spec": "@media max-width %d",
+    "code": "@media (max-width: %1$s) {\n%2$s\n}"
+  },
+  {
+    "id": "setDisplay",
+    "category": "css",
+    "blockType": " ",
+    "color": "#1976D2",
+    "spec": "display %m.display",
+    "code": "display: %1$s;\n"
+  },
+  {
+    "id": "setPosition",
+    "category": "css",
+    "blockType": " ",
+    "color": "#1976D2",
+    "spec": "position %m.position",
+    "code": "position: %1$s;\n"
+  },
+  {
+    "id": "setOverflow",
+    "category": "css",
+    "blockType": " ",
+    "color": "#1976D2",
+    "spec": "overflow %m.overflow",
+    "code": "overflow: %1$s;\n"
+  },
+  {
+    "id": "setColor",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "color %m.color",
+    "code": "color: %1$s;\n"
+  },
+  {
+    "id": "setBackground",
+    "category": "css_background",
+    "blockType": " ",
+    "color": "#689F38",
+    "spec": "background %m.color",
+    "code": "background-color: %1$s;\n"
+  },
+  {
+    "id": "setBackgroundImage",
+    "category": "css_background",
+    "blockType": " ",
+    "color": "#689F38",
+    "spec": "background-image url %s.inputOnly",
+    "code": "background-image: url(%1$s);\n"
+  },
+  {
+    "id": "setWidth",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "width %m.unit",
+    "code": "width: %1$s;\n"
+  },
+  {
+    "id": "setHeight",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "height %m.unit",
+    "code": "height: %1$s;\n"
+  },
+  {
+    "id": "setMaxWidth",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "max-width %m.unit",
+    "code": "max-width: %1$s;\n"
+  },
+  {
+    "id": "setMaxHeight",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "max-height %m.unit",
+    "code": "max-height: %1$s;\n"
+  },
+  {
+    "id": "setMinWidth",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "min-width %m.unit",
+    "code": "min-width: %1$s;\n"
+  },
+  {
+    "id": "setMinHeight",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "min-height %m.unit",
+    "code": "min-height: %1$s;\n"
+  },
+  {
+    "id": "setMargin",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "margin %m.unit",
+    "code": "margin: %1$s;\n"
+  },
+  {
+    "id": "setMarginMulti",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "margin %s.inputOnly",
+    "code": "margin: %1$s;\n"
+  },
+  {
+    "id": "setPadding",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "padding %m.unit",
+    "code": "padding: %1$s;\n"
+  },
+  {
+    "id": "setPaddingMulti",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "padding %s.inputOnly",
+    "code": "padding: %1$s;\n"
+  },
+  {
+    "id": "setBorder",
+    "category": "css_background",
+    "blockType": " ",
+    "color": "#689F38",
+    "spec": "border %m.unit solid %m.color",
+    "code": "border: %1$s solid %2$s;\n"
+  },
+  {
+    "id": "setRadius",
+    "category": "css_background",
+    "blockType": " ",
+    "color": "#689F38",
+    "spec": "border-radius %m.unit",
+    "code": "border-radius: %1$s;\n"
+  },
+  {
+    "id": "setRadiusMulti",
+    "category": "css_background",
+    "blockType": " ",
+    "color": "#689F38",
+    "spec": "border-radius TL %m.unit TR %m.unit BR %m.unit BL %m.unit",
+    "code": "border-radius: %1$s %2$s %3$s %4$s;\n"
+  },
+  {
+    "id": "setBoxShadow",
+    "category": "css_effects",
+    "blockType": " ",
+    "color": "#AFB42B",
+    "spec": "box-shadow h-offset: %d px v-offset: %d px blur: %d px spread: %d px color: %m.color type: %m.shadowType",
+    "code": "box-shadow: %1$spx %2$spx %3$spx %4$spx %5$s %6$s;\n"
+  },
+  {
+    "id": "setFontSize",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "font-size %m.unit",
+    "code": "font-size: %1$s;\n"
+  },
+  {
+    "id": "setFontFamily",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "font-family %m.fontFamily",
+    "code": "font-family: %1$s;\n"
+  },
+  {
+    "id": "setFontWeight",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "font-weight %m.fontWeight",
+    "code": "font-weight: %1$s;\n"
+  },
+  {
+    "id": "setFontStyle",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "font-style %m.fontStyle",
+    "code": "font-style: %1$s;\n"
+  },
+  {
+    "id": "setTextAlign",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "text-align %m.textAlign",
+    "code": "text-align: %1$s;\n"
+  },
+  {
+    "id": "setTextDecoration",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "text-decoration %m.textDecoration",
+    "code": "text-decoration: %1$s;\n"
+  },
+  {
+    "id": "setLineHeight",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "line-height %d",
+    "code": "line-height: %1$s;\n"
+  },
+  {
+    "id": "setLetterSpacing",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "letter-spacing %m.unit",
+    "code": "letter-spacing: %1$s;\n"
+  },
+  {
+    "id": "setOpacity",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "opacity %d",
+    "code": "opacity: %1$s;\n"
+  },
+  {
+    "id": "setZIndex",
+    "category": "css",
+    "blockType": " ",
+    "color": "#1976D2",
+    "spec": "z-index %d",
+    "code": "z-index: %1$s;\n"
+  },
+  {
+    "id": "setCursor",
+    "category": "css",
+    "blockType": " ",
+    "color": "#1976D2",
+    "spec": "cursor %m.cursor",
+    "code": "cursor: %1$s;\n"
+  },
+  {
+    "id": "setFlexDirection",
+    "category": "css_flex",
+    "blockType": " ",
+    "color": "#0097A7",
+    "spec": "flex-direction %m.flexDirection",
+    "code": "flex-direction: %1$s;\n"
+  },
+  {
+    "id": "setJustifyContent",
+    "category": "css_flex",
+    "blockType": " ",
+    "color": "#0097A7",
+    "spec": "justify-content %m.justifyContent",
+    "code": "justify-content: %1$s;\n"
+  },
+  {
+    "id": "setAlignItems",
+    "category": "css_flex",
+    "blockType": " ",
+    "color": "#0097A7",
+    "spec": "align-items %m.alignItems",
+    "code": "align-items: %1$s;\n"
+  },
+  {
+    "id": "setGap",
+    "category": "css_flex",
+    "blockType": " ",
+    "color": "#0097A7",
+    "spec": "gap %m.unit",
+    "code": "gap: %1$s;\n"
+  },
+  {
+    "id": "setGridTemplateColumns",
+    "category": "css_grid",
+    "blockType": " ",
+    "color": "#00796B",
+    "spec": "grid columns %s.inputOnly",
+    "code": "grid-template-columns: %1$s;\n"
+  },
+  {
+    "id": "setTransform",
+    "category": "css_transform",
+    "blockType": " ",
+    "color": "#FBC02D",
+    "spec": "transform %s.inputOnly",
+    "code": "transform: %1$s;\n"
+  },
+  {
+    "id": "setFilter",
+    "category": "css_effects",
+    "blockType": " ",
+    "color": "#AFB42B",
+    "spec": "filter: %m.filterType Value %s.inputOnly",
+    "code": "filter: %1$s;\n"
+  },
+  {
+    "id": "filterBlur",
+    "category": "css_effects",
+    "blockType": " ",
+    "color": "#AFB42B",
+    "spec": "filter: blur %d px",
+    "code": "filter: blur(%1$spx);\n"
+  },
+  {
+    "id": "filterDropShadow",
+    "category": "css_effects",
+    "blockType": " ",
+    "color": "#AFB42B",
+    "spec": "filter: drop-shadow h-offset: %d px v-offset: %d px blur: %d px color: %m.color",
+    "code": "filter: drop-shadow(%1$spx %2$spx %3$spx %4$s);\n"
+  },
+  {
+    "id": "filterNone",
+    "category": "css_effects",
+    "blockType": " ",
+    "color": "#AFB42B",
+    "spec": "filter: none",
+    "code": "filter: none;\n"
+  },
+  {
+    "id": "animateFadeIn",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "animate fade-in %d",
+    "code": "animation: fadeIn %1$ss;\n"
+  },
+  {
+    "id": "animateFadeOut",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "animate fade-out %d",
+    "code": "animation: fadeOut %1$ss;\n"
+  },
+  {
+    "id": "animateSlideIn",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "animate slide-in %d",
+    "code": "animation: slideIn %1$ss;\n"
+  },
+  {
+    "id": "animateSlideOut",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "animate slide-out %d",
+    "code": "animation: slideOut %1$ss;\n"
+  },
+  {
+    "id": "animateBounce",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "animate bounce %d",
+    "code": "animation: bounce %1$ss;\n"
+  },
+  {
+    "id": "animatePulse",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "animate pulse %d",
+    "code": "animation: pulse %1$ss;\n"
+  },
+  {
+    "id": "animateRotate",
+    "category": "css_transform",
+    "blockType": " ",
+    "color": "#FBC02D",
+    "spec": "animate rotate %d",
+    "code": "animation: rotate %1$ss;\n"
+  },
+  {
+    "id": "animateShake",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "animate shake %d",
+    "code": "animation: shake %1$ss;\n"
+  },
+  {
+    "id": "transitionAll",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "transition all %d s",
+    "code": "transition: all %1$ss;\n"
+  },
+  {
+    "id": "transitionColor",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "transition color %d s",
+    "code": "transition: color %1$ss;\n"
+  },
+  {
+    "id": "transitionTransform",
+    "category": "css_transform",
+    "blockType": " ",
+    "color": "#FBC02D",
+    "spec": "transition transform %d s",
+    "code": "transition: transform %1$ss;\n"
+  },
+  {
+    "id": "animateSlideUp",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "slide-up %s.inputOnly",
+    "code": "animation: slideUp %1$ss ease both;\n"
+  },
+  {
+    "id": "animateSlideDown",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "slide-down %s.inputOnly",
+    "code": "animation: slideDown %1$ss ease both;\n"
+  },
+  {
+    "id": "animateSlideLeft",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "slide-left %s.inputOnly",
+    "code": "animation: slideLeft %1$ss ease both;\n"
+  },
+  {
+    "id": "animateSlideRight",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "slide-right %s.inputOnly",
+    "code": "animation: slideRight %1$ss ease both;\n"
+  },
+  {
+    "id": "animateZoomIn",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "zoom-in %s.inputOnly",
+    "code": "animation: zoomIn %1$ss ease both;\n"
+  },
+  {
+    "id": "animateZoomOut",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "zoom-out %s.inputOnly",
+    "code": "animation: zoomOut %1$ss ease both;\n"
+  },
+  {
+    "id": "animateFlip",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "flip %s.inputOnly",
+    "code": "animation: flip %1$ss ease both;\n"
+  },
+  {
+    "id": "transitionCustom",
+    "category": "css_animation",
+    "blockType": " ",
+    "color": "#FFA000",
+    "spec": "transition property %m.transitionProperty duration: %d s timing: %m.timingFunction delay: %d s",
+    "code": "transition: %1$s %2$ss %3$s %4$ss;\n"
+  },
+  {
+    "id": "hoverScale",
+    "category": "css_transform",
+    "blockType": " ",
+    "color": "#FBC02D",
+    "spec": "hover scale %d",
+    "code": "transition: transform 0.2s ease; transform: scale(%1$s);\n"
+  },
+  {
+    "id": "asdN",
+    "category": "asd",
+    "blockType": " ",
+    "color": "#455A64",
+    "spec": "Add source directly %s.inputOnly",
+    "code": "%1$s\n"
+  },
+  {
+    "id": "asdD",
+    "category": "asd",
+    "blockType": "d",
+    "color": "#455A64",
+    "spec": "Number source %s.inputOnly",
+    "code": "%1$s\n"
+  },
+  {
+    "id": "asdS",
+    "category": "asd",
+    "blockType": "s",
+    "color": "#455A64",
+    "spec": "String source %s.inputOnly",
+    "code": "%1$s\n"
+  },
+  {
+    "id": "asdB",
+    "category": "asd",
+    "blockType": "b",
+    "color": "#455A64",
+    "spec": "Boolean source %s.inputOnly",
+    "code": "%1$s\n"
+  },
+  {
+    "id": "constDefine",
+    "category": "js_logic",
+    "blockType": " ",
+    "color": "#E91E63",
+    "spec": "const %s.inputOnly = %s",
+    "code": "const %1$s = %2$s;\n"
+  },
+  {
+    "id": "jsAlert",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#E91E63",
+    "spec": "alert %s",
+    "code": "alert(%1$s);\n"
+  },
+  {
+    "id": "jsConsoleLog",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#E91E63",
+    "spec": "console.log %s",
+    "code": "console.log(%1$s);\n"
+  },
+  {
+    "id": "jsSetInnerHTML",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#E91E63",
+    "spec": "set innerHTML of element %s.inputOnly to %s",
+    "code": "document.querySelector('%1$s').innerHTML = %2$s;\n"
+  },
+  {
+    "id": "jsSetStyle",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#E91E63",
+    "spec": "on element %s.inputOnly set style %s.inputOnly to %s",
+    "code": "document.querySelector('%1$s').style['%2$s'] = %3$s;\n"
+  },
+  {
+    "id": "jsSetTimeout",
+    "category": "js_timing",
+    "blockType": "c",
+    "color": "#E91E63",
+    "spec": "run after %d ms",
+    "code": "setTimeout(function() {\n%2$s\n}, %1$s);\n"
+  },
+  {
+    "id": "jsWindowLocation",
+    "category": "js_window",
+    "blockType": " ",
+    "color": "#E91E63",
+    "spec": "redirect to url %s",
+    "code": "window.location.href = %1$s;\n"
+  },
+  {
+    "id": "jsQuerySelector",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#F57C00",
+    "spec": "querySelector %selector",
+    "code": "document.querySelector(\"%1$s\")\n"
+  },
+  {
+    "id": "jsQuerySelectorAll",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#F57C00",
+    "spec": "querySelectorAll %selector",
+    "code": "document.querySelectorAll(\"%1$s\")\n"
+  },
+  {
+    "id": "jsGetById",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#F57C00",
+    "spec": "getElementById %id.selector",
+    "code": "document.getElementById(\"%1$s\")\n"
+  },
+  {
+    "id": "jsQueryOnVar",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#F57C00",
+    "spec": "%s.inputOnly .querySelector %selector",
+    "code": "%1$s.querySelector('%2$s')\n"
+  },
+  {
+    "id": "jsQueryAllOnVar",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#F57C00",
+    "spec": "%s.inputOnly .querySelectorAll %selector",
+    "code": "%1$s.querySelectorAll('%2$s')\n"
+  },
+  {
+    "id": "jsParentElement",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#F57C00",
+    "spec": "%s.inputOnly .parentElement",
+    "code": "%1$s.parentElement\n"
+  },
+  {
+    "id": "jsClosest",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#F57C00",
+    "spec": "%s.inputOnly .closest %selector",
+    "code": "%1$s.closest('%2$s')\n"
+  },
+  {
+    "id": "jsAddClass",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#EF6C00",
+    "spec": "%var .addClass %c.selector",
+    "code": "%1$s.classList.add(\"%2$s\");\n"
+  },
+  {
+    "id": "jsRemoveClass",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#EF6C00",
+    "spec": "%var .removeClass %c.selector",
+    "code": "%1$s.classList.remove(\"%2$s\");\n"
+  },
+  {
+    "id": "jsToggleClass",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#EF6C00",
+    "spec": "%var .toggleClass %c.selector",
+    "code": "%1$s.classList.toggle(\"%2$s\");\n"
+  },
+  {
+    "id": "jsHasClass",
+    "category": "js_dom",
+    "blockType": "b",
+    "color": "#EF6C00",
+    "spec": "%var .hasClass %c.selector",
+    "code": "%1$s.classList.contains(\"%2$s\")"
+  },
+  {
+    "id": "jsReplaceClass",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#EF6C00",
+    "spec": "%var .replaceClass %s.inputOnly → %s.inputOnly",
+    "code": "%1$s.classList.replace('%2$s', '%3$s');\n"
+  },
+  {
+    "id": "jsRemoveClassAll",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#EF6C00",
+    "spec": "remove class %s.inputOnly from all %s.inputOnly",
+    "code": "document.querySelectorAll('%1$s').forEach(el => el.classList.remove('%2$s'));\n"
+  },
+  {
+    "id": "jsSetStyleProp",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#E65100",
+    "spec": "%var .style %s.inputOnly = %s.inputOnly",
+    "code": "%1$s.style['%2$s'] = '%3$s';\n"
+  },
+  {
+    "id": "jsSetStyleColor",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#E65100",
+    "spec": "%var .style color = %m.color",
+    "code": "%1$s.style['color'] = '%2$s';\n"
+  },
+  {
+    "id": "jsSetStyleBg",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#E65100",
+    "spec": "%var .style background = %m.color",
+    "code": "%1$s.style['background'] = '%2$s';\n"
+  },
+  {
+    "id": "jsSetStyleDisplay",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#E65100",
+    "spec": "%var .style display = %m.display",
+    "code": "%1$s.style['display'] = '%2$s';\n"
+  },
+  {
+    "id": "jsSetStyleOpacity",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#E65100",
+    "spec": "%var .style opacity = %d",
+    "code": "%1$s.style['opacity'] = %2$s;\n"
+  },
+  {
+    "id": "jsSetCSSVar",
+    "category": "js_logic",
+    "blockType": " ",
+    "color": "#E65100",
+    "spec": "CSS var --%s = %s.inputOnly on %s.inputOnly",
+    "code": "%1$s.style.setProperty('--%2$s', '%3$s');\n"
+  },
+  {
+    "id": "jsGetCSSVar",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#E65100",
+    "spec": "get CSS var --%s from %s.inputOnly",
+    "code": "getComputedStyle(%1$s).getPropertyValue('--%2$s').trim()\n"
+  },
+  {
+    "id": "jsSetAttribute",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#BF360C",
+    "spec": "%var .setAttribute %s.inputOnly = %s.inputOnly",
+    "code": "%1$s.setAttribute('%2$s', '%3$s');\n"
+  },
+  {
+    "id": "jsGetAttribute",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#BF360C",
+    "spec": "%var .getAttribute %s.inputOnly",
+    "code": "%1$s.getAttribute('%2$s')\n"
+  },
+  {
+    "id": "jsRemoveAttribute",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#BF360C",
+    "spec": "%var .removeAttribute %s.inputOnly",
+    "code": "%1$s.removeAttribute('%2$s');\n"
+  },
+  {
+    "id": "jsSetInnerText",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#BF360C",
+    "spec": "%var .innerText = %s",
+    "code": "%1$s.innerText = %2$s;\n"
+  },
+  {
+    "id": "jsSetInnerHTML2",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#BF360C",
+    "spec": "%var .innerHTML = %s",
+    "code": "%1$s.innerHTML = %2$s;\n"
+  },
+  {
+    "id": "jsSetValue",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#BF360C",
+    "spec": "%var .value = %s",
+    "code": "%1$s.value = %2$s;\n"
+  },
+  {
+    "id": "jsGetValue",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#BF360C",
+    "spec": "%var .value",
+    "code": "%1$s.value\n"
+  },
+  {
+    "id": "jsCreateElement",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#F57C00",
+    "spec": "createElement %s.inputOnly",
+    "code": "document.createElement('%1$s')\n"
+  },
+  {
+    "id": "jsAppendChild",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#F57C00",
+    "spec": "%var .appendChild %s",
+    "code": "%1$s.appendChild(%2$s);\n"
+  },
+  {
+    "id": "jsRemoveElement",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#F57C00",
+    "spec": "%var .remove",
+    "code": "%1$s.remove();\n"
+  },
+  {
+    "id": "jsCloneElement",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#F57C00",
+    "spec": "%var .cloneNode",
+    "code": "%1$s.cloneNode(true)\n"
+  },
+  {
+    "id": "jsInsertHTML",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#F57C00",
+    "spec": "%var insertAdjacentHTML %s.inputOnly %s",
+    "code": "%1$s.insertAdjacentHTML('%2$s', %3$s);\n"
+  },
+  {
+    "id": "jsVarLet",
+    "category": "js_logic",
+    "blockType": " ",
+    "color": "#2E7D32",
+    "spec": "let %s.inputOnly = %s.inputOnly",
+    "code": "let %1$s = %2$s;\n"
+  },
+  {
+    "id": "jsVarConst",
+    "category": "js_logic",
+    "blockType": " ",
+    "color": "#2E7D32",
+    "spec": "const %s.inputOnly = %s.inputOnly",
+    "code": "const %1$s = %2$s;\n"
+  },
+  {
+    "id": "jsVarAssign",
+    "category": "js_logic",
+    "blockType": " ",
+    "color": "#2E7D32",
+    "spec": "set %var = %s.inputOnly",
+    "code": "%1$s = %2$s;\n"
+  },
+  {
+    "id": "jsVarRef",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#2E7D32",
+    "spec": "%var",
+    "code": "%1$s\n"
+  },
+  {
+    "id": "jsFunctionDefine",
+    "category": "js_dom",
+    "blockType": "c",
+    "color": "#1B5E20",
+    "spec": "function function name %s.inputOnly function %b",
+    "code": "function %1$s(%2$s) {\n%3$s\n}\n"
+  },
+  {
+    "id": "jsFunctionArrow",
+    "category": "js_dom",
+    "blockType": "c",
+    "color": "#1B5E20",
+    "spec": "const %s.inputOnly = %s.inputOnly =>",
+    "code": "const %1$s = (%2$s) => {\n%3$s\n};\n"
+  },
+  {
+    "id": "jsFunctionCall",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#1B5E20",
+    "spec": "call %s.inputOnly %s",
+    "code": "%1$s(%2$s);\n"
+  },
+  {
+    "id": "jsReturn",
+    "category": "js_logic",
+    "blockType": " ",
+    "color": "#1B5E20",
+    "spec": "return %s",
+    "code": "return %1$s;\n"
+  },
+  {
+    "id": "jsAsyncFunction",
+    "category": "js_dom",
+    "blockType": "c",
+    "color": "#1B5E20",
+    "spec": "async function %s.inputOnly %s.inputOnly",
+    "code": "async function %1$s(%2$s) {\n%3$s\n}\n"
+  },
+  {
+    "id": "jsAwait",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#1B5E20",
+    "spec": "await %s.inputOnly",
+    "code": "await %1$s\n"
+  },
+  {
+    "id": "jsTryCatch",
+    "category": "control",
+    "blockType": "e",
+    "color": "#FF9100",
+    "spec": "try \n",
+    "code": "try {\n%2$s\n} catch (%1$s) {\n%3$s\n}\n",
+    "spec2": "catch %s \n"
+  },
+  {
+    "id": "jsIf",
+    "category": "control",
+    "blockType": "c",
+    "color": "#FF9100",
+    "spec": "if (%b) {\n",
+    "code": "if (%1$s) {\n%2$s\n}\n"
+  },
+  {
+    "id": "jsIfElse",
+    "category": "control",
+    "blockType": "e",
+    "color": "#FF9100",
+    "spec": "if (%b) \n",
+    "code": "if (%1$s) {\n%2$s\n} else {\n%3$s\n}\n",
+    "spec2": "else \n"
+  },
+  {
+    "id": "jsTernary",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#880E4F",
+    "spec": "%s.inputOnly ? %s.inputOnly %s.inputOnly",
+    "code": "(%1$s ? %2$s : %3$s)\n"
+  },
+  {
+    "id": "jsForEach",
+    "category": "control",
+    "blockType": "c",
+    "color": "#FF9100",
+    "spec": "%s.inputOnly .forEach %s.inputOnly =>",
+    "code": "%1$s.forEach(%2$s => {\n%3$s\n});\n"
+  },
+  {
+    "id": "jsSetupList",
+    "category": "js_logic",
+    "blockType": " ",
+    "color": "#CC5500",
+    "spec": "setup list %m.list %s.setupList",
+    "code": "let %1$s = %2$s;\n"
+  },
+  {
+    "id": "jsListGetItemProperty",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#CC5500",
+    "spec": "%m.list get Obj at %d Key %s.inputOnly",
+    "code": "%1$s[%2$s].%3$s"
+  },
+  {
+    "id": "jsListGetItem",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#CC5500",
+    "spec": "%m.list get value at %d",
+    "code": "%1$s[%2$s]"
+  },
+  {
+    "id": "jsListPush",
+    "category": "js_logic",
+    "blockType": " ",
+    "color": "#CC5500",
+    "spec": "%m.list Add at last (push) %s",
+    "code": "%1$s.push(%2$s);\n"
+  },
+  {
+    "id": "jsListPop",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#CC5500",
+    "spec": "%m.list Remove last (pop)",
+    "code": "%1$s.pop()"
+  },
+  {
+    "id": "jsListShift",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#CC5500",
+    "spec": "%m.list remove first (shift)",
+    "code": "%1$s.shift()"
+  },
+  {
+    "id": "jsListUnshift",
+    "category": "js_logic",
+    "blockType": " ",
+    "color": "#CC5500",
+    "spec": "%m.list  Add at first (unshift) %s",
+    "code": "%1$s.unshift(%2$s);\n"
+  },
+  {
+    "id": "jsListLength",
+    "category": "js_logic",
+    "blockType": "d",
+    "color": "#CC5500",
+    "spec": "%m.list length",
+    "code": "%1$s.length"
+  },
+  {
+    "id": "jsListIndexOf",
+    "category": "js_logic",
+    "blockType": "d",
+    "color": "#CC5500",
+    "spec": "indexOf %s in %m.list",
+    "code": "%2$s.indexOf(%1$s)"
+  },
+  {
+    "id": "jsForOf",
+    "category": "control",
+    "blockType": "c",
+    "color": "#FF9100",
+    "spec": "for %s.inputOnly of %s.inputOnly",
+    "code": "for (const %1$s of %2$s) {\n%3$s\n}\n"
+  },
+  {
+    "id": "jsForLoop",
+    "category": "control",
+    "blockType": "c",
+    "color": "#FF9100",
+    "spec": "for (let i = 0; i < %d; i++) {\n",
+    "code": "for (let i = 0; i < %1$s; i++) {\n%2$s\n}\n"
+  },
+  {
+    "id": "jsWhile",
+    "category": "control",
+    "blockType": "c",
+    "color": "#FF9100",
+    "spec": "while (%b) {\n",
+    "code": "while (%1$s) {\n%2$s\n}\n"
+  },
+  {
+    "id": "jsMathRandom",
+    "category": "js_logic",
+    "blockType": "d",
+    "color": "#00897B",
+    "spec": "random number",
+    "code": "Math.random()"
+  },
+  {
+    "id": "jsMathFloor",
+    "category": "js_logic",
+    "blockType": "d",
+    "color": "#00897B",
+    "spec": "Math.floor %d",
+    "code": "Math.floor(%1$s)"
+  },
+  {
+    "id": "jsMathRound",
+    "category": "js_logic",
+    "blockType": "d",
+    "color": "#00897B",
+    "spec": "Math.round %d",
+    "code": "Math.round(%1$s)"
+  },
+  {
+    "id": "jsMathAbs",
+    "category": "js_logic",
+    "blockType": "d",
+    "color": "#00897B",
+    "spec": "Math.abs %d",
+    "code": "Math.abs(%1$s)"
+  },
+  {
+    "id": "jsMathMax",
+    "category": "js_logic",
+    "blockType": "d",
+    "color": "#00897B",
+    "spec": "Math.max %d , %d",
+    "code": "Math.max(%1$s, %2$s)"
+  },
+  {
+    "id": "jsMathMin",
+    "category": "js_logic",
+    "blockType": "d",
+    "color": "#00897B",
+    "spec": "Math.min %d , %d",
+    "code": "Math.min(%1$s, %2$s)"
+  },
+  {
+    "id": "jsStringLength",
+    "category": "js_logic",
+    "blockType": "d",
+    "color": "#00897B",
+    "spec": "length of %s.inputOnly",
+    "code": "%1$s.length"
+  },
+  {
+    "id": "jsStringIncludes",
+    "category": "js_logic",
+    "blockType": "b",
+    "color": "#00897B",
+    "spec": "%s.inputOnly includes %s",
+    "code": "%1$s.includes(%2$s)"
+  },
+  {
+    "id": "jsStringIndexOf",
+    "category": "js_logic",
+    "blockType": "d",
+    "color": "#00897B",
+    "spec": "index of %s in %s.inputOnly",
+    "code": "%2$s.indexOf(%1$s)"
+  },
+  {
+    "id": "jsStringReplace",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "in %s.inputOnly replace %s with %s",
+    "code": "%1$s.replace(%2$s, %3$s)"
+  },
+  {
+    "id": "jsStringSplit",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "split %s.inputOnly by %s",
+    "code": "%1$s.split(%2$s)"
+  },
+  {
+    "id": "jsStringTrim",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "trim %s.inputOnly",
+    "code": "%1$s.trim()"
+  },
+  {
+    "id": "jsStringSubstr",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "substring of %s.inputOnly from %d to %d",
+    "code": "%1$s.substring(%2$s, %3$s)"
+  },
+  {
+    "id": "jsToUpperCase",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "%s.inputOnly to UPPERCASE",
+    "code": "%1$s.toUpperCase()"
+  },
+  {
+    "id": "jsToLowerCase",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "%s.inputOnly to lowercase",
+    "code": "%1$s.toLowerCase()"
+  },
+  {
+    "id": "jsTypeOf",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#2E7D32",
+    "spec": "typeof %s.inputOnly",
+    "code": "typeof %1$s\n"
+  },
+  {
+    "id": "jsConsoleWarn",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#2E7D32",
+    "spec": "console.warn %s",
+    "code": "console.warn(%1$s);\n"
+  },
+  {
+    "id": "jsOnScroll",
+    "category": "js_events",
+    "blockType": "c",
+    "color": "#0277BD",
+    "spec": "window on scroll",
+    "code": "window.addEventListener('scroll', function() {\n%1$s\n});\n"
+  },
+  {
+    "id": "jsOnLoad",
+    "category": "js_events",
+    "blockType": "c",
+    "color": "#0277BD",
+    "spec": "on DOMContentLoaded",
+    "code": "document.addEventListener('DOMContentLoaded', function() {\n%1$s\n});\n"
+  },
+  {
+    "id": "jsAddEventOnVar",
+    "category": "js_events",
+    "blockType": "c",
+    "color": "#0277BD",
+    "spec": "%var addEventListener %m.event",
+    "code": "%1$s.addEventListener(\"%2$s\", (e) => {\n%3$s\n});\n"
+  },
+  {
+    "id": "jsRemoveEventOnVar",
+    "category": "js_events",
+    "blockType": " ",
+    "color": "#0277BD",
+    "spec": "%var removeEventListener %m.event %s.inputOnly",
+    "code": "%1$s.removeEventListener(\"%2$s\", %3$s);\n"
+  },
+  {
+    "id": "jsDispatchCustomEvent",
+    "category": "js_events",
+    "blockType": " ",
+    "color": "#0277BD",
+    "spec": "%s.inputOnly dispatch event %s.inputOnly",
+    "code": "%1$s.dispatchEvent(new CustomEvent('%2$s', {\nbubbles: true\n}));\n"
+  },
+  {
+    "id": "jsStopPropagation",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#0277BD",
+    "spec": "e.stopPropagation",
+    "code": "e.stopPropagation();\n"
+  },
+  {
+    "id": "jsPreventDefault",
+    "category": "js_events",
+    "blockType": " ",
+    "color": "#0277BD",
+    "spec": "e.preventDefault",
+    "code": "e.preventDefault();\n"
+  },
+  {
+    "id": "jsIntersectionObserver",
+    "category": "js_events",
+    "blockType": "c",
+    "color": "#0277BD",
+    "spec": "observe %s.inputOnly on enter",
+    "code": "new IntersectionObserver((entries) => {\nentries.forEach(entry => {\nif (entry.isIntersecting) {\n%2$s\n}\n});\n}).observe(document.querySelector('%1$s'));\n"
+  },
+  {
+    "id": "jsObserveAddClass",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#0277BD",
+    "spec": "observe %s.inputOnly → add class %s.inputOnly",
+    "code": "new IntersectionObserver((entries) => {\nentries.forEach(entry => {\nif (entry.isIntersecting) entry.target.classList.add('%1$s');\n});\n}, {\nthreshold: 0.1\n}).observe(document.querySelector('%2$s'));\n"
+  },
+  {
+    "id": "jsSetInterval",
+    "category": "js_timing",
+    "blockType": "c",
+    "color": "#00695C",
+    "spec": "every %d ms",
+    "code": "setInterval(function() {\n%2$s\n}, %1$s);\n"
+  },
+  {
+    "id": "jsSetTimeoutSave",
+    "category": "js_timing",
+    "blockType": " ",
+    "color": "#00695C",
+    "spec": "save timer %s.inputOnly = after %d ms call %s.inputOnly",
+    "code": "const %1$s = setTimeout(%2$s, %3$s);\n"
+  },
+  {
+    "id": "jsClearTimeout",
+    "category": "js_timing",
+    "blockType": " ",
+    "color": "#00695C",
+    "spec": "clearTimeout %s.inputOnly",
+    "code": "clearTimeout(%1$s);\n"
+  },
+  {
+    "id": "jsClearInterval",
+    "category": "js_timing",
+    "blockType": " ",
+    "color": "#00695C",
+    "spec": "clearInterval %s.inputOnly",
+    "code": "clearInterval(%1$s);\n"
+  },
+  {
+    "id": "jsRequestAnimFrame",
+    "category": "js_timing",
+    "blockType": "c",
+    "color": "#00695C",
+    "spec": "requestAnimationFrame",
+    "code": "requestAnimationFrame(function() {\n%1$s\n});\n"
+  },
+  {
+    "id": "jsScrollToEl",
+    "category": "js_window",
+    "blockType": " ",
+    "color": "#4527A0",
+    "spec": "scrollIntoView %s.inputOnly",
+    "code": "document.querySelector('%1$s').scrollIntoView({\nbehavior: 'smooth'\n});\n"
+  },
+  {
+    "id": "jsScrollToTop",
+    "category": "js_window",
+    "blockType": " ",
+    "color": "#4527A0",
+    "spec": "scroll to top",
+    "code": "window.scrollTo({\ntop: 0, behavior: 'smooth'\n});\n"
+  },
+  {
+    "id": "jsScrollY",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#4527A0",
+    "spec": "window.scrollY",
+    "code": "window.scrollY\n"
+  },
+  {
+    "id": "jsWindowWidth",
+    "category": "js_window",
+    "blockType": "s",
+    "color": "#4527A0",
+    "spec": "window.innerWidth",
+    "code": "window.innerWidth\n"
+  },
+  {
+    "id": "jsWindowHeight",
+    "category": "js_window",
+    "blockType": "s",
+    "color": "#4527A0",
+    "spec": "window.innerHeight",
+    "code": "window.innerHeight\n"
+  },
+  {
+    "id": "jsWindowRedirect",
+    "category": "js_window",
+    "blockType": " ",
+    "color": "#4527A0",
+    "spec": "redirect to %s.inputOnly",
+    "code": "window.location.href = '%1$s';\n"
+  },
+  {
+    "id": "jsOpenTab",
+    "category": "js_window",
+    "blockType": " ",
+    "color": "#4527A0",
+    "spec": "open new tab %s.inputOnly",
+    "code": "window.open('%1$s', '_blank');\n"
+  },
+  {
+    "id": "jsLocalStorageSet",
+    "category": "js_window",
+    "blockType": " ",
+    "color": "#4527A0",
+    "spec": "localStorage set %s.inputOnly = %s",
+    "code": "localStorage.setItem('%1$s', %2$s);\n"
+  },
+  {
+    "id": "jsLocalStorageGet",
+    "category": "js_window",
+    "blockType": "s",
+    "color": "#4527A0",
+    "spec": "localStorage get %s.inputOnly",
+    "code": "localStorage.getItem('%1$s')\n"
+  },
+  {
+    "id": "jsLocalStorageRemove",
+    "category": "js_window",
+    "blockType": " ",
+    "color": "#4527A0",
+    "spec": "localStorage remove %s.inputOnly",
+    "code": "localStorage.removeItem('%1$s');\n"
+  },
+  {
+    "id": "jsFetch",
+    "category": "js_window",
+    "blockType": "c",
+    "color": "#4527A0",
+    "spec": "fetch %s.inputOnly then",
+    "code": "fetch('%1$s').then(r => r.json()).then(data => {\n%2$s\n});\n"
+  },
+  {
+    "id": "cssKeyframes",
+    "category": "css_animation",
+    "blockType": "c",
+    "color": "#FFA000",
+    "spec": "â–¾ keyframes %s.inputOnly",
+    "code": "@keyframes %1$s {\n%2$s\n}\n"
+  },
+  {
+    "id": "cssKeyframeStep",
+    "category": "css_animation",
+    "blockType": "c",
+    "color": "#FFA000",
+    "spec": "â–¾ step %s.inputOnly",
+    "code": "%1$s {\n%2$s\n}\n"
+  },
+  {
+    "id": "setAlignSelf",
+    "category": "css_flex",
+    "blockType": " ",
+    "color": "#0097A7",
+    "spec": "align-self %m.alignItems",
+    "code": "align-self: %1$s;\n"
+  },
+  {
+    "id": "setFlexWrap",
+    "category": "css_flex",
+    "blockType": " ",
+    "color": "#0097A7",
+    "spec": "flex-wrap %m.flexWrap",
+    "code": "flex-wrap: %1$s;\n"
+  },
+  {
+    "id": "setFlexGrow",
+    "category": "css_flex",
+    "blockType": " ",
+    "color": "#0097A7",
+    "spec": "flex-grow %d",
+    "code": "flex-grow: %1$s;\n"
+  },
+  {
+    "id": "setFlexShrink",
+    "category": "css_flex",
+    "blockType": " ",
+    "color": "#0097A7",
+    "spec": "flex-shrink %d",
+    "code": "flex-shrink: %1$s;\n"
+  },
+  {
+    "id": "setOrder",
+    "category": "css_flex",
+    "blockType": " ",
+    "color": "#0097A7",
+    "spec": "order %d",
+    "code": "order: %1$s;\n"
+  },
+  {
+    "id": "setGridTemplateRows",
+    "category": "css_grid",
+    "blockType": " ",
+    "color": "#00796B",
+    "spec": "grid rows %s.inputOnly",
+    "code": "grid-template-rows: %1$s;\n"
+  },
+  {
+    "id": "setGridColumn",
+    "category": "css_grid",
+    "blockType": " ",
+    "color": "#00796B",
+    "spec": "grid-column %s.inputOnly",
+    "code": "grid-column: %1$s;\n"
+  },
+  {
+    "id": "setGridRow",
+    "category": "css_grid",
+    "blockType": " ",
+    "color": "#00796B",
+    "spec": "grid-row %s.inputOnly",
+    "code": "grid-row: %1$s;\n"
+  },
+  {
+    "id": "setGridArea",
+    "category": "css_grid",
+    "blockType": " ",
+    "color": "#00796B",
+    "spec": "grid-area %s.inputOnly",
+    "code": "grid-area: %1$s;\n"
+  },
+  {
+    "id": "setBackgroundColor",
+    "category": "css_background",
+    "blockType": " ",
+    "color": "#689F38",
+    "spec": "background-color %m.color",
+    "code": "background-color: %1$s;\n"
+  },
+  {
+    "id": "setBorderColor",
+    "category": "css_background",
+    "blockType": " ",
+    "color": "#689F38",
+    "spec": "border-color %m.color",
+    "code": "border-color: %1$s;\n"
+  },
+  {
+    "id": "setBorderStyle",
+    "category": "css_background",
+    "blockType": " ",
+    "color": "#689F38",
+    "spec": "border-style %m.borderStyle",
+    "code": "border-style: %1$s;\n"
+  },
+  {
+    "id": "setTop",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "top %m.unit",
+    "code": "top: %1$s;\n"
+  },
+  {
+    "id": "setBottom",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "bottom %m.unit",
+    "code": "bottom: %1$s;\n"
+  },
+  {
+    "id": "setLeft",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "left %m.unit",
+    "code": "left: %1$s;\n"
+  },
+  {
+    "id": "setRight",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "right %m.unit",
+    "code": "right: %1$s;\n"
+  },
+  {
+    "id": "setTextTransform",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "text-transform %m.textTransform",
+    "code": "text-transform: %1$s;\n"
+  },
+  {
+    "id": "opTrue",
+    "category": "operator",
+    "blockType": "b",
+    "color": "#00E676",
+    "spec": "true",
+    "code": "true"
+  },
+  {
+    "id": "opFalse",
+    "category": "operator",
+    "blockType": "b",
+    "color": "#00E676",
+    "spec": "false",
+    "code": "false"
+  },
+  {
+    "id": "opLess",
+    "category": "operator",
+    "blockType": "b",
+    "color": "#00E676",
+    "spec": "%d < %d",
+    "code": "%1$s < %2$s"
+  },
+  {
+    "id": "opEqual",
+    "category": "operator",
+    "blockType": "b",
+    "color": "#00E676",
+    "spec": "%d === %d",
+    "code": "%1$s === %2$s"
+  },
+  {
+    "id": "opGreater",
+    "category": "operator",
+    "blockType": "b",
+    "color": "#00E676",
+    "spec": "%d > %d",
+    "code": "%1$s > %2$s"
+  },
+  {
+    "id": "opAnd",
+    "category": "operator",
+    "blockType": "b",
+    "color": "#00E676",
+    "spec": "%b and %b",
+    "code": "%1$s && %2$s"
+  },
+  {
+    "id": "opOr",
+    "category": "operator",
+    "blockType": "b",
+    "color": "#00E676",
+    "spec": "%b or %b",
+    "code": "%1$s || %2$s"
+  },
+  {
+    "id": "opNot",
+    "category": "operator",
+    "blockType": "b",
+    "color": "#00E676",
+    "spec": "not %b",
+    "code": "!%1$s"
+  },
+  {
+    "id": "opAdd",
+    "category": "operator",
+    "blockType": "d",
+    "color": "#00E676",
+    "spec": "%d + %d",
+    "code": "%1$s + %2$s"
+  },
+  {
+    "id": "opSub",
+    "category": "operator",
+    "blockType": "d",
+    "color": "#00E676",
+    "spec": "%d - %d",
+    "code": "%1$s - %2$s"
+  },
+  {
+    "id": "opMul",
+    "category": "operator",
+    "blockType": "d",
+    "color": "#00E676",
+    "spec": "%d * %d",
+    "code": "%1$s * %2$s"
+  },
+  {
+    "id": "opDiv",
+    "category": "operator",
+    "blockType": "d",
+    "color": "#00E676",
+    "spec": "%d / %d",
+    "code": "%1$s / %2$s"
+  },
+  {
+    "id": "setVisibility",
+    "category": "css",
+    "blockType": " ",
+    "color": "#1976D2",
+    "spec": "visibility %m.visibility",
+    "code": "visibility: %1$s;\n"
+  },
+  {
+    "id": "setFloat",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "float %m.float",
+    "code": "float: %1$s;\n"
+  },
+  {
+    "id": "setClear",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "clear %m.clear",
+    "code": "clear: %1$s;\n"
+  },
+  {
+    "id": "setWhiteSpace",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "white-space %m.whiteSpace",
+    "code": "white-space: %1$s;\n"
+  },
+  {
+    "id": "setWordBreak",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "word-break %m.wordBreak",
+    "code": "word-break: %1$s;\n"
+  },
+  {
+    "id": "setVerticalAlign",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "vertical-align %m.verticalAlign",
+    "code": "vertical-align: %1$s;\n"
+  },
+  {
+    "id": "setObjectFit",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "object-fit %m.objectFit",
+    "code": "object-fit: %1$s;\n"
+  },
+  {
+    "id": "setOutline",
+    "category": "css_background",
+    "blockType": " ",
+    "color": "#689F38",
+    "spec": "outline %m.unit solid %m.color",
+    "code": "outline: %1$s solid %2$s;\n"
+  },
+  {
+    "id": "setListStyle",
+    "category": "css_text",
+    "blockType": " ",
+    "color": "#388E3C",
+    "spec": "list-style %m.listStyle",
+    "code": "list-style: %1$s;\n"
+  },
+  {
+    "id": "httpFetchGet",
+    "category": "js_network",
+    "blockType": "c",
+    "color": "#00897B",
+    "spec": "fetch GET %s.inputOnly then response =>",
+    "code": "fetch(%1$s)\n  .then(response => response.json())\n  .then(data => {\n%2$s\n})\n  .catch(error => console.error(\"HTTP Error:\", error));\n"
+  },
+  {
+    "id": "httpFetchPost",
+    "category": "js_network",
+    "blockType": "c",
+    "color": "#00897B",
+    "spec": "fetch POST %s.inputOnly json body %s.inputOnly then data =>",
+    "code": "fetch(%1$s, {\n  method: \"POST\",\n  headers: { \"Content-Type\": \"application/json\" },\n  body: JSON.stringify(%2$s)\n})\n  .then(response => response.json())\n  .then(data => {\n%3$s\n})\n  .catch(error => console.error(\"HTTP Error:\", error));\n"
+  },
+  {
+    "id": "httpFetchRequest",
+    "category": "js_network",
+    "blockType": "c",
+    "color": "#00897B",
+    "spec": "fetch %s.inputOnly method %s.inputOnly headers %s.inputOnly body %s.inputOnly then data =>",
+    "code": "fetch(%1$s, {\n  method: %2$s,\n  headers: %3$s,\n  body: typeof %4$s === \"object\" ? JSON.stringify(%4$s) : %4$s\n})\n  .then(response => response.json())\n  .then(data => {\n%5$s\n})\n  .catch(error => console.error(\"HTTP Error:\", error));\n"
+  },
+  {
+    "id": "httpAsyncFetchGet",
+    "category": "js_network",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "await fetch GET %s.inputOnly json",
+    "code": "await (await fetch(%1$s)).json()"
+  },
+  {
+    "id": "httpAsyncFetchPost",
+    "category": "js_network",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "await fetch POST %s.inputOnly json body %s.inputOnly",
+    "code": "await (await fetch(%1$s, { method: \"POST\", headers: { \"Content-Type\": \"application/json\" }, body: JSON.stringify(%2$s) })).json()"
+  },
+  {
+    "id": "httpXHR",
+    "category": "js_network",
+    "blockType": "c",
+    "color": "#00897B",
+    "spec": "XMLHttpRequest method %s.inputOnly url %s.inputOnly on load",
+    "code": "const xhr = new XMLHttpRequest();\nxhr.open(%1$s, %2$s);\nxhr.onload = function() {\n  if (xhr.status >= 200 && xhr.status < 300) {\n    const data = JSON.parse(xhr.responseText);\n%3$s\n  }\n};\nxhr.send();\n"
+  },
+  {
+    "id": "httpUrlParams",
+    "category": "js_network",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "get query param %s.inputOnly from URL %s.inputOnly",
+    "code": "new URLSearchParams(new URL(%2$s).search).get(%1$s)"
+  },
+  {
+    "id": "httpCurrentUrl",
+    "category": "js_network",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "current page URL",
+    "code": "window.location.href"
+  },
+  {
+    "id": "httpCurrentPath",
+    "category": "js_network",
+    "blockType": "s",
+    "color": "#00897B",
+    "spec": "current page path",
+    "code": "window.location.pathname"
+  },
+  {
+    "id": "jsonParse",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "JSON.parse %s.inputOnly",
+    "code": "JSON.parse(%1$s)"
+  },
+  {
+    "id": "jsonStringify",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "JSON.stringify %s.inputOnly",
+    "code": "JSON.stringify(%1$s)"
+  },
+  {
+    "id": "jsonObjectGet",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "property %s.inputOnly of object %s.inputOnly",
+    "code": "%2$s.%1$s"
+  },
+  {
+    "id": "jsonObjectSet",
+    "category": "js_logic",
+    "blockType": " ",
+    "color": "#FF9100",
+    "spec": "set property %s.inputOnly of object %s.inputOnly to %s",
+    "code": "%2$s.%1$s = %3$s;\n"
+  },
+  {
+    "id": "jsonObjectCreate",
+    "category": "js_logic",
+    "blockType": "s",
+    "color": "#FF9100",
+    "spec": "new JS Object {}",
+    "code": "{}"
+  },
+  {
+    "id": "jsConstGetById",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#F57C00",
+    "spec": "const %s.inputOnly = document.getElementById %id.selector",
+    "code": "const %1$s = document.getElementById(\"%2$s\");\n"
+  },
+  {
+    "id": "jsLetGetById",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#F57C00",
+    "spec": "let %s.inputOnly = document.getElementById %id.selector",
+    "code": "let %1$s = document.getElementById(\"%2$s\");\n"
+  },
+  {
+    "id": "jsAssignGetById",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#F57C00",
+    "spec": "%var = document.getElementById %id.selector",
+    "code": "%1$s = document.getElementById(\"%2$s\");\n"
+  },
+  {
+    "id": "jsConstQuerySelector",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#F57C00",
+    "spec": "const %s.inputOnly = document.querySelector %selector",
+    "code": "const %1$s = document.querySelector(\"%2$s\");\n"
+  },
+  {
+    "id": "jsAddEventAsyncOnVar",
+    "category": "js_events",
+    "blockType": "c",
+    "color": "#0277BD",
+    "spec": "%var addEventListener %m.event (async)",
+    "code": "%1$s.addEventListener(\"%2$s\", async (e) => {\n%3$s\n});\n"
+  },
+  {
+    "id": "jsSetTextContent",
+    "category": "js_dom",
+    "blockType": " ",
+    "color": "#EF6C00",
+    "spec": "%var .textContent = %s",
+    "code": "%1$s.textContent = %2$s;\n"
+  },
+  {
+    "id": "jsGetTextContent",
+    "category": "js_dom",
+    "blockType": "s",
+    "color": "#EF6C00",
+    "spec": "%var .textContent",
+    "code": "%1$s.textContent\n"
+  },
+  {
+    "id": "httpAwaitFetch",
+    "category": "js_network",
+    "blockType": " ",
+    "color": "#00838F",
+    "spec": "const %s.inputOnly = await fetch %s",
+    "code": "const %1$s = await fetch(%2$s);\n"
+  },
+  {
+    "id": "httpAwaitJson",
+    "category": "js_network",
+    "blockType": " ",
+    "color": "#00838F",
+    "spec": "const %s.inputOnly = await %var .json()",
+    "code": "const %1$s = await %2$s.json();\n"
+  },
+  {
+    "id": "httpAwaitFetchExpr",
+    "category": "js_network",
+    "blockType": "s",
+    "color": "#00838F",
+    "spec": "await fetch %s",
+    "code": "await fetch(%1$s)"
+  },
+  {
+    "id": "httpAwaitJsonExpr",
+    "category": "js_network",
+    "blockType": "s",
+    "color": "#00838F",
+    "spec": "await %var .json()",
+    "code": "await %1$s.json()"
+  },
+  {
+    "id": "navbarToggleMenu",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "navbar %selector toggle menu",
+    "code": "toggleNavbarMenu('%1$s');\n",
+    "linkedWidget": "nav,navbar",
+    "linkedWIdget": "nav,navbar",
+    "eventType": "js"
+  },
+  {
+    "id": "navbarSetBrand",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "navbar %selector set brand to %s",
+    "code": "setNavbarBrand('%1$s', %2$s);\n",
+    "linkedWidget": "nav,navbar",
+    "linkedWIdget": "nav,navbar",
+    "eventType": "js"
+  },
+  {
+    "id": "navbarSetBackground",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "navbar %selector set background to %color",
+    "code": "%1$s { background-color: %2$s !important; }\n",
+    "linkedWidget": "nav,navbar",
+    "linkedWIdget": "nav,navbar",
+    "eventType": "css"
+  },
+  {
+    "id": "navbarSetTextColor",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "navbar %selector set link color to %color",
+    "code": "%1$s a, %1$s { color: %2$s !important; }\n",
+    "linkedWidget": "nav,navbar",
+    "linkedWIdget": "nav,navbar",
+    "eventType": "css"
+  },
+  {
+    "id": "navbarSetShadow",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "navbar %selector set shadow %s",
+    "code": "%1$s { box-shadow: %2$s !important; }\n",
+    "linkedWidget": "nav,navbar",
+    "linkedWIdget": "nav,navbar",
+    "eventType": "css"
+  },
+  {
+    "id": "navbarSetHeight",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "navbar %selector set height to %d px",
+    "code": "%1$s { height: %2$spx !important; }\n",
+    "linkedWidget": "nav,navbar",
+    "linkedWIdget": "nav,navbar",
+    "eventType": "css"
+  },
+  {
+    "id": "navbarAddBrandLink",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "navbar %selector brand title %s link %s",
+    "code": "<a class=\"nav-brand\" href=\"%2$s\">%1$s</a>\n",
+    "linkedWidget": "nav,navbar",
+    "linkedWIdget": "nav,navbar",
+    "eventType": "html"
+  },
+  {
+    "id": "listAddItem",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "list %selector add item %s",
+    "code": "addListItem('%1$s', %2$s);\n",
+    "linkedWidget": "ul,ol,list",
+    "linkedWIdget": "ul,ol,list",
+    "eventType": "js"
+  },
+  {
+    "id": "listRemoveItem",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "list %selector remove item at index %d",
+    "code": "removeListItem('%1$s', %2$s);\n",
+    "linkedWidget": "ul,ol,list",
+    "linkedWIdget": "ul,ol,list",
+    "eventType": "js"
+  },
+  {
+    "id": "listClear",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "list %selector clear all items",
+    "code": "clearList('%1$s');\n",
+    "linkedWidget": "ul,ol,list",
+    "linkedWIdget": "ul,ol,list",
+    "eventType": "js"
+  },
+  {
+    "id": "listSetBulletStyle",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "list %selector bullet style %s",
+    "code": "%1$s { list-style-type: %2$s !important; }\n",
+    "linkedWidget": "ul,ol,list",
+    "linkedWIdget": "ul,ol,list",
+    "eventType": "css"
+  },
+  {
+    "id": "listSetItemSpacing",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "list %selector item spacing %d px",
+    "code": "%1$s li { margin-bottom: %2$spx !important; }\n",
+    "linkedWidget": "ul,ol,list",
+    "linkedWIdget": "ul,ol,list",
+    "eventType": "css"
+  },
+  {
+    "id": "listSetHoverColor",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "list %selector item hover color %color",
+    "code": "%1$s li:hover { background-color: %2$s !important; }\n",
+    "linkedWidget": "ul,ol,list",
+    "linkedWIdget": "ul,ol,list",
+    "eventType": "css"
+  },
+  {
+    "id": "listAppendItem",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "list %selector item content %s",
+    "code": "<li>%2$s</li>\n",
+    "linkedWidget": "ul,ol,list",
+    "linkedWIdget": "ul,ol,list",
+    "eventType": "html"
+  },
+  {
+    "id": "progressSetValue",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "progress %selector set value %d %%",
+    "code": "setProgress('%1$s', %2$s);\n",
+    "linkedWidget": "progress,progressbar,progress bar",
+    "linkedWIdget": "progress,progressbar,progress bar",
+    "eventType": "js"
+  },
+  {
+    "id": "progressIncrement",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "progress %selector increment by %d %%",
+    "code": "incrementProgress('%1$s', %2$s);\n",
+    "linkedWidget": "progress,progressbar,progress bar",
+    "linkedWIdget": "progress,progressbar,progress bar",
+    "eventType": "js"
+  },
+  {
+    "id": "progressGetValue",
+    "category": "widgets",
+    "blockType": "d",
+    "color": "#00BFA5",
+    "spec": "progress %selector get value",
+    "code": "getProgress('%1$s')",
+    "linkedWidget": "progress,progressbar,progress bar",
+    "linkedWIdget": "progress,progressbar,progress bar",
+    "eventType": "js"
+  },
+  {
+    "id": "progressSetHeight",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "progress %selector height %d px",
+    "code": "%1$s { height: %2$spx !important; }\n",
+    "linkedWidget": "progress,progressbar,progress bar",
+    "linkedWIdget": "progress,progressbar,progress bar",
+    "eventType": "css"
+  },
+  {
+    "id": "progressSetFillColor",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "progress %selector fill color %color",
+    "code": "%1$s .progress-fill, %1$s .progress-bar { background-color: %2$s !important; }\n",
+    "linkedWidget": "progress,progressbar,progress bar",
+    "linkedWIdget": "progress,progressbar,progress bar",
+    "eventType": "css"
+  },
+  {
+    "id": "progressSetTrackColor",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "progress %selector track color %color",
+    "code": "%1$s { background-color: %2$s !important; }\n",
+    "linkedWidget": "progress,progressbar,progress bar",
+    "linkedWIdget": "progress,progressbar,progress bar",
+    "eventType": "css"
+  },
+  {
+    "id": "tableFilter",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "table %selector filter rows by %s",
+    "code": "filterTable('%1$s', %2$s);\n",
+    "linkedWidget": "table",
+    "linkedWIdget": "table",
+    "eventType": "js"
+  },
+  {
+    "id": "tableSort",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "table %selector sort by column index %d",
+    "code": "sortTable('%1$s', %2$s);\n",
+    "linkedWidget": "table",
+    "linkedWIdget": "table",
+    "eventType": "js"
+  },
+  {
+    "id": "tableSetZebraStripe",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "table %selector zebra stripe %color",
+    "code": "%1$s tr:nth-child(even) { background-color: %2$s !important; }\n",
+    "linkedWidget": "table",
+    "linkedWIdget": "table",
+    "eventType": "css"
+  },
+  {
+    "id": "tableSetHeaderBg",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "table %selector header color %color",
+    "code": "%1$s th { background-color: %2$s !important; }\n",
+    "linkedWidget": "table",
+    "linkedWIdget": "table",
+    "eventType": "css"
+  },
+  {
+    "id": "tableSetBorder",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "table %selector border style %s",
+    "code": "%1$s, %1$s th, %1$s td { border: %2$s !important; border-collapse: collapse !important; }\n",
+    "linkedWidget": "table",
+    "linkedWIdget": "table",
+    "eventType": "css"
+  },
+  {
+    "id": "tableAddRow",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "table %selector add row cell %s",
+    "code": "<tr><td>%2$s</td></tr>\n",
+    "linkedWidget": "table",
+    "linkedWIdget": "table",
+    "eventType": "html"
+  },
+  {
+    "id": "formSubmit",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "form %selector submit",
+    "code": "submitForm('%1$s');\n",
+    "linkedWidget": "form",
+    "linkedWIdget": "form",
+    "eventType": "js"
+  },
+  {
+    "id": "formReset",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "form %selector reset",
+    "code": "resetForm('%1$s');\n",
+    "linkedWidget": "form",
+    "linkedWIdget": "form",
+    "eventType": "js"
+  },
+  {
+    "id": "modalOpen",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "modal %selector open dialog",
+    "code": "openModal('%1$s');\n",
+    "linkedWidget": "dialog,modal,modal dialog",
+    "linkedWIdget": "dialog,modal,modal dialog",
+    "eventType": "js"
+  },
+  {
+    "id": "modalClose",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "modal %selector close dialog",
+    "code": "closeModal('%1$s');\n",
+    "linkedWidget": "dialog,modal,modal dialog",
+    "linkedWIdget": "dialog,modal,modal dialog",
+    "eventType": "js"
+  },
+  {
+    "id": "modalSetBackdropBlur",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "modal %selector backdrop blur %d px",
+    "code": "%1$s::backdrop, %1$s .modal-overlay { backdrop-filter: blur(%2$spx) !important; }\n",
+    "linkedWidget": "dialog,modal,modal dialog",
+    "linkedWIdget": "dialog,modal,modal dialog",
+    "eventType": "css"
+  },
+  {
+    "id": "modalSetBorderRadius",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "modal %selector border radius %d px",
+    "code": "%1$s, %1$s .modal-content { border-radius: %2$spx !important; }\n",
+    "linkedWidget": "dialog,modal,modal dialog",
+    "linkedWIdget": "dialog,modal,modal dialog",
+    "eventType": "css"
+  },
+  {
+    "id": "accordionToggle",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "accordion %selector toggle panel",
+    "code": "toggleAccordion('%1$s');\n",
+    "linkedWidget": "details,accordion",
+    "linkedWIdget": "details,accordion",
+    "eventType": "js"
+  },
+  {
+    "id": "accordionSetBorderColor",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "accordion %selector border color %color",
+    "code": "%1$s { border: 1px solid %2$s !important; }\n",
+    "linkedWidget": "details,accordion",
+    "linkedWIdget": "details,accordion",
+    "eventType": "css"
+  },
+  {
+    "id": "accordionSetHeaderBg",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "accordion %selector header bg %color",
+    "code": "%1$s summary, %1$s .accordion-header { background-color: %2$s !important; }\n",
+    "linkedWidget": "details,accordion",
+    "linkedWIdget": "details,accordion",
+    "eventType": "css"
+  },
+  {
+    "id": "toastShow",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "toast %selector show alert %s",
+    "code": "showToast('%1$s', %2$s);\n",
+    "linkedWidget": "toast,toast alert,alert",
+    "linkedWIdget": "toast,toast alert,alert",
+    "eventType": "js"
+  },
+  {
+    "id": "toastHide",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "toast %selector hide alert",
+    "code": "hideToast('%1$s');\n",
+    "linkedWidget": "toast,toast alert,alert",
+    "linkedWIdget": "toast,toast alert,alert",
+    "eventType": "js"
+  },
+  {
+    "id": "toastSetBottomOffset",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "toast %selector bottom offset %d px",
+    "code": "%1$s { bottom: %2$spx !important; position: fixed !important; }\n",
+    "linkedWidget": "toast,toast alert,alert",
+    "linkedWIdget": "toast,toast alert,alert",
+    "eventType": "css"
+  },
+  {
+    "id": "toastSetAlertBg",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "toast %selector alert bg %color",
+    "code": "%1$s { background-color: %2$s !important; }\n",
+    "linkedWidget": "toast,toast alert,alert",
+    "linkedWIdget": "toast,toast alert,alert",
+    "eventType": "css"
+  },
+  {
+    "id": "carouselNextSlide",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "carousel %selector next slide",
+    "code": "carouselNext('%1$s');\n",
+    "linkedWidget": "carousel",
+    "linkedWIdget": "carousel",
+    "eventType": "js"
+  },
+  {
+    "id": "carouselPrevSlide",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "carousel %selector previous slide",
+    "code": "carouselPrev('%1$s');\n",
+    "linkedWidget": "carousel",
+    "linkedWIdget": "carousel",
+    "eventType": "js"
+  },
+  {
+    "id": "dropdownToggleMenu",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "dropdown %selector toggle menu",
+    "code": "toggleDropdown('%1$s');\n",
+    "linkedWidget": "dropdown,dropdown menu",
+    "linkedWIdget": "dropdown,dropdown menu",
+    "eventType": "js"
+  },
+  {
+    "id": "buttonSetText",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "button %selector set text %s",
+    "code": "var b = document.getElementById('%1$s'); if (b) b.innerText = %2$s;\n",
+    "linkedWidget": "button",
+    "linkedWIdget": "button",
+    "eventType": "js"
+  },
+  {
+    "id": "buttonSetDisabled",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "button %selector set disabled %b",
+    "code": "var b = document.getElementById('%1$s'); if (b) b.disabled = %2$s;\n",
+    "linkedWidget": "button",
+    "linkedWIdget": "button",
+    "eventType": "js"
+  },
+  {
+    "id": "buttonTriggerClick",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "button %selector click()",
+    "code": "var b = document.getElementById('%1$s'); if (b) b.click();\n",
+    "linkedWidget": "button",
+    "linkedWIdget": "button",
+    "eventType": "js"
+  },
+  {
+    "id": "buttonSetBackground",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "button %selector background %color",
+    "code": "%1$s { background-color: %2$s !important; }\n",
+    "linkedWidget": "button",
+    "linkedWIdget": "button",
+    "eventType": "css"
+  },
+  {
+    "id": "buttonSetTextColor",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "button %selector text color %color",
+    "code": "%1$s { color: %2$s !important; }\n",
+    "linkedWidget": "button",
+    "linkedWIdget": "button",
+    "eventType": "css"
+  },
+  {
+    "id": "buttonSetRadius",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "button %selector border radius %d px",
+    "code": "%1$s { border-radius: %2$spx !important; }\n",
+    "linkedWidget": "button",
+    "linkedWIdget": "button",
+    "eventType": "css"
+  },
+  {
+    "id": "buttonHoverScale",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "button %selector hover scale %d %%",
+    "code": "%1$s:hover { transform: scale(%2$s / 100) !important; transition: transform 0.2s ease !important; }\n",
+    "linkedWidget": "button",
+    "linkedWIdget": "button",
+    "eventType": "css"
+  },
+  {
+    "id": "buttonSetLabelHtml",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "button %selector label %s",
+    "code": "%2$s",
+    "linkedWidget": "button",
+    "linkedWIdget": "button",
+    "eventType": "html"
+  },
+  {
+    "id": "inputSetVal",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "input %selector set value %s",
+    "code": "var inp = document.getElementById('%1$s'); if (inp) inp.value = %2$s;\n",
+    "linkedWidget": "input,textarea",
+    "linkedWIdget": "input,textarea",
+    "eventType": "js"
+  },
+  {
+    "id": "inputGetVal",
+    "category": "widgets",
+    "blockType": "s",
+    "color": "#00BFA5",
+    "spec": "input %selector get value",
+    "code": "(document.getElementById('%1$s') ? document.getElementById('%1$s').value : '')",
+    "linkedWidget": "input,textarea",
+    "linkedWIdget": "input,textarea",
+    "eventType": "js"
+  },
+  {
+    "id": "inputClearVal",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "input %selector clear",
+    "code": "var inp = document.getElementById('%1$s'); if (inp) inp.value = '';\n",
+    "linkedWidget": "input,textarea",
+    "linkedWIdget": "input,textarea",
+    "eventType": "js"
+  },
+  {
+    "id": "inputFocusRing",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "input %selector focus outline %color",
+    "code": "%1$s:focus { outline: 2px solid %2$s !important; }\n",
+    "linkedWidget": "input,textarea",
+    "linkedWIdget": "input,textarea",
+    "eventType": "css"
+  },
+  {
+    "id": "inputBorderRadius",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "input %selector border radius %d px",
+    "code": "%1$s { border-radius: %2$spx !important; }\n",
+    "linkedWidget": "input,textarea",
+    "linkedWIdget": "input,textarea",
+    "eventType": "css"
+  },
+  {
+    "id": "imageSetSource",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "image %selector set src %s",
+    "code": "var img = document.getElementById('%1$s'); if (img) img.src = %2$s;\n",
+    "linkedWidget": "img,image",
+    "linkedWIdget": "img,image",
+    "eventType": "js"
+  },
+  {
+    "id": "imageSetAltText",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "image %selector set alt %s",
+    "code": "var img = document.getElementById('%1$s'); if (img) img.alt = %2$s;\n",
+    "linkedWidget": "img,image",
+    "linkedWIdget": "img,image",
+    "eventType": "js"
+  },
+  {
+    "id": "imageBorderRadius",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "image %selector border radius %d px",
+    "code": "%1$s { border-radius: %2$spx !important; }\n",
+    "linkedWidget": "img,image",
+    "linkedWIdget": "img,image",
+    "eventType": "css"
+  },
+  {
+    "id": "imageObjectFit",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "image %selector fit mode %s",
+    "code": "%1$s { object-fit: %2$s !important; }\n",
+    "linkedWidget": "img,image",
+    "linkedWIdget": "img,image",
+    "eventType": "css"
+  },
+  {
+    "id": "imageHtmlSetSrc",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "image %selector src %s",
+    "code": "src=\"%2$s\"",
+    "linkedWidget": "img,image",
+    "linkedWIdget": "img,image",
+    "eventType": "html"
+  },
+  {
+    "id": "videoPlay",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "video %selector play video",
+    "code": "var v = document.getElementById('%1$s'); if (v) v.play();\n",
+    "linkedWidget": "video",
+    "linkedWIdget": "video",
+    "eventType": "js"
+  },
+  {
+    "id": "videoPause",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "video %selector pause video",
+    "code": "var v = document.getElementById('%1$s'); if (v) v.pause();\n",
+    "linkedWidget": "video",
+    "linkedWIdget": "video",
+    "eventType": "js"
+  },
+  {
+    "id": "widgetSetHtmlAttr",
+    "category": "widgets",
+    "blockType": " ",
+    "color": "#00BFA5",
+    "spec": "widget %selector set attr %s to %s",
+    "code": "%2$s=\"%3$s\"",
+    "linkedWidget": "*",
+    "linkedWIdget": "*",
+    "eventType": "html"
+  }
 ]

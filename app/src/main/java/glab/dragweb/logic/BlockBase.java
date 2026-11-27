@@ -113,9 +113,12 @@ public class BlockBase extends RelativeLayout {
         this.reflectionWidth = 1;
         this.defaultColor = 805306368;
         this.mContext = var1;
-        this.mType = var2;
+        this.mType = var2 != null ? var2 : " ";
         String var4 = this.mType;
         byte var5 = -1;
+        if (var4.isEmpty() || "normal".equalsIgnoreCase(var4)) {
+            var5 = 0;
+        } else {
         switch(var4.hashCode()) {
             case 32:
                 if(var4.equals(" ")) {
@@ -176,6 +179,7 @@ public class BlockBase extends RelativeLayout {
                 if(var4.equals("cf")) {
                     var5 = 5;
                 }
+        }
         }
 
         switch(var5) {

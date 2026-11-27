@@ -12,6 +12,7 @@ import glab.dragweb.adapters.*;
 import glab.dragweb.models.*;
 import glab.dragweb.util.*;
 import glab.dragweb.colorpicker.*;
+import glab.dragweb.core.BlocksLoader;
 
 import android.content.Context;
 import android.util.AttributeSet;
@@ -35,10 +36,6 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
     private Context mContext;
     private OnBlockCategorySelectListener mListener;
     
-    /*for load sketchware blocks by path and save into string
- 
-  *  private String path = "/storage/emulated/0/.sketchware/resources/block/My Block/palette.json";
-    */
     public PaletteSelector(Context context) {
         super(context);
         init(context);
@@ -53,10 +50,10 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
         public int index;
         public String name;
         public int color;
-        public int type; // 0: variable, 1: list, 2: blocks.json, 3: saved collection, 4: moreblock
-        public String blockJsonPath; // For saved collection blocks
-        public String collectionJson; // For list.json saved collection blocks
-        public String originalCategory; // For matching in blocks.json
+        public int type; // 0: variable, 1: list, 2: blocks.json / native collection, 3: saved collection, 4: moreblock
+        public String blockJsonPath;
+        public String collectionJson;
+        public String originalCategory;
 
         public CategoryItem(int index, String name, int color, int type) {
             this.index = index;
@@ -92,27 +89,37 @@ public class PaletteSelector extends LinearLayout implements OnClickListener {
             addCategoryItem(index++, listCat.name, listCat.color);
         }
 
-        // 3. Dynamic categories from categories.json
-        List<CategoryDef> categoryDefs = CategoryDef.getCategories(this.mContext);
-        for (CategoryDef catDef : categoryDefs) {
-            String catType = catDef.type != null ? catDef.type.toLowerCase() : "common";
-            if (isCss) {
-                if (!catType.equals("css") && !catType.equals("common")) continue;
-            } else if (isHtml) {
-                if (!catType.equals("html") && !catType.equals("common")) continue;
-            } else {
-                if (!catType.equals("js") && !catType.equals("common")) continue;
+        // 3. HTML uses Rust palettes; CSS and JS load categories from assets/categories.json + blocks.json
+        if (isHtml) {
+            java.util.ArrayList<BlockPalette> nativePalettes = BlocksLoader.getPalettes("html");
+            if (nativePalettes != null && !nativePalettes.isEmpty()) {
+                for (BlockPalette p : nativePalettes) {
+                    CategoryItem catItem = new CategoryItem(index, p.getName(), p.getColor(), 2);
+                    catItem.originalCategory = p.getName();
+                    categoriesList.add(catItem);
+                    addCategoryItem(index++, p.getName(), p.getColor());
+                }
             }
-            int color;
-            try {
-                color = (catDef.catColor != null && !catDef.catColor.isEmpty()) ? android.graphics.Color.parseColor(catDef.catColor) : BlockCategoryPalette.colorIntForCategory(catDef.id);
-            } catch (Exception ex) {
-                color = BlockCategoryPalette.colorIntForCategory(catDef.id);
+        } else {
+            List<CategoryDef> categoryDefs = CategoryDef.getCategories(this.mContext);
+            for (CategoryDef catDef : categoryDefs) {
+                String catType = catDef.type != null ? catDef.type.toLowerCase() : "common";
+                if (isCss) {
+                    if (!catType.equals("css") && !catType.equals("common")) continue;
+                } else {
+                    if (!catType.equals("js") && !catType.equals("common")) continue;
+                }
+                int color;
+                try {
+                    color = (catDef.catColor != null && !catDef.catColor.isEmpty()) ? android.graphics.Color.parseColor(catDef.catColor) : BlockCategoryPalette.colorIntForCategory(catDef.id);
+                } catch (Exception ex) {
+                    color = BlockCategoryPalette.colorIntForCategory(catDef.id);
+                }
+                CategoryItem catItem = new CategoryItem(index, catDef.name, color, 2);
+                catItem.originalCategory = catDef.id;
+                categoriesList.add(catItem);
+                addCategoryItem(index++, catDef.name, color);
             }
-            CategoryItem catItem = new CategoryItem(index, catDef.name, color, 2);
-            catItem.originalCategory = catDef.id;
-            categoriesList.add(catItem);
-            addCategoryItem(index++, catDef.name, color);
         }
 
         // 4. Single "Collection" palette category tab

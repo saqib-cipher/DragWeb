@@ -27,6 +27,14 @@
             android:textColor="?attr/colorOnSurface" />
 
         <Button
+            android:id="@+id/btnImportCode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Import Code"
+            style="@style/Widget.Material3.Button.TextButton"
+            app:icon="@drawable/code_plus" />
+
+        <Button
             android:id="@+id/btnResetLogic"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
