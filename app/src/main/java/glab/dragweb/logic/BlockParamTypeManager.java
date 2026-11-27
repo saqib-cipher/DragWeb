@@ -95,6 +95,7 @@ public class BlockParamTypeManager {
 
     private static Map<String, List<String>> getDefaults() {
         Map<String, List<String>> d = new LinkedHashMap<>();
+        d.put("color", Arrays.asList("#000000", "#FFFFFF", "#F4F4F4", "#333333", "#666666", "#CCCCCC", "#007BFF", "#1976D2", "#28A745", "#4CAF50", "#DC3545", "#F44336", "#FF9800", "#FFC107", "#17A2B8", "transparent"));
         d.put("position", Arrays.asList("static", "relative", "absolute", "fixed", "sticky"));
         d.put("display", Arrays.asList("block", "none", "flex", "grid", "inline-block", "inline-flex"));
         d.put("overflow", Arrays.asList("visible", "hidden", "scroll", "auto"));
@@ -105,12 +106,23 @@ public class BlockParamTypeManager {
         d.put("cursor", Arrays.asList("default", "pointer", "move", "text", "wait", "help", "not-allowed", "grab", "grabbing"));
         d.put("flexDirection", Arrays.asList("row", "row-reverse", "column", "column-reverse"));
         d.put("flexWrap", Arrays.asList("nowrap", "wrap", "wrap-reverse"));
-        d.put("borderStyle", Arrays.asList("none", "solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset"));
+        d.put("borderStyle", Arrays.asList("solid", "dashed", "dotted", "double", "none", "groove", "ridge", "inset", "outset"));
         d.put("textTransform", Arrays.asList("none", "capitalize", "uppercase", "lowercase"));
         d.put("justifyContent", Arrays.asList("flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly"));
         d.put("alignItems", Arrays.asList("stretch", "flex-start", "flex-end", "center", "baseline"));
-        d.put("selector", Arrays.asList("body", "h1", "p", ".active", "#main", "div"));
-        d.put("unit", Arrays.asList("px", "%", "em", "rem", "vw", "vh", "vmin", "vmax", "ch", "ex", "pt", "pc", "fr", "deg", "rad", "auto"));
+        d.put("alignSelf", Arrays.asList("auto", "flex-start", "center", "flex-end", "stretch", "baseline"));
+        d.put("alignContent", Arrays.asList("flex-start", "center", "flex-end", "stretch", "space-between", "space-around"));
+        d.put("selector", Arrays.asList("body", "h1", "h2", "p", "div", "span", "button", "input", "ul", "li", "a", ".container", ".active", "#main"));
+        d.put("cssPseudo", Arrays.asList(":hover", ":focus", ":active", ":visited", ":first-child", ":last-child", "::before", "::after"));
+        d.put("boxSizing", Arrays.asList("border-box", "content-box"));
+        d.put("unit", Arrays.asList("px", "%", "em", "rem", "vw", "vh", "vmin", "vmax", "ch", "ex", "pt", "pc", "fr", "s", "ms", "deg", "rad", "turn", "auto"));
+        d.put("event", Arrays.asList("click", "dblclick", "input", "change", "submit", "keydown", "keyup", "keypress", "mouseenter", "mouseleave", "focus", "blur", "scroll", "resize", "load", "DOMContentLoaded"));
+        d.put("varDecl", Arrays.asList("const", "let", "var"));
+        d.put("insertPos", Arrays.asList("beforeend", "afterbegin", "beforebegin", "afterend"));
+        d.put("httpMethod", Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE"));
+        d.put("scrollBehavior", Arrays.asList("smooth", "auto", "instant"));
+        d.put("cssStyleProp", Arrays.asList("color", "background", "backgroundColor", "display", "visibility", "opacity", "width", "height", "margin", "padding", "border", "borderRadius", "fontSize", "fontWeight", "textDecoration", "transform"));
+        d.put("consoleLevel", Arrays.asList("log", "warn", "error", "info"));
         d.put("formMethod", Arrays.asList("GET", "POST", "dialog"));
         d.put("transitionProperty", Arrays.asList("all", "color", "background-color", "transform", "opacity", "width", "height", "margin", "padding", "border-radius", "border-color", "box-shadow"));
         d.put("timingFunction", Arrays.asList("linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end"));

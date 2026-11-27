@@ -1,0 +1,62 @@
+{
+  "name": "JSON",
+  "scopeName": "source.json",
+  "patterns": [
+    {
+      "match": "^@[a-zA-Z0-9_.-]+",
+      "name": "keyword.control.section.sketchware"
+    },
+    {
+      "match": "//.*",
+      "name": "comment.line.double-slash.json"
+    },
+    {
+      "begin": "/\\*",
+      "end": "\\*/",
+      "name": "comment.block.json"
+    },
+    {
+      "match": "(\"(?:[^\"\\\\]|\\\\.)*\")\\s*(:)",
+      "captures": {
+        "1": {
+          "name": "support.type.property-name.json"
+        },
+        "2": {
+          "name": "punctuation.separator.dictionary.key-value.json"
+        }
+      }
+    },
+    {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.json",
+      "patterns": [
+        {
+          "match": "\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4})",
+          "name": "constant.character.escape.json"
+        }
+      ]
+    },
+    {
+      "match": "\\b(true|false|null)\\b",
+      "name": "constant.language.json"
+    },
+    {
+      "match": "-?\\b[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\\b",
+      "name": "constant.numeric.json"
+    },
+    {
+      "match": "[{}]",
+      "name": "punctuation.definition.dictionary.json"
+    },
+    {
+      "match": "[\\[\\]]",
+      "name": "punctuation.definition.array.json"
+    },
+    {
+      "match": ",",
+      "name": "punctuation.separator.array.json"
+    }
+  ]
+}
+

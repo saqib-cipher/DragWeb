@@ -144,8 +144,8 @@ document.getElementById("btn").addEventListener("click", function() {
             .iter()
             .find(|b| b.parameters.contains(&"title".to_string()))
             .expect("title variable block");
-        assert_eq!(title_var.op_code, "setVarString");
-        assert_eq!(title_var.parameters[1], "DragWeb");
+        assert_eq!(title_var.op_code, "jsVarConst");
+        assert_eq!(title_var.parameters[1], "\"DragWeb\"");
 
         assert!(blocks.iter().any(|b| b.op_code == "jsConsoleLog"));
 
@@ -317,10 +317,247 @@ setTimeout(() => {
         let get_id = blocks.iter().find(|b| b.op_code == "jsConstGetById").expect("jsConstGetById");
         assert_eq!(get_id.parameters, vec!["btn", "submitBtn"]);
         let ls = blocks.iter().find(|b| b.op_code == "jsLocalStorageSet").expect("jsLocalStorageSet");
-        assert_eq!(ls.parameters, vec!["theme", "\"dark\""]);
+        assert_eq!(ls.parameters, vec!["theme", "dark"]);
         let timeout = blocks.iter().find(|b| b.op_code == "jsSetTimeout").expect("jsSetTimeout");
         assert_eq!(timeout.parameters, vec!["250"]);
         assert_eq!(timeout.block_type, "c");
         assert!(timeout.sub_stack1 >= 0);
+    }
+
+    #[test]
+    fn test_todo_app_js_function_callback_and_nesting() {
+        let real_blocks_json = include_str!("../../app/src/main/assets/blocks.json");
+        let js = r#"
+document.getElementById("addBtn").addEventListener("click", addTask);
+
+function addTask() {
+  // Read user's input cleanly
+  const input = document.getElementById("taskInput");
+  const taskText = input.value.trim();
+  if (taskText === "") return;
+  const li = document.createElement("li");
+  li.textContent = taskText;
+  li.addEventListener("click", () => {
+    li.classList.toggle("completed");
+  });
+  document.getElementById("taskList").appendChild(li);
+  input.value = "";
+  deleteBtn.onclick = () => li.remove();
+}
+"#;
+        let blocks = generate_js_blocks(js, real_blocks_json);
+
+        let cb = blocks
+            .iter()
+            .find(|b| b.op_code == "jsAddEventCallback")
+            .expect("document.getElementById('addBtn').addEventListener('click', addTask) must use jsAddEventCallback");
+        assert_eq!(cb.parameters[1], "click");
+        assert_eq!(cb.parameters[2], "addTask");
+        assert!(cb.parameters[0].starts_with('@'), "must nest jsGetById: {:?}", cb.parameters);
+
+        let fn_blk = blocks
+            .iter()
+            .find(|b| b.op_code == "jsFunctionDefine")
+            .expect("function addTask() must produce jsFunctionDefine container");
+        assert_eq!(fn_blk.parameters, vec!["addTask", ""]);
+        assert!(fn_blk.sub_stack1 >= 0);
+
+        assert!(blocks.iter().any(|b| b.op_code == "jsConstGetById" && b.parameters == vec!["input", "taskInput"]));
+        assert!(blocks.iter().any(|b| b.op_code == "jsVarConst" && b.parameters[0] == "taskText"));
+        assert!(blocks.iter().any(|b| b.op_code == "jsStringTrim"));
+        assert!(blocks.iter().any(|b| b.op_code == "jsGetValue" && b.parameters == vec!["input"]));
+        assert!(blocks.iter().any(|b| b.op_code == "jsIf" && b.sub_stack1 >= 0));
+        assert!(blocks.iter().any(|b| b.op_code == "jsReturn"));
+        assert!(blocks.iter().any(|b| b.op_code == "jsCreateElement" && b.parameters == vec!["li"]));
+        assert!(blocks.iter().any(|b| b.op_code == "jsSetTextContent" && b.parameters[0] == "li" && b.parameters[1].starts_with('@')));
+        assert!(blocks.iter().any(|b| b.op_code == "jsVarRef" && b.parameters == vec!["taskText"]));
+        assert!(blocks.iter().any(|b| b.op_code == "jsToggleClass" && b.parameters == vec!["li", "completed"]));
+        assert!(blocks.iter().any(|b| b.op_code == "jsAppendChild" && b.parameters[0].starts_with('@') && b.parameters[1] == "li"));
+        assert!(blocks.iter().any(|b| b.op_code == "jsSetValue" && b.parameters == vec!["input", ""]));
+        assert!(
+            blocks.iter().any(|b| b.op_code == "asdN" && b.parameters[0] == "deleteBtn.onclick = () => li.remove()"),
+            "braceless arrow assignment must not be hijacked by jsRemoveElement: {:?}",
+            blocks.iter().map(|b| (&b.op_code, &b.parameters)).collect::<Vec<_>>()
+        );
+        assert!(
+            blocks.iter().all(|b| b.op_code != "asdN" || b.parameters[0].contains("deleteBtn.onclick")),
+            "only deleteBtn.onclick should fall back to asdN, got: {:?}",
+            blocks.iter().filter(|b| b.op_code == "asdN").map(|b| &b.parameters).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_todo_app_css_color_padding_border_and_shadow() {
+        let real_blocks_json = include_str!("../../app/src/main/assets/blocks.json");
+        let css = r#"
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  display: flex;
+  justify-content: center;
+  height: 100vh;
+}
+.todo-container {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 300px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+input[type="text"] {
+  width: 75%;
+  padding: 8px;
+  border: 1px solid #ccc;
+}
+button {
+  padding: 8px;
+  border: none;
+  background: #007bff;
+}
+"#;
+        let blocks = generate_css_blocks(css, real_blocks_json);
+        let bg_blocks: Vec<_> = blocks.iter().filter(|b| b.op_code == "setBackground").collect();
+        assert_eq!(bg_blocks.len(), 3);
+        for bg in bg_blocks {
+            assert_eq!(bg.color, -9920712, "background must use green #689F38, never purple");
+            assert_eq!(bg.param_types, vec!["m.color"]);
+        }
+
+        let pad_blocks: Vec<_> = blocks.iter().filter(|b| b.op_code == "setPadding").collect();
+        assert_eq!(pad_blocks.len(), 3, "single-value padding must use setPadding, never setPaddingMulti");
+        assert!(blocks.iter().all(|b| b.op_code != "setPaddingMulti"));
+
+        let shadow = blocks.iter().find(|b| b.op_code == "setBoxShadow").expect("setBoxShadow");
+        assert_eq!(shadow.parameters, vec!["0", "4", "6", "rgba(0,0,0,0.1)"]);
+        assert_eq!(shadow.param_types, vec!["d", "d", "d", "m.color"]);
+
+        let border = blocks.iter().find(|b| b.op_code == "setBorder").expect("setBorder");
+        assert_eq!(border.parameters, vec!["1", "px", "solid", "#ccc"]);
+
+        assert!(blocks.iter().any(|b| b.op_code == "setBorderNone"), "border: none must use setBorderNone");
+        assert!(blocks.iter().all(|b| b.op_code != "asdN"), "no asdN expected in clean CSS");
+    }
+
+    #[test]
+    fn test_css_full_json_scan_control_asd_and_stacking() {
+        let real_blocks_json = include_str!("../../app/src/main/assets/blocks.json");
+        let css = r#"
+@import url("theme.css");
+/*===== Layout Cards =====*/
+@keyframes fadeUp {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.card:not(.hidden) {
+  margin: 12px 24px;
+  --custom-token: 42;
+}
+.btn:hover {
+  color: #ffffff;
+}
+@media (max-width: 768px) {
+  .btn { padding: 8px; }
+}
+@font-face {
+  font-family: "Custom";
+}
+"#;
+        let blocks = generate_css_blocks(css, real_blocks_json);
+        let bold_comment = blocks
+            .iter()
+            .find(|b| b.op_code == "commentBlockBold")
+            .expect("commentBlockBold from blocks.json");
+        assert_eq!(bold_comment.parameters, vec!["Layout Cards"]);
+        assert!(bold_comment.is_connected_to_root);
+        assert!(bold_comment.next_block >= 0, "top-level CSS blocks must stack sequentially");
+
+        let kf = blocks
+            .iter()
+            .find(|b| b.op_code == "cssKeyframes")
+            .expect("cssKeyframes from blocks.json");
+        assert_eq!(kf.parameters, vec!["fadeUp"]);
+        assert!(kf.sub_stack1 >= 0);
+        assert!(blocks.iter().any(|b| b.op_code == "cssKeyframeStep"));
+
+        let sel_s = blocks
+            .iter()
+            .find(|b| b.op_code == "cssSelectorS")
+            .expect("cssSelectorS for .card:not(.hidden)");
+        assert_eq!(sel_s.parameters[0], ".card");
+        assert!(sel_s.parameters[1].starts_with('@'), "must stack cssCNot reporter block: {:?}", sel_s.parameters);
+        let not_blk = blocks
+            .iter()
+            .find(|b| b.op_code == "cssCNot")
+            .expect("cssCNot stacked block");
+        assert_eq!(not_blk.parameters, vec![".hidden"]);
+        assert!(!not_blk.is_connected_to_root);
+
+        let margin_blk = blocks
+            .iter()
+            .find(|b| b.op_code == "setMarginMulti")
+            .expect("setMarginMulti for 2-value shorthand");
+        assert!(margin_blk.parameters[0].starts_with('@'), "must stack cssCUnits inside margin");
+        let units_blk = blocks
+            .iter()
+            .find(|b| b.op_code == "cssCUnits")
+            .expect("cssCUnits stacked block");
+        assert_eq!(units_blk.parameters, vec!["12", "px", "24", "px"]);
+
+        assert!(blocks.iter().any(|b| b.op_code == "asdN" && b.parameters[0].contains("--custom-token")));
+        assert!(blocks.iter().any(|b| b.op_code == "cssHover"));
+        assert!(blocks.iter().any(|b| b.op_code == "cssMediaQuery" && b.parameters[0] == "768px"));
+        assert!(blocks.iter().any(|b| b.op_code == "asdN" && b.parameters[0].contains("@font-face")));
+    }
+
+    #[test]
+    fn test_js_control_containers_operators_and_asd_stacking() {
+        let real_blocks_json = include_str!("../../app/src/main/assets/blocks.json");
+        let js = r#"
+try {
+  if (count > 5 && !disabled) {
+    items.forEach(item => {
+      console.log(item);
+    });
+  }
+} catch (err) {
+  customUnhandledHelper(err);
+}
+window.addEventListener('scroll', function() {
+  console.log("scrolled");
+});
+fetch("/api/data")
+  .then(response => response.json())
+  .then(data => {
+    console.log(data);
+  })
+  .catch(error => console.error("HTTP Error:", error));
+"#;
+        let blocks = generate_js_blocks(js, real_blocks_json);
+        let try_blk = blocks
+            .iter()
+            .find(|b| b.op_code == "jsTryCatch")
+            .expect("jsTryCatch from blocks.json");
+        assert_eq!(try_blk.block_type, "e");
+        assert_eq!(try_blk.parameters, vec!["err"]);
+        assert!(try_blk.sub_stack1 >= 0);
+        assert!(try_blk.sub_stack2 >= 0);
+        assert!(try_blk.is_connected_to_root);
+        assert!(try_blk.next_block >= 0);
+
+        let if_blk = blocks.iter().find(|b| b.op_code == "jsIf").expect("jsIf");
+        assert!(if_blk.parameters[0].starts_with('@'), "complex condition stacks opAnd: {:?}", if_blk.parameters);
+        assert!(blocks.iter().any(|b| b.op_code == "opAnd"));
+        assert!(blocks.iter().any(|b| b.op_code == "opGreater"));
+        assert!(blocks.iter().any(|b| b.op_code == "opNot"));
+
+        let foreach_blk = blocks.iter().find(|b| b.op_code == "jsForEach").expect("jsForEach");
+        assert_eq!(foreach_blk.parameters, vec!["items", "item"]);
+        assert!(foreach_blk.sub_stack1 >= 0);
+
+        assert!(blocks.iter().any(|b| b.op_code == "asdN" && b.parameters[0].contains("customUnhandledHelper")));
+        assert!(blocks.iter().any(|b| b.op_code == "jsOnScroll" && b.sub_stack1 >= 0));
+        let fetch_blk = blocks.iter().find(|b| b.op_code == "httpFetchGet").expect("httpFetchGet");
+        assert_eq!(fetch_blk.parameters, vec!["\"/api/data\""]);
+        assert!(fetch_blk.sub_stack1 >= 0);
     }
 }

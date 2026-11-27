@@ -70,8 +70,9 @@ public class PreviewActivity extends AppCompatActivity {
     private String projectId = null;
     private String assetBasePath = null;
 
-    /** Temp directory holding per-page HTML files served via local HTTP. */
+    /** Directory holding generated project assets or temp fallback pages served via local HTTP. */
     private File tempPreviewDir = null;
+    private boolean ownsTempDir = false;
 
     /** Tiny localhost HTTP server that serves files from {@link #tempPreviewDir}. */
     private LocalHttpServer localServer = null;
@@ -176,29 +177,26 @@ public class PreviewActivity extends AppCompatActivity {
      */
     private void preparePageFiles() {
         String previewProjectDir = getIntent().getStringExtra("preview_project_dir");
-        if (previewProjectDir != null) {
+        if (previewProjectDir != null && !previewProjectDir.trim().isEmpty()) {
             tempPreviewDir = new File(previewProjectDir);
-            pageCodes.clear();
-            for (String name : pageNames) {
-                File file = new File(tempPreviewDir, sanitizeName(name) + ".html");
-                if (file.exists()) {
-                    pageCodes.add(readFileContent(file));
-                } else {
-                    pageCodes.add("<html><body><p>Page " + name + " not found.</p></body></html>");
-                }
-            }
-            // Copy project assets into the temp dir so relative paths work from the cache
-            copyAssetsToTempDir();
+            ownsTempDir = false;
             return;
+        }
+
+        if (assetBasePath != null && pageCodes.isEmpty()) {
+            File assetsDir = new File(assetBasePath, "assets");
+            if (assetsDir.exists() && assetsDir.isDirectory()) {
+                tempPreviewDir = assetsDir;
+                ownsTempDir = false;
+                return;
+            }
         }
 
         if (pageCodes.isEmpty()) return;
 
         tempPreviewDir = new File(getCacheDir(), "dw_preview_" + System.currentTimeMillis());
         tempPreviewDir.mkdirs();
-
-        // Copy project assets into the temp dir so relative paths work
-        copyAssetsToTempDir();
+        ownsTempDir = true;
 
         for (int i = 0; i < pageCodes.size(); i++) {
             String name = i < pageNames.size() ? pageNames.get(i) : "page" + i;
@@ -261,82 +259,24 @@ public class PreviewActivity extends AppCompatActivity {
     }
 
     /**
-     * Copy project assets from external storage into the temp preview directory
-     * so that relative references resolve correctly.
-     */
-    private void copyAssetsToTempDir() {
-        if (assetBasePath == null || tempPreviewDir == null) return;
-        try {
-            File srcAssets = new File(assetBasePath, "assets");
-            if (!srcAssets.exists() || !srcAssets.isDirectory()) return;
-
-            File[] files = srcAssets.listFiles();
-            if (files == null) return;
-            for (File file : files) {
-                // Skip html files and compiled folders (css/ and js/) to protect generated files
-                if (file.getName().toLowerCase().endsWith(".html") || file.getName().toLowerCase().endsWith(".htm")) {
-                    continue;
-                }
-                if (file.isDirectory() && (file.getName().equalsIgnoreCase("css") || file.getName().equalsIgnoreCase("js"))) {
-                    continue;
-                }
-                if (file.isDirectory()) {
-                    File target = new File(tempPreviewDir, file.getName());
-                    target.mkdirs();
-                    copyDir(file, target);
-                } else {
-                    copyFile(file, new File(tempPreviewDir, file.getName()));
-                }
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "Could not copy assets to temp dir: " + e.getMessage());
-        }
-    }
-
-    private void copyDir(File src, File dest) throws IOException {
-        File[] files = src.listFiles();
-        if (files == null) return;
-        for (File f : files) {
-            File target = new File(dest, f.getName());
-            if (f.isDirectory()) {
-                target.mkdirs();
-                copyDir(f, target);
-            } else {
-                copyFile(f, target);
-            }
-        }
-    }
-
-    private void copyFile(File src, File dest) throws IOException {
-        byte[] buf = new byte[4096];
-        try (java.io.FileInputStream in = new java.io.FileInputStream(src);
-             java.io.FileOutputStream out = new java.io.FileOutputStream(dest)) {
-            int n;
-            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-        }
-    }
-
-    /**
      * Start a localhost-only HTTP server rooted at {@link #tempPreviewDir} so
-     * pages can be loaded over {@code http://127.0.0.1:PORT/} instead of
-     * {@code file://}. This matches a normal local-host preview environment
-     * and unlocks browser features that require an http origin.
+     * pages load directly from the project's generated assets directory over
+     * {@code http://127.0.0.1:PORT/}.
      */
     private void startLocalServer() {
         if (tempPreviewDir == null) return;
         try {
             localServer = new LocalHttpServer(tempPreviewDir);
 
-            // Expose the project's external assets directory at /assets/* so
-            // generated <img src="assets/foo.png"> tags resolve even if the
-            // copy-to-temp step couldn't run (no project_id) or hasn't
-            // finished. Aliases are sandboxed to the target dir.
-            if (assetBasePath != null) {
-                File externalAssets = new File(assetBasePath, "assets");
-                if (externalAssets.exists() && externalAssets.isDirectory()) {
-                    localServer.addAlias("/assets", externalAssets);
-                    localServer.setFallbackDir(externalAssets);
-                }
+            // Expose the project's assets directory both at root and /assets/*
+            // so relative (css/style.css, img.png) and assets/-prefixed paths resolve directly.
+            File externalAssets = (assetBasePath != null) ? new File(assetBasePath, "assets") : null;
+            File aliasAssets = (externalAssets != null && externalAssets.exists() && externalAssets.isDirectory())
+                    ? externalAssets
+                    : (!ownsTempDir && tempPreviewDir.exists() && tempPreviewDir.isDirectory() ? tempPreviewDir : null);
+            if (aliasAssets != null) {
+                localServer.addAlias("/assets", aliasAssets);
+                localServer.setFallbackDir(aliasAssets);
             }
 
             localServer.start();
@@ -398,9 +338,7 @@ public class PreviewActivity extends AppCompatActivity {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
-                if (layoutLoading != null) {
-                    layoutLoading.setVisibility(View.VISIBLE);
-                }
+                LoadingOverlay.show(layoutLoading, "Loading preview...");
                 // Sync the UI when the user navigates via the in-page nav bar
                 if (url != null && (isLocalPreviewUrl(url) || url.startsWith("file://"))
                         && tempPreviewDir != null) {
@@ -423,9 +361,7 @@ public class PreviewActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                if (layoutLoading != null) {
-                    layoutLoading.setVisibility(View.GONE);
-                }
+                LoadingOverlay.hide(layoutLoading);
                 // Inject responsive viewport width via JavaScript after load
                 applyResponsiveViewport(view);
             }
@@ -453,16 +389,7 @@ public class PreviewActivity extends AppCompatActivity {
     // -------------------------------------------------------------------------
 
     private void loadCurrentPage() {
-        if (pageCodes.isEmpty()) {
-            webviewPreview.loadData(
-                "<html><body style='padding:20px;color:#666;font-family:sans-serif;'>"
-                + "<p>No content to preview.</p></body></html>",
-                "text/html", "utf-8");
-            return;
-        }
-
-        // Preferred path: load over the local HTTP server so the page runs
-        // on a real http://127.0.0.1 origin (matches a localhost workflow).
+        // Preferred path: load over the local HTTP server directly from assets/
         if (localServer != null && tempPreviewDir != null && currentPageIndex < pageNames.size()) {
             String name = pageNames.get(currentPageIndex);
             File pageFile = new File(tempPreviewDir, sanitizeName(name) + ".html");
@@ -472,7 +399,7 @@ public class PreviewActivity extends AppCompatActivity {
             }
         }
 
-        // Fallback if the server failed to start: file:// from temp dir.
+        // Fallback if the server failed to start: file:// from assets/dir
         if (tempPreviewDir != null && currentPageIndex < pageNames.size()) {
             String name = pageNames.get(currentPageIndex);
             File pageFile = new File(tempPreviewDir, sanitizeName(name) + ".html");
@@ -482,7 +409,15 @@ public class PreviewActivity extends AppCompatActivity {
             }
         }
 
-        // Final fallback: load raw HTML string (assets may not resolve).
+        if (pageCodes.isEmpty()) {
+            webviewPreview.loadData(
+                "<html><body style='padding:20px;color:#666;font-family:sans-serif;'>"
+                + "<p>No content to preview.</p></body></html>",
+                "text/html", "utf-8");
+            return;
+        }
+
+        // Final fallback: load raw HTML string
         String code = getCurrentCode();
         if (code == null || code.isEmpty()) return;
 
@@ -514,6 +449,12 @@ public class PreviewActivity extends AppCompatActivity {
     private String getCurrentCode() {
         if (currentPageIndex >= 0 && currentPageIndex < pageCodes.size()) {
             return pageCodes.get(currentPageIndex);
+        }
+        if (tempPreviewDir != null && currentPageIndex >= 0 && currentPageIndex < pageNames.size()) {
+            File pageFile = new File(tempPreviewDir, sanitizeName(pageNames.get(currentPageIndex)) + ".html");
+            if (pageFile.exists()) {
+                return readFileContent(pageFile);
+            }
         }
         return "";
     }
@@ -609,159 +550,30 @@ public class PreviewActivity extends AppCompatActivity {
         String pageName = currentPageIndex < pageNames.size() ? pageNames.get(currentPageIndex) : "index";
         final String htmlFileName = sanitizeName(pageName) + ".html";
 
+        String cssRel = "css/style.css";
+        String jsRel = "js/script.js";
+        if (projectId != null && !projectId.isEmpty()) {
+            PageManager pm = new PageManager(this, projectId);
+            PageManager.PageConfig cfg = pm.getPageConfig(pageName);
+            cssRel = glab.dragweb.codegen.ProjectCodeGenerator.resolvePageCssFile(cfg);
+            jsRel = glab.dragweb.codegen.ProjectCodeGenerator.resolvePageJsFile(cfg);
+        }
+
         File htmlFile = tempPreviewDir != null ? new File(tempPreviewDir, htmlFileName) : null;
-        File cssFile = tempPreviewDir != null ? new File(new File(tempPreviewDir, "css"), "style.css") : null;
-        File jsFile = tempPreviewDir != null ? new File(new File(tempPreviewDir, "js"), "script.js") : null;
+        File cssFile = tempPreviewDir != null ? new File(tempPreviewDir, cssRel) : null;
+        File jsFile = tempPreviewDir != null ? new File(tempPreviewDir, jsRel) : null;
 
         if (htmlFile == null || !htmlFile.exists()) {
-            // Fallback to old behavior if preview folder is not initialized
             String code = getCurrentCode();
             if (code == null || code.isEmpty()) {
                 Toast.makeText(this, "No source code available", Toast.LENGTH_SHORT).show();
                 return;
             }
-            showSimpleSourceDialog("Source: " + pageName, code, "html");
+            SourceCodeActivity.openSingle(this, "Source: " + pageName, null, code, "htmlmixed");
             return;
         }
 
-        final String htmlCode = readFileContent(htmlFile);
-        final String cssCode = cssFile.exists() ? readFileContent(cssFile) : "";
-        final String jsCode = jsFile.exists() ? readFileContent(jsFile) : "";
-
-        // Setup container layout
-        android.widget.LinearLayout container = new android.widget.LinearLayout(this);
-        container.setOrientation(android.widget.LinearLayout.VERTICAL);
-
-        Toolbar dialogToolbar = new Toolbar(this);
-        dialogToolbar.setTitle("Source Code Viewer");
-        dialogToolbar.setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFFE0E0E0));
-        dialogToolbar.setTitleTextColor(com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
-        
-        container.addView(dialogToolbar);
-
-        final WebView webView = new WebView(this);
-        webView.getSettings().setJavaScriptEnabled(true);
-        
-        android.widget.LinearLayout.LayoutParams webViewParams = new android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(400));
-        webView.setLayoutParams(webViewParams);
-        container.addView(webView);
-
-        // Keep track of active section for copy
-        final String[] activeCode = { htmlCode };
-        final String[] activeLang = { "html" };
-
-        // Set up menu inside toolbar: 1=HTML, 2=CSS, 3=JS
-        MenuItem itemHtml = dialogToolbar.getMenu().add(0, 1, 0, "HTML");
-        itemHtml.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-        MenuItem itemCss = dialogToolbar.getMenu().add(0, 2, 0, "CSS");
-        itemCss.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-        MenuItem itemJs = dialogToolbar.getMenu().add(0, 3, 0, "JS");
-        itemJs.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-
-        // Initial highlights
-        updateToolbarMenu(dialogToolbar, 1);
-        loadHighlightedCode(webView, htmlCode.isEmpty() ? "<!-- No HTML content -->" : htmlCode, "html");
-
-        dialogToolbar.setOnMenuItemClickListener(item -> {
-            int id = item.getItemId();
-            if (id == 1) { // HTML
-                updateToolbarMenu(dialogToolbar, 1);
-                activeCode[0] = htmlCode;
-                activeLang[0] = "html";
-                loadHighlightedCode(webView, htmlCode.isEmpty() ? "<!-- No HTML content -->" : htmlCode, "html");
-                return true;
-            } else if (id == 2) { // CSS
-                updateToolbarMenu(dialogToolbar, 2);
-                activeCode[0] = cssCode;
-                activeLang[0] = "css";
-                loadHighlightedCode(webView, cssCode.isEmpty() ? "/* No CSS generated */" : cssCode, "css");
-                return true;
-            } else if (id == 3) { // JS
-                updateToolbarMenu(dialogToolbar, 3);
-                activeCode[0] = jsCode;
-                activeLang[0] = "javascript";
-                loadHighlightedCode(webView, jsCode.isEmpty() ? "/* No Javascript generated */" : jsCode, "javascript");
-                return true;
-            }
-            return false;
-        });
-
-        new MaterialAlertDialogBuilder(this)
-            .setView(container)
-            .setPositiveButton("Copy", (dialog, which) -> {
-                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                clipboard.setPrimaryClip(ClipData.newPlainText(activeLang[0], activeCode[0]));
-                Toast.makeText(this, "Source copied", Toast.LENGTH_SHORT).show();
-            })
-            .setNegativeButton("Close", null)
-            .show();
-    }
-
-    private void updateToolbarMenu(Toolbar toolbar, int selectedTab) {
-        MenuItem itemHtml = toolbar.getMenu().findItem(1);
-        MenuItem itemCss = toolbar.getMenu().findItem(2);
-        MenuItem itemJs = toolbar.getMenu().findItem(3);
-        if (itemHtml != null && itemCss != null && itemJs != null) {
-            if (selectedTab == 1) { // HTML
-                itemHtml.setTitle(android.text.Html.fromHtml("<b><font color='#2196F3'>HTML</font></b>", android.text.Html.FROM_HTML_MODE_LEGACY));
-                itemCss.setTitle(android.text.Html.fromHtml("<font color='#888888'>CSS</font>", android.text.Html.FROM_HTML_MODE_LEGACY));
-                itemJs.setTitle(android.text.Html.fromHtml("<font color='#888888'>JS</font>", android.text.Html.FROM_HTML_MODE_LEGACY));
-            } else if (selectedTab == 2) { // CSS
-                itemHtml.setTitle(android.text.Html.fromHtml("<font color='#888888'>HTML</font>", android.text.Html.FROM_HTML_MODE_LEGACY));
-                itemCss.setTitle(android.text.Html.fromHtml("<b><font color='#2196F3'>CSS</font></b>", android.text.Html.FROM_HTML_MODE_LEGACY));
-                itemJs.setTitle(android.text.Html.fromHtml("<font color='#888888'>JS</font>", android.text.Html.FROM_HTML_MODE_LEGACY));
-            } else { // JS
-                itemHtml.setTitle(android.text.Html.fromHtml("<font color='#888888'>HTML</font>", android.text.Html.FROM_HTML_MODE_LEGACY));
-                itemCss.setTitle(android.text.Html.fromHtml("<font color='#888888'>CSS</font>", android.text.Html.FROM_HTML_MODE_LEGACY));
-                itemJs.setTitle(android.text.Html.fromHtml("<b><font color='#2196F3'>JS</font></b>", android.text.Html.FROM_HTML_MODE_LEGACY));
-            }
-        }
-    }
-
-    private void loadHighlightedCode(WebView webView, String code, String language) {
-        String escapedCode = escapeHtml(code);
-        String html = "<!DOCTYPE html>\n" +
-                "<html>\n" +
-                "<head>\n" +
-                "  <meta charset=\"UTF-8\">\n" +
-                "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\">\n" +
-                "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css\">\n" +
-                "  <style>\n" +
-                "    body { margin: 0; padding: 12px; background: #2d2d2d; font-family: monospace; font-size: 13px; }\n" +
-                "    pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; }\n" +
-                "  </style>\n" +
-                "</head>\n" +
-                "<body>\n" +
-                "  <pre class=\"line-numbers\"><code class=\"language-" + language + "\">" + escapedCode + "</code></pre>\n" +
-                "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js\"></script>\n" +
-                "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js\"></script>\n" +
-                "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js\"></script>\n" +
-                "</body>\n" +
-                "</html>";
-        webView.loadDataWithBaseURL("https://localhost", html, "text/html", "UTF-8", null);
-    }
-
-    private void showSimpleSourceDialog(String title, String code, String label) {
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.setPadding(dpToPx(24), dpToPx(16), dpToPx(24), dpToPx(16));
-        TextView tvSource = new TextView(this);
-        tvSource.setText(code);
-        tvSource.setTextSize(11);
-        tvSource.setTextIsSelectable(true);
-        tvSource.setTypeface(android.graphics.Typeface.MONOSPACE);
-        scrollView.addView(tvSource);
-
-        new MaterialAlertDialogBuilder(this)
-            .setTitle(title)
-            .setView(scrollView)
-            .setPositiveButton("Copy", (dialog, which) -> {
-                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                clipboard.setPrimaryClip(ClipData.newPlainText(label, code));
-                Toast.makeText(this, "Source copied", Toast.LENGTH_SHORT).show();
-            })
-            .setNegativeButton("Close", null)
-            .show();
+        SourceCodeActivity.openWebFiles(this, "Source Code: " + pageName, htmlFile, cssFile, jsFile);
     }
 
     private String readFileContent(File file) {
@@ -807,8 +619,8 @@ public class PreviewActivity extends AppCompatActivity {
             localServer.stop();
             localServer = null;
         }
-        // Clean up temp preview files safely only if it lies inside the cache directory
-        if (tempPreviewDir != null && tempPreviewDir.getAbsolutePath().startsWith(getCacheDir().getAbsolutePath())) {
+        // Clean up temp fallback directory only when owned by PreviewActivity inside cacheDir
+        if (ownsTempDir && tempPreviewDir != null && tempPreviewDir.getAbsolutePath().startsWith(getCacheDir().getAbsolutePath())) {
             deleteDir(tempPreviewDir);
         }
     }

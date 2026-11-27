@@ -36,8 +36,8 @@ public class HtmlCssImporter {
     // Supported tags that map to DragWeb widgets
     private static final String[] SUPPORTED_TAGS = {
         "div", "section", "nav", "header", "footer", "main", "article", "aside", "form",
-        "p", "h1", "h2", "h3", "h4", "h5", "h6", "a", "span", "label", "pre", "blockquote",
-        "button", "img", "input", "textarea",
+        "p", "h1", "h2", "h3", "h4", "h5", "h6", "a", "span", "label", "pre", "blockquote", "i",
+        "button", "img", "input", "textarea", "select", "option",
         "ul", "ol", "li", "hr", "br",
         "video", "audio", "canvas", "svg", "iframe", "table",
         "tr", "td", "th", "thead", "tbody", "tfoot"
@@ -1969,9 +1969,9 @@ public class HtmlCssImporter {
                             Map<String, Object> block = new HashMap<>();
                             block.put("id", blockId);
                             block.put("action", "jsFunctionDefine");
-                            block.put("category", "js_dom");
+                            block.put("category", "control");
                             block.put("shape", "cblock");
-                            block.put("spec", "function function name %s.inputOnly function %b");
+                            block.put("spec", "function %s.inputOnly ( %s.inputOnly )");
                             block.put("paramValues", java.util.Arrays.asList(funcName, funcParams));
                             block.put("params", funcName + "|" + funcParams);
                             block.put("event", "immediate");
@@ -2208,7 +2208,7 @@ public class HtmlCssImporter {
                 String blockId = "blk_js_html_" + timestamp + "_" + (counterRef[0]++);
                 Map<String, Object> block = new HashMap<>();
                 block.put("id", blockId);
-                block.put("action", "jsSetInnerHTML2");
+                block.put("action", "jsSetInnerHTML");
                 block.put("category", "js_dom");
                 block.put("shape", "stack");
                 block.put("spec", "%var .innerHTML = %s");
@@ -2754,6 +2754,12 @@ public class HtmlCssImporter {
             if (closingPos >= 0) {
                 String innerHtml = html.substring(pos, closingPos);
 
+                if (tryExtractStructuredWidget(parsedTag.tagName, innerHtml, widgetNode)) {
+                    pos = closingPos + ("</" + parsedTag.tagName + ">").length();
+                    nodes.add(widgetNode);
+                    continue;
+                }
+
                 boolean hasChildTags = innerHtml.contains("<");
                 boolean parseChildren = hasChildTags && (preserveExactTagsAndStyles || isContainerTag(parsedTag.tagName));
                 if (parseChildren) {
@@ -3246,11 +3252,149 @@ public class HtmlCssImporter {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private boolean tryExtractStructuredWidget(String rawTag, String innerHtml, Map<String, Object> widgetNode) {
+        if (rawTag == null || innerHtml == null || widgetNode == null) return false;
+        String tag = rawTag.toLowerCase(java.util.Locale.US);
+        Map<String, Object> function = (Map<String, Object>) widgetNode.get("function");
+        if (function == null) return false;
+
+        if ("nav".equals(tag)) {
+            String brand = "";
+            Matcher bm = Pattern.compile("<(?:span|a)\\b[^>]*class\\s*=\\s*[\"'][^\"']*nav-brand[^\"']*[\"'][^>]*>([\\s\\S]*?)</(?:span|a)>", Pattern.CASE_INSENSITIVE).matcher(innerHtml);
+            if (bm.find()) {
+                brand = decodeHtmlEntities(bm.group(1).replaceAll("<[^>]*>", "").trim());
+            }
+            List<String> items = new ArrayList<>();
+            List<String> icons = new ArrayList<>();
+            List<String> hrefs = new ArrayList<>();
+            boolean hasAnyCustomHref = false;
+            Matcher am = Pattern.compile("<a\\b([^>]*)>([\\s\\S]*?)</a>", Pattern.CASE_INSENSITIVE).matcher(innerHtml);
+            while (am.find()) {
+                String attrs = am.group(1) != null ? am.group(1) : "";
+                if (attrs.toLowerCase(java.util.Locale.US).contains("nav-brand")) continue;
+                String aInner = am.group(2) != null ? am.group(2) : "";
+
+                String href = "#";
+                Matcher hm = Pattern.compile("\\bhref\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))", Pattern.CASE_INSENSITIVE).matcher(attrs);
+                if (hm.find()) {
+                    String h = hm.group(1) != null ? hm.group(1) : (hm.group(2) != null ? hm.group(2) : hm.group(3));
+                    if (h != null && !h.trim().isEmpty()) href = decodeHtmlEntities(h.trim());
+                }
+                if (!"#".equals(href)) hasAnyCustomHref = true;
+
+                String icon = "";
+                Matcher im = Pattern.compile("<i\\b([^>]*)>(?:[\\s\\S]*?</i>)?", Pattern.CASE_INSENSITIVE).matcher(aInner);
+                if (im.find()) {
+                    String iAttrs = im.group(1) != null ? im.group(1) : "";
+                    Matcher lm = Pattern.compile("\\bdata-lucide\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')", Pattern.CASE_INSENSITIVE).matcher(iAttrs);
+                    if (lm.find()) {
+                        String lv = lm.group(1) != null ? lm.group(1) : lm.group(2);
+                        if (lv != null) icon = lv.trim();
+                    } else {
+                        Matcher cm = Pattern.compile("\\bclass\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')", Pattern.CASE_INSENSITIVE).matcher(iAttrs);
+                        if (cm.find()) {
+                            String cv = cm.group(1) != null ? cm.group(1) : cm.group(2);
+                            if (cv != null) icon = cv.trim();
+                        }
+                    }
+                }
+
+                String label = decodeHtmlEntities(
+                        aInner.replaceAll("(?is)<i\\b[^>]*>[\\s\\S]*?</i>", "")
+                              .replaceAll("(?is)<i\\b[^>]*/>", "")
+                              .replaceAll("<[^>]*>", "")
+                              .trim());
+                if (!label.isEmpty() || !icon.isEmpty()) {
+                    items.add(label.isEmpty() ? "Link" : label);
+                    icons.add(icon);
+                    hrefs.add(href);
+                }
+            }
+
+            if (!items.isEmpty() || !brand.isEmpty()) {
+                if (!brand.isEmpty()) function.put("brand", brand);
+                function.put("items", items);
+                function.put("icons", icons);
+                if (hasAnyCustomHref) function.put("hrefs", hrefs);
+                widgetNode.put("name", "Navbar");
+                return true;
+            }
+            return false;
+        }
+
+        if ("ul".equals(tag) || "ol".equals(tag)) {
+            String lowerInner = innerHtml.toLowerCase(java.util.Locale.US);
+            if (lowerInner.contains("<ul") || lowerInner.contains("<ol") || lowerInner.contains("<div")) {
+                return false;
+            }
+            List<String> items = new ArrayList<>();
+            Matcher lim = Pattern.compile("<li\\b[^>]*>([\\s\\S]*?)</li>", Pattern.CASE_INSENSITIVE).matcher(innerHtml);
+            while (lim.find()) {
+                String txt = decodeHtmlEntities(lim.group(1).replaceAll("<[^>]*>", "").trim());
+                items.add(txt);
+            }
+            if (!items.isEmpty()) {
+                function.put("items", items);
+                function.put("type", tag);
+                return true;
+            }
+            return false;
+        }
+
+        if ("select".equals(tag)) {
+            List<String> items = new ArrayList<>();
+            Matcher om = Pattern.compile("<option\\b[^>]*>([\\s\\S]*?)</option>", Pattern.CASE_INSENSITIVE).matcher(innerHtml);
+            while (om.find()) {
+                String txt = decodeHtmlEntities(om.group(1).replaceAll("<[^>]*>", "").trim());
+                items.add(txt);
+            }
+            function.put("items", items);
+            return true;
+        }
+
+        if ("table".equals(tag)) {
+            List<String> headers = new ArrayList<>();
+            Matcher thm = Pattern.compile("<th\\b[^>]*>([\\s\\S]*?)</th>", Pattern.CASE_INSENSITIVE).matcher(innerHtml);
+            while (thm.find()) {
+                headers.add(decodeHtmlEntities(thm.group(1).replaceAll("<[^>]*>", "").trim()));
+            }
+            List<List<String>> rows = new ArrayList<>();
+            String bodyPart = innerHtml;
+            Matcher tbm = Pattern.compile("<tbody\\b[^>]*>([\\s\\S]*?)</tbody>", Pattern.CASE_INSENSITIVE).matcher(innerHtml);
+            if (tbm.find()) {
+                bodyPart = tbm.group(1);
+            }
+            Matcher trm = Pattern.compile("<tr\\b[^>]*>([\\s\\S]*?)</tr>", Pattern.CASE_INSENSITIVE).matcher(bodyPart);
+            while (trm.find()) {
+                String trInner = trm.group(1);
+                if (trInner.toLowerCase(java.util.Locale.US).contains("<th")
+                        && !trInner.toLowerCase(java.util.Locale.US).contains("<td")) {
+                    continue;
+                }
+                List<String> cells = new ArrayList<>();
+                Matcher tdm = Pattern.compile("<td\\b[^>]*>([\\s\\S]*?)</td>", Pattern.CASE_INSENSITIVE).matcher(trInner);
+                while (tdm.find()) {
+                    cells.add(decodeHtmlEntities(tdm.group(1).replaceAll("<[^>]*>", "").trim()));
+                }
+                if (!cells.isEmpty()) rows.add(cells);
+            }
+            if (!headers.isEmpty() || !rows.isEmpty()) {
+                if (!headers.isEmpty()) function.put("headers", headers);
+                if (!rows.isEmpty()) function.put("rows", rows);
+                return true;
+            }
+            return false;
+        }
+
+        return false;
+    }
+
     private boolean isContainerTag(String tag) {
         switch (tag) {
             case "div": case "section": case "nav": case "header": case "footer":
             case "main": case "article": case "aside": case "form":
-            case "ul": case "ol": case "table":
+            case "ul": case "ol": case "select": case "table":
             case "thead": case "tbody": case "tfoot": case "tr": case "td": case "th":
             case "figure": case "figcaption": case "details": case "summary": case "dialog":
             case "a":

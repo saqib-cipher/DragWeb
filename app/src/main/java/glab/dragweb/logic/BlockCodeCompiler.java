@@ -226,7 +226,9 @@ public class BlockCodeCompiler {
             }
         }
 
-        String codeTemplate = (def != null) ? def.code : "";
+        String codeTemplate = (def != null && def.code != null && !def.code.isEmpty())
+                ? def.code
+                : (block.code != null ? block.code : "");
         if (codeTemplate == null || codeTemplate.isEmpty()) {
             if (block.subStack1 >= 0) {
                 return compileSubstack(block.subStack1, allBlocks, indentLevel);

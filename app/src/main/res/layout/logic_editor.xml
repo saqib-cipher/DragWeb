@@ -22,6 +22,73 @@
                 android:visibility="gone" />
         </androidx.appcompat.widget.Toolbar>
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_css_inline_note"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="4dp"
+            android:visibility="gone"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="?attr/colorSecondaryContainer"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_info_circle"
+                    app:tint="?attr/colorOnSecondaryContainer"
+                    android:contentDescription="@null" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginEnd="6dp">
+
+                    <TextView
+                        android:id="@+id/tv_css_note_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Inline Styling Disabled"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorOnSecondaryContainer" />
+
+                    <TextView
+                        android:id="@+id/tv_css_note_desc"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Widget property styles from linked pages are converted here. Add your own CSS blocks below to override without losing custom styles."
+                        android:textSize="11.5sp"
+                        android:textColor="?attr/colorOnSecondaryContainer" />
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/btn_close_css_note"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_mtrl_close"
+                    app:tint="?attr/colorOnSecondaryContainer"
+                    android:contentDescription="Dismiss note" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <RelativeLayout
             android:id="@+id/block_area_container"
             android:background="?attr/colorSurfaceContainer"
@@ -393,6 +460,12 @@
     <glab.dragweb.ui.ViewDummy
         android:id="@+id/dummy"
         android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <include
+        android:id="@+id/loading_overlay"
+        layout="@layout/view_loading_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 </RelativeLayout>

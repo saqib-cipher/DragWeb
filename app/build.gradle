@@ -105,5 +105,11 @@ dependencies {
     implementation 'androidx.preference:preference:1.2.1'
     implementation 'androidx.core:core-splashscreen:1.0.1'
     implementation 'org.mozilla:rhino:1.7.15'
+
+    def soraGroupId = "io.github.rosemoe"
+    implementation platform("$soraGroupId:editor-bom:0.24.6")
+    implementation "$soraGroupId:editor"
+    implementation "$soraGroupId:language-textmate"
+
     testImplementation 'junit:junit:4.13.2'
 }

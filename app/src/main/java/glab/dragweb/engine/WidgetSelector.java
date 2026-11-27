@@ -1,26 +1,14 @@
 package glab.dragweb.engine;
 
 import glab.dragweb.R;
-import glab.dragweb.activities.*;
-import glab.dragweb.fragments.*;
-import glab.dragweb.engine.*;
-import glab.dragweb.ui.*;
-import glab.dragweb.logic.*;
-import glab.dragweb.codegen.*;
-import glab.dragweb.data.*;
-import glab.dragweb.adapters.*;
-import glab.dragweb.models.*;
-import glab.dragweb.util.*;
-import glab.dragweb.colorpicker.*;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.view.View;
 import android.view.ViewGroup;
-import android.os.Build;
 
 import java.util.Map;
 
@@ -70,14 +58,24 @@ public class WidgetSelector {
 
     public void registerView(View view) {
         if (view == null) return;
-        view.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                selectView(v);
+        boolean isInternal = Boolean.TRUE.equals(view.getTag(R.id.tag_internal_preview));
+        boolean hasWidgetMap = view.getTag() instanceof Map;
+        if (isInternal || !hasWidgetMap) {
+            view.setOnClickListener(null);
+            view.setClickable(false);
+            view.setFocusable(false);
+            if (view instanceof ViewGroup) {
+                ViewGroup vg = (ViewGroup) view;
+                for (int i = 0; i < vg.getChildCount(); i++) {
+                    registerView(vg.getChildAt(i));
+                }
             }
-        });
+            return;
+        }
 
-        // Recursively register children if it's a layout
+        view.setOnClickListener(v -> selectView(v));
+
+        // Recursively register child widgets
         if (view instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) view;
             for (int i = 0; i < vg.getChildCount(); i++) {
@@ -86,26 +84,44 @@ public class WidgetSelector {
         }
     }
 
-    public void selectView(View view) {
-        clearSelection();
+    private View resolveSelectableWidget(View view) {
+        View cur = view;
+        while (cur != null) {
+            if (!Boolean.TRUE.equals(cur.getTag(R.id.tag_internal_preview))
+                    && cur.getTag() instanceof Map) {
+                return cur;
+            }
+            if (cur.getParent() instanceof View) {
+                cur = (View) cur.getParent();
+            } else {
+                break;
+            }
+        }
+        return null;
+    }
 
-        selectedView = view;
+    @SuppressWarnings("unchecked")
+    public void selectView(View view) {
+        View target = resolveSelectableWidget(view);
+        if (target == null) return;
+
+        clearSelection();
+        selectedView = target;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            originalForeground = view.getForeground();
-            
+            originalForeground = target.getForeground();
             GradientDrawable highlight = new GradientDrawable();
-            highlight.setColor(Color.parseColor("#1A000000")); // Faded dark tint
-            highlight.setStroke(4, Color.parseColor("#80000000")); // Darker outline border
-            view.setForeground(highlight);
+            highlight.setColor(Color.parseColor("#1A000000"));
+            highlight.setStroke(4, Color.parseColor("#80000000"));
+            target.setForeground(highlight);
         } else {
-            view.setAlpha(0.6f);
+            target.setAlpha(0.6f);
         }
 
         if (listener != null) {
             String widgetName = "Unknown";
             String widgetId = "";
-            Object tagObj = view.getTag();
+            Object tagObj = target.getTag();
             if (tagObj instanceof Map) {
                 Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
                 if (widgetMap.containsKey("tag")) {

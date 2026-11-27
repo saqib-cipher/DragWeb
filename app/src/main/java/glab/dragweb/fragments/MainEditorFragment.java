@@ -159,6 +159,53 @@ public class MainEditorFragment extends Fragment {
 	private boolean isDialogShowing = false;
 	private boolean isProjectLoaded = false;
 
+	// Real-time background asset sync (debounced + serialized)
+	private final android.os.Handler realtimeSyncHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+	private final Object assetSyncLock = new Object();
+	private volatile boolean assetsDirty = true;
+	private final Runnable realtimeAssetSyncRunnable = () -> {
+		if (!isAdded() || projectId == null || projectId.isEmpty()) return;
+		final android.content.Context appCtx = requireContext().getApplicationContext();
+		AppExecutors.io().execute(() -> syncGeneratedAssetsNow(appCtx));
+	};
+
+	private void scheduleRealtimeAssetSync() {
+		assetsDirty = true;
+		realtimeSyncHandler.removeCallbacks(realtimeAssetSyncRunnable);
+		realtimeSyncHandler.postDelayed(realtimeAssetSyncRunnable, 300L);
+	}
+
+	private File getProjectAssetsDir(android.content.Context context) {
+		File assetsDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/assets");
+		if (!assetsDir.exists()) assetsDir.mkdirs();
+		return assetsDir;
+	}
+
+	private void syncGeneratedAssetsNow(android.content.Context context) {
+		if (context == null || projectId == null || projectId.isEmpty()) return;
+		synchronized (assetSyncLock) {
+			try {
+				if (pageManager != null) {
+					pageManager.saveAllPages();
+				}
+				if (themeManager != null) {
+					File extThemeFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/theme.json");
+					File parentDir = extThemeFile.getParentFile();
+					if (parentDir != null && !parentDir.exists()) parentDir.mkdirs();
+					FileUtil.writeFile(extThemeFile.getAbsolutePath(), themeManager.toJson());
+				}
+				DesignDataManager.saveAllSavedLogic(context, projectId);
+				if (exportManager != null) {
+					File assetsDir = getProjectAssetsDir(context);
+					exportManager.generateExportFiles(null, projectName, logicBlockManager, customBlockManager, assetsDir, pageManager);
+				}
+				assetsDirty = false;
+			} catch (Exception e) {
+				Log.w("MainEditor", "Failed to sync assets: " + e.getMessage());
+			}
+		}
+	}
+
 	public PageManager getPageManager() {
 		return pageManager;
 	}
@@ -895,9 +942,6 @@ public class MainEditorFragment extends Fragment {
 			refreshHierarchy();
 			updateWidgetSpinnerFromTree();
 			saveCurrentPageLayout(true);
-			try {
-				ProjectCodeGenerator.generateAndSaveAssets(requireContext(), projectId, cleanPage);
-			} catch (Exception ignored) {}
 		}
 	}
 
@@ -1975,12 +2019,9 @@ public class MainEditorFragment extends Fragment {
 		saveCurrentPageLayout(true);
 		final android.content.Context appCtx = getContext() != null ? getContext().getApplicationContext() : null;
 		if (appCtx != null && projectId != null && themeManager != null) {
-			final String curPage = pageManager != null ? pageManager.getCurrentPage() : "index";
-			AppExecutors.io().execute(() -> {
-				try {
-					ProjectCodeGenerator.generateAndSaveAssets(appCtx, projectId, curPage);
-				} catch (Exception ignored) {}
-			});
+			assetsDirty = true;
+			realtimeSyncHandler.removeCallbacks(realtimeAssetSyncRunnable);
+			AppExecutors.io().execute(() -> syncGeneratedAssetsNow(appCtx));
 		}
 	}
 
@@ -2000,6 +2041,7 @@ public class MainEditorFragment extends Fragment {
 		if (pageManager != null) {
 			pageManager.savePageLayout(pageManager.getCurrentPage(), json);
 		}
+		scheduleRealtimeAssetSync();
 	}
 
 	private void loadCurrentPageLayout() {
@@ -2611,6 +2653,9 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	private void setupWidgetReorderDrag(View widget) {
+		if (widget == null || Boolean.TRUE.equals(widget.getTag(R.id.tag_internal_preview)) || !(widget.getTag() instanceof Map)) {
+			return;
+		}
 		widget.setOnLongClickListener(v -> {
 			// Check if widget is locked
 			Object tagObj = v.getTag();
@@ -2690,9 +2735,6 @@ public class MainEditorFragment extends Fragment {
 	// ---- Preview ----
 
 	private void showPreview() {
-		// Show loading indicator immediately so the user knows work is in progress
-		if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
-
 		// Snapshot page list on the UI thread before going to background
 		List<String> allPages = pageManager != null ? pageManager.getPages() : new ArrayList<>();
 		if (allPages.isEmpty()) allPages.add("index");
@@ -2700,57 +2742,41 @@ public class MainEditorFragment extends Fragment {
 		final String currentPageSnap = pageManager != null ? pageManager.getCurrentPage() : "index";
 		final int startIndexSnap = Math.max(0, pageNames.indexOf(currentPageSnap));
 
-		// Capture current page layout before going background
+		// Cancel debounced sync and capture current layout on UI thread
+		realtimeSyncHandler.removeCallbacks(realtimeAssetSyncRunnable);
 		saveCurrentPageLayout();
 
 		final android.content.Context appCtx = requireContext().getApplicationContext();
 		final androidx.fragment.app.FragmentActivity act = getActivity();
-		final File previewDir = new File(requireContext().getCacheDir(), "preview_" + projectId);
+		final File assetsDir = getProjectAssetsDir(appCtx);
+		final String htmlFileName = currentPageSnap.replaceAll("[^a-zA-Z0-9_-]", "_").toLowerCase() + ".html";
+		final boolean needsSync = assetsDirty || !new File(assetsDir, htmlFileName).exists();
+
+		if (needsSync) {
+			LoadingOverlay.show(layoutLoading, "Opening preview...");
+		}
 
 		AppExecutors.io().execute(() -> {
-			// Full save + codegen before preview (runs export which save() skips)
-			performSaveWork(appCtx);
-
-			// Build preview directory from freshly saved assets
-			deleteDir(previewDir);
-			previewDir.mkdirs();
-			if (exportManager != null) {
-				try {
-					exportManager.generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, previewDir, pageManager);
-				} catch (Exception e) {
-					Log.w("MainEditor", "Preview export failed: " + e.getMessage());
-				}
+			if (needsSync) {
+				syncGeneratedAssetsNow(appCtx);
 			}
 
 			if (act == null) return;
 			act.runOnUiThread(() -> {
 				if (!isAdded()) return;
-				if (layoutLoading != null) layoutLoading.setVisibility(View.GONE);
+				LoadingOverlay.hide(layoutLoading);
 				if (progressSave != null) progressSave.setVisibility(View.GONE);
 				if (button4 != null) button4.setVisibility(View.VISIBLE);
 
 				Intent previewIntent = new Intent(requireContext(), PreviewActivity.class);
 				previewIntent.putStringArrayListExtra("page_names", pageNames);
 				previewIntent.putExtra("start_page_index", startIndexSnap);
-				previewIntent.putExtra("preview_project_dir", previewDir.getAbsolutePath());
+				previewIntent.putExtra("preview_project_dir", assetsDir.getAbsolutePath());
 				previewIntent.putExtra("project_id", projectId);
 				startActivity(previewIntent);
 			});
 		});
 	}
-
-	private void deleteDir(File file) {
-		if (file.isDirectory()) {
-			File[] children = file.listFiles();
-			if (children != null) {
-				for (File child : children) {
-					deleteDir(child);
-				}
-			}
-		}
-		file.delete();
-	}
-
 
 	private String generateCssFromStyle(Map<String, Object> widgetMap, Map<String, Object> style) {
 		StringBuilder css = new StringBuilder();
@@ -2809,6 +2835,7 @@ public class MainEditorFragment extends Fragment {
 
 	@Override
 	public void onDestroyView() {
+		realtimeSyncHandler.removeCallbacks(realtimeAssetSyncRunnable);
 		saveCurrentPageLayout();
 		if (pageManager != null) {
 			pageManager.saveAllPages();
@@ -2825,6 +2852,18 @@ public class MainEditorFragment extends Fragment {
 			pageManager.saveAllPages();
 		}
 		syncProjectAssets();
+	}
+
+	public void markAssetsDirty() {
+		assetsDirty = true;
+	}
+
+	public void syncGeneratedAssetsFromOutside() {
+		assetsDirty = true;
+		realtimeSyncHandler.removeCallbacks(realtimeAssetSyncRunnable);
+		if (!isAdded() || projectId == null || projectId.isEmpty()) return;
+		final android.content.Context appCtx = requireContext().getApplicationContext();
+		AppExecutors.io().execute(() -> syncGeneratedAssetsNow(appCtx));
 	}
 
 	public void reloadLayoutFromStorage() {
@@ -2844,11 +2883,13 @@ public class MainEditorFragment extends Fragment {
 	@Override
 	public void onResume() {
 		super.onResume();
+		assetsDirty = true;
 		if (skipNextResumeReload) {
 			skipNextResumeReload = false;
 		} else {
 			reloadLayoutFromStorage();
 		}
+		scheduleRealtimeAssetSync();
 		if (widgetRegistry != null) {
 			try {
 				refreshWidgetList();
@@ -2998,60 +3039,20 @@ public class MainEditorFragment extends Fragment {
 	}
 
 	/**
-	 * Fast save: pages + theme + logic blocks only.
-	 * Does NOT run exportManager (full HTML/CSS/JS codegen).
-	 * Called by the Save button. Preview triggers a full save via performSaveWork().
+	 * Unified fast save: persists pages, theme, logic blocks, and syncs
+	 * generated HTML/CSS/JS once directly into {@code projects/<id>/assets/}.
 	 * MUST be called from a background thread.
 	 */
 	private void performFastSaveWork(android.content.Context context) {
-		// Save all cached pages to disk
-		if (pageManager != null) {
-			pageManager.saveAllPages();
-		}
-
-		File extThemeFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/theme.json");
-		File parentDir = extThemeFile.getParentFile();
-		if (parentDir != null && !parentDir.exists()) parentDir.mkdirs();
-		FileUtil.writeFile(extThemeFile.getAbsolutePath(), themeManager.toJson());
-
-		// Save all logic blocks to .dragweb
-		DesignDataManager.saveAllSavedLogic(context, projectId);
-
-		// Keep project assets (CSS & JS) updated on fast save
-		try {
-			String curPage = pageManager != null ? pageManager.getCurrentPage() : "index";
-			ProjectCodeGenerator.generateAndSaveAssets(context, projectId, curPage);
-		} catch (Exception e) {
-			Log.w("MainEditor", "Failed to compile assets on fast save: " + e.getMessage());
-		}
+		syncGeneratedAssetsNow(context);
 	}
 
 	/**
-	 * Full save: fast save + compile + HTML/CSS/JS export.
-	 * Called before Preview and on explicit full export.
+	 * Full save: delegates to the unified single-pass save + asset generation.
 	 * MUST be called from a background thread.
 	 */
 	private void performSaveWork(android.content.Context context) {
-		// Do the fast save first
-		performFastSaveWork(context);
-
-		// Compile and save logic assets to files
-		try {
-			ProjectCodeGenerator.generateAndSaveAssets(context, projectId, pageManager.getCurrentPage());
-		} catch (Exception e) {
-			Log.w("MainEditor", "Failed to compile logic assets: " + e.getMessage());
-		}
-
-		// Compile all pages and sync with assets folder in real-time
-		if (exportManager != null) {
-			try {
-				File assetsDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/assets");
-				assetsDir.mkdirs();
-				exportManager.generateExportFiles(screen, projectName, logicBlockManager, customBlockManager, assetsDir, pageManager);
-			} catch (Exception e) {
-				Log.w("MainEditor", "Failed to sync compiled files to assets: " + e.getMessage());
-			}
-		}
+		syncGeneratedAssetsNow(context);
 	}
 
 	private void saveProjectToExternal() {
@@ -3073,7 +3074,7 @@ public class MainEditorFragment extends Fragment {
 	private void loadProject() {
 		isProjectLoaded = false;
 		// Show loading overlay immediately so the UI stays responsive
-		if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
+		LoadingOverlay.show(layoutLoading, "Loading page...");
 		if (hierarchyAdapter != null) hierarchyAdapter.setLoading(true);
 
 		final android.content.Context appCtx = requireContext().getApplicationContext();
@@ -3140,7 +3141,7 @@ public class MainEditorFragment extends Fragment {
 
 		// Dismiss loading overlay
 		if (layoutLoading != null) {
-			layoutLoading.postDelayed(() -> layoutLoading.setVisibility(View.GONE), 200);
+			layoutLoading.postDelayed(() -> LoadingOverlay.hide(layoutLoading), 120);
 		}
 	}
 
@@ -3397,27 +3398,17 @@ public class MainEditorFragment extends Fragment {
 			dialogCustomVars.put(key, new String[]{lightVal, darkVal});
 		}
 
-				if (switchInlineStyles != null) {
-					switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
-					switchInlineStyles.setEnabled(true);
-				}
-				if (switchDisableAll != null) {
-					switchDisableAll.setChecked(themeManager.isDisableAllStyling());
-				}
+		if (switchInlineStyles != null) {
+			switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
+			switchInlineStyles.setEnabled(!themeManager.isDisableAllStyling());
+		}
 		if (switchDisableAll != null) {
 			switchDisableAll.setChecked(themeManager.isDisableAllStyling());
 			switchDisableAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
 				if (switchInlineStyles != null) {
 					switchInlineStyles.setEnabled(!isChecked);
-					if (isChecked) {
-						switchInlineStyles.setChecked(false);
-					}
 				}
 			});
-		}
-		if (switchDisableAll != null && switchDisableAll.isChecked() && switchInlineStyles != null) {
-			switchInlineStyles.setEnabled(false);
-			switchInlineStyles.setChecked(false);
 		}
 
 		// Track which theme is being edited in dialog
@@ -3553,6 +3544,10 @@ public class MainEditorFragment extends Fragment {
 					populateFields.run();
 					if (switchInlineStyles != null) {
 						switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
+						switchInlineStyles.setEnabled(!themeManager.isDisableAllStyling());
+					}
+					if (switchDisableAll != null) {
+						switchDisableAll.setChecked(themeManager.isDisableAllStyling());
 					}
 					if (ThemeManager.THEME_DARK.equals(themeManager.getCurrentTheme())) {
 						btnDark.performClick();
@@ -3597,11 +3592,8 @@ public class MainEditorFragment extends Fragment {
 					File themeFile = new File(dir, "theme.json");
 					FileUtil.writeFile(themeFile.getAbsolutePath(), themeManager.toJson());
 					saveProjectToExternal();
-					AppExecutors.io().execute(() -> {
-						try {
-							ProjectCodeGenerator.generateAndSaveAssets(appCtx, projectId, curPage);
-						} catch (Exception ignored) {}
-					});
+					assetsDirty = true;
+					AppExecutors.io().execute(() -> syncGeneratedAssetsNow(appCtx));
 				} catch (Exception e) {
 					Log.w("MainActivity", "Failed to auto-save theme: " + e.getMessage());
 				}
@@ -3964,9 +3956,6 @@ public class MainEditorFragment extends Fragment {
 		if ("ul".equals(tag) || "ol".equals(tag)) {
 			items.add("ListType");
 		}
-		if (hasStylePresets(selected)) {
-			items.add("StylePreset");
-		}
 		if ("i".equals(tag)) {
 			items.add("PickIcon");
 		}
@@ -4124,8 +4113,10 @@ public class MainEditorFragment extends Fragment {
 					value = "ul";
 				}
 			}
-			else if (item.equals("StylePreset")) {
-				value = "Select Preset";
+			else if (item.equals("PickIcon")) {
+				value = currentFunction.containsKey("class") && currentFunction.get("class") != null
+					? currentFunction.get("class").toString()
+					: "";
 			}
 			else if (item.equals("JSEvents")) {
 				int count = 0;
@@ -4282,22 +4273,6 @@ public class MainEditorFragment extends Fragment {
 		}
 
 		String editType = design.get(position).get("edit").toString();
-		boolean isStyleProperty = !editType.equals("Edittext") && !editType.equals("SetId") 
-				&& !editType.equals("SetClass") && !editType.equals("Custom Attributes") 
-				&& !editType.equals("JSEvents") && !editType.equals("PickIcon")
-				&& !editType.equals("SetHref") && !editType.equals("SetTarget")
-				&& !editType.equals("SetPlaceholder") && !editType.equals("SetType")
-				&& !editType.equals("ImageSrc") && !editType.equals("ListItems")
-				&& !editType.equals("ListType") && !editType.equals("StylePreset");
-
-		if (isStyleProperty) {
-			Map<String, Object> function = getWidgetFunction(selected);
-			String classVal = function.containsKey("class") ? String.valueOf(function.get("class")).trim() : "";
-			if (classVal.isEmpty()) {
-				Toast.makeText(requireContext(), "Please set a class first before applying styles", Toast.LENGTH_SHORT).show();
-				return;
-			}
-		}
 
 		String initialValue = design.get(position).containsKey("value") ? design.get(position).get("value").toString() : "";
 		syncProjectAssets();
@@ -4392,9 +4367,6 @@ public class MainEditorFragment extends Fragment {
 				break;
 			case "ListType":
 				showListTypeDialog(selected);
-				break;
-			case "StylePreset":
-				showStylePresetsDialog(selected);
 				break;
 			case "JSEvents":
 				showJsEventsDialog(selected);
@@ -4508,79 +4480,31 @@ public class MainEditorFragment extends Fragment {
 				});
 				break;
 			case "Display":
-				dialog.setOptions(new String[]{"block", "flex", "grid", "inline", "inline-block", "inline-flex", "none", "contents"}).showChoiceInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("display", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshActiveDesignList();
-				});
+				showParamChoiceDialog(dialog, "display", "display", selected);
 				break;
 			case "Position":
-				dialog.setOptions(new String[]{"static", "relative", "absolute", "fixed", "sticky"}).showChoiceInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("position", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshActiveDesignList();
-				});
+				showParamChoiceDialog(dialog, "position", "position", selected);
 				break;
 			case "FlexDir":
-				dialog.setOptions(new String[]{"row", "column", "row-reverse", "column-reverse"}).showChoiceInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("flexDirection", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshActiveDesignList();
-				});
+				showParamChoiceDialog(dialog, "flexDirection", "flexDirection", selected);
 				break;
 			case "FlexWrap":
-				dialog.setOptions(new String[]{"nowrap", "wrap", "wrap-reverse"}).showChoiceInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("flexWrap", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshActiveDesignList();
-				});
+				showParamChoiceDialog(dialog, "flexWrap", "flexWrap", selected);
 				break;
 			case "JustifyContent":
-				dialog.setOptions(new String[]{"flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly"}).showChoiceInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("justifyContent", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshActiveDesignList();
-				});
+				showParamChoiceDialog(dialog, "justifyContent", "justifyContent", selected);
 				break;
 			case "AlignItems":
-				dialog.setOptions(new String[]{"flex-start", "center", "flex-end", "stretch", "baseline"}).showChoiceInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("alignItems", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshActiveDesignList();
-				});
+				showParamChoiceDialog(dialog, "alignItems", "alignItems", selected);
 				break;
 			case "AlignSelf":
-				dialog.setOptions(new String[]{"auto", "flex-start", "center", "flex-end", "stretch", "baseline"}).showChoiceInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("alignSelf", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshActiveDesignList();
-				});
+				showParamChoiceDialog(dialog, "alignSelf", "alignSelf", selected);
 				break;
 			case "AlignContent":
-				dialog.setOptions(new String[]{"flex-start", "center", "flex-end", "stretch", "space-between", "space-around"}).showChoiceInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("alignContent", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshActiveDesignList();
-				});
+				showParamChoiceDialog(dialog, "alignContent", "alignContent", selected);
 				break;
 			case "Gap":
-				dialog.setUnits(new String[]{"px", "rem", "em"}).showUnitInput("gap", value -> {
+				dialog.setUnits(new BlockParamTypeManager(requireContext()).getOptions("unit").toArray(new String[0])).showUnitInput("gap", value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("gap", value);
 					widgetUpdater.updateWidget(selected, "", style);
@@ -4589,7 +4513,7 @@ public class MainEditorFragment extends Fragment {
 				});
 				break;
 			case "RowGap":
-				dialog.setUnits(new String[]{"px", "rem", "em"}).showUnitInput("rowGap", value -> {
+				dialog.setUnits(new BlockParamTypeManager(requireContext()).getOptions("unit").toArray(new String[0])).showUnitInput("rowGap", value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("rowGap", value);
 					widgetUpdater.updateWidget(selected, "", style);
@@ -4598,7 +4522,7 @@ public class MainEditorFragment extends Fragment {
 				});
 				break;
 			case "ColGap":
-				dialog.setUnits(new String[]{"px", "rem", "em"}).showUnitInput("columnGap", value -> {
+				dialog.setUnits(new BlockParamTypeManager(requireContext()).getOptions("unit").toArray(new String[0])).showUnitInput("columnGap", value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("columnGap", value);
 					widgetUpdater.updateWidget(selected, "", style);
@@ -4607,7 +4531,7 @@ public class MainEditorFragment extends Fragment {
 				});
 				break;
 			case "Top":
-				dialog.setUnits(new String[]{"px", "%", "rem", "em"}).showUnitInput("top", value -> {
+				dialog.setUnits(new BlockParamTypeManager(requireContext()).getOptions("unit").toArray(new String[0])).showUnitInput("top", value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("top", value);
 					widgetUpdater.updateWidget(selected, "", style);
@@ -4616,7 +4540,7 @@ public class MainEditorFragment extends Fragment {
 				});
 				break;
 			case "Right":
-				dialog.setUnits(new String[]{"px", "%", "rem", "em"}).showUnitInput("right", value -> {
+				dialog.setUnits(new BlockParamTypeManager(requireContext()).getOptions("unit").toArray(new String[0])).showUnitInput("right", value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("right", value);
 					widgetUpdater.updateWidget(selected, "", style);
@@ -4625,7 +4549,7 @@ public class MainEditorFragment extends Fragment {
 				});
 				break;
 			case "Bottom":
-				dialog.setUnits(new String[]{"px", "%", "rem", "em"}).showUnitInput("bottom", value -> {
+				dialog.setUnits(new BlockParamTypeManager(requireContext()).getOptions("unit").toArray(new String[0])).showUnitInput("bottom", value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("bottom", value);
 					widgetUpdater.updateWidget(selected, "", style);
@@ -4634,7 +4558,7 @@ public class MainEditorFragment extends Fragment {
 				});
 				break;
 			case "Left":
-				dialog.setUnits(new String[]{"px", "%", "rem", "em"}).showUnitInput("left", value -> {
+				dialog.setUnits(new BlockParamTypeManager(requireContext()).getOptions("unit").toArray(new String[0])).showUnitInput("left", value -> {
 					Map<String, Object> style = new HashMap<>();
 					style.put("left", value);
 					widgetUpdater.updateWidget(selected, "", style);
@@ -4643,13 +4567,7 @@ public class MainEditorFragment extends Fragment {
 				});
 				break;
 			case "ObjectFit":
-				dialog.setOptions(new String[]{"fill", "contain", "cover", "none", "scale-down"}).showChoiceInput(value -> {
-					Map<String, Object> style = new HashMap<>();
-					style.put("objectFit", value);
-					widgetUpdater.updateWidget(selected, "", style);
-					saveUndoState();
-					refreshActiveDesignList();
-				});
+				showParamChoiceDialog(dialog, "objectFit", "objectFit", selected);
 				break;
 			case "AspectRatio":
 				dialog.setHint("16/9").showTextInput(value -> {
@@ -4664,8 +4582,9 @@ public class MainEditorFragment extends Fragment {
 				showCustomAttributesDialog(selected);
 				break;
 			default:
-				// Determine input type based on the property name dynamically
+				// Determine input type based on the property name and param.json dynamically
 				String cssKey = getCssKeyFromItem(editType);
+				String paramKey = resolveParamTypeKeyForEdit(editType, cssKey);
 				if (editType.contains("Color") || editType.equals("Background")) {
 					dialog.setSuggestions(getColorSuggestions()).showColorInput(value -> {
 						Map<String, Object> style = new HashMap<>();
@@ -4674,78 +4593,8 @@ public class MainEditorFragment extends Fragment {
 						saveUndoState();
 						refreshActiveDesignList();
 					});
-				} else if (editType.equals("Display")) {
-					dialog.setOptions(new String[]{"block", "flex", "grid", "inline", "inline-block", "none"}).showChoiceInput(value -> {
-						Map<String, Object> style = new HashMap<>();
-						style.put(cssKey, value);
-						widgetUpdater.updateWidget(selected, "", style);
-						saveUndoState();
-						refreshActiveDesignList();
-					});
-				} else if (editType.equals("Position")) {
-					dialog.setOptions(new String[]{"static", "relative", "absolute", "fixed", "sticky"}).showChoiceInput(value -> {
-						Map<String, Object> style = new HashMap<>();
-						style.put(cssKey, value);
-						widgetUpdater.updateWidget(selected, "", style);
-						saveUndoState();
-						refreshActiveDesignList();
-					});
-				} else if (editType.equals("Overflow")) {
-					dialog.setOptions(new String[]{"visible", "hidden", "scroll", "auto"}).showChoiceInput(value -> {
-						Map<String, Object> style = new HashMap<>();
-						style.put(cssKey, value);
-						widgetUpdater.updateWidget(selected, "", style);
-						saveUndoState();
-						refreshActiveDesignList();
-					});
-				} else if (editType.equals("Cursor")) {
-					dialog.setOptions(new String[]{"default", "pointer", "text", "move", "not-allowed", "wait"}).showChoiceInput(value -> {
-						Map<String, Object> style = new HashMap<>();
-						style.put(cssKey, value);
-						widgetUpdater.updateWidget(selected, "", style);
-						saveUndoState();
-						refreshActiveDesignList();
-					});
-				} else if (editType.equals("Float")) {
-					dialog.setOptions(new String[]{"none", "left", "right"}).showChoiceInput(value -> {
-						Map<String, Object> style = new HashMap<>();
-						style.put(cssKey, value);
-						widgetUpdater.updateWidget(selected, "", style);
-						saveUndoState();
-						refreshActiveDesignList();
-					});
-				} else if (editType.equals("Clear")) {
-					dialog.setOptions(new String[]{"none", "left", "right", "both"}).showChoiceInput(value -> {
-						Map<String, Object> style = new HashMap<>();
-						style.put(cssKey, value);
-						widgetUpdater.updateWidget(selected, "", style);
-						saveUndoState();
-						refreshActiveDesignList();
-					});
-				} else if (editType.equals("TextAlign")) {
-					dialog.setOptions(new String[]{"left", "center", "right", "justify"}).showChoiceInput(value -> {
-						Map<String, Object> style = new HashMap<>();
-						style.put(cssKey, value);
-						widgetUpdater.updateWidget(selected, "", style);
-						saveUndoState();
-						refreshActiveDesignList();
-					});
-				} else if (editType.equals("TextTransform")) {
-					dialog.setOptions(new String[]{"none", "capitalize", "uppercase", "lowercase"}).showChoiceInput(value -> {
-						Map<String, Object> style = new HashMap<>();
-						style.put(cssKey, value);
-						widgetUpdater.updateWidget(selected, "", style);
-						saveUndoState();
-						refreshActiveDesignList();
-					});
-				} else if (editType.equals("TextDecor")) {
-					dialog.setOptions(new String[]{"none", "underline", "line-through", "overline"}).showChoiceInput(value -> {
-						Map<String, Object> style = new HashMap<>();
-						style.put(cssKey, value);
-						widgetUpdater.updateWidget(selected, "", style);
-						saveUndoState();
-						refreshActiveDesignList();
-					});
+				} else if (paramKey != null) {
+					showParamChoiceDialog(dialog, paramKey, cssKey, selected);
 				} else if (editType.equals("FontFamily")) {
 					showFontPickerDialog(initialValue, fonts -> {
 						Map<String, Object> style = new HashMap<>();
@@ -4775,7 +4624,7 @@ public class MainEditorFragment extends Fragment {
 						refreshActiveDesignList();
 					});
 				} else {
-					dialog.setUnits(new String[]{"px", "rem", "%", "em", "vh", "vw", "auto"}).showUnitInput(cssKey, value -> {
+					dialog.setUnits(new BlockParamTypeManager(requireContext()).getOptions("unit").toArray(new String[0])).showUnitInput(cssKey, value -> {
 						Map<String, Object> style = new HashMap<>();
 						style.put(cssKey, value);
 						widgetUpdater.updateWidget(selected, "", style);
@@ -4785,6 +4634,38 @@ public class MainEditorFragment extends Fragment {
 				}
 				break;
 		}
+	}
+
+	private void showParamChoiceDialog(AppDialogs.Builder dialog, String paramKey, String cssPropKey, View selected) {
+		BlockParamTypeManager pManager = new BlockParamTypeManager(requireContext());
+		List<String> opts = pManager.getOptions(paramKey);
+		dialog.setOptions(opts.toArray(new String[0]))
+				.setNeutralButton("Code Editor", currentText -> AppDialogs.builder(requireContext())
+						.setTitle("Custom " + paramKey)
+						.setHint("Enter custom CSS value...")
+						.setInitialValue(currentText)
+						.showTextInput(value -> {
+							Map<String, Object> style = new HashMap<>();
+							style.put(cssPropKey, value);
+							widgetUpdater.updateWidget(selected, "", style);
+							saveUndoState();
+							refreshActiveDesignList();
+						}))
+				.showChoiceInput(value -> {
+					Map<String, Object> style = new HashMap<>();
+					style.put(cssPropKey, value);
+					widgetUpdater.updateWidget(selected, "", style);
+					saveUndoState();
+					refreshActiveDesignList();
+				});
+	}
+
+	private String resolveParamTypeKeyForEdit(String editType, String cssKey) {
+		BlockParamTypeManager pManager = new BlockParamTypeManager(requireContext());
+		if ("TextDecor".equals(editType)) return "textDecoration";
+		if (pManager.hasType(cssKey)) return cssKey;
+		if (pManager.hasType(editType)) return editType;
+		return null;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -5046,44 +4927,67 @@ public class MainEditorFragment extends Fragment {
 
 		if (isNav) {
 			if (vg instanceof LinearLayout) {
-				((LinearLayout) vg).setOrientation(LinearLayout.HORIZONTAL);
-				((LinearLayout) vg).setGravity(Gravity.CENTER_VERTICAL);
+				((LinearLayout) vg).setOrientation(LinearLayout.VERTICAL);
+				((LinearLayout) vg).setGravity(Gravity.START);
 			}
-			String brand = (fn != null && fn.get("brand") != null) ? fn.get("brand").toString() : "Brand";
-			TextView tvBrand = new TextView(requireContext());
-			tvBrand.setText(brand);
-			tvBrand.setTextSize(15f);
-			tvBrand.setTypeface(null, android.graphics.Typeface.BOLD);
-			tvBrand.setTextColor(textColor);
-			tvBrand.setPadding((int) (4 * density), (int) (4 * density), (int) (14 * density), (int) (4 * density));
-			markInternalPreview(tvBrand);
-			vg.addView(tvBrand);
+			LinearLayout headerRow = new LinearLayout(requireContext());
+			headerRow.setOrientation(LinearLayout.HORIZONTAL);
+			headerRow.setGravity(Gravity.CENTER_VERTICAL);
+			headerRow.setLayoutParams(new LinearLayout.LayoutParams(
+					ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+			markInternalPreview(headerRow);
 
-			android.widget.HorizontalScrollView hsv = new android.widget.HorizontalScrollView(requireContext());
-			hsv.setHorizontalScrollBarEnabled(false);
-			markInternalPreview(hsv);
+			String brand = (fn != null && fn.get("brand") != null) ? fn.get("brand").toString().trim() : "Brand";
+			if (!brand.isEmpty()) {
+				TextView tvBrand = new TextView(requireContext());
+				tvBrand.setText(brand);
+				tvBrand.setTextSize(15f);
+				tvBrand.setTypeface(null, android.graphics.Typeface.BOLD);
+				tvBrand.setTextColor(textColor);
+				tvBrand.setSingleLine(true);
+				tvBrand.setPadding((int) (2 * density), (int) (4 * density), (int) (12 * density), (int) (4 * density));
+				markInternalPreview(tvBrand);
+				headerRow.addView(tvBrand);
+			}
 
-			LinearLayout linksRow = new LinearLayout(requireContext());
-			linksRow.setOrientation(LinearLayout.HORIZONTAL);
-			linksRow.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
-			markInternalPreview(linksRow);
+			LinearLayout linksWrap = new LinearLayout(requireContext());
+			linksWrap.setOrientation(LinearLayout.VERTICAL);
+			linksWrap.setGravity(Gravity.END);
+			markInternalPreview(linksWrap);
 
+			LinearLayout currentRow = new LinearLayout(requireContext());
+			currentRow.setOrientation(LinearLayout.HORIZONTAL);
+			currentRow.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+			markInternalPreview(currentRow);
+			linksWrap.addView(currentRow);
+
+			int rowItemCount = 0;
+			int maxPerRow = 3;
 			for (int i = 0; i < items.size(); i++) {
+				if (rowItemCount >= maxPerRow) {
+					currentRow = new LinearLayout(requireContext());
+					currentRow.setOrientation(LinearLayout.HORIZONTAL);
+					currentRow.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+					markInternalPreview(currentRow);
+					linksWrap.addView(currentRow);
+					rowItemCount = 0;
+				}
 				String itemText = items.get(i);
-				String iconName = (icons != null && i < icons.size() && icons.get(i) != null) ? icons.get(i).trim() : "";
 				TextView tvItem = new TextView(requireContext());
-				String display = !iconName.isEmpty() ? (itemText) : itemText;
-				tvItem.setText(display);
+				tvItem.setText(itemText);
 				tvItem.setTextSize(textSizeSp);
 				tvItem.setTextColor(textColor);
-				tvItem.setAlpha(0.9f);
-				tvItem.setPadding((int) (8 * density), (int) (4 * density), (int) (8 * density), (int) (4 * density));
+				tvItem.setAlpha(0.92f);
+				tvItem.setSingleLine(true);
+				tvItem.setPadding((int) (7 * density), (int) (4 * density), (int) (7 * density), (int) (4 * density));
 				markInternalPreview(tvItem);
-				linksRow.addView(tvItem);
+				currentRow.addView(tvItem);
+				rowItemCount++;
 			}
-			hsv.addView(linksRow);
-			LinearLayout.LayoutParams hsvLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-			vg.addView(hsv, hsvLp);
+
+			LinearLayout.LayoutParams linksLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+			headerRow.addView(linksWrap, linksLp);
+			vg.addView(headerRow);
 		} else {
 			if (vg instanceof LinearLayout) {
 				((LinearLayout) vg).setOrientation(LinearLayout.VERTICAL);
@@ -5522,174 +5426,6 @@ public class MainEditorFragment extends Fragment {
 			.show();
 	}
 
-	@SuppressWarnings("unchecked")
-	private List<Map<String, Object>> getWidgetStylePresets(View selected) {
-		if (selected == null) return null;
-		Object tagObj = selected.getTag();
-		if (!(tagObj instanceof Map)) return null;
-		Map<String, Object> wm = (Map<String, Object>) tagObj;
-		if (wm.containsKey("stylePresets")) {
-			Object p = wm.get("stylePresets");
-			if (p instanceof List && !((List<?>) p).isEmpty()) {
-				return (List<Map<String, Object>>) p;
-			}
-		}
-		Map<String, Object> fn = (Map<String, Object>) wm.get("function");
-		if (fn != null && fn.containsKey("stylePresets")) {
-			Object p = fn.get("stylePresets");
-			if (p instanceof List && !((List<?>) p).isEmpty()) {
-				return (List<Map<String, Object>>) p;
-			}
-		}
-		if (widgetRegistry != null) {
-			String name = wm.containsKey("name") && wm.get("name") != null ? wm.get("name").toString() : "";
-			if (name.isEmpty() && fn != null) {
-				if (fn.containsKey("headline")) name = "Hero Banner";
-				else if (fn.containsKey("brand")) name = "Navbar";
-				else if (fn.containsKey("rating")) name = "Rating Stars";
-				else if (fn.containsKey("number") && fn.containsKey("label")) name = "Stat Card";
-				else if (fn.containsKey("value") && fn.containsKey("max")) name = "Progress Bar";
-				else if (fn.containsKey("headers")) name = "Table";
-				else if (fn.containsKey("slides")) name = "Carousel";
-				else if (fn.containsKey("message")) name = "Toast Alert";
-				else if (fn.containsKey("title") && fn.containsKey("content")) name = "Accordion";
-				else if (fn.containsKey("title") && fn.containsKey("text")) name = "Feature Card";
-				else if (fn.containsKey("label") && fn.containsKey("items")) name = "Dropdown Menu";
-			}
-			String tag = wm.containsKey("tag") && wm.get("tag") != null ? wm.get("tag").toString() : "";
-
-			// Match by widget name first so div/section variants get their exact presets
-			for (int pass = 0; pass < 2; pass++) {
-				for (HashMap<String, Object> w : widgetRegistry.getAllWidgets()) {
-					boolean matched = (pass == 0)
-							? (!name.isEmpty() && name.equalsIgnoreCase(String.valueOf(w.get("name"))))
-							: (!tag.isEmpty() && tag.equalsIgnoreCase(String.valueOf(w.get("tag"))));
-					if (matched) {
-						List<Map<String, Object>> found = extractPresetsFromWidgetDef(w);
-						if (found != null) return found;
-					}
-				}
-			}
-		}
-		return null;
-	}
-
-	@SuppressWarnings("unchecked")
-	private List<Map<String, Object>> extractPresetsFromWidgetDef(Map<String, Object> w) {
-		if (w.containsKey("stylePresets") && w.get("stylePresets") instanceof List && !((List<?>) w.get("stylePresets")).isEmpty()) {
-			return (List<Map<String, Object>>) w.get("stylePresets");
-		}
-		if (w.get("function") instanceof Map) {
-			Map<?, ?> wfn = (Map<?, ?>) w.get("function");
-			if (wfn.containsKey("stylePresets") && wfn.get("stylePresets") instanceof List && !((List<?>) wfn.get("stylePresets")).isEmpty()) {
-				return (List<Map<String, Object>>) wfn.get("stylePresets");
-			}
-		}
-		return null;
-	}
-
-	private boolean hasStylePresets(View selected) {
-		List<Map<String, Object>> presets = getWidgetStylePresets(selected);
-		return presets != null && !presets.isEmpty();
-	}
-
-	private void showStylePresetsDialog(View selected) {
-		if (selected == null) return;
-		List<Map<String, Object>> presets = getWidgetStylePresets(selected);
-		if (presets == null || presets.isEmpty()) {
-			Toast.makeText(requireContext(), "No style presets available for this widget", Toast.LENGTH_SHORT).show();
-			return;
-		}
-
-		String[] names = new String[presets.size()];
-		for (int i = 0; i < presets.size(); i++) {
-			Map<String, Object> p = presets.get(i);
-			names[i] = p.containsKey("name") && p.get("name") != null ? String.valueOf(p.get("name")) : ("Preset " + (i + 1));
-		}
-
-		new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-			.setTitle("Choose Style Preset")
-			.setItems(names, (dialog, which) -> {
-				applyStylePreset(selected, presets.get(which));
-			})
-			.setNegativeButton("Cancel", null)
-			.show();
-	}
-
-	@SuppressWarnings("unchecked")
-	private void applyStylePreset(View selected, Map<String, Object> preset) {
-		if (selected == null || preset == null) return;
-		Object tagObj = selected.getTag();
-		if (!(tagObj instanceof Map)) return;
-		Map<String, Object> wm = (Map<String, Object>) tagObj;
-		Map<String, Object> fn = (Map<String, Object>) wm.get("function");
-		if (fn == null) {
-			fn = new HashMap<>();
-			wm.put("function", fn);
-		}
-
-		// Apply preset styles
-		if (preset.containsKey("style") && preset.get("style") instanceof Map) {
-			Map<String, Object> presetStyle = (Map<String, Object>) preset.get("style");
-			Map<String, Object> curStyle = (Map<String, Object>) fn.get("style");
-			if (curStyle == null) {
-				curStyle = new HashMap<>();
-				fn.put("style", curStyle);
-			}
-			// Clear mutually-exclusive background / border overrides before applying preset
-			if (presetStyle.containsKey("backgroundColor")) {
-				curStyle.remove("backgroundImage");
-				curStyle.remove("background");
-			}
-			if (presetStyle.containsKey("backgroundImage")) {
-				curStyle.remove("backgroundColor");
-				curStyle.remove("background");
-			}
-			if (presetStyle.containsKey("border")) {
-				curStyle.remove("borderWidth");
-				curStyle.remove("borderColor");
-				curStyle.remove("borderStyle");
-			}
-			curStyle.putAll(presetStyle);
-
-			// Build inline CSS string
-			StringBuilder cssSb = new StringBuilder();
-			for (Map.Entry<String, Object> entry : curStyle.entrySet()) {
-				if (entry.getValue() != null) {
-					String cssProp = entry.getKey().replaceAll("([a-z])([A-Z])", "$1-$2").toLowerCase();
-					cssSb.append(cssProp).append(": ").append(entry.getValue().toString()).append("; ");
-				}
-			}
-			fn.put("style:css", cssSb.toString().trim());
-
-			// Update view visually on canvas and re-tint list/compound children
-			selected.setTag(wm);
-			widgetUpdater.updateWidget(selected, "", new HashMap<>(curStyle));
-			checkAndRebuildListWidget(selected);
-		}
-
-		// Apply preset script if present
-		if (preset.containsKey("script") && preset.get("script") != null) {
-			String script = String.valueOf(preset.get("script")).trim();
-			if (!script.isEmpty()) {
-				fn.put("script", script);
-				fn.put("script:js", script);
-			}
-		}
-
-		selected.setTag(wm);
-		saveUndoState();
-		refreshHierarchy();
-		refreshActiveDesignList();
-		saveCurrentPageLayout(true);
-		try {
-			String curPage = pageManager != null ? pageManager.getCurrentPage() : "index";
-			ProjectCodeGenerator.generateAndSaveAssets(requireContext(), projectId, curPage);
-		} catch (Exception ignored) {}
-
-		String presetName = preset.containsKey("name") ? String.valueOf(preset.get("name")) : "Style";
-		Toast.makeText(requireContext(), "Applied " + presetName + " preset", Toast.LENGTH_SHORT).show();
-	}
 
 	
 

@@ -1,0 +1,107 @@
+{
+  "name": "GitHub Dark",
+  "settings": [
+    {
+      "settings": {
+        "foreground": "#c9d1d9",
+        "background": "#0d1117"
+      }
+    },
+    {
+      "scope": ["keyword", "storage", "storage.type"],
+      "settings": {
+        "foreground": "#ff7b72"
+      }
+    },
+    {
+      "scope": ["keyword.control.section.sketchware", "entity.name.section.sketchware"],
+      "settings": {
+        "foreground": "#d2a8ff"
+      }
+    },
+    {
+      "scope": ["support.type.property-name", "support.type.property-name.json"],
+      "settings": {
+        "foreground": "#79c0ff"
+      }
+    },
+    {
+      "scope": ["string", "string.quoted.double.json", "punctuation.definition.string"],
+      "settings": {
+        "foreground": "#7ee787"
+      }
+    },
+    {
+      "scope": ["comment", "punctuation.definition.comment"],
+      "settings": {
+        "foreground": "#8b949e"
+      }
+    },
+    {
+      "scope": ["variable", "variable.other", "variable.parameter"],
+      "settings": {
+        "foreground": "#ffa657"
+      }
+    },
+    {
+      "scope": ["constant.numeric", "constant.numeric.json"],
+      "settings": {
+        "foreground": "#ffa657"
+      }
+    },
+    {
+      "scope": ["constant.language", "constant.language.json"],
+      "settings": {
+        "foreground": "#ff7b72"
+      }
+    },
+    {
+      "scope": ["constant", "support.constant"],
+      "settings": {
+        "foreground": "#79c0ff"
+      }
+    },
+    {
+      "scope": ["punctuation.definition.dictionary.json"],
+      "settings": {
+        "foreground": "#e5c07b"
+      }
+    },
+    {
+      "scope": ["punctuation.definition.array.json"],
+      "settings": {
+        "foreground": "#d2a8ff"
+      }
+    },
+    {
+      "scope": ["constant.character.escape.json"],
+      "settings": {
+        "foreground": "#79c0ff"
+      }
+    },
+    {
+      "scope": ["entity.name.tag", "punctuation.definition.tag"],
+      "settings": {
+        "foreground": "#7ee787"
+      }
+    },
+    {
+      "scope": ["entity.other.attribute-name"],
+      "settings": {
+        "foreground": "#79c0ff"
+      }
+    },
+    {
+      "scope": ["entity.name.function", "support.function"],
+      "settings": {
+        "foreground": "#d2a8ff"
+      }
+    },
+    {
+      "scope": ["entity.name.type", "support.class"],
+      "settings": {
+        "foreground": "#ffa657"
+      }
+    }
+  ]
+}

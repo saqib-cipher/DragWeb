@@ -156,11 +156,14 @@ public class Block extends BlockBase {
                 }
                 return new BlockArg(this.mContext, "v", i, sub);
             }
+            if ("%color".equals(str)) {
+                return new BlockArg(this.mContext, "m", i, "color");
+            }
             char charAt = str.charAt(BLOCK_TYPE_INPALETTE);
             if (charAt == 'b') {
                 return new BlockArg(this.mContext, "b", i, "");
             }
-            if (charAt == 'd') {
+            if (charAt == 'd' || charAt == 'n') {
                 return new BlockArg(this.mContext, "d", i, "");
             }
             if (charAt == 'm') {
@@ -434,6 +437,7 @@ public class Block extends BlockBase {
 
             var1 += var10 + this.defaultSpace;
             if(var8 instanceof Block) {
+                var8.bringToFront();
                 var8.setY(this.getY() + (float)this.indentTop + (float)((-1 + (this.childDepth - ((Block)var8).childDepth)) * this.childInset));
                 ((Block)var8).fixLayout();
             } else {
@@ -798,6 +802,7 @@ public class Block extends BlockBase {
                 this.labelsAndArgs.set(indexOf, block);
             }
             block.parentBlock = this;
+            block.bringToFront();
             collectArgs();
             refreshChildDepth();
             if (blockBase instanceof Block) {

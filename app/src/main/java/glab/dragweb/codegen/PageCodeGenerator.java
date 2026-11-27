@@ -114,7 +114,8 @@ public class PageCodeGenerator {
         }
 
         StringBuilder htmlBuilder = new StringBuilder();
-        appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager);
+        java.util.Set<String> detectedIcons = IconLibraryManager.detectLibrariesInHtml(bodyBuilder.toString());
+        appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager, detectedIcons);
         htmlBuilder.append(bodyBuilder);
         appendHtmlFooter(htmlBuilder, themeManager, logicBlockManager, customBlockManager);
         return htmlBuilder.toString();
@@ -171,18 +172,25 @@ public class PageCodeGenerator {
         }
 
         StringBuilder htmlBuilder = new StringBuilder();
-        appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager);
+        java.util.Set<String> detectedIcons = IconLibraryManager.detectLibrariesInHtml(bodyBuilder.toString());
+        appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager, detectedIcons);
         htmlBuilder.append(bodyBuilder);
         appendHtmlFooter(htmlBuilder, themeManager, logicBlockManager, customBlockManager);
         return htmlBuilder.toString();
     }
 
     private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager) {
-        appendHtmlHeader(htmlBuilder, themeManager, null);
+        appendHtmlHeader(htmlBuilder, themeManager, null, null);
     }
 
     private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager,
                                   LogicBlockManager logicBlockManager) {
+        appendHtmlHeader(htmlBuilder, themeManager, logicBlockManager, null);
+    }
+
+    private void appendHtmlHeader(StringBuilder htmlBuilder, ThemeManager themeManager,
+                                  LogicBlockManager logicBlockManager,
+                                  java.util.Set<String> detectedIcons) {
         String pageTitle = projectName.isEmpty() ? "DragWeb Page" : escapeHtml(projectName);
         htmlBuilder.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
         htmlBuilder.append("  <meta charset=\"UTF-8\">\n");
@@ -197,9 +205,12 @@ public class PageCodeGenerator {
             }
         }
 
-        // External icon-library CDN includes (Font Awesome, Material Icons, …).
+        // External icon-library CDN includes (manual + auto-detected from body HTML).
         if (iconLibraryManager != null) {
-            String includes = iconLibraryManager.generateHtmlIncludes();
+            String includes = iconLibraryManager.generateHtmlIncludes(detectedIcons);
+            if (includes != null && !includes.isEmpty()) htmlBuilder.append(includes);
+        } else if (detectedIcons != null && !detectedIcons.isEmpty()) {
+            String includes = IconLibraryManager.generateHtmlIncludesFor(context, detectedIcons);
             if (includes != null && !includes.isEmpty()) htmlBuilder.append(includes);
         }
         if (animationLibraryManager != null) {
@@ -341,7 +352,8 @@ public class PageCodeGenerator {
 
         // Inline style attribute (replaces dw-s classes for better readability)
         Map<String, Object> style = function.containsKey("style") ? (Map<String, Object>) function.get("style") : null;
-        if (style != null && !style.isEmpty() && (themeManager == null || themeManager.isUseInlineStyles())) {
+        boolean emitInline = themeManager == null || (themeManager.isUseInlineStyles() && !themeManager.isDisableAllStyling());
+        if (style != null && !style.isEmpty() && emitInline) {
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, Object> entry : style.entrySet()) {
                 String val = entry.getValue() != null ? entry.getValue().toString().trim() : "";
@@ -388,9 +400,12 @@ public class PageCodeGenerator {
             html.append(escapeHtml(function.get("text").toString()));
         }
 
-        // Recursive children
+        // Recursive children (item-driven widgets ignore legacy preview artifact children)
         StringBuilder childrenHtml = new StringBuilder();
-        if (nodeMap.containsKey("children")) {
+        boolean isItemDriven = (("ul".equals(tag) || "ol".equals(tag) || "select".equals(tag) || "nav".equals(tag))
+                && function.containsKey("items"))
+                || ("table".equals(tag) && (function.containsKey("headers") || function.containsKey("rows")));
+        if (!isItemDriven && nodeMap.containsKey("children")) {
             Object childrenObj = nodeMap.get("children");
             if (childrenObj instanceof List) {
                 List<Map<String, Object>> children = (List<Map<String, Object>>) childrenObj;
@@ -442,7 +457,8 @@ public class PageCodeGenerator {
 
         // Inline style attribute (replaces dw-s classes for better readability)
         Map<String, Object> style = (Map<String, Object>) function.get("style");
-        if (style != null && !style.isEmpty() && (themeManager == null || themeManager.isUseInlineStyles())) {
+        boolean emitInline = themeManager == null || (themeManager.isUseInlineStyles() && !themeManager.isDisableAllStyling());
+        if (style != null && !style.isEmpty() && emitInline) {
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, Object> entry : style.entrySet()) {
                 String val = entry.getValue() != null ? entry.getValue().toString().trim() : "";
@@ -641,39 +657,7 @@ public class PageCodeGenerator {
                 }
             }
         } else if ("nav".equals(tag)) {
-            if (function.containsKey("items") && function.get("items") instanceof List) {
-                html.append("\n");
-                if (function.containsKey("brand") && function.get("brand") != null) {
-                    html.append(indent).append("  <span class=\"nav-brand\" style=\"font-weight: bold;\">")
-                        .append(escapeHtml(String.valueOf(function.get("brand")))).append("</span>\n");
-                }
-                List<?> items = (List<?>) function.get("items");
-                List<?> icons = (function.containsKey("icons") && function.get("icons") instanceof List)
-                    ? (List<?>) function.get("icons") : null;
-                List<?> hrefs = (function.containsKey("hrefs") && function.get("hrefs") instanceof List)
-                    ? (List<?>) function.get("hrefs") : ((function.containsKey("links") && function.get("links") instanceof List) ? (List<?>) function.get("links") : null);
-                for (int i = 0; i < items.size(); i++) {
-                    Object item = items.get(i);
-                    if (item != null) {
-                        String targetHref = "#";
-                        if (hrefs != null && i < hrefs.size() && hrefs.get(i) != null) {
-                            String h = hrefs.get(i).toString().trim();
-                            if (!h.isEmpty()) targetHref = h;
-                        }
-                        String iconName = (icons != null && i < icons.size() && icons.get(i) != null)
-                            ? icons.get(i).toString().trim() : "";
-                        if (!iconName.isEmpty()) {
-                            html.append(indent).append("  <a href=\"").append(escapeAttr(targetHref)).append("\" class=\"nav-item\" style=\"margin: 0 8px; text-decoration: none; color: inherit; display: inline-flex; align-items: center; gap: 6px;\">")
-                                .append("<i data-lucide=\"").append(escapeHtml(iconName)).append("\" style=\"width: 16px; height: 16px;\"></i> ")
-                                .append(escapeHtml(item.toString())).append("</a>\n");
-                        } else {
-                            html.append(indent).append("  <a href=\"").append(escapeAttr(targetHref)).append("\" class=\"nav-item\" style=\"margin: 0 8px; text-decoration: none; color: inherit;\">")
-                                .append(escapeHtml(item.toString())).append("</a>\n");
-                        }
-                    }
-                }
-                html.append(indent);
-            }
+            IconLibraryManager.appendNavChildrenHtml(html, function, indent);
         } else if ("table".equals(tag)) {
             if (function.containsKey("headers") && function.get("headers") instanceof List) {
                 List<?> headers = (List<?>) function.get("headers");

@@ -180,9 +180,8 @@ public class ThemeManager {
     }
 
     public String generateGlobalCss() {
-        if (disableAllStyling) {
-            return "";
-        }
+        // Note: disableAllStyling only excludes auto-generated widget property styles (HTML inline / layout CSS);
+        // theme.css variables and global theme styles stay intact so user-made and theme styling are never wiped.
         if (disableDefaultStyles) {
             return "    .hidden { display: none !important; }\n";
         }

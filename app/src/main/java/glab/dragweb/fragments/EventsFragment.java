@@ -131,6 +131,7 @@ public class EventsFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        updateResetButtonState();
         invalidateProjectFilesCache();
         refreshLogicList();
     }
@@ -175,10 +176,12 @@ public class EventsFragment extends Fragment {
                     currentTab = 3;
                     if (tvSectionTitle != null) tvSectionTitle.setText("JS Functions (MoreBlocks)");
                 }
+                updateResetButtonState();
                 refreshLogicList();
                 return true;
             });
         }
+        updateResetButtonState();
 
         btnResetLogic.setOnClickListener(v -> {
             if (currentTab == 3) {
@@ -242,14 +245,7 @@ public class EventsFragment extends Fragment {
                             .setTitle("Reset Logic")
                             .setMessage("Are you sure you want to delete all logic blocks for '" + selected + "'? This cannot be undone.")
                             .setPositiveButton("Reset", (d, w) -> {
-                                String cleanName = DesignDataManager.getCleanPageName(selected);
-                                if (DesignDataManager.mapBlocks != null) {
-                                    DesignDataManager.mapBlocks.remove(cleanName);
-                                }
-                                DesignDataManager.saveAllSavedLogic(getContext(), projectId);
-                                File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanName + "_logic.json");
-                                if (logicFile.exists()) FileUtil.deleteFile(logicFile.getAbsolutePath());
-                                refreshLogicList();
+                                resetTargetLogicAndAssets(selected);
                                 Toast.makeText(getContext(), "Logic reset successfully", Toast.LENGTH_SHORT).show();
                             })
                             .setNegativeButton("Cancel", null)
@@ -328,6 +324,7 @@ public class EventsFragment extends Fragment {
                 getActivity().runOnUiThread(() -> {
                     if (!isAdded() || rvEvents == null) return;
                     if (tabSnap != currentTab) return;
+                    updateResetButtonState();
                     if (rvEvents.getAdapter() instanceof CssFilesAdapter) {
                         ((CssFilesAdapter) rvEvents.getAdapter()).setItems(items);
                     } else {
@@ -527,8 +524,65 @@ public class EventsFragment extends Fragment {
         return 0;
     }
 
-    /** Shared counting logic used by both in-memory and disk paths. */
+    private boolean isStyleAsBlocksMode() {
+        if (getContext() == null || projectId == null || projectId.isEmpty()) return false;
+        ThemeManager tm = ProjectCodeGenerator.getProjectThemeManager(getContext(), projectId);
+        return tm != null && !tm.isUseInlineStyles() && !tm.isDisableAllStyling();
+    }
+
+    private void updateResetButtonState() {
+        if (btnResetLogic == null) return;
+        boolean disabled = (currentTab == 0) && isStyleAsBlocksMode();
+        btnResetLogic.setEnabled(!disabled);
+        btnResetLogic.setAlpha(disabled ? 0.38f : 1.0f);
+    }
+
+    private void resetTargetLogicAndAssets(String targetPath) {
+        if (getContext() == null || targetPath == null) return;
+        String cleanName = DesignDataManager.getCleanPageName(targetPath);
+        String lower = targetPath.toLowerCase(java.util.Locale.US);
+        boolean isHtml = lower.endsWith(".html") || lower.endsWith(".htm");
+
+        if (isHtml) {
+            PageManager pm = new PageManager(getContext(), projectId);
+            pm.savePageLayout(cleanName, "[]");
+            File assetHtml = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/assets/" + cleanName + ".html");
+            FileUtil.writeFile(assetHtml.getAbsolutePath(), "");
+        }
+
+        DesignDataManager.clearTargetLogic(getContext(), projectId, targetPath);
+
+        try {
+            File assetFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/assets/" + targetPath);
+            if (lower.endsWith(".css")) {
+                String importHref = targetPath.startsWith("css/") ? "theme.css" : "css/theme.css";
+                FileUtil.writeFile(assetFile.getAbsolutePath(), "@import url(\"" + importHref + "\");\n");
+            } else if (lower.endsWith(".js")) {
+                FileUtil.writeFile(assetFile.getAbsolutePath(), "");
+            }
+            ProjectCodeGenerator.generateAndSaveAssets(getContext(), projectId, currentPage);
+        } catch (Exception ignored) {}
+
+        if (getActivity() instanceof MainActivity) {
+            MainEditorFragment mef = ((MainActivity) getActivity()).getMainEditorFragment();
+            if (mef != null) {
+                if (isHtml) {
+                    mef.reloadLayoutFromStorage();
+                }
+                mef.syncGeneratedAssetsFromOutside();
+            }
+        }
+
+        invalidateProjectFilesCache();
+        refreshLogicList();
+    }
+
     private int countBlocksFromMap(java.util.Map<String, ArrayList<BlockBean>> blocksMap) {
+        boolean skipPropStyleBlocks = false;
+        if (getContext() != null && projectId != null && !projectId.isEmpty()) {
+            ThemeManager tm = ProjectCodeGenerator.getProjectThemeManager(getContext(), projectId);
+            skipPropStyleBlocks = (tm == null || tm.isUseInlineStyles() || tm.isDisableAllStyling());
+        }
         java.util.HashSet<String> seenBlockIds = new java.util.HashSet<>();
         int count = 0;
         boolean hasOnCreate = blocksMap.containsKey("onCreate_initializeLogic");
@@ -539,6 +593,7 @@ public class EventsFragment extends Fragment {
             if (entry.getValue() != null) {
                 for (BlockBean b : entry.getValue()) {
                     if (b != null) {
+                        if (skipPropStyleBlocks && b.isPropertyStyle) continue;
                         if (b.id != null && !b.id.isEmpty()) {
                             if (seenBlockIds.add(b.id)) count++;
                         } else {
@@ -643,6 +698,9 @@ public class EventsFragment extends Fragment {
 
             if (holder.btnDeleteItem != null) {
                 holder.btnDeleteItem.setVisibility(View.VISIBLE);
+                boolean cssResetDisabled = !item.isFunction && !isLocked && currentTab == 0 && isStyleAsBlocksMode();
+                holder.btnDeleteItem.setEnabled(!cssResetDisabled);
+                holder.btnDeleteItem.setAlpha(cssResetDisabled ? 0.38f : 1.0f);
                 if (holder.btnDeleteItem instanceof com.google.android.material.button.MaterialButton) {
                     com.google.android.material.button.MaterialButton mb =
                             (com.google.android.material.button.MaterialButton) holder.btnDeleteItem;
@@ -690,20 +748,7 @@ public class EventsFragment extends Fragment {
                             .setTitle("Reset Logic")
                             .setMessage("Are you sure you want to delete all logic blocks for '" + item.title + "'? This cannot be undone.")
                             .setPositiveButton("Reset", (d, w) -> {
-                                String cleanName = DesignDataManager.getCleanPageName(item.targetPath);
-                                if (item.targetPath != null && item.targetPath.toLowerCase().endsWith(".html")) {
-                                    PageManager pm = new PageManager(getContext(), projectId);
-                                    pm.savePageLayout(cleanName, "[]");
-                                    File assetHtml = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/assets/" + cleanName + ".html");
-                                    if (assetHtml.exists()) FileUtil.writeFile(assetHtml.getAbsolutePath(), "");
-                                }
-                                if (DesignDataManager.mapBlocks != null) {
-                                    DesignDataManager.mapBlocks.remove(cleanName);
-                                }
-                                DesignDataManager.saveAllSavedLogic(getContext(), projectId);
-                                File logicFile = new File(FileUtil.getDragWebDir(getContext()), "projects/" + projectId + "/" + cleanName + "_logic.json");
-                                if (logicFile.exists()) FileUtil.deleteFile(logicFile.getAbsolutePath());
-                                refreshLogicList();
+                                resetTargetLogicAndAssets(item.targetPath);
                                 Toast.makeText(getContext(), "Reset successfully", Toast.LENGTH_SHORT).show();
                             })
                             .setNegativeButton("Cancel", null)
@@ -789,6 +834,7 @@ public class EventsFragment extends Fragment {
         final android.content.Context ctx = getContext().getApplicationContext();
         final String cleanName = DesignDataManager.getCleanPageName(filePath);
         final String lower = filePath.toLowerCase();
+        final androidx.appcompat.app.AlertDialog loadingDialog = glab.dragweb.ui.LoadingOverlay.showDialog(getContext(), "Importing code...");
 
         bgExecutor.execute(() -> {
             try {
@@ -806,6 +852,7 @@ public class EventsFragment extends Fragment {
 
                     if (getActivity() != null) {
                         getActivity().runOnUiThread(() -> {
+                            glab.dragweb.ui.LoadingOverlay.dismissDialog(loadingDialog);
                             if (getActivity() instanceof MainActivity) {
                                 MainEditorFragment mef = ((MainActivity) getActivity()).getMainEditorFragment();
                                 if (mef != null) {
@@ -826,6 +873,7 @@ public class EventsFragment extends Fragment {
 
                     if (getActivity() != null) {
                         getActivity().runOnUiThread(() -> {
+                            glab.dragweb.ui.LoadingOverlay.dismissDialog(loadingDialog);
                             if (getActivity() instanceof MainActivity) {
                                 MainEditorFragment mef = ((MainActivity) getActivity()).getMainEditorFragment();
                                 if (mef != null) {
@@ -847,6 +895,7 @@ public class EventsFragment extends Fragment {
 
                     if (getActivity() != null) {
                         getActivity().runOnUiThread(() -> {
+                            glab.dragweb.ui.LoadingOverlay.dismissDialog(loadingDialog);
                             invalidateProjectFilesCache();
                             refreshLogicList();
                             Toast.makeText(ctx, "Imported " + blocks.size() + " JS blocks!", Toast.LENGTH_SHORT).show();
@@ -857,6 +906,7 @@ public class EventsFragment extends Fragment {
                 Log.e("EventsFragment", "Failed to import code: " + e.getMessage(), e);
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
+                        glab.dragweb.ui.LoadingOverlay.dismissDialog(loadingDialog);
                         Toast.makeText(ctx, "Failed to import code: " + e.getMessage(), Toast.LENGTH_LONG).show();
                     });
                 }

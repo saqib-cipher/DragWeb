@@ -139,50 +139,7 @@ public class ExportManager {
                 }
             }
         } else if ("nav".equals(tag)) {
-            if (function.containsKey("items") && function.get("items") instanceof List) {
-                List<?> items = (List<?>) function.get("items");
-                if (!items.isEmpty()) {
-                    html.append("\n");
-                    String brand = function.containsKey("brand") && function.get("brand") != null ? function.get("brand").toString() : "";
-                    if (!brand.isEmpty()) {
-                        html.append(indent).append("  <span class=\"nav-brand\" style=\"font-weight:bold;font-size:18px;\">")
-                            .append(escapeHtml(brand)).append("</span>\n");
-                    }
-                    html.append(indent).append("  <div class=\"nav-menu\" style=\"display:flex;gap:12px;align-items:center;\">\n");
-                    List<?> icons = (function.containsKey("icons") && function.get("icons") instanceof List)
-                        ? (List<?>) function.get("icons") : null;
-                    List<?> hrefs = (function.containsKey("hrefs") && function.get("hrefs") instanceof List)
-                        ? (List<?>) function.get("hrefs") : ((function.containsKey("links") && function.get("links") instanceof List) ? (List<?>) function.get("links") : null);
-                    for (int i = 0; i < items.size(); i++) {
-                        Object item = items.get(i);
-                        if (item != null) {
-                            String targetHref = "#";
-                            if (hrefs != null && i < hrefs.size() && hrefs.get(i) != null) {
-                                String h = hrefs.get(i).toString().trim();
-                                if (!h.isEmpty()) targetHref = h;
-                            }
-                            String iconName = (icons != null && i < icons.size() && icons.get(i) != null)
-                                ? icons.get(i).toString().trim() : "";
-                            if (!iconName.isEmpty()) {
-                                html.append(indent).append("    <a href=\"").append(escapeHtml(targetHref)).append("\" class=\"nav-item\" style=\"color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:6px;\">");
-                                if (iconName.startsWith("ti ti-") || iconName.startsWith("ph ph-") || iconName.startsWith("fa-")
-                                    || iconName.startsWith("material-") || iconName.startsWith("bi bi-") || iconName.startsWith("ri-")) {
-                                    html.append("<i class=\"").append(escapeHtml(iconName)).append("\"></i> ");
-                                } else {
-                                    String lucideName = iconName.startsWith("lucide-") ? iconName.substring("lucide-".length()) : iconName;
-                                    html.append("<i data-lucide=\"").append(escapeHtml(lucideName)).append("\" style=\"width:16px;height:16px;\"></i> ");
-                                }
-                                html.append(escapeHtml(item.toString())).append("</a>\n");
-                            } else {
-                                html.append(indent).append("    <a href=\"").append(escapeHtml(targetHref)).append("\" class=\"nav-item\" style=\"color:inherit;text-decoration:none;\">")
-                                    .append(escapeHtml(item.toString())).append("</a>\n");
-                            }
-                        }
-                    }
-                    html.append(indent).append("  </div>\n");
-                    html.append(indent);
-                }
-            }
+            IconLibraryManager.appendNavChildrenHtml(html, function, indent);
         } else if ("table".equals(tag)) {
             if (function.containsKey("headers") && function.get("headers") instanceof List) {
                 List<?> headers = (List<?>) function.get("headers");
@@ -258,6 +215,10 @@ public class ExportManager {
     }
 
     public String compileBlocksForMode(String cleanPage, String mode) {
+        return compileBlocksForMode(cleanPage, mode, false);
+    }
+
+    public String compileBlocksForMode(String cleanPage, String mode, boolean skipPropertyStyleBlocks) {
         if ("html".equalsIgnoreCase(mode)) return "";
         DesignDataManager.loadSavedLogic(context, projectId, cleanPage);
         Map<String, ArrayList<BlockBean>> allBlocks = DesignDataManager.getAllBlocks(cleanPage);
@@ -275,55 +236,58 @@ public class ExportManager {
                 } catch (Exception ignored) {}
             }
         }
-        if (allBlocks == null || allBlocks.isEmpty()) return "";
+        java.util.Set<String> validIds = ProjectCodeGenerator.collectWidgetIdentifiers(context, projectId, cleanPage);
+        return compileBlocksMapForMode(context, projectId, cleanPage, allBlocks, mode, validIds, skipPropertyStyleBlocks);
+    }
+
+    public static String compileBlocksMapForMode(Context context,
+                                                 String projectId,
+                                                 String cleanPage,
+                                                 Map<String, ArrayList<BlockBean>> allBlocks,
+                                                 String mode,
+                                                 java.util.Set<String> validIds) {
+        return compileBlocksMapForMode(context, projectId, cleanPage, allBlocks, mode, validIds, false);
+    }
+
+    /**
+     * Compile a page or asset block map into CSS or JS while deduplicating aliased
+     * page-load event keys (e.g. {@code onPageLoad_onPageLoad}, {@code onCreate_initializeLogic},
+     * {@code immediate}, and {@code cleanPage}) so identical logic is emitted only once.
+     */
+    public static String compileBlocksMapForMode(Context context,
+                                                 String projectId,
+                                                 String cleanPage,
+                                                 Map<String, ArrayList<BlockBean>> allBlocks,
+                                                 String mode,
+                                                 java.util.Set<String> validIds,
+                                                 boolean skipPropertyStyleBlocks) {
+        if ("html".equalsIgnoreCase(mode) || allBlocks == null || allBlocks.isEmpty()) {
+            return "";
+        }
         try {
             BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
-            if ("html".equalsIgnoreCase(mode)) {
-                ArrayList<BlockBean> targetBlocks = allBlocks.get("onCreate_initializeLogic");
-                if (targetBlocks == null || targetBlocks.isEmpty()) {
-                    targetBlocks = allBlocks.get("onPageLoad_onPageLoad");
-                }
-                if (targetBlocks == null || targetBlocks.isEmpty()) {
-                    for (Map.Entry<String, ArrayList<BlockBean>> entry : allBlocks.entrySet()) {
-                        String key = entry.getKey();
-                        if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
-                        if (entry.getValue() != null) {
-                            for (BlockBean b : entry.getValue()) {
-                                if (b != null && isHtmlCategory(b.category)) {
-                                    targetBlocks = entry.getValue();
-                                    break;
-                                }
-                            }
-                        }
-                        if (targetBlocks != null && !targetBlocks.isEmpty()) break;
-                    }
-                }
-                if (targetBlocks != null && !targetBlocks.isEmpty()) {
-                    ArrayList<BlockBean> filtered = new ArrayList<>();
-                    for (BlockBean b : targetBlocks) {
-                        if (b != null && isHtmlCategory(b.category)) {
-                            filtered.add(b);
-                        }
-                    }
-                    if (!filtered.isEmpty()) {
-                        String code = HtmlCode2Block.generateHtmlFromBlocks(context, filtered);
-                        if (code == null || code.trim().isEmpty()) {
-                            code = compiler.getSource(0, filtered);
-                        }
-                        if (code != null && !code.trim().isEmpty()) {
-                            return code.trim();
-                        }
-                    }
-                }
-                return "";
-            }
-
             StringBuilder sb = new StringBuilder();
-            java.util.Set<String> validIds = ProjectCodeGenerator.collectWidgetIdentifiers(context, projectId, cleanPage);
+            java.util.Set<String> seenEvents = new java.util.LinkedHashSet<>();
+            ArrayList<BlockBean> canonicalPageLoad = allBlocks.get("onPageLoad_onPageLoad");
+            boolean preferCanonicalPageLoad = canonicalPageLoad != null && !canonicalPageLoad.isEmpty();
+
             for (Map.Entry<String, ArrayList<BlockBean>> entry : allBlocks.entrySet()) {
                 String key = entry.getKey();
                 if (key != null && (key.startsWith("func_") || key.contains("moreBlock"))) continue;
-                if (key != null && validIds != null && !validIds.isEmpty() && !ProjectCodeGenerator.isSystemEvent(key)) {
+                ArrayList<BlockBean> blockList = entry.getValue();
+                if (blockList == null || blockList.isEmpty()) continue;
+
+                String normalizedEvent = DesignDataManager.canonicalizeEventKey(cleanPage, key);
+                if ("onPageLoad_onPageLoad".equals(normalizedEvent)
+                        && preferCanonicalPageLoad
+                        && !"onPageLoad_onPageLoad".equals(key)) {
+                    continue;
+                }
+                if (!seenEvents.add(normalizedEvent)) {
+                    continue;
+                }
+
+                if (key != null && validIds != null && !validIds.isEmpty() && !ProjectCodeGenerator.isSystemEvent(normalizedEvent)) {
                     int lastUnder = key.lastIndexOf('_');
                     if (lastUnder > 0) {
                         String widgetId = key.substring(0, lastUnder);
@@ -334,11 +298,15 @@ public class ExportManager {
                 }
 
                 ArrayList<BlockBean> filtered = new ArrayList<>();
-                for (BlockBean b : entry.getValue()) {
+                boolean isCssTarget = cleanPage != null && cleanPage.startsWith("css");
+                for (BlockBean b : blockList) {
                     if (b == null) continue;
+                    if (skipPropertyStyleBlocks && b.isPropertyStyle && "css".equalsIgnoreCase(mode)) {
+                        continue;
+                    }
                     String cat = b.category != null ? b.category : "";
                     if (validIds != null && !validIds.isEmpty()) {
-                        if (("widgets".equalsIgnoreCase(cat) || (b.spec != null && (b.spec.contains("%selector") || b.spec.contains("%m.selector")))) && b.parameters != null && !b.parameters.isEmpty()) {
+                        if ("widgets".equalsIgnoreCase(cat) && b.parameters != null && !b.parameters.isEmpty()) {
                             String sel = b.parameters.get(0) != null ? b.parameters.get(0).trim() : "";
                             if (!sel.isEmpty()) {
                                 String target = sel.startsWith("#") ? sel.substring(1) : sel;
@@ -349,11 +317,11 @@ public class ExportManager {
                         }
                     }
                     if ("css".equalsIgnoreCase(mode)) {
-                        if (isCssCategory(cat)) filtered.add(b);
+                        if (isCssCategory(cat) || (isCssTarget && "asd".equalsIgnoreCase(cat.trim()))) filtered.add(b);
                     } else if ("html".equalsIgnoreCase(mode)) {
                         if (isHtmlCategory(cat)) filtered.add(b);
                     } else if ("js".equalsIgnoreCase(mode)) {
-                        if (isJsCategory(cat)) filtered.add(b);
+                        if (!isCssTarget && isJsCategory(cat)) filtered.add(b);
                     } else {
                         filtered.add(b);
                     }
@@ -439,99 +407,45 @@ public class ExportManager {
         Map<String, String> pageHtmlMap = new HashMap<>();
         StringBuilder accumulatedCssBuffer = new StringBuilder();
         StringBuilder accumulatedJsBuffer = new StringBuilder();
+        Map<String, StringBuilder> perFileElementCss = new java.util.LinkedHashMap<>();
+        Map<String, StringBuilder> perFileUserCss = new java.util.LinkedHashMap<>();
+        Map<String, StringBuilder> perFileJs = new java.util.LinkedHashMap<>();
         elementCssBuffer.setLength(0);
         collectedWidgetScripts.clear();
 
-        // 1. Theme variables, presets, and common styles in CSS
-        accumulatedCssBuffer.append("/* Generated by DragWeb */\n\n");
+        boolean useInline = (themeManager == null || themeManager.isUseInlineStyles());
+        boolean noStyles = (themeManager != null && themeManager.isDisableAllStyling());
+        boolean skipPropStyleBlocks = useInline || noStyles;
 
-        // Load default global CSS stylesheet blocks and append (BlockCodeCompiler)
+        // Load default global CSS stylesheet blocks (ASD + CSS compiled once by compileBlocksForMode)
         String globalCssClean = DesignDataManager.getCleanPageName("css/style.css");
-        String cssBlockCode = compileBlocksForMode(globalCssClean, "css");
+        String cssBlockCode = compileBlocksForMode(globalCssClean, "css", skipPropStyleBlocks);
         if (!cssBlockCode.isEmpty()) {
-            accumulatedCssBuffer.append("\n/* Global Stylesheet Styles */\n").append(cssBlockCode).append("\n");
-        }
-        // ASD raw CSS blocks from global stylesheet
-        Map<String, ArrayList<BlockBean>> globalCssBlocks = DesignDataManager.getAllBlocks(globalCssClean);
-        if (globalCssBlocks != null && !globalCssBlocks.isEmpty()) {
-            try {
-                LogicBlockManager asdReader = new LogicBlockManager(context);
-                Map<String, Object> rootMap = new HashMap<>();
-                rootMap.put("blocks", globalCssBlocks);
-                asdReader.fromJson(new Gson().toJson(rootMap));
-                String asdCss = asdReader.generateAsdSource("css");
-                if (asdCss != null && !asdCss.trim().isEmpty()) {
-                    accumulatedCssBuffer.append("\n/* Global Stylesheet ASD CSS */\n").append(asdCss).append("\n");
-                }
-            } catch (Exception e) {
-                Log.w("ExportManager", "Error parsing global CSS ASD blocks: " + e.getMessage());
-            }
-        } else {
-            File globalCssLogicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + globalCssClean + "_logic.json");
-            if (globalCssLogicFile.exists()) {
-                try {
-                    LogicBlockManager asdReader = new LogicBlockManager(context);
-                    String logicJson = FileUtil.readFile(globalCssLogicFile.getAbsolutePath());
-                    asdReader.fromJson(logicJson);
-                    String asdCss = asdReader.generateAsdSource("css");
-                    if (asdCss != null && !asdCss.trim().isEmpty()) {
-                        accumulatedCssBuffer.append("\n/* Global Stylesheet ASD CSS */\n").append(asdCss).append("\n");
-                    }
-                } catch (Exception e) {
-                    Log.w("ExportManager", "Error parsing global CSS ASD blocks: " + e.getMessage());
-                }
-            }
+            accumulatedCssBuffer.append(cssBlockCode).append("\n");
         }
 
-        accumulatedCssBuffer.append("\n/* Animation Keyframes */\n");
-        if (animationLibraryManager != null) {
-            accumulatedCssBuffer.append(animationLibraryManager.generateLocalKeyframesCss(""));
-        } else {
-            accumulatedCssBuffer.append(AnimationLibrary.generateKeyframesCss(""));
+        String keyframesCss = (animationLibraryManager != null)
+                ? animationLibraryManager.generateLocalKeyframesCss("")
+                : AnimationLibrary.generateKeyframesCss("");
+        if (keyframesCss != null && !keyframesCss.trim().isEmpty()) {
+            accumulatedCssBuffer.append(keyframesCss.trim()).append("\n");
         }
-        accumulatedCssBuffer.append("\n");
 
-        // Load default global JS script blocks and append (BlockCodeCompiler)
+        // Load default global JS script blocks (ASD + JS compiled once by compileBlocksForMode)
         String globalJsClean = DesignDataManager.getCleanPageName("js/script.js");
         String jsBlockCode = compileBlocksForMode(globalJsClean, "js");
         if (!jsBlockCode.isEmpty()) {
             accumulatedJsBuffer.append(jsBlockCode).append("\n");
         }
-        // ASD raw JS blocks from global script
-        Map<String, ArrayList<BlockBean>> globalJsBlocks = DesignDataManager.getAllBlocks(globalJsClean);
-        if (globalJsBlocks != null && !globalJsBlocks.isEmpty()) {
-            try {
-                LogicBlockManager asdReader = new LogicBlockManager(context);
-                Map<String, Object> rootMap = new HashMap<>();
-                rootMap.put("blocks", globalJsBlocks);
-                asdReader.fromJson(new Gson().toJson(rootMap));
-                String asdJs = asdReader.generateAsdSource("js");
-                if (asdJs != null && !asdJs.trim().isEmpty()) {
-                    accumulatedJsBuffer.append(asdJs).append("\n");
-                }
-            } catch (Exception e) {
-                Log.w("ExportManager", "Error parsing global JS ASD blocks: " + e.getMessage());
-            }
-        } else {
-            File globalJsLogicFile = new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/" + globalJsClean + "_logic.json");
-            if (globalJsLogicFile.exists()) {
-                try {
-                    LogicBlockManager asdReader = new LogicBlockManager(context);
-                    String logicJson = FileUtil.readFile(globalJsLogicFile.getAbsolutePath());
-                    asdReader.fromJson(logicJson);
-                    String asdJs = asdReader.generateAsdSource("js");
-                    if (asdJs != null && !asdJs.trim().isEmpty()) {
-                        accumulatedJsBuffer.append(asdJs).append("\n");
-                    }
-                } catch (Exception e) {
-                    Log.w("ExportManager", "Error parsing global JS ASD blocks: " + e.getMessage());
-                }
-            }
-        }
+        perFileJs.put("js/script.js", accumulatedJsBuffer);
 
         for (String pageName : allPages) {
             String htmlContent = "";
             LogicBlockManager pageLogic = null;
+            elementCssBuffer.setLength(0);
+            PageManager.PageConfig pageCfg = pageManager.getPageConfig(pageName);
+            String linkedCss = ProjectCodeGenerator.resolvePageCssFile(pageCfg);
+            String linkedJs = ProjectCodeGenerator.resolvePageJsFile(pageCfg);
 
             if (pageName.equals(currentPageName) && screen != null) {
                 // Live page
@@ -558,8 +472,6 @@ public class ExportManager {
                 List<Map<String, Object>> widgetTree = null;
                 try {
                     widgetTree = glab.dragweb.data.PageManager.parseLayoutTree(pageJson);
-                    // Parsed with PageManager.parseLayoutTree
-                    // TypeToken removed
                 } catch (Exception e) {
                     Log.w("ExportManager", "Error parsing widget tree for page: " + pageName, e);
                 }
@@ -571,29 +483,39 @@ public class ExportManager {
 
             pageHtmlMap.put(pageName, htmlContent);
 
-            // Accumulate page-specific CSS rules
+            if (elementCssBuffer.length() > 0) {
+                perFileElementCss.computeIfAbsent(linkedCss, k -> new StringBuilder())
+                        .append(elementCssBuffer);
+                elementCssBuffer.setLength(0);
+            }
+
+            String cleanPage = DesignDataManager.getCleanPageName(pageName);
+            if (!"js/script.js".equals(linkedJs) && !perFileJs.containsKey(linkedJs)) {
+                StringBuilder customJsBuf = new StringBuilder();
+                String targetJsBlocks = compileBlocksForMode(DesignDataManager.getCleanPageName(linkedJs), "js");
+                if (!targetJsBlocks.isEmpty()) {
+                    customJsBuf.append(targetJsBlocks).append("\n");
+                }
+                perFileJs.put(linkedJs, customJsBuf);
+            }
+
+            // Accumulate page-specific CSS & JS rules into the page's linked files
             if (pageLogic != null) {
+                StringBuilder pageCssTarget = perFileUserCss.computeIfAbsent(linkedCss, k -> new StringBuilder());
                 String pseudoRules = pageLogic.generateCssPseudoRules();
                 if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
-                    accumulatedCssBuffer.append(pseudoRules).append("\n");
+                    pageCssTarget.append(pseudoRules).append("\n");
                 }
-                String pageCssBlocks = compileBlocksForMode(DesignDataManager.getCleanPageName(pageName), "css");
+                String pageCssBlocks = compileBlocksForMode(cleanPage, "css", skipPropStyleBlocks);
                 if (!pageCssBlocks.isEmpty()) {
-                    accumulatedCssBuffer.append(pageCssBlocks).append("\n");
-                }
-                String asdCss = pageLogic.generateAsdSource("css");
-                if (asdCss != null && !asdCss.trim().isEmpty()) {
-                    accumulatedCssBuffer.append(asdCss).append("\n");
+                    pageCssTarget.append(pageCssBlocks).append("\n");
                 }
 
-                // Accumulate page-specific JS rules (only JS blocks!)
-                String pageJsBlocks = compileBlocksForMode(DesignDataManager.getCleanPageName(pageName), "js");
+                // Accumulate page-specific JS rules (compileBlocksForMode already includes ASD blocks once)
+                String pageJsBlocks = compileBlocksForMode(cleanPage, "js");
                 if (!pageJsBlocks.isEmpty()) {
-                    accumulatedJsBuffer.append(pageJsBlocks).append("\n");
-                }
-                String asdJs = pageLogic.generateAsdSource("js");
-                if (asdJs != null && !asdJs.trim().isEmpty()) {
-                    accumulatedJsBuffer.append(asdJs).append("\n");
+                    perFileJs.computeIfAbsent(linkedJs, k -> new StringBuilder())
+                            .append(pageJsBlocks).append("\n");
                 }
             }
         }
@@ -604,15 +526,88 @@ public class ExportManager {
         }
         String allHtml = allHtmlSb.toString();
 
-        // MoreBlock function definitions (only include if referenced in project JS or HTML)
+        // MoreBlock function definitions (only include if referenced in JS or HTML)
+        ArrayList<String> funcDefs = new ArrayList<>();
         {
             BlockCodeCompiler funcCompiler = new BlockCodeCompiler(context, projectId);
-            ArrayList<String> funcDefs = ProjectCodeGenerator.addMoreBlockCodes(context, projectId, funcCompiler);
-            StringBuilder funcSb = new StringBuilder();
-            String currentJs = accumulatedJsBuffer.toString();
+            funcDefs.addAll(ProjectCodeGenerator.addMoreBlockCodes(context, projectId, funcCompiler));
+        }
 
-            for (String def : funcDefs) {
-                if (def != null && !def.trim().isEmpty()) {
+        // Custom block CSS
+        if (customBlockManager != null) {
+            String customCss = customBlockManager.renderAllCss();
+            if (customCss != null && !customCss.trim().isEmpty()) {
+                accumulatedCssBuffer.append(customCss).append("\n");
+            }
+        }
+
+        // Build final CSS per linked stylesheet (css/style.css + any per-page custom CSS files)
+        java.util.Set<String> allLinkedCss = new java.util.LinkedHashSet<>();
+        allLinkedCss.add("css/style.css");
+        for (String p : allPages) {
+            allLinkedCss.add(ProjectCodeGenerator.resolvePageCssFile(pageManager.getPageConfig(p)));
+        }
+        allLinkedCss.addAll(perFileElementCss.keySet());
+        allLinkedCss.addAll(perFileUserCss.keySet());
+
+        Map<String, String> exportedCssFiles = new java.util.LinkedHashMap<>();
+        String globalThemeImport = "@import url(\"theme.css\");\n\n";
+        for (String relCss : allLinkedCss) {
+            StringBuilder fileSb = new StringBuilder();
+            String importHref = relCss.startsWith("css/") ? "theme.css" : "css/theme.css";
+            fileSb.append("@import url(\"").append(importHref).append("\");\n\n");
+
+            // Compile user/logic CSS for this stylesheet first
+            StringBuilder logicCssSb = new StringBuilder();
+            if ("css/style.css".equals(relCss)) {
+                String globalCss = accumulatedCssBuffer.toString().replace("assets/", "").trim();
+                if (!globalCss.isEmpty()) {
+                    logicCssSb.append(globalCss).append("\n\n");
+                }
+                if (perFileUserCss.get(relCss) != null && perFileUserCss.get(relCss).length() > 0) {
+                    logicCssSb.append(perFileUserCss.get(relCss).toString().replace("assets/", "")).append("\n");
+                }
+            } else {
+                // Only compile the linked stylesheet's own blocks; linked pages' blocks are already in perFileUserCss
+                String customSheetCss = compileBlocksForMode(DesignDataManager.getCleanPageName(relCss), "css", skipPropStyleBlocks);
+                if (customSheetCss != null && !customSheetCss.isEmpty()) {
+                    logicCssSb.append(customSheetCss.replace("assets/", "")).append("\n\n");
+                }
+                StringBuilder extraPageCss = perFileUserCss.get(relCss);
+                if (extraPageCss != null && extraPageCss.length() > 0) {
+                    logicCssSb.append(extraPageCss.toString().replace("assets/", "")).append("\n");
+                }
+            }
+            String logicCss = logicCssSb.toString().trim();
+
+            // Emit unrepresented widget property styles only if not already present in logic CSS blocks
+            StringBuilder elemSb = perFileElementCss.get(relCss);
+            if (!skipPropStyleBlocks && elemSb != null && elemSb.length() > 0) {
+                String filteredProps = ProjectCodeGenerator.filterOutExistingCssSelectors(elemSb.toString(), logicCss);
+                if (!filteredProps.isEmpty()) {
+                    fileSb.append(filteredProps).append("\n\n");
+                }
+            }
+            if (!logicCss.isEmpty()) {
+                fileSb.append(logicCss).append("\n");
+            }
+            exportedCssFiles.put(relCss, fileSb.toString().trim() + "\n");
+        }
+
+        String finalCssContent = exportedCssFiles.containsKey("css/style.css")
+                ? exportedCssFiles.get("css/style.css")
+                : globalThemeImport;
+
+        // Build final JS per linked script file (js/script.js + any per-page custom JS files)
+        Map<String, String> exportedJsFiles = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, StringBuilder> jsEntry : perFileJs.entrySet()) {
+            StringBuilder jsSb = jsEntry.getValue();
+            String currentJs = jsSb.toString();
+
+            if (!funcDefs.isEmpty()) {
+                StringBuilder funcSb = new StringBuilder();
+                for (String def : funcDefs) {
+                    if (def == null || def.trim().isEmpty()) continue;
                     String cleanDef = def.trim();
                     String fName = "";
                     if (cleanDef.startsWith("function ")) {
@@ -625,57 +620,44 @@ public class ExportManager {
                         funcSb.append(def).append("\n");
                     }
                 }
-            }
-            if (funcSb.length() > 0) {
-                accumulatedJsBuffer.insert(0, funcSb.toString() + "\n");
-            }
-        }
-
-        // Custom block CSS and JS
-        if (customBlockManager != null) {
-            String customCss = customBlockManager.renderAllCss();
-            if (customCss != null && !customCss.trim().isEmpty()) {
-                accumulatedCssBuffer.append("/* Custom Block Styles */\n");
-                accumulatedCssBuffer.append(customCss).append("\n");
-            }
-        }
-
-        // Append generated element styles
-        accumulatedCssBuffer.append("/* Element Styles */\n");
-        if (elementCssBuffer.length() > 0) {
-            accumulatedCssBuffer.append(elementCssBuffer);
-        }
-
-        if (!collectedWidgetScripts.isEmpty()) {
-            StringBuilder wsSb = new StringBuilder();
-            String curJs = accumulatedJsBuffer.toString();
-            for (String script : collectedWidgetScripts) {
-                if (script == null || script.trim().isEmpty()) continue;
-                if (isScriptReferenced(script, curJs, allHtml)) {
-                    wsSb.append(script).append("\n\n");
+                if (funcSb.length() > 0) {
+                    jsSb.insert(0, funcSb.toString() + "\n");
                 }
             }
-            if (wsSb.length() > 0) {
-                accumulatedJsBuffer.append("\n/* Widget Scripts */\n").append(wsSb);
+
+            if (!collectedWidgetScripts.isEmpty()) {
+                StringBuilder wsSb = new StringBuilder();
+                String curJs = jsSb.toString();
+                for (String script : collectedWidgetScripts) {
+                    if (script == null || script.trim().isEmpty()) continue;
+                    if (isScriptReferenced(script, curJs, allHtml)) {
+                        wsSb.append(script).append("\n\n");
+                    }
+                }
+                if (wsSb.length() > 0) {
+                    jsSb.append("\n/* Widget Scripts */\n").append(wsSb);
+                }
             }
+
+            jsSb.append("/* ----- init ----- */\n");
+            jsSb.append("document.addEventListener('DOMContentLoaded', function() {\n");
+            jsSb.append("  if (window.feather) try { feather.replace(); } catch (e) {}\n");
+            jsSb.append("  if (window.lucide)  try { lucide.createIcons(); } catch (e) {}\n");
+            jsSb.append("});\n");
+
+            exportedJsFiles.put(jsEntry.getKey(), jsSb.toString().replace("assets/", ""));
         }
 
-        // Common JS footer
-        accumulatedJsBuffer.append("/* ----- init ----- */\n");
-        accumulatedJsBuffer.append("document.addEventListener('DOMContentLoaded', function() {\n");
-        accumulatedJsBuffer.append("  if (window.feather) try { feather.replace(); } catch (e) {}\n");
-        accumulatedJsBuffer.append("  if (window.lucide)  try { lucide.createIcons(); } catch (e) {}\n");
-        accumulatedJsBuffer.append("});\n");
-
-        String finalCssContent = accumulatedCssBuffer.toString().replace("assets/", "");
-        String finalJsContent = accumulatedJsBuffer.toString().replace("assets/", "");
+        String finalJsContent = exportedJsFiles.containsKey("js/script.js")
+                ? exportedJsFiles.get("js/script.js")
+                : "";
 
         File exportDir = customExportDir != null ? customExportDir : new File(FileUtil.getDragWebDir(context), "exports/" + sanitizeFileName(projectName));
         if (customExportDir == null && exportDir.exists()) {
             deleteDirectory(exportDir);
         }
         exportDir.mkdirs();
-        
+
         File cssDir = new File(exportDir, "css");
         File jsDir = new File(exportDir, "js");
         cssDir.mkdirs();
@@ -695,33 +677,56 @@ public class ExportManager {
                 writeFile(new File(exportDir, entry.getKey() + ".html"), entry.getValue());
             }
 
-            // Write theme.css with BOTH variables and resets/utilities
+            // Write theme.css with variables and base theme rules (never wiped by User CSS Only toggle)
             String themeCss = themeManager != null ? themeManager.generateGlobalCss() : new ThemeManager().generateGlobalCss();
             writeFile(new File(cssDir, "theme.css"), themeCss != null ? themeCss : "");
 
-            // Prepend @import url("theme.css"); to style.css
-            String styleCssWithImport = "@import url(\"theme.css\");\n\n" + (finalCssContent != null ? finalCssContent : "");
-            writeFile(new File(cssDir, "style.css"), styleCssWithImport);
-            writeFile(new File(jsDir, "script.js"), finalJsContent);
+            // Write every linked CSS stylesheet (css/style.css + per-page custom stylesheets)
+            for (Map.Entry<String, String> cssEntry : exportedCssFiles.entrySet()) {
+                File targetCss = new File(exportDir, cssEntry.getKey());
+                if (targetCss.getParentFile() != null) targetCss.getParentFile().mkdirs();
+                writeFile(targetCss, cssEntry.getValue());
+            }
 
-            // Write to project assets folder to keep it in sync!
-            if (projectId != null && !projectId.isEmpty()) {
+            // Write every linked JS file (js/script.js + per-page custom scripts)
+            for (Map.Entry<String, String> jsEntry : exportedJsFiles.entrySet()) {
+                File targetJs = new File(exportDir, jsEntry.getKey());
+                if (targetJs.getParentFile() != null) targetJs.getParentFile().mkdirs();
+                writeFile(targetJs, jsEntry.getValue());
+            }
+
+            // Sync into projects/<projectId>/assets only when exportDir is a separate folder
+            File extAssetsDir = (projectId != null && !projectId.isEmpty())
+                    ? new File(FileUtil.getDragWebDir(), "projects/" + projectId + "/assets")
+                    : null;
+            boolean exportingIntoProjectAssets = extAssetsDir != null
+                    && exportDir.getCanonicalPath().equals(extAssetsDir.getCanonicalPath());
+
+            if (!exportingIntoProjectAssets && extAssetsDir != null) {
                 try {
-                    String extAssetsPath = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId + "/assets";
-                    File extCssFile = new File(extAssetsPath, "css/style.css");
-                    extCssFile.getParentFile().mkdirs();
-                    writeFile(extCssFile, styleCssWithImport);
+                    File extThemeFile = new File(extAssetsDir, "css/theme.css");
+                    if (extThemeFile.getParentFile() != null) extThemeFile.getParentFile().mkdirs();
+                    writeFile(extThemeFile, themeCss != null ? themeCss : "");
 
-                    File extJsFile = new File(extAssetsPath, "js/script.js");
-                    extJsFile.getParentFile().mkdirs();
-                    writeFile(extJsFile, finalJsContent);
+                    for (Map.Entry<String, String> cssEntry : exportedCssFiles.entrySet()) {
+                        File extCssFile = new File(extAssetsDir, cssEntry.getKey());
+                        if (extCssFile.getParentFile() != null) extCssFile.getParentFile().mkdirs();
+                        writeFile(extCssFile, cssEntry.getValue());
+                    }
+
+                    for (Map.Entry<String, String> jsEntry : exportedJsFiles.entrySet()) {
+                        File extJsFile = new File(extAssetsDir, jsEntry.getKey());
+                        if (extJsFile.getParentFile() != null) extJsFile.getParentFile().mkdirs();
+                        writeFile(extJsFile, jsEntry.getValue());
+                    }
                 } catch (Exception e) {
                     Log.w("ExportManager", "Failed to sync compiled CSS/JS with assets: " + e.getMessage());
                 }
             }
 
-            // Copy assets files and folders to root folder
-            copyAssetsClean(exportDir);
+            if (!exportingIntoProjectAssets) {
+                copyAssetsClean(exportDir);
+            }
 
             result.success = true;
             result.message = "Exported to: " + exportDir.getAbsolutePath();
@@ -804,6 +809,32 @@ public class ExportManager {
     private String generateHtmlFromTree(List<Map<String, Object>> widgetTree, String pageName, ManageBlocksWidgets customBlockManager,
                                         LogicBlockManager logicBlockManager) {
         PageManager.PageConfig pageCfg = getPageConfigSafe(pageName);
+        StringBuilder bodyBuilder = new StringBuilder();
+
+        if (widgetTree != null) {
+            for (Map<String, Object> nodeMap : widgetTree) {
+                bodyBuilder.append(generateElementHtmlFromNode(nodeMap, 1));
+            }
+        }
+
+        if (customBlockManager != null) {
+            String customHtml = customBlockManager.renderAllHtml();
+            if (customHtml != null && !customHtml.trim().isEmpty()) {
+                bodyBuilder.append("\n  <!-- Custom blocks -->\n  ");
+                bodyBuilder.append(customHtml.replace("\n", "\n  "));
+                bodyBuilder.append("\n");
+            }
+        }
+
+        if (logicBlockManager != null) {
+            String asdHtml = logicBlockManager.generateAsdSource("html");
+            if (asdHtml != null && !asdHtml.trim().isEmpty()) {
+                bodyBuilder.append("\n  <!-- ASD HTML source -->\n  ");
+                bodyBuilder.append(asdHtml.replace("\n", "\n  "));
+                bodyBuilder.append("\n");
+            }
+        }
+
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html>\n");
         html.append("<html lang=\"en\">\n");
@@ -819,8 +850,12 @@ public class ExportManager {
             }
         }
 
+        Set<String> detectedIcons = IconLibraryManager.detectLibrariesInHtml(bodyBuilder.toString());
         if (iconLibraryManager != null) {
-            String includes = iconLibraryManager.generateHtmlIncludes();
+            String includes = iconLibraryManager.generateHtmlIncludes(detectedIcons);
+            if (includes != null && !includes.isEmpty()) html.append(includes);
+        } else if (!detectedIcons.isEmpty()) {
+            String includes = IconLibraryManager.generateHtmlIncludesFor(context, detectedIcons);
             if (includes != null && !includes.isEmpty()) html.append(includes);
         }
         if (animationLibraryManager != null) {
@@ -848,30 +883,7 @@ public class ExportManager {
 
         html.append("</head>\n");
         html.append("<body>\n");
-
-        if (widgetTree != null) {
-            for (Map<String, Object> nodeMap : widgetTree) {
-                html.append(generateElementHtmlFromNode(nodeMap, 1));
-            }
-        }
-
-        if (customBlockManager != null) {
-            String customHtml = customBlockManager.renderAllHtml();
-            if (customHtml != null && !customHtml.trim().isEmpty()) {
-                html.append("\n  <!-- Custom blocks -->\n  ");
-                html.append(customHtml.replace("\n", "\n  "));
-                html.append("\n");
-            }
-        }
-
-        if (logicBlockManager != null) {
-            String asdHtml = logicBlockManager.generateAsdSource("html");
-            if (asdHtml != null && !asdHtml.trim().isEmpty()) {
-                html.append("\n  <!-- ASD HTML source -->\n  ");
-                html.append(asdHtml.replace("\n", "\n  "));
-                html.append("\n");
-            }
-        }
+        html.append(bodyBuilder);
 
         String scriptSrc = (pageCfg != null && !pageCfg.useGlobalJs && pageCfg.jsFile != null && !pageCfg.jsFile.trim().isEmpty())
                 ? pageCfg.jsFile.trim()
@@ -947,11 +959,32 @@ public class ExportManager {
             }
         }
 
-        if (!noStyles) {
+        // Output inline style attribute if useInline is true and widget property styling is active
+        if (useInline && !noStyles) {
             Map<String, Object> style = (Map<String, Object>) function.get("style");
             if (style != null && !style.isEmpty()) {
-                String selectorPrefix = (function.containsKey("class") && !String.valueOf(function.get("class")).trim().isEmpty()) ? "." : "";
-                elementCssBuffer.append(selectorPrefix).append(generatedClass).append(" {\n");
+                StringBuilder styleSb = new StringBuilder();
+                for (Map.Entry<String, Object> entry : style.entrySet()) {
+                    String val = entry.getValue() != null ? entry.getValue().toString().trim() : "";
+                    if (val.isEmpty()) continue;
+                    styleSb.append(camelToKebab(entry.getKey())).append(": ").append(val).append("; ");
+                }
+                if (styleSb.length() > 0) {
+                    html.append(" style=\"").append(escapeHtml(styleSb.toString().trim())).append("\"");
+                }
+            }
+        } else if (!useInline && !noStyles) {
+            Map<String, Object> style = (Map<String, Object>) function.get("style");
+            if (style != null && !style.isEmpty()) {
+                String selector;
+                if (function.containsKey("id") && function.get("id") != null && !String.valueOf(function.get("id")).trim().isEmpty()) {
+                    selector = "#" + String.valueOf(function.get("id")).trim();
+                } else if (function.containsKey("class") && function.get("class") != null && !String.valueOf(function.get("class")).trim().isEmpty()) {
+                    selector = "." + String.valueOf(function.get("class")).trim().split("\\s+")[0];
+                } else {
+                    selector = tag;
+                }
+                elementCssBuffer.append(selector).append(" {\n");
                 for (Map.Entry<String, Object> entry : style.entrySet()) {
                     String val = entry.getValue() != null ? entry.getValue().toString().trim() : "";
                     if (val.isEmpty()) continue;
@@ -959,7 +992,7 @@ public class ExportManager {
                     elementCssBuffer.append("  ").append(cssKey).append(": ")
                         .append(val).append(";\n");
                 }
-                elementCssBuffer.append("}\n");
+                elementCssBuffer.append("}\n\n");
             }
         }
 
@@ -998,7 +1031,10 @@ public class ExportManager {
         }
 
         StringBuilder childrenHtml = new StringBuilder();
-        if (widgetMap.containsKey("children")) {
+        boolean isItemDriven = (("ul".equals(tag) || "ol".equals(tag) || "select".equals(tag) || "nav".equals(tag))
+                && function.containsKey("items"))
+                || ("table".equals(tag) && (function.containsKey("headers") || function.containsKey("rows")));
+        if (!isItemDriven && widgetMap.containsKey("children")) {
             Object childrenObj = widgetMap.get("children");
             if (childrenObj instanceof List) {
                 List<Map<String, Object>> children = (List<Map<String, Object>>) childrenObj;
@@ -1106,6 +1142,35 @@ public class ExportManager {
     private String generateHtml(View screen, String projectName, ManageBlocksWidgets customBlockManager,
                                 LogicBlockManager logicBlockManager, String pageName) {
         PageManager.PageConfig pageCfg = getPageConfigSafe(pageName);
+        StringBuilder bodyBuilder = new StringBuilder();
+
+        if (screen instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) screen;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                bodyBuilder.append(generateElementHtml(vg.getChildAt(i), 1));
+            }
+        }
+
+        // Custom-block HTML appended into the body (after widget tree).
+        if (customBlockManager != null) {
+            String customHtml = customBlockManager.renderAllHtml();
+            if (customHtml != null && !customHtml.trim().isEmpty()) {
+                bodyBuilder.append("\n  <!-- Custom blocks -->\n  ");
+                bodyBuilder.append(customHtml.replace("\n", "\n  "));
+                bodyBuilder.append("\n");
+            }
+        }
+
+        // ASD raw-HTML source blocks (authored in the Logic Blocks editor).
+        if (logicBlockManager != null) {
+            String asdHtml = logicBlockManager.generateAsdSource("html");
+            if (asdHtml != null && !asdHtml.trim().isEmpty()) {
+                bodyBuilder.append("\n  <!-- ASD HTML source -->\n  ");
+                bodyBuilder.append(asdHtml.replace("\n", "\n  "));
+                bodyBuilder.append("\n");
+            }
+        }
+
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html>\n");
         html.append("<html lang=\"en\">\n");
@@ -1122,8 +1187,12 @@ public class ExportManager {
             }
         }
 
+        Set<String> detectedIcons = IconLibraryManager.detectLibrariesInHtml(bodyBuilder.toString());
         if (iconLibraryManager != null) {
-            String includes = iconLibraryManager.generateHtmlIncludes();
+            String includes = iconLibraryManager.generateHtmlIncludes(detectedIcons);
+            if (includes != null && !includes.isEmpty()) html.append(includes);
+        } else if (!detectedIcons.isEmpty()) {
+            String includes = IconLibraryManager.generateHtmlIncludesFor(context, detectedIcons);
             if (includes != null && !includes.isEmpty()) html.append(includes);
         }
         if (animationLibraryManager != null) {
@@ -1153,33 +1222,7 @@ public class ExportManager {
 
         html.append("</head>\n");
         html.append("<body>\n");
-
-        if (screen instanceof ViewGroup) {
-            ViewGroup vg = (ViewGroup) screen;
-            for (int i = 0; i < vg.getChildCount(); i++) {
-                html.append(generateElementHtml(vg.getChildAt(i), 1));
-            }
-        }
-
-        // Custom-block HTML appended into the body (after widget tree).
-        if (customBlockManager != null) {
-            String customHtml = customBlockManager.renderAllHtml();
-            if (customHtml != null && !customHtml.trim().isEmpty()) {
-                html.append("\n  <!-- Custom blocks -->\n  ");
-                html.append(customHtml.replace("\n", "\n  "));
-                html.append("\n");
-            }
-        }
-
-        // ASD raw-HTML source blocks (authored in the Logic Blocks editor).
-        if (logicBlockManager != null) {
-            String asdHtml = logicBlockManager.generateAsdSource("html");
-            if (asdHtml != null && !asdHtml.trim().isEmpty()) {
-                html.append("\n  <!-- ASD HTML source -->\n  ");
-                html.append(asdHtml.replace("\n", "\n  "));
-                html.append("\n");
-            }
-        }
+        html.append(bodyBuilder);
 
         String scriptSrc = (pageCfg != null && !pageCfg.useGlobalJs && pageCfg.jsFile != null && !pageCfg.jsFile.trim().isEmpty())
                 ? pageCfg.jsFile.trim()
@@ -1278,8 +1321,8 @@ public class ExportManager {
             }
         }
 
-        // Output element and preset styles to CSS
-        if (!noStyles) {
+        // Output element styles to external CSS ONLY when Inline Styling is disabled
+        if (!useInline && !noStyles) {
             Map<String, Object> style = (Map<String, Object>) function.get("style");
             if (style != null && !style.isEmpty()) {
                 String selector = "";
@@ -1345,7 +1388,11 @@ public class ExportManager {
         if (view instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) view;
             for (int i = 0; i < vg.getChildCount(); i++) {
-                String ch = generateElementHtml(vg.getChildAt(i), indent + 1);
+                View childView = vg.getChildAt(i);
+                if (childView == null || Boolean.TRUE.equals(childView.getTag(R.id.tag_internal_preview))) {
+                    continue;
+                }
+                String ch = generateElementHtml(childView, indent + 1);
                 if (ch != null && !ch.trim().isEmpty()) {
                     childrenHtml.append(ch);
                 }
@@ -1364,26 +1411,22 @@ public class ExportManager {
     private String generateCss(View screen, LogicBlockManager logicBlockManager,
                                ManageBlocksWidgets customBlockManager) {
         StringBuilder css = new StringBuilder();
-        css.append("/* Generated by DragWeb */\n\n");
-        css.append("\n/* Animation Keyframes */\n");
-        if (animationLibraryManager != null) {
-            css.append(animationLibraryManager.generateLocalKeyframesCss(""));
-        } else {
-            css.append(AnimationLibrary.generateKeyframesCss(""));
+        String keyframes = (animationLibraryManager != null)
+                ? animationLibraryManager.generateLocalKeyframesCss("")
+                : AnimationLibrary.generateKeyframesCss("");
+        if (keyframes != null && !keyframes.trim().isEmpty()) {
+            css.append(keyframes.trim()).append("\n\n");
         }
-        css.append("\n");
 
         // CSS pseudo-class interaction rules (hover, focus, active – no JS needed)
         if (logicBlockManager != null) {
             String pseudoRules = logicBlockManager.generateCssPseudoRules();
             if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
-                css.append("/* CSS Interaction Rules */\n");
                 css.append(pseudoRules);
                 css.append("\n");
             }
             String baseRules = logicBlockManager.generateBaseCssRules();
             if (baseRules != null && !baseRules.trim().isEmpty()) {
-                css.append("/* Logic Block Styles */\n");
                 css.append(baseRules);
                 css.append("\n");
             }
@@ -1393,7 +1436,6 @@ public class ExportManager {
         if (customBlockManager != null) {
             String customCss = customBlockManager.renderAllCss();
             if (customCss != null && !customCss.trim().isEmpty()) {
-                css.append("/* Custom Block Styles */\n");
                 css.append(customCss);
                 css.append("\n");
             }

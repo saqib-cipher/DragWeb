@@ -164,7 +164,7 @@ public class BlockDef {
         String src = resolvedTemplate();
         if (src.isEmpty()) return derivedInputs;
 
-        Pattern p = Pattern.compile("%(?:(selector|id\\.selector|c\\.selector|class\\.selector|id|c)|(?:(?:(\\d+)\\$)?(?:(m\\.[a-zA-Z_\\.]+|var\\.[sbd]|var)|([nsbd]))))");
+        Pattern p = Pattern.compile("%(?:(selector|id\\.selector|c\\.selector|class\\.selector|color|id|c)|(?:(?:(\\d+)\\$)?(?:(m\\.[a-zA-Z_\\.]+|var\\.[sbd]|var)|([nsbd]))))");
         Matcher m = p.matcher(src);
         int idx = 0;
         while (m.find()) {
@@ -178,7 +178,10 @@ public class BlockDef {
             chip.id = (pos != null) ? "p" + pos : "p" + idx;
             
             if (selectorLiteral != null) {
-                if (selectorLiteral.startsWith("id")) {
+                if ("color".equals(selectorLiteral)) {
+                    chip.type = "color";
+                    chip.selector = "color";
+                } else if (selectorLiteral.startsWith("id")) {
                     chip.type = "selector";
                     chip.selector = "id";
                 } else if (selectorLiteral.startsWith("c")) {
@@ -226,29 +229,60 @@ public class BlockDef {
             derivedInputs.addAll(inputs);
         }
 
-        // Parse spec field to determine which chip inputs should be inputOnly.
-        // Tokenize spec by splitting on spaces, count chip tokens (starting with %),
-        // and mark inputOnly=true for any chip that is NOT a plain %s token.
-        if (spec != null && !spec.isEmpty() && !derivedInputs.isEmpty()) {
-            String[] specTokens = spec.split("\\s+");
+        // Parse spec (+ spec2) fields to enrich ChipInput type, selector, and inputOnly flags.
+        // In Sketchware blocks, `code` uses positional `%1$s`/`%2$s` while `spec` holds the
+        // authoritative parameter types (`%m.color`, `%m.unit`, `%selector`, `%d`, `%b`, `%s`).
+        String combinedSpec = ((spec != null ? spec : "") + " " + (spec2 != null ? spec2 : "")).trim();
+        if (!combinedSpec.isEmpty() && !derivedInputs.isEmpty()) {
+            String[] specTokens = combinedSpec.split("\\s+");
             int specIdx = 0;
             for (String token : specTokens) {
-                if (!token.startsWith("%")) continue;
-                boolean isPlainS = token.equals("%s");
-                if (!isPlainS) {
-                    if (specIdx < derivedInputs.size()) {
-                        derivedInputs.get(specIdx).inputOnly = true;
+                if (!token.startsWith("%") || "%".equals(token)) continue;
+                boolean isChipToken = token.equals("%s")
+                        || token.equals("%s.inputOnly")
+                        || token.equals("%d")
+                        || token.equals("%n")
+                        || token.equals("%b")
+                        || token.matches("%m\\.[a-zA-Z_\\.]+")
+                        || token.equals("%color")
+                        || token.equals("%selector")
+                        || token.equals("%id.selector")
+                        || token.equals("%c.selector")
+                        || token.equals("%id")
+                        || token.equals("%c")
+                        || token.startsWith("%var")
+                        || (token.startsWith("%") && token.contains("."));
+                if (!isChipToken) continue;
+
+                if (specIdx < derivedInputs.size()) {
+                    ChipInput chip = derivedInputs.get(specIdx);
+                    chip.inputOnly = !token.equals("%s");
+                    if ("%color".equals(token) || "%m.color".equals(token)) {
+                        chip.type = "color";
+                        chip.selector = "color";
+                    } else if (token.startsWith("%m.")) {
+                        String sel = token.substring(3);
+                        chip.type = mapSelectorToType(sel);
+                        chip.selector = sel;
+                    } else if ("%selector".equals(token)) {
+                        chip.type = "selector";
+                        chip.selector = "any";
+                    } else if ("%id.selector".equals(token) || "%id".equals(token)) {
+                        chip.type = "selector";
+                        chip.selector = "id";
+                    } else if ("%c.selector".equals(token) || "%c".equals(token)) {
+                        chip.type = "selector";
+                        chip.selector = "class";
+                    } else if ("%d".equals(token) || "%n".equals(token)) {
+                        chip.type = "number";
+                    } else if ("%b".equals(token)) {
+                        chip.type = "boolean";
+                    } else if (token.startsWith("%var")) {
+                        chip.type = "dropdown";
+                        chip.selector = token.substring(1);
                     }
                 }
-                // Count this as a chip parameter (unless it's a compound token like %s.something)
-                if (token.equals("%s") || token.equals("%s.inputOnly") || token.equals("%d") || token.equals("%n") || token.equals("%b")) {
-                    specIdx++;
-                } else if (token.matches("%m\\.[a-zA-Z_\\.]+") || token.equals("%selector") || token.equals("%id.selector") || token.equals("%c.selector") || token.equals("%id") || token.equals("%c") || token.startsWith("%var")) {
-                    specIdx++;
-                } else if (token.startsWith("%") && token.contains(".")) {
-                    // Compound tokens like %s.setupList - still count as a chip
-                    specIdx++;
-                }
+                specIdx++;
             }
         }
 

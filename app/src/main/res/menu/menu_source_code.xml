@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_pretty_print"
+        android:icon="@drawable/code_xml_24px"
+        android:title="Pretty Print"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_copy"
+        android:icon="@drawable/clipboard_copy"
+        android:title="Copy"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_find"
+        android:icon="@drawable/ic_search"
+        android:title="Find"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_word_wrap"
+        android:checkable="true"
+        android:checked="false"
+        android:title="Word Wrap"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_line_numbers"
+        android:checkable="true"
+        android:checked="true"
+        android:title="Line Numbers"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_font_size"
+        android:icon="@drawable/text_size"
+        android:title="Font Size"
+        app:showAsAction="never" />
+
+</menu>

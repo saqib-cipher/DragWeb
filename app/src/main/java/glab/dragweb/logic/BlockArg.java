@@ -530,8 +530,6 @@ public class BlockArg extends BlockBase {
             final ArrayList<String> options = new ArrayList<>();
             if (pManager.hasType(menuName)) {
                 options.addAll(pManager.getOptions(menuName));
-            } else if ("event".equalsIgnoreCase(menuName)) {
-                options.addAll(java.util.Arrays.asList("click", "input", "change", "submit", "keydown", "keyup", "mouseenter", "mouseleave", "focus", "blur", "scroll", "resize", "load"));
             } else if (menuName.equals("varInt")) {
                 options.addAll(DesignDataManager.getVariablesByType(LogicBlockActivity.filename, 1));
             } else if (menuName.equals("varBool")) {
@@ -547,10 +545,20 @@ public class BlockArg extends BlockBase {
             }
 
             if (!options.isEmpty() || this.mType.equals("m")) {
+                final String finalMenuName = menuName;
+                final String currentArgText = this.argValue != null ? this.argValue.toString() : "";
                 AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
-                dialog.setTitle("Select " + (menuName.isEmpty() ? "Value" : menuName))
+                dialog.setTitle("Select " + (finalMenuName.isEmpty() ? "Value" : finalMenuName))
                       .setOptions(options.toArray(new String[0]))
-                      .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
+                      .setInitialValue(currentArgText.equalsIgnoreCase(finalMenuName) ? "" : currentArgText)
+                      .setNeutralButton("Code Editor", currentText -> {
+                          String seed = (currentText == null || currentText.equalsIgnoreCase(finalMenuName)) ? "" : currentText;
+                          AppDialogs.builder(BlockArg.this.getContext())
+                                  .setTitle("Custom " + (finalMenuName.isEmpty() ? "Value" : finalMenuName))
+                                  .setHint("Enter custom value...")
+                                  .setInitialValue(seed)
+                                  .showTextInput(value -> applyArgValueChange(value));
+                      });
                 dialog.showChoiceInput(new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {

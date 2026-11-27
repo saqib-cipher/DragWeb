@@ -386,6 +386,10 @@ public class HtmlCode2Block {
                         + combineUnitVal(b.parameters.get(2), b.parameters.get(3)) + " "
                         + combineUnitVal(b.parameters.get(4), b.parameters.get(5)) + " "
                         + combineUnitVal(b.parameters.get(6), b.parameters.get(7));
+            } else if (("setBorder".equals(op) || "setOutline".equals(op)) && b.parameters.size() >= 4) {
+                valueStr = combineUnitVal(b.parameters.get(0), b.parameters.get(1))
+                        + " " + b.parameters.get(2).trim()
+                        + " " + b.parameters.get(3).trim();
             } else if (("setBorder".equals(op) || "setOutline".equals(op)) && b.parameters.size() >= 3) {
                 valueStr = combineUnitVal(b.parameters.get(0), b.parameters.get(1)) + " solid " + b.parameters.get(2).trim();
             } else {

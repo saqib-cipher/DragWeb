@@ -40,11 +40,72 @@ public class DesignDataManager {
 
     public static String getCleanPageName(String name) {
         if (name == null || name.isEmpty()) return "index";
-        return name.replace(".html", "")
-                   .replace(".css", "")
-                   .replace(".js", "")
-                   .replace("/", "_")
-                   .replace("\\", "_");
+        String trimmed = name.trim().replace("\\", "/");
+        if ("styles.css".equalsIgnoreCase(trimmed)
+                || "css/style.css".equalsIgnoreCase(trimmed)
+                || "css_style".equalsIgnoreCase(trimmed)
+                || "styles".equalsIgnoreCase(trimmed)
+                || "style".equalsIgnoreCase(trimmed)) {
+            return "css_style";
+        }
+        if ("script.js".equalsIgnoreCase(trimmed)
+                || "js/script.js".equalsIgnoreCase(trimmed)
+                || "js_script".equalsIgnoreCase(trimmed)
+                || "script".equalsIgnoreCase(trimmed)) {
+            return "js_script";
+        }
+        return trimmed.replace(".html", "")
+                      .replace(".htm", "")
+                      .replace(".css", "")
+                      .replace(".js", "")
+                      .replace("/", "_");
+    }
+
+    /** Removes all stored logic blocks for a target file (and legacy aliases) and persists immediately. */
+    public static synchronized void clearTargetLogic(Context context, String projectId, String targetPath) {
+        String cleanName = getCleanPageName(targetPath);
+        String canonical = getCanonicalTargetName(targetPath);
+        java.util.List<String> keysToRemove = new ArrayList<>();
+        keysToRemove.add(cleanName);
+        if (targetPath != null) keysToRemove.add(targetPath);
+        if (canonical != null) keysToRemove.add(canonical);
+        if ("css_style".equals(cleanName)) {
+            java.util.Collections.addAll(keysToRemove, "css/style.css", "styles.css", "style.css", "styles", "style");
+        } else if ("js_script".equals(cleanName)) {
+            java.util.Collections.addAll(keysToRemove, "js/script.js", "script.js", "script");
+        } else if (targetPath != null && !targetPath.isEmpty()) {
+            String rawNoSlash = targetPath.startsWith("/") ? targetPath.substring(1) : targetPath;
+            keysToRemove.add(rawNoSlash);
+        }
+
+        if (mapBlocks != null) {
+            for (String k : keysToRemove) {
+                mapBlocks.remove(k);
+            }
+        }
+        if (mapVariables != null) {
+            for (String k : keysToRemove) {
+                mapVariables.remove(k);
+            }
+        }
+        if (mapFunctions != null) {
+            for (String k : keysToRemove) {
+                mapFunctions.remove(k);
+            }
+        }
+        if (context != null && projectId != null && !projectId.isEmpty()) {
+            saveAllSavedLogic(context, projectId);
+            File projDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId);
+            for (String k : keysToRemove) {
+                if (k == null || k.isEmpty() || k.contains("/")) continue;
+                File legacy = new File(projDir, k + "_logic.json");
+                if (legacy.exists()) FileUtil.deleteFile(legacy.getAbsolutePath());
+            }
+            File legacyStyle = new File(projDir, "style_logic.json");
+            if ("css_style".equals(cleanName) && legacyStyle.exists()) {
+                FileUtil.deleteFile(legacyStyle.getAbsolutePath());
+            }
+        }
     }
 
     public static class MoreBlockData {
@@ -1114,14 +1175,27 @@ public class DesignDataManager {
                 mapFunctions.put(target, funcList);
             }
         } else {
-            // Block section: could be @target or @target_eventKey or @target_func_name
+            // Block section: could be @target, @css_custom, @js_custom, @target_eventKey, or @target_func_name
             String target;
             String eventKey;
             if (sectionHeader.contains("_func_")) {
                 int idx = sectionHeader.indexOf("_func_");
                 target = sectionHeader.substring(0, idx);
                 eventKey = sectionHeader.substring(idx + 1); // "func_xxx"
-            } else if (sectionHeader.contains("_") && !sectionHeader.equals("css_style") && !sectionHeader.equals("js_script")) {
+            } else if ("css_style".equals(sectionHeader) || "styles.css".equals(sectionHeader)
+                    || "js_script".equals(sectionHeader) || "script.js".equals(sectionHeader)) {
+                target = sectionHeader;
+                eventKey = "onCreate_initializeLogic";
+            } else if (sectionHeader.startsWith("css_") || sectionHeader.startsWith("js_")) {
+                int evIdx = findEventSplitIndex(sectionHeader, 4);
+                if (evIdx > 0) {
+                    target = sectionHeader.substring(0, evIdx);
+                    eventKey = sectionHeader.substring(evIdx + 1);
+                } else {
+                    target = sectionHeader;
+                    eventKey = "onCreate_initializeLogic";
+                }
+            } else if (sectionHeader.contains("_")) {
                 int idx = sectionHeader.indexOf('_');
                 target = sectionHeader.substring(0, idx);
                 eventKey = sectionHeader.substring(idx + 1);
@@ -1223,27 +1297,22 @@ public class DesignDataManager {
         allTargets.add("styles.css");
 
         if (mapBlocks != null) {
-            for (String key : mapBlocks.keySet()) {
-                String canonical = getCanonicalTargetName(key);
-                if (!canonical.endsWith(".html") && !canonical.endsWith(".htm")) {
-                    allTargets.add(canonical);
-                }
+            for (Map.Entry<String, HashMap<String, ArrayList<BlockBean>>> entry : mapBlocks.entrySet()) {
+                if (entry.getValue() == null || entry.getValue().isEmpty()) continue;
+                String canonical = getCanonicalTargetName(entry.getKey());
+                allTargets.add(canonical);
             }
         }
         if (mapVariables != null) {
-            for (String key : mapVariables.keySet()) {
-                String canonical = getCanonicalTargetName(key);
-                if (!canonical.endsWith(".html") && !canonical.endsWith(".htm")) {
-                    allTargets.add(canonical);
-                }
+            for (Map.Entry<String, ArrayList<Pair<Integer, String>>> entry : mapVariables.entrySet()) {
+                if (entry.getValue() == null || entry.getValue().isEmpty()) continue;
+                allTargets.add(getCanonicalTargetName(entry.getKey()));
             }
         }
         if (mapFunctions != null) {
-            for (String key : mapFunctions.keySet()) {
-                String canonical = getCanonicalTargetName(key);
-                if (!canonical.endsWith(".html") && !canonical.endsWith(".htm")) {
-                    allTargets.add(canonical);
-                }
+            for (Map.Entry<String, ArrayList<Pair<String, String>>> entry : mapFunctions.entrySet()) {
+                if (entry.getValue() == null || entry.getValue().isEmpty()) continue;
+                allTargets.add(getCanonicalTargetName(entry.getKey()));
             }
         }
 
@@ -1366,11 +1435,25 @@ public class DesignDataManager {
         } catch (Exception ignored) {}
     }
 
+    private static int findEventSplitIndex(String header, int startFrom) {
+        String[] markers = {"_onCreate_", "_onPageLoad_", "_initializeLogic", "_immediate", "_window_", "_document_", "_page_"};
+        int best = -1;
+        for (String m : markers) {
+            int idx = header.indexOf(m, startFrom);
+            if (idx >= 0 && (best == -1 || idx < best)) {
+                best = idx;
+            }
+        }
+        return best;
+    }
+
     public static String getCanonicalTargetName(String key) {
         if (key == null || key.isEmpty()) return "index.html";
         String clean = getCleanPageName(key);
-        if ("script".equals(clean)) return "script.js";
+        if ("js_script".equals(clean) || "script".equals(clean)) return "script.js";
         if ("css_style".equals(clean) || "style".equals(clean)) return "styles.css";
+        if (clean.startsWith("css_")) return clean + ".css";
+        if (clean.startsWith("js_")) return clean + ".js";
         if (clean.endsWith(".html")) return clean;
         return clean + ".html";
     }
@@ -1561,6 +1644,23 @@ public class DesignDataManager {
                 }
             }
         }
+    }
+
+    public static String canonicalizeEventKey(String cleanTarget, String eventKey) {
+        if (eventKey == null || eventKey.trim().isEmpty()) {
+            return "onPageLoad_onPageLoad";
+        }
+        String k = eventKey.trim();
+        if ("onPageLoad_onPageLoad".equals(k)
+                || "onCreate_initializeLogic".equals(k)
+                || "initializeLogic_initializeLogic".equals(k)
+                || "onPageLoad".equals(k)
+                || "initializeLogic".equals(k)
+                || "immediate".equals(k)
+                || (cleanTarget != null && cleanTarget.equals(k))) {
+            return "onPageLoad_onPageLoad";
+        }
+        return k;
     }
 
     public static void setBlocks(String str, String str2, ArrayList<BlockBean> arrayList) {

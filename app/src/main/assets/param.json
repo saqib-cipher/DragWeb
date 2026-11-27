@@ -1,4 +1,83 @@
 {
+  "color": [
+    "#000000",
+    "#FFFFFF",
+    "#F4F4F4",
+    "#333333",
+    "#666666",
+    "#CCCCCC",
+    "#007BFF",
+    "#1976D2",
+    "#28A745",
+    "#4CAF50",
+    "#DC3545",
+    "#F44336",
+    "#FF9800",
+    "#FFC107",
+    "#17A2B8",
+    "transparent"
+  ],
+  "unit": [
+    "px",
+    "%",
+    "em",
+    "rem",
+    "vw",
+    "vh",
+    "vmin",
+    "vmax",
+    "ch",
+    "ex",
+    "pt",
+    "pc",
+    "fr",
+    "s",
+    "ms",
+    "deg",
+    "rad",
+    "turn",
+    "auto"
+  ],
+  "selector": [
+    "body",
+    "h1",
+    "h2",
+    "p",
+    "div",
+    "span",
+    "button",
+    "input",
+    "ul",
+    "li",
+    "a",
+    ".container",
+    ".active",
+    "#main"
+  ],
+  "cssPseudo": [
+    ":hover",
+    ":focus",
+    ":active",
+    ":visited",
+    ":first-child",
+    ":last-child",
+    "::before",
+    "::after"
+  ],
+  "boxSizing": [
+    "border-box",
+    "content-box"
+  ],
+  "display": [
+    "block",
+    "flex",
+    "grid",
+    "inline",
+    "inline-block",
+    "inline-flex",
+    "none",
+    "contents"
+  ],
   "position": [
     "static",
     "relative",
@@ -6,19 +85,95 @@
     "fixed",
     "sticky"
   ],
-  "display": [
-    "block",
-    "none",
-    "flex",
-    "grid",
-    "inline-block",
-    "inline-flex"
-  ],
   "overflow": [
     "visible",
     "hidden",
     "scroll",
     "auto"
+  ],
+  "visibility": [
+    "visible",
+    "hidden",
+    "collapse"
+  ],
+  "cursor": [
+    "default",
+    "pointer",
+    "move",
+    "text",
+    "wait",
+    "help",
+    "not-allowed",
+    "grab",
+    "grabbing"
+  ],
+  "float": [
+    "none",
+    "left",
+    "right"
+  ],
+  "clear": [
+    "none",
+    "left",
+    "right",
+    "both"
+  ],
+  "objectFit": [
+    "fill",
+    "contain",
+    "cover",
+    "none",
+    "scale-down"
+  ],
+  "verticalAlign": [
+    "baseline",
+    "top",
+    "middle",
+    "bottom",
+    "text-top",
+    "text-bottom"
+  ],
+  "flexDirection": [
+    "row",
+    "row-reverse",
+    "column",
+    "column-reverse"
+  ],
+  "flexWrap": [
+    "nowrap",
+    "wrap",
+    "wrap-reverse"
+  ],
+  "justifyContent": [
+    "flex-start",
+    "flex-end",
+    "center",
+    "space-between",
+    "space-around",
+    "space-evenly"
+  ],
+  "alignItems": [
+    "stretch",
+    "flex-start",
+    "flex-end",
+    "center",
+    "baseline"
+  ],
+  "alignSelf": [
+    "auto",
+    "flex-start",
+    "center",
+    "flex-end",
+    "stretch",
+    "baseline"
+  ],
+  "alignContent": [
+    "flex-start",
+    "center",
+    "flex-end",
+    "stretch",
+    "space-between",
+    "space-around"
   ],
   "textAlign": [
     "left",
@@ -50,85 +205,150 @@
     "italic",
     "oblique"
   ],
-  "cursor": [
-    "default",
-    "pointer",
-    "move",
-    "text",
-    "wait",
-    "help",
-    "not-allowed",
-    "grab",
-    "grabbing"
-  ],
-  "flexDirection": [
-    "row",
-    "row-reverse",
-    "column",
-    "column-reverse"
-  ],
-  "flexWrap": [
-    "nowrap",
-    "wrap",
-    "wrap-reverse"
-  ],
-  "borderStyle": [
-    "none",
-    "solid",
-    "dashed",
-    "dotted",
-    "double",
-    "groove",
-    "ridge",
-    "inset",
-    "outset"
-  ],
   "textTransform": [
     "none",
     "capitalize",
     "uppercase",
     "lowercase"
   ],
-  "justifyContent": [
-    "flex-start",
-    "flex-end",
-    "center",
-    "space-between",
-    "space-around",
-    "space-evenly"
+  "whiteSpace": [
+    "normal",
+    "nowrap",
+    "pre",
+    "pre-wrap",
+    "pre-line"
   ],
-  "alignItems": [
-    "stretch",
-    "flex-start",
-    "flex-end",
-    "center",
-    "baseline"
+  "wordBreak": [
+    "normal",
+    "break-all",
+    "keep-all",
+    "break-word"
   ],
-  "selector": [
-    "body",
-    "h1",
-    "p",
-    ".active",
-    "#main",
-    "div"
+  "listStyle": [
+    "none",
+    "disc",
+    "circle",
+    "square",
+    "decimal",
+    "lower-roman",
+    "upper-roman",
+    "lower-alpha",
+    "upper-alpha"
   ],
-  "unit": [
-    "px",
-    "%",
-    "em",
-    "rem",
-    "vw",
-    "vh",
-    "vmin",
-    "vmax",
-    "ch",
-    "ex",
-    "pt",
-    "pc",
-    "fr",
-    "deg",
-    "rad",
-    "auto"
+  "borderStyle": [
+    "solid",
+    "dashed",
+    "dotted",
+    "double",
+    "none",
+    "groove",
+    "ridge",
+    "inset",
+    "outset"
+  ],
+  "shadowType": [
+    "outline",
+    "inset"
+  ],
+  "filterType": [
+    "blur",
+    "grayscale",
+    "hue-rotate",
+    "invert",
+    "saturate",
+    "sepia"
+  ],
+  "transitionProperty": [
+    "all",
+    "color",
+    "background-color",
+    "transform",
+    "opacity",
+    "width",
+    "height",
+    "margin",
+    "padding",
+    "border-radius",
+    "border-color",
+    "box-shadow"
+  ],
+  "timingFunction": [
+    "ease",
+    "linear",
+    "ease-in",
+    "ease-out",
+    "ease-in-out",
+    "step-start",
+    "step-end"
+  ],
+  "event": [
+    "click",
+    "dblclick",
+    "input",
+    "change",
+    "submit",
+    "keydown",
+    "keyup",
+    "keypress",
+    "mouseenter",
+    "mouseleave",
+    "focus",
+    "blur",
+    "scroll",
+    "resize",
+    "load",
+    "DOMContentLoaded"
+  ],
+  "varDecl": [
+    "const",
+    "let",
+    "var"
+  ],
+  "insertPos": [
+    "beforeend",
+    "afterbegin",
+    "beforebegin",
+    "afterend"
+  ],
+  "httpMethod": [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE"
+  ],
+  "scrollBehavior": [
+    "smooth",
+    "auto",
+    "instant"
+  ],
+  "cssStyleProp": [
+    "color",
+    "background",
+    "backgroundColor",
+    "display",
+    "visibility",
+    "opacity",
+    "width",
+    "height",
+    "margin",
+    "padding",
+    "border",
+    "borderRadius",
+    "fontSize",
+    "fontWeight",
+    "textDecoration",
+    "transform"
+  ],
+  "consoleLevel": [
+    "log",
+    "warn",
+    "error",
+    "info"
+  ],
+  "listType": [
+    "ul",
+    "ol"
   ],
   "inputType": [
     "text",
@@ -150,104 +370,10 @@
     "reset",
     "button"
   ],
-  "listType": [
-    "ul",
-    "ol"
-  ],
-  "visibility": [
-    "visible",
-    "hidden",
-    "collapse"
-  ],
-  "whiteSpace": [
-    "normal",
-    "nowrap",
-    "pre",
-    "pre-wrap",
-    "pre-line"
-  ],
-  "wordBreak": [
-    "normal",
-    "break-all",
-    "keep-all",
-    "break-word"
-  ],
-  "float": [
-    "none",
-    "left",
-    "right"
-  ],
-  "clear": [
-    "none",
-    "left",
-    "right",
-    "both"
-  ],
-  "objectFit": [
-    "fill",
-    "contain",
-    "cover",
-    "none",
-    "scale-down"
-  ],
-  "verticalAlign": [
-    "baseline",
-    "top",
-    "middle",
-    "bottom",
-    "text-top",
-    "text-bottom"
-  ],
-  "listStyle": [
-    "none",
-    "disc",
-    "circle",
-    "square",
-    "decimal",
-    "lower-roman",
-    "upper-roman",
-    "lower-alpha",
-    "upper-alpha"
-  ],
   "formMethod": [
     "GET",
     "POST",
     "dialog"
-  ],
-  "transitionProperty": [
-    "all",
-    "color",
-    "background-color",
-    "transform",
-    "opacity",
-    "width",
-    "height",
-    "margin",
-    "padding",
-    "border-radius",
-    "border-color",
-    "box-shadow"
-  ],
-  "timingFunction": [
-    "linear",
-    "ease",
-    "ease-in",
-    "ease-out",
-    "ease-in-out",
-    "step-start",
-    "step-end"
-  ],
-  "shadowType": [
-    "outline",
-    "inset"
-  ],
-  "filterType": [
-    "blur",
-    "grayscale",
-    "hue-rotate",
-    "invert",
-    "saturate",
-    "sepia"
   ],
   "htmlInputType": [
     "text",

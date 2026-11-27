@@ -34,9 +34,9 @@ public final class BlockCategoryPalette {
             case "html_attr": return "#78909C";
             case "logic":     return "#E91E63";
             case "variable":  return "#00BCD4";
-            case "animation": return "#9C27B0";
+            case "animation": return "#EF6C00";
             case "asd":       return "#455A64";
-            case "value":     return "#7E57C2";
+            case "value":     return "#00897B";
             default:          return "#607D8B";
         }
     }

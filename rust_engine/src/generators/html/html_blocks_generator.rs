@@ -210,14 +210,17 @@ pub fn load_definitions(
         ("text-transform", "setTextTransform", "text-transform: %m.textTransform", "text-transform: %1$s;", -13022805),
         ("line-height", "setLineHeight", "line-height: %s", "line-height: %1$s;", -13022805),
         ("font-family", "setFontFamily", "font-family: %s", "font-family: %1$s;", -13022805),
-        ("background-color", "setBackgroundColor", "background-color %m.color", "background-color: %1$s;", -7461718),
-        ("background", "setBackground", "background: %s", "background: %1$s;", -7461718),
-        ("border", "setBorder", "border %d %m.unit solid %m.color", "border: %1$s%2$s solid %3$s;", -7461718),
-        ("border-radius", "setRadius", "border-radius %d %m.unit", "border-radius: %1$s%2$s;", -7461718),
-        ("border-radius", "setRadiusMulti", "border-radius TL %d %m.unit TR %d %m.unit BR %d %m.unit BL %d %m.unit", "border-radius: %1$s%2$s %3$s%4$s %5$s%6$s %7$s%8$s;", -7461718),
-        ("box-shadow", "setBoxShadow", "box-shadow: %s", "box-shadow: %1$s;", -7461718),
-        ("opacity", "setOpacity", "opacity: %s", "opacity: %1$s;", -7461718),
-        ("cursor", "setCursor", "cursor: %m.cursor", "cursor: %1$s;", -7461718),
+        ("background-color", "setBackgroundColor", "background-color %m.color", "background-color: %1$s;", -9920712),
+        ("background", "setBackground", "background %m.color", "background: %1$s;", -9920712),
+        ("background", "setBackgroundRaw", "background %s.inputOnly", "background: %1$s;", -9920712),
+        ("border", "setBorder", "border %d %m.unit %m.borderStyle %m.color", "border: %1$s%2$s %3$s %4$s;", -9920712),
+        ("border", "setBorderNone", "border none", "border: none;", -9920712),
+        ("border-radius", "setRadius", "border-radius %d %m.unit", "border-radius: %1$s%2$s;", -9920712),
+        ("border-radius", "setRadiusMulti", "border-radius TL %d %m.unit TR %d %m.unit BR %d %m.unit BL %d %m.unit", "border-radius: %1$s%2$s %3$s%4$s %5$s%6$s %7$s%8$s;", -9920712),
+        ("box-shadow", "setBoxShadow", "box-shadow x %d px y %d px blur %d px color %m.color", "box-shadow: %1$spx %2$spx %3$spx %4$s;", -6447836),
+        ("box-shadow", "setBoxShadowRaw", "box-shadow %s.inputOnly", "box-shadow: %1$s;", -6447836),
+        ("opacity", "setOpacity", "opacity %d", "opacity: %1$s;", -16611119),
+        ("cursor", "setCursor", "cursor %m.cursor", "cursor: %1$s;", -15108462),
     ];
 
     for (k, id, spec, code, color) in default_css_props {
@@ -317,6 +320,10 @@ pub fn load_definitions(
                 }
             }
         }
+    }
+
+    for list in css_prop_map.values_mut() {
+        list.sort_by_key(css_def_specificity);
     }
 
     (
@@ -588,16 +595,169 @@ fn split_number_and_unit(token: &str) -> Option<(String, String)> {
     Some((num, final_unit))
 }
 
+fn css_def_specificity(def: &BlockDef) -> i32 {
+    if def.id.ends_with("Raw") || def.id.ends_with("Multi") && def.id != "setRadiusMulti" {
+        return 30;
+    }
+    let param_types = parse_spec_param_types(&def.spec);
+    if param_types.is_empty()
+        || def.id == "setBackgroundImage"
+        || def.id == "filterBlur"
+        || def.id == "filterDropShadow"
+    {
+        return 0;
+    }
+    if def.id == "setRadiusMulti"
+        || def.id == "setBoxShadowSpread"
+        || def.id == "setBoxShadow"
+        || def.id == "setBorder"
+        || def.id == "setOutline"
+        || (param_types.len() == 2 && def.spec.contains("%d %m.unit"))
+    {
+        return 10;
+    }
+    if param_types.iter().any(|p| p.starts_with("m.") || p == "d" || p == "color") {
+        return 20;
+    }
+    25
+}
+
+fn split_css_tokens(val: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut paren_depth: i32 = 0;
+    let mut quote: Option<char> = None;
+
+    for ch in val.chars() {
+        if let Some(q) = quote {
+            cur.push(ch);
+            if ch == q {
+                quote = None;
+            }
+            continue;
+        }
+        if ch == '\'' || ch == '"' {
+            quote = Some(ch);
+            cur.push(ch);
+            continue;
+        }
+        if ch == '(' {
+            paren_depth += 1;
+            cur.push(ch);
+            continue;
+        }
+        if ch == ')' {
+            if paren_depth > 0 {
+                paren_depth -= 1;
+            }
+            cur.push(ch);
+            continue;
+        }
+        if ch.is_whitespace() && paren_depth == 0 {
+            if !cur.is_empty() {
+                out.push(std::mem::take(&mut cur));
+            }
+            continue;
+        }
+        cur.push(ch);
+    }
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+    out
+}
+
+fn is_css_color_token(tok: &str) -> bool {
+    let t = tok.trim();
+    let lower = t.to_ascii_lowercase();
+    if lower.starts_with('#') {
+        let hex = &lower[1..];
+        return matches!(hex.len(), 3 | 4 | 6 | 8) && hex.chars().all(|c| c.is_ascii_hexdigit());
+    }
+    if lower.starts_with("rgb(")
+        || lower.starts_with("rgba(")
+        || lower.starts_with("hsl(")
+        || lower.starts_with("hsla(")
+        || lower.starts_with("var(")
+    {
+        return true;
+    }
+    matches!(
+        lower.as_str(),
+        "transparent"
+            | "currentcolor"
+            | "black"
+            | "white"
+            | "red"
+            | "green"
+            | "blue"
+            | "yellow"
+            | "orange"
+            | "pink"
+            | "purple"
+            | "brown"
+            | "gray"
+            | "grey"
+            | "silver"
+            | "gold"
+            | "cyan"
+            | "magenta"
+            | "teal"
+            | "navy"
+            | "maroon"
+            | "olive"
+            | "lime"
+            | "aqua"
+            | "indigo"
+            | "violet"
+            | "coral"
+            | "crimson"
+            | "inherit"
+            | "initial"
+            | "unset"
+    )
+}
+
+fn is_border_style_token(tok: &str) -> bool {
+    matches!(
+        tok.trim().to_ascii_lowercase().as_str(),
+        "none" | "solid" | "dashed" | "dotted" | "double" | "groove" | "ridge" | "inset" | "outset" | "hidden"
+    )
+}
+
+fn strip_px_number(tok: &str) -> Option<String> {
+    let (n, u) = split_number_and_unit(tok)?;
+    if n == "0" || u.is_empty() || u.eq_ignore_ascii_case("px") {
+        Some(n)
+    } else {
+        None
+    }
+}
+
 fn match_css_def_and_params(def: &BlockDef, key: &str, val: &str) -> Option<Vec<String>> {
     let param_types = parse_spec_param_types(&def.spec);
-    let tokens: Vec<&str> = val.split_whitespace().collect();
+    let trimmed = val.trim();
+    let tokens = split_css_tokens(trimmed);
+
+    if param_types.is_empty() {
+        let expected_val = def
+            .code
+            .split(':')
+            .nth(1)
+            .map(|s| s.trim().trim_end_matches(';').trim())
+            .unwrap_or("");
+        if !expected_val.is_empty() && trimmed.eq_ignore_ascii_case(expected_val) {
+            return Some(Vec::new());
+        }
+        return None;
+    }
 
     if def.id == "setRadiusMulti" || (key == "border-radius" && param_types.len() == 8) {
         if tokens.len() != 4 {
             return None;
         }
         let mut params = Vec::with_capacity(8);
-        for tok in tokens {
+        for tok in &tokens {
             let (n, u) = split_number_and_unit(tok)?;
             params.push(n);
             params.push(if u.is_empty() { "px".to_string() } else { u });
@@ -605,16 +765,108 @@ fn match_css_def_and_params(def: &BlockDef, key: &str, val: &str) -> Option<Vec<
         return Some(params);
     }
 
-    if (def.id == "setBorder" || def.id == "setOutline") && param_types.len() == 3 {
-        if tokens.len() == 3 && tokens[1].eq_ignore_ascii_case("solid") {
-            if let Some((n, u)) = split_number_and_unit(tokens[0]) {
-                return Some(vec![
-                    n,
-                    if u.is_empty() { "px".to_string() } else { u },
-                    tokens[2].to_string(),
-                ]);
+    if def.id == "setBackgroundImage" {
+        let lower = trimmed.to_ascii_lowercase();
+        if lower.starts_with("url(") && trimmed.ends_with(')') {
+            let inner = trimmed[4..trimmed.len() - 1]
+                .trim()
+                .trim_matches('"')
+                .trim_matches('\'')
+                .to_string();
+            return Some(vec![inner]);
+        }
+        return None;
+    }
+
+    if def.id == "filterBlur" {
+        let lower = trimmed.to_ascii_lowercase();
+        if lower.starts_with("blur(") && trimmed.ends_with(')') {
+            let inner = trimmed[5..trimmed.len() - 1].trim();
+            if let Some(n) = strip_px_number(inner) {
+                return Some(vec![n]);
             }
         }
+        return None;
+    }
+
+    if (def.id == "setBorder" || def.id == "setOutline") && (param_types.len() == 3 || param_types.len() == 4) {
+        if tokens.len() >= 2 && tokens.len() <= 3 {
+            let mut width_pair: Option<(String, String)> = None;
+            let mut style_tok: Option<String> = None;
+            let mut color_tok: Option<String> = None;
+            let mut valid = true;
+            for tok in &tokens {
+                if style_tok.is_none() && is_border_style_token(tok) {
+                    style_tok = Some(tok.to_ascii_lowercase());
+                } else if width_pair.is_none() {
+                    if let Some((n, u)) = split_number_and_unit(tok) {
+                        width_pair = Some((n, if u.is_empty() { "px".to_string() } else { u }));
+                        continue;
+                    } else if color_tok.is_none() && is_css_color_token(tok) {
+                        color_tok = Some(tok.to_string());
+                    } else {
+                        valid = false;
+                        break;
+                    }
+                } else if color_tok.is_none() && is_css_color_token(tok) {
+                    color_tok = Some(tok.to_string());
+                } else {
+                    valid = false;
+                    break;
+                }
+            }
+            if valid {
+                if let (Some((n, u)), Some(st)) = (width_pair, style_tok) {
+                    let col = color_tok.unwrap_or_else(|| "currentColor".to_string());
+                    if param_types.len() == 4 {
+                        return Some(vec![n, u, st, col]);
+                    } else if st == "solid" {
+                        return Some(vec![n, u, col]);
+                    }
+                }
+            }
+        }
+        return None;
+    }
+
+    if def.id == "setBoxShadow" || def.id == "setBoxShadowSpread" {
+        if trimmed.contains("),") || (trimmed.contains(',') && !trimmed.contains('(')) {
+            return None;
+        }
+        let mut lengths: Vec<String> = Vec::new();
+        let mut color_tok: Option<String> = None;
+        let mut is_inset = false;
+        let mut valid = true;
+        for tok in &tokens {
+            if tok.eq_ignore_ascii_case("inset") {
+                is_inset = true;
+            } else if is_css_color_token(tok) && color_tok.is_none() {
+                color_tok = Some(tok.to_string());
+            } else if let Some(n) = strip_px_number(tok) {
+                lengths.push(n);
+            } else {
+                valid = false;
+                break;
+            }
+        }
+        if valid && !lengths.is_empty() && color_tok.is_some() {
+            let x = lengths[0].clone();
+            let y = lengths.get(1).cloned().unwrap_or_else(|| "0".to_string());
+            let blur = lengths.get(2).cloned().unwrap_or_else(|| "0".to_string());
+            let col = color_tok.unwrap();
+            if def.id == "setBoxShadow" && lengths.len() <= 3 && !is_inset && param_types.len() == 4 {
+                return Some(vec![x, y, blur, col]);
+            }
+            if def.id == "setBoxShadowSpread" && lengths.len() <= 4 && (lengths.len() == 4 || is_inset) && param_types.len() == 6 {
+                let spread = lengths.get(3).cloned().unwrap_or_else(|| "0".to_string());
+                let stype = if is_inset { "inset" } else { "outline" }.to_string();
+                return Some(vec![x, y, blur, spread, col, stype]);
+            }
+        }
+        return None;
+    }
+
+    if (def.id == "setMarginMulti" || def.id == "setPaddingMulti") && tokens.len() <= 1 {
         return None;
     }
 
@@ -622,12 +874,29 @@ fn match_css_def_and_params(def: &BlockDef, key: &str, val: &str) -> Option<Vec<
         if tokens.len() != 1 {
             return None;
         }
-        let (n, u) = split_number_and_unit(tokens[0])?;
+        if tokens[0].eq_ignore_ascii_case("auto") {
+            return Some(vec![String::new(), "auto".to_string()]);
+        }
+        let (n, u) = split_number_and_unit(&tokens[0])?;
         return Some(vec![n, if u.is_empty() { "px".to_string() } else { u }]);
     }
 
     if param_types.len() == 1 {
-        return Some(vec![val.to_string()]);
+        if param_types[0] == "m.color" {
+            return if is_css_color_token(trimmed) {
+                Some(vec![trimmed.to_string()])
+            } else {
+                None
+            };
+        }
+        if param_types[0] == "d" {
+            return if trimmed.parse::<f64>().is_ok() {
+                Some(vec![trimmed.to_string()])
+            } else {
+                None
+            };
+        }
+        return Some(vec![trimmed.to_string()]);
     }
 
     None
@@ -1045,11 +1314,54 @@ fn css_prop_from_block(block: &DragWebBlockBean) -> Option<String> {
         return Some(format!("border-radius: {} {} {} {};", tl, tr, br, bl));
     }
 
+    if op == "setBorderNone" {
+        return Some("border: none;".to_string());
+    }
+    if op == "setOutlineNone" {
+        return Some("outline: none;".to_string());
+    }
+    if op == "setBoxShadowNone" {
+        return Some("box-shadow: none;".to_string());
+    }
+    if op == "filterNone" {
+        return Some("filter: none;".to_string());
+    }
+
+    if (op == "setBorder" || op == "setOutline") && block.parameters.len() >= 4 && block.spec.contains("%m.unit") {
+        let pname = if op == "setBorder" { "border" } else { "outline" };
+        let w = combine_unit_pair(p0, p1);
+        let style = block.parameters[2].trim();
+        let c = block.parameters[3].trim();
+        return Some(format!("{}: {} {} {};", pname, w, style, c));
+    }
+
     if (op == "setBorder" || op == "setOutline") && block.parameters.len() >= 3 && block.spec.contains("%m.unit") {
         let pname = if op == "setBorder" { "border" } else { "outline" };
         let w = combine_unit_pair(p0, p1);
         let c = block.parameters[2].trim();
         return Some(format!("{}: {} solid {};", pname, w, c));
+    }
+
+    if op == "setBoxShadow" && block.parameters.len() >= 4 {
+        return Some(format!(
+            "box-shadow: {}px {}px {}px {};",
+            block.parameters[0].trim(),
+            block.parameters[1].trim(),
+            block.parameters[2].trim(),
+            block.parameters[3].trim()
+        ));
+    }
+    if op == "setBoxShadowSpread" && block.parameters.len() >= 6 {
+        let stype = if block.parameters[5].trim() == "inset" { " inset" } else { "" };
+        return Some(format!(
+            "box-shadow: {}px {}px {}px {}px {}{};",
+            block.parameters[0].trim(),
+            block.parameters[1].trim(),
+            block.parameters[2].trim(),
+            block.parameters[3].trim(),
+            block.parameters[4].trim(),
+            stype
+        ));
     }
 
     let prop_name = match op {
@@ -1059,12 +1371,12 @@ fn css_prop_from_block(block: &DragWebBlockBean) -> Option<String> {
         "setMaxWidth" => Some("max-width"),
         "setMinHeight" => Some("min-height"),
         "setMaxHeight" => Some("max-height"),
-        "setMargin" => Some("margin"),
+        "setMargin" | "setMarginMulti" => Some("margin"),
         "setMarginTop" => Some("margin-top"),
         "setMarginBottom" => Some("margin-bottom"),
         "setMarginLeft" => Some("margin-left"),
         "setMarginRight" => Some("margin-right"),
-        "setPadding" => Some("padding"),
+        "setPadding" | "setPaddingMulti" => Some("padding"),
         "setPaddingTop" => Some("padding-top"),
         "setPaddingBottom" => Some("padding-bottom"),
         "setPaddingLeft" => Some("padding-left"),
@@ -1081,6 +1393,7 @@ fn css_prop_from_block(block: &DragWebBlockBean) -> Option<String> {
         "setFlexWrap" => Some("flex-wrap"),
         "setJustifyContent" => Some("justify-content"),
         "setAlignItems" => Some("align-items"),
+        "setAlignSelf" => Some("align-self"),
         "setColor" => Some("color"),
         "setFontSize" => Some("font-size"),
         "setFontWeight" => Some("font-weight"),
@@ -1091,11 +1404,11 @@ fn css_prop_from_block(block: &DragWebBlockBean) -> Option<String> {
         "setLetterSpacing" => Some("letter-spacing"),
         "setFontFamily" => Some("font-family"),
         "setBackgroundColor" => Some("background-color"),
-        "setBackground" => Some("background"),
-        "setBorder" => Some("border"),
+        "setBackground" | "setBackgroundRaw" => Some("background"),
+        "setBorder" | "setBorderRaw" => Some("border"),
         "setOutline" => Some("outline"),
         "setRadius" => Some("border-radius"),
-        "setBoxShadow" => Some("box-shadow"),
+        "setBoxShadow" | "setBoxShadowRaw" => Some("box-shadow"),
         "setOpacity" => Some("opacity"),
         "setCursor" => Some("cursor"),
         _ => None,

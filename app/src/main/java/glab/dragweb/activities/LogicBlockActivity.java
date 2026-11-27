@@ -598,17 +598,81 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				this.bInitPaletteAnimation = true;
 		}
 		
+		private View loadingOverlay;
+		private boolean isSaving = false;
+		private com.google.android.material.card.MaterialCardView cardCssInlineNote;
+		private TextView tvCssNoteTitle;
+		private TextView tvCssNoteDesc;
+
+		private void updateCssInlineNoteCard(Context appCtx) {
+				if (this.cardCssInlineNote == null) return;
+				if (!isCssEvent()) {
+						this.cardCssInlineNote.setVisibility(View.GONE);
+						return;
+				}
+				ThemeManager tm = ProjectCodeGenerator.getProjectThemeManager(appCtx, this.projectId);
+				boolean useInline = (tm == null || tm.isUseInlineStyles());
+				boolean skipWidgetProps = (tm != null && tm.isDisableAllStyling());
+				if (useInline || skipWidgetProps) {
+						this.cardCssInlineNote.setVisibility(View.GONE);
+						return;
+				}
+				String relCss = ProjectCodeGenerator.resolveTargetCssRelPath(filename != null ? filename : this.pageName);
+				PageManager pm = new PageManager(appCtx, this.projectId);
+				List<String> linkedPages = ProjectCodeGenerator.getPagesLinkedToCssFile(pm, relCss);
+				if (linkedPages.isEmpty()) {
+						this.cardCssInlineNote.setVisibility(View.GONE);
+						return;
+				}
+				if (this.tvCssNoteTitle != null) {
+						this.tvCssNoteTitle.setText("Inline Styling Disabled (" + relCss + ")");
+				}
+				if (this.tvCssNoteDesc != null) {
+						String joined = String.join(", ", linkedPages);
+						this.tvCssNoteDesc.setText(
+								"Widget property styles from [" + joined + "] are added here as CSS blocks. "
+								+ "Your own CSS blocks below stay preserved and override matching styles."
+						);
+				}
+				this.cardCssInlineNote.setVisibility(View.VISIBLE);
+		}
+
 		private void loadLogic() {
-				Map<Integer, Block> hashMap = new HashMap<>();
+				this.isLogicLoaded = false;
+				LoadingOverlay.show(this.loadingOverlay, isHtmlEvent() ? "Loading HTML blocks..." : "Loading blocks...");
+				final Context appCtx = getApplicationContext() != null ? getApplicationContext() : this;
+				final int orientation = getResources().getConfiguration().orientation;
+				updateCssInlineNoteCard(appCtx);
+				AppExecutors.io().execute(() -> {
+						glab.dragweb.core.BlocksLoader.isLibraryLoaded();
+						final ArrayList loadedBlocks = loadBlocksDataBackground(appCtx);
+						runOnUiThread(() -> {
+								if (isFinishing() || isDestroyed()) return;
+								try {
+										if (loadedBlocks != null) {
+												populateBlocksIntoPane(loadedBlocks);
+										}
+										allocatePalette(orientation);
+										this.isLogicLoaded = true;
+										saveUndoState();
+										runLintCheck();
+								} finally {
+										LoadingOverlay.hide(this.loadingOverlay);
+								}
+						});
+				});
+		}
+
+		private ArrayList loadBlocksDataBackground(Context appCtx) {
 				String cleanPName = DesignDataManager.getCleanPageName((this.pageName != null && !this.pageName.isEmpty()) ? this.pageName : filename);
-				DesignDataManager.initialize(this.context, this.projectId, cleanPName);
+				DesignDataManager.initialize(appCtx, this.projectId, cleanPName);
 				String eventKey = this.id + LOGIC_NAME_SEPARATOR + this.eventName;
 				ArrayList blocks = null;
 
 				if (isHtmlEvent()) {
 						// Pure layout2blocks on demand via Rust engine — no separated HTML logic blocks
 						String htmlCode = null;
-						PageManager pm = new PageManager(this, this.projectId);
+						PageManager pm = new PageManager(appCtx, this.projectId);
 						String pageJson = pm.loadPageLayout(cleanPName);
 						List<Map<String, Object>> tree = PageManager.parseLayoutTree(pageJson);
 
@@ -616,16 +680,16 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						if (tree != null && !tree.isEmpty()) {
 								PageCodeGenerator pcg = new PageCodeGenerator();
 								pcg.setProjectId(this.projectId);
-								pcg.setContext(this);
+								pcg.setContext(appCtx);
 								pcg.setCurrentPageName(cleanPName);
 								htmlCode = pcg.generateBodyHtmlFromTree(tree);
 						}
 
 						// 2. Fall back to existing assets HTML file if tree is empty
 						if (htmlCode == null || htmlCode.trim().isEmpty()) {
-								File htmlFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/assets/" + cleanPName + ".html");
+								File htmlFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + this.projectId + "/assets/" + cleanPName + ".html");
 								if (!htmlFile.exists()) {
-										htmlFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/assets/index.html");
+										htmlFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + this.projectId + "/assets/index.html");
 								}
 								if (htmlFile.exists()) {
 										htmlCode = FileUtil.readFile(htmlFile.getAbsolutePath());
@@ -633,36 +697,40 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 						}
 
 						if (htmlCode != null && !htmlCode.trim().isEmpty()) {
-								blocks = glab.dragweb.core.BlocksLoader.generateHtmlBlocksFromCode(this, htmlCode);
+								blocks = glab.dragweb.core.BlocksLoader.generateHtmlBlocksFromCode(appCtx, htmlCode);
 						}
 				} else if (isCssEvent()) {
-						ThemeManager tm = ProjectCodeGenerator.getProjectThemeManager(this, this.projectId);
+						ThemeManager tm = ProjectCodeGenerator.getProjectThemeManager(appCtx, this.projectId);
 						boolean useInline = (tm == null || tm.isUseInlineStyles());
-						if (useInline) {
-								// Inline styling ON: show only explicit CSS logic blocks, never canvas widget inline styles
-								blocks = DesignDataManager.getBlocks(cleanPName, eventKey);
-								if (blocks == null || blocks.isEmpty()) {
-										blocks = DesignDataManager.getBlocks(filename, eventKey);
+						boolean skipWidgetProps = (tm != null && tm.isDisableAllStyling());
+
+						// Always load user's explicit CSS blocks from unified logic file (never stale assets CSS fallback)
+						ArrayList<BlockBean> userBlocks = DesignDataManager.getBlocks(cleanPName, eventKey);
+						if (userBlocks == null || userBlocks.isEmpty()) {
+								userBlocks = DesignDataManager.getBlocks(filename, eventKey);
+						}
+
+						if (useInline || skipWidgetProps) {
+								if (userBlocks != null && !userBlocks.isEmpty()) {
+										ArrayList<BlockBean> filteredUser = new ArrayList<>();
+										for (BlockBean ub : userBlocks) {
+												if (ub != null && !ub.isPropertyStyle) {
+														filteredUser.add(ub);
+												}
+										}
+										blocks = filteredUser;
+								} else {
+										blocks = userBlocks;
 								}
 						} else {
-								// Inline styling OFF: show external CSS (logic blocks + canvas widget rules) in CSS Logic Editor
-								String cssPageKey = DesignDataManager.getCleanPageName("css/style.css");
-								String compiledCss = ProjectCodeGenerator.compileCssForFile(this, this.projectId, cssPageKey);
-								String cleanCss = stripCssImports(compiledCss);
-								if ((cleanCss == null || cleanCss.isEmpty())) {
-										File cssFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/assets/css/style.css");
-										if (cssFile.exists()) {
-												cleanCss = stripCssImports(FileUtil.readFile(cssFile.getAbsolutePath()));
-										}
-								}
-								if (cleanCss != null && !cleanCss.isEmpty()) {
-										blocks = glab.dragweb.core.BlocksLoader.generateCssBlocksFromCode(this, cleanCss);
-								}
-								if (blocks == null || blocks.isEmpty()) {
-										blocks = DesignDataManager.getBlocks(cleanPName, eventKey);
-										if (blocks == null || blocks.isEmpty()) {
-												blocks = DesignDataManager.getBlocks(filename, eventKey);
-										}
+								// Inline styling OFF: convert linked pages' canvas widget property styles and merge alongside user CSS blocks
+								String relCss = ProjectCodeGenerator.resolveTargetCssRelPath(filename != null ? filename : this.pageName);
+								String widgetPropsCss = ProjectCodeGenerator.collectWidgetPropertyCssForCssFile(appCtx, this.projectId, relCss);
+								if (widgetPropsCss != null && !widgetPropsCss.trim().isEmpty()) {
+										ArrayList<BlockBean> propBlocks = glab.dragweb.core.BlocksLoader.generateCssBlocksFromCode(appCtx, widgetPropsCss);
+										blocks = mergeCssPropertyAndUserBlocks(propBlocks, userBlocks);
+								} else {
+										blocks = userBlocks;
 								}
 						}
 				} else {
@@ -684,23 +752,184 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 										}
 								}
 						}
-						// If no saved JS blocks exist yet and an external JS file exists (e.g. js/script.js), convert via blocks.json reference
-						if (blocks == null || blocks.isEmpty()) {
-								String relJs = (filename != null && filename.endsWith(".js")) ? filename : "js/script.js";
-								File jsFile = new File(FileUtil.getDragWebDir(this), "projects/" + this.projectId + "/assets/" + relJs);
-								if (jsFile.exists()) {
-										String rawJs = FileUtil.readFile(jsFile.getAbsolutePath());
-										String cleanedJs = stripDragWebJsBoilerplate(rawJs);
-										if (cleanedJs != null && !cleanedJs.trim().isEmpty()) {
-												blocks = glab.dragweb.core.BlocksLoader.generateJsBlocksFromCode(this, cleanedJs);
+						// Pure unified logic file loading (Sketchware pattern): never re-import deleted/reset JS from assets
+				}
+				return blocks;
+		}
+
+		/**
+		 * Combines freshly derived widget property CSS blocks with user-saved CSS blocks without overwriting
+		 * user blocks or colliding on block IDs. Property blocks appear first, followed by user blocks.
+		 */
+		public static ArrayList<BlockBean> mergeCssPropertyAndUserBlocks(
+				ArrayList<BlockBean> propBlocks,
+				ArrayList<BlockBean> userBlocks) {
+				if (propBlocks != null) {
+						for (BlockBean pb : propBlocks) {
+								if (pb != null) pb.isPropertyStyle = true;
+						}
+				}
+				if (propBlocks == null || propBlocks.isEmpty()) {
+						return userBlocks != null ? userBlocks : new ArrayList<>();
+				}
+				if (userBlocks == null || userBlocks.isEmpty()) {
+						return propBlocks;
+				}
+
+				// Collect top-level selectors already represented in userBlocks so existing blocks aren't duplicated on reopen
+				java.util.Set<String> existingSelectors = new java.util.HashSet<>();
+				for (BlockBean ub : userBlocks) {
+						if (ub != null && ub.opCode != null && ub.opCode.startsWith("css") && ub.parameters != null && !ub.parameters.isEmpty()) {
+								existingSelectors.add(ub.opCode + "|" + String.valueOf(ub.parameters.get(0)).trim());
+						}
+				}
+
+				// Filter propBlocks top-level rules whose selector+opCode isn't already saved in userBlocks
+				java.util.Set<String> keepPropIds = new java.util.HashSet<>();
+				collectUnmatchedPropRuleIds(propBlocks, existingSelectors, keepPropIds);
+				if (keepPropIds.isEmpty()) {
+						return userBlocks;
+				}
+
+				int maxPropId = 10;
+				ArrayList<BlockBean> filteredProps = new ArrayList<>();
+				for (BlockBean pb : propBlocks) {
+						if (pb != null && pb.id != null && keepPropIds.contains(pb.id)) {
+								filteredProps.add(pb);
+								maxPropId = Math.max(maxPropId, safeParseInt(pb.id));
+						}
+				}
+				if (filteredProps.isEmpty()) {
+						return userBlocks;
+				}
+
+				int offset = maxPropId + 20;
+				ArrayList<BlockBean> clonedProps = new ArrayList<>(filteredProps.size());
+				ArrayList<BlockBean> merged = new ArrayList<>(filteredProps.size() + userBlocks.size());
+				for (BlockBean pb : filteredProps) {
+						BlockBean cp = new BlockBean();
+						cp.copy(pb);
+						if (cp.nextBlock >= 0 && !keepPropIds.contains(String.valueOf(cp.nextBlock))) {
+								cp.nextBlock = -1;
+						}
+						clonedProps.add(cp);
+						merged.add(cp);
+				}
+				// Find head and tail of clonedProps top-level chain
+				BlockBean propHead = clonedProps.get(0);
+				for (BlockBean pb : clonedProps) {
+						if (pb.isConnectedToRoot) {
+								propHead = pb;
+								break;
+						}
+				}
+				for (BlockBean pb : clonedProps) {
+						pb.isConnectedToRoot = (pb == propHead);
+				}
+				BlockBean cur = propHead;
+				while (cur != null && cur.nextBlock >= 0) {
+						BlockBean nxt = findBeanById(clonedProps, cur.nextBlock);
+						if (nxt == null) break;
+						cur = nxt;
+				}
+				BlockBean lastTopProp = cur;
+
+				int firstUserRootId = -1;
+				for (BlockBean ub : userBlocks) {
+						if (ub == null) continue;
+						BlockBean shifted = new BlockBean();
+						shifted.copy(ub);
+						int oldId = safeParseInt(ub.id);
+						int newId = (oldId >= 0 ? oldId : 0) + offset;
+						shifted.id = String.valueOf(newId);
+						if (shifted.subStack1 >= 0) shifted.subStack1 += offset;
+						if (shifted.subStack2 >= 0) shifted.subStack2 += offset;
+						if (shifted.nextBlock >= 0) shifted.nextBlock += offset;
+						if (shifted.parameters != null) {
+								ArrayList<String> newParams = new ArrayList<>(shifted.parameters.size());
+								for (String p : shifted.parameters) {
+										if (p != null && p.startsWith("@") && p.length() > 1) {
+												int refId = safeParseInt(p.substring(1));
+												newParams.add(refId >= 0 ? ("@" + (refId + offset)) : p);
+										} else {
+												newParams.add(p);
 										}
+								}
+								shifted.parameters = newParams;
+						}
+						if (ub.isConnectedToRoot && firstUserRootId == -1) {
+								firstUserRootId = newId;
+						}
+						shifted.isConnectedToRoot = false;
+						shifted.x = 0;
+						shifted.y = 0;
+						merged.add(shifted);
+				}
+				if (firstUserRootId == -1 && !userBlocks.isEmpty()) {
+						firstUserRootId = safeParseInt(userBlocks.get(0).id) + offset;
+				}
+				if (lastTopProp != null && firstUserRootId >= 0) {
+						lastTopProp.nextBlock = firstUserRootId;
+				}
+				return merged;
+		}
+
+		private static void collectUnmatchedPropRuleIds(
+				ArrayList<BlockBean> propBlocks,
+				java.util.Set<String> existingSelectors,
+				java.util.Set<String> keepIds) {
+				if (propBlocks == null || propBlocks.isEmpty()) return;
+				BlockBean root = propBlocks.get(0);
+				for (BlockBean b : propBlocks) {
+						if (b != null && b.isConnectedToRoot) {
+								root = b;
+								break;
+						}
+				}
+				BlockBean cur = root;
+				java.util.Set<String> visited = new java.util.HashSet<>();
+				while (cur != null && cur.id != null && visited.add(cur.id)) {
+						String key = (cur.opCode != null && cur.parameters != null && !cur.parameters.isEmpty())
+								? cur.opCode + "|" + String.valueOf(cur.parameters.get(0)).trim()
+								: "";
+						if (key.isEmpty() || !existingSelectors.contains(key)) {
+								collectSubtreeIds(propBlocks, cur, keepIds);
+						}
+						cur = cur.nextBlock >= 0 ? findBeanById(propBlocks, cur.nextBlock) : null;
+				}
+		}
+
+		private static void collectSubtreeIds(ArrayList<BlockBean> all, BlockBean node, java.util.Set<String> out) {
+				if (node == null || node.id == null || !out.add(node.id)) return;
+				if (node.subStack1 >= 0) {
+						BlockBean s = findBeanById(all, node.subStack1);
+						while (s != null) {
+								collectSubtreeIds(all, s, out);
+								s = s.nextBlock >= 0 ? findBeanById(all, s.nextBlock) : null;
+						}
+				}
+				if (node.subStack2 >= 0) {
+						BlockBean s = findBeanById(all, node.subStack2);
+						while (s != null) {
+								collectSubtreeIds(all, s, out);
+								s = s.nextBlock >= 0 ? findBeanById(all, s.nextBlock) : null;
+						}
+				}
+				if (node.parameters != null) {
+						for (String p : node.parameters) {
+								if (p != null && p.startsWith("@") && p.length() > 1) {
+										collectSubtreeIds(all, findBeanById(all, safeParseInt(p.substring(1))), out);
 								}
 						}
 				}
-				if (blocks != null) {
-						populateBlocksIntoPane(blocks);
+		}
+
+		private static BlockBean findBeanById(ArrayList<BlockBean> list, int id) {
+				String sid = String.valueOf(id);
+				for (BlockBean b : list) {
+						if (b != null && sid.equals(b.id)) return b;
 				}
-				this.isLogicLoaded = true;
+				return null;
 		}
 
 		private void populateBlocksIntoPane(ArrayList blocks) {
@@ -996,7 +1225,7 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 				}
 		}
 		
-		private int safeParseInt(String s) {
+		private static int safeParseInt(String s) {
 				if (s == null) return 0;
 				try {
 						return Integer.parseInt(s.trim());
@@ -1033,18 +1262,6 @@ public class LogicBlockActivity extends AppCompatActivity implements OnClickList
 					|| "css_theme".equals(norm)
 					|| "theme".equals(norm)
 					|| "css/theme".equals(norm);
-		}
-
-		private static String stripCssImports(String css) {
-			if (css == null || css.isEmpty()) return "";
-			return css.replaceAll("(?im)^\\s*@import\\b[^;]*;\\s*$", "").trim();
-		}
-
-		private static String stripDragWebJsBoilerplate(String js) {
-			if (js == null || js.isEmpty()) return "";
-			String s = js.replaceAll("(?s)/\\*\\s*=+\\s*\\*\\s*DragWeb generated runtime.*?\\*/", "");
-			s = s.replaceAll("(?s)document\\.addEventListener\\(\\s*['\"]DOMContentLoaded['\"]\\s*,\\s*function\\(\\)\\s*\\{\\s*if\\s*\\(window\\.feather\\).*?lucide\\.createIcons\\(\\);.*?\\}\\s*\\);?", "");
-			return s.trim();
 		}
 
 		private void addBlockDefToPalette(BlockDef def, int fallbackColor) {
@@ -2160,24 +2377,8 @@ startActivityForResult(intent, 209);
 				DesignDataManager.saveSavedLogic(appCtx, pId, targetFile);
 				DesignDataManager.saveSavedLogic(appCtx, pId, cleanTarget);
 
-				// Clean up redundant style_logic.json if css_style is saved
+				// Clean up redundant style_logic.json if css_style is saved; asset files are synced below via ProjectCodeGenerator
 				if ("css_style".equals(cleanTarget) || isCssEvent()) {
-					try {
-						ArrayList<BlockBean> activeBeans = getActiveCanvasBeans();
-						if (activeBeans == null || activeBeans.isEmpty()) activeBeans = beans;
-						if (activeBeans != null && !activeBeans.isEmpty()) {
-							String cssCode = glab.dragweb.core.BlocksLoader.generateCssFromBlocks(appCtx, activeBeans);
-							if (cssCode != null && !cssCode.trim().isEmpty()) {
-								File cssFile = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/assets/css/style.css");
-								if (cssFile.getParentFile() != null && !cssFile.getParentFile().exists()) {
-									cssFile.getParentFile().mkdirs();
-								}
-								FileUtil.writeFile(cssFile.getAbsolutePath(), cssCode);
-							}
-						}
-					} catch (Exception e) {
-						android.util.Log.e("LogicBlockActivity", "Failed to sync CSS from blocks: " + e.getMessage());
-					}
 					File redundantStyle = new File(FileUtil.getDragWebDir(appCtx), "projects/" + pId + "/style_logic.json");
 					if (redundantStyle.exists()) {
 						FileUtil.deleteFile(redundantStyle.getAbsolutePath());
@@ -2213,6 +2414,26 @@ startActivityForResult(intent, 209);
 		}
 
 		private void saveAndFinish() {
+			if (!isLogicLoaded) {
+				setResult(RESULT_CANCELED);
+				finish();
+				return;
+			}
+			if (isHtmlEvent()) {
+				if (isSaving) return;
+				isSaving = true;
+				LoadingOverlay.show(this.loadingOverlay, "Syncing HTML to canvas...");
+				AppExecutors.io().execute(() -> {
+					saveLogicSynchronous();
+					runOnUiThread(() -> {
+						isSaving = false;
+						LoadingOverlay.hide(this.loadingOverlay);
+						setResult(RESULT_OK);
+						finish();
+					});
+				});
+				return;
+			}
 			saveLogicSynchronous();
 			setResult(RESULT_OK);
 			finish();
@@ -2916,6 +3137,21 @@ startActivityForResult(intent, 209);
 
 				setContentView(R.layout.logic_editor);
 
+				this.loadingOverlay = findViewById(R.id.loading_overlay);
+				LoadingOverlay.show(this.loadingOverlay, isHtmlEvent() ? "Loading HTML blocks..." : "Loading blocks...");
+
+				this.cardCssInlineNote = findViewById(R.id.card_css_inline_note);
+				this.tvCssNoteTitle = findViewById(R.id.tv_css_note_title);
+				this.tvCssNoteDesc = findViewById(R.id.tv_css_note_desc);
+				View btnCloseCssNote = findViewById(R.id.btn_close_css_note);
+				if (btnCloseCssNote != null) {
+						btnCloseCssNote.setOnClickListener(v -> {
+								if (this.cardCssInlineNote != null) {
+										this.cardCssInlineNote.setVisibility(View.GONE);
+								}
+						});
+				}
+
 				this.btnProblemsPill = findViewById(R.id.btn_problems_pill);
 				this.layoutPillAllGood = findViewById(R.id.layout_pill_all_good);
 				this.tvPillAllGoodCount = findViewById(R.id.tv_pill_all_good_count);
@@ -3361,74 +3597,11 @@ startActivityForResult(intent, 209);
 				}
 				
 				final String finalResult = (result == null || result.trim().isEmpty()) ? "/* No code generated */" : result;
-				final int maxPreviewChars = 40000;
-				final String displayResult = finalResult.length() > maxPreviewChars
-						? finalResult.substring(0, maxPreviewChars) + "\n\n/* ... truncated for preview (" + finalResult.length() + " chars total; use Copy for full code) ... */"
-						: finalResult;
-
-				com.google.android.material.dialog.MaterialAlertDialogBuilder builder =
-						new com.google.android.material.dialog.MaterialAlertDialogBuilder(this);
-				builder.setTitle("Source Code Preview");
-
-				androidx.core.widget.NestedScrollView verticalScroll = new androidx.core.widget.NestedScrollView(this);
-				android.widget.HorizontalScrollView horizontalScroll = new android.widget.HorizontalScrollView(this);
-				TextView codeView = new TextView(this);
-				codeView.setText(displayResult);
-				codeView.setTextSize(13);
-				codeView.setTypeface(android.graphics.Typeface.MONOSPACE);
-				codeView.setHorizontallyScrolling(true);
-				int padding = (int) (16 * getResources().getDisplayMetrics().density);
-				codeView.setPadding(padding, padding, padding, padding);
-				codeView.setTextIsSelectable(true);
-				horizontalScroll.addView(codeView);
-				verticalScroll.addView(horizontalScroll);
-
-				builder.setView(verticalScroll);
-				builder.setPositiveButton("Close", null);
-				builder.setNeutralButton("Copy", new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						try {
-							android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-							android.content.ClipData clip = android.content.ClipData.newPlainText("Source Code", finalResult);
-							clipboard.setPrimaryClip(clip);
-							Toast.makeText(LogicBlockActivity.this, "Copied to clipboard", Toast.LENGTH_SHORT).show();
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-					}
-				});
-				builder.show();
-		}
-
-		private String highlightCodeLocal(String code, String language) {
-				if (code == null) return "";
-				String escaped = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
-				if ("css".equalsIgnoreCase(language)) {
-						escaped = escaped.replaceAll("(/\\*[\\s\\S]*?\\*/)", "<span style=\"color:#6A9955;\">$1</span>");
-						escaped = escaped.replaceAll("([a-zA-Z0-9_-]+)\\s*:", "<span style=\"color:#9CDCFE;\">$1</span>:");
-						escaped = escaped.replaceAll("(:\\s*)([^;\\}]+)(;)?", "$1<span style=\"color:#CE9178;\">$2</span>$3");
-						escaped = escaped.replaceAll("([\\{\\}])", "<span style=\"color:#FFD700;font-weight:bold;\">$1</span>");
-				} else {
-						escaped = escaped.replaceAll("(//.*|/\\*[\\s\\S]*?\\*/)", "<span style=\"color:#6A9955;\">$1</span>");
-						escaped = escaped.replaceAll("\\b(function|var|let|const|return|if|else|for|while|try|catch|async|await|new|this|import|export|from)\\b", "<span style=\"color:#569CD6;font-weight:bold;\">$1</span>");
-						escaped = escaped.replaceAll("(['\"`][^'\"`]*['\"`])", "<span style=\"color:#CE9178;\">$1</span>");
-						escaped = escaped.replaceAll("\\b(true|false|null|undefined|document|window|console|Math|JSON)\\b", "<span style=\"color:#4FC1FF;\">$1</span>");
-				}
-				return escaped;
-		}
-
-		private void loadHighlightedCode(android.webkit.WebView webView, String code, String language) {
-				String bodyHtml = highlightCodeLocal(code, language);
-				String html = "<!DOCTYPE html><html><head>" +
-						"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">" +
-						"<style>" +
-						"html, body { margin:0; padding:0; background:#1e1e1e; color:#d4d4d4; font-family:Consolas, 'Courier New', monospace; font-size:13px; width:100%; height:100%; }" +
-						"pre { margin:0; padding:16px; box-sizing:border-box; white-space:pre-wrap; word-break:break-all; line-height:1.5; }" +
-						"code { font-family:Consolas, 'Courier New', monospace; }" +
-						"</style>" +
-						"</head><body><pre><code>" + bodyHtml + "</code></pre></body></html>";
-				webView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
+				String modeName = isCssEvent() ? "css" : "javascript";
+				String title = "Source Code Preview";
+				String subtitle = (this.eventName != null ? this.eventName : "")
+						+ (this.filename != null && !this.filename.isEmpty() ? " : " + this.filename : "");
+				SourceCodeActivity.openSingle(this, title, subtitle.trim(), finalResult, modeName);
 		}
 		
 		
@@ -3514,9 +3687,6 @@ startActivityForResult(intent, 209);
 				
 				this.pane.getRoot().fixLayout();
 				this.loadLogic();
-				this.allocatePalette(this.getResources().getConfiguration().orientation);
-				saveUndoState();
-				runLintCheck();
 		}
 		
 		protected void onResume() {

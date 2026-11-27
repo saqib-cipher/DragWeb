@@ -1,8 +1,10 @@
 package glab.dragweb.ui;
 
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -43,7 +45,10 @@ import java.util.regex.Pattern;
 import glab.dragweb.R;
 import glab.dragweb.colorpicker.ColorPickerDialogFragment;
 import glab.dragweb.data.DesignDataManager;
+import glab.dragweb.data.IconLibraryManager;
+import glab.dragweb.data.IconSearchProvider;
 import glab.dragweb.databinding.DialogChoiceListBinding;
+import glab.dragweb.databinding.DialogIconPickerBinding;
 import glab.dragweb.databinding.DialogImageSelectorBinding;
 import glab.dragweb.databinding.DialogInputNumberUnitBinding;
 import glab.dragweb.databinding.DialogInputTextBinding;
@@ -200,26 +205,29 @@ public final class AppDialogs {
         if (context == null) return;
         DialogChoiceListBinding b = DialogChoiceListBinding.inflate(LayoutInflater.from(context));
         final String[] safeOptions = options != null ? options : new String[0];
-        final String init = initialValue != null ? initialValue : "";
-        b.etFilter.setText(init);
+        final String init = initialValue != null ? initialValue.trim() : "";
+        final String[] selectedOption = { init };
+        // Always start search bar empty so all param options are visible immediately
+        b.etFilter.setText("");
 
-        final AlertDialog[] holder = new AlertDialog[1];
         Runnable rebuildList = () -> {
             String filter = b.etFilter.getText() != null ? b.etFilter.getText().toString().trim().toLowerCase(Locale.ROOT) : "";
             b.radioGroupOptions.removeAllViews();
+            b.radioGroupOptions.clearCheck();
+            int padH = dp(context, 4);
+            int padV = dp(context, 8);
             for (String opt : safeOptions) {
-                if (!filter.isEmpty() && !opt.toLowerCase(Locale.ROOT).contains(filter) && !opt.equals(init)) {
+                if (!filter.isEmpty() && !opt.toLowerCase(Locale.ROOT).contains(filter)) {
                     continue;
                 }
                 RadioButton rb = new RadioButton(context);
                 rb.setText(opt);
-                rb.setChecked(opt.equals(init));
-                int pad = dp(context, 10);
-                rb.setPadding(pad, pad, pad, pad);
-                rb.setOnClickListener(v -> {
-                    if (holder[0] != null) holder[0].dismiss();
-                    if (callback != null) callback.onText(opt);
-                });
+                rb.setChecked(opt.equals(selectedOption[0]));
+                rb.setPadding(padH, padV, padH, padV);
+                rb.setLayoutParams(new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
+                rb.setOnClickListener(v -> selectedOption[0] = opt);
                 b.radioGroupOptions.addView(rb);
             }
         };
@@ -234,21 +242,28 @@ public final class AppDialogs {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
                 .setTitle(title != null ? title : "Select Option")
                 .setView(b.getRoot())
-                .setPositiveButton("OK", (d, w) -> {
-                    String typed = b.etFilter.getText() != null ? b.etFilter.getText().toString().trim() : "";
-                    if (callback != null) callback.onText(typed);
+                .setPositiveButton("Select", (d, w) -> {
+                    String chosen = selectedOption[0];
+                    if ((chosen == null || chosen.isEmpty()) && b.etFilter.getText() != null) {
+                        chosen = b.etFilter.getText().toString().trim();
+                    }
+                    if (callback != null && chosen != null && !chosen.isEmpty()) {
+                        callback.onText(chosen);
+                    }
                 })
                 .setNegativeButton("Cancel", null);
 
         if (neutralText != null && neutralAction != null) {
             builder.setNeutralButton(neutralText, (d, w) -> {
-                String typed = b.etFilter.getText() != null ? b.etFilter.getText().toString().trim() : "";
-                neutralAction.onNeutral(typed);
+                String current = selectedOption[0];
+                if ((current == null || current.isEmpty()) && b.etFilter.getText() != null) {
+                    current = b.etFilter.getText().toString().trim();
+                }
+                neutralAction.onNeutral(current != null ? current : "");
             });
         }
 
-        holder[0] = builder.create();
-        holder[0].show();
+        builder.show();
     }
 
     public static void showSelectorPicker(
@@ -279,7 +294,13 @@ public final class AppDialogs {
                 header.setPadding(0, topPad, 0, dp(context, 4));
                 b.sectionsContainer.addView(header);
 
+                android.widget.HorizontalScrollView hsv = new android.widget.HorizontalScrollView(context);
+                hsv.setHorizontalScrollBarEnabled(false);
+                hsv.setLayoutParams(new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
                 ChipGroup group = new ChipGroup(context);
+                group.setSingleLine(true);
                 for (String item : items) {
                     if (item == null || item.trim().isEmpty()) continue;
                     Chip chip = new Chip(context);
@@ -301,7 +322,8 @@ public final class AppDialogs {
                     });
                     group.addView(chip);
                 }
-                b.sectionsContainer.addView(group);
+                hsv.addView(group);
+                b.sectionsContainer.addView(hsv);
             }
         }
 
@@ -318,17 +340,142 @@ public final class AppDialogs {
         requestFocusAndKeyboard(dialog, b.etSelector);
     }
 
+    private static String lastSelectedIconLib = "Tabler";
+
     public static void showIconPicker(Context context, String initialValue, OnText callback) {
-        Map<String, List<String>> sections = new LinkedHashMap<>();
-        sections.put("Material Icons", Arrays.asList(
-                "home", "menu", "search", "settings", "add", "edit", "delete", "close",
-                "check", "arrow_back", "arrow_forward", "favorite", "star", "share", "person", "email"
-        ));
-        sections.put("FontAwesome / Bootstrap", Arrays.asList(
-                "fa-solid fa-house", "fa-solid fa-user", "fa-solid fa-gear", "fa-solid fa-magnifying-glass",
-                "bi bi-house", "bi bi-person", "bi bi-gear", "bi bi-search"
-        ));
-        showSelectorPicker(context, "Pick Icon", "Icon name or class", initialValue, sections, false, callback);
+        if (context == null) return;
+        List<IconLibraryManager.Library> libs = IconLibraryManager.pickerLibraries(context);
+        if (libs.isEmpty()) return;
+
+        String initialBase = "";
+        String detectedLib = lastSelectedIconLib != null ? lastSelectedIconLib : libs.get(0).shortName;
+        if (initialValue != null && !initialValue.trim().isEmpty()) {
+            String trimmed = initialValue.trim();
+            for (IconLibraryManager.Library lib : libs) {
+                if (!lib.prefix.isEmpty() && trimmed.startsWith(lib.prefix)) {
+                    detectedLib = lib.shortName;
+                    initialBase = trimmed.substring(lib.prefix.length());
+                    if (!lib.suffix.isEmpty() && initialBase.endsWith(lib.suffix)) {
+                        initialBase = initialBase.substring(0, initialBase.length() - lib.suffix.length());
+                    }
+                    break;
+                }
+            }
+            if (initialBase.isEmpty()) {
+                initialBase = trimmed;
+            }
+        }
+        lastSelectedIconLib = detectedLib;
+
+        final IconLibraryManager.Library[] selectedLib = {libs.get(0)};
+        for (IconLibraryManager.Library lib : libs) {
+            if (lib.shortName.equals(lastSelectedIconLib)) {
+                selectedLib[0] = lib;
+                break;
+            }
+        }
+
+        DialogIconPickerBinding b = DialogIconPickerBinding.inflate(LayoutInflater.from(context));
+        b.etIconName.setText(initialBase);
+        if (b.etIconName.getText() != null) {
+            b.etIconName.setSelection(b.etIconName.getText().length());
+        }
+
+        final Runnable updatePreview = () -> {
+            String name = b.etIconName.getText() != null ? b.etIconName.getText().toString().trim() : "";
+            if (!name.isEmpty()) {
+                b.tvSelectedIconPreview.setText("Selected Icon: " + selectedLib[0].prefix + name + selectedLib[0].suffix);
+            } else {
+                b.tvSelectedIconPreview.setText("Select an icon below or type name above");
+            }
+        };
+
+        final Runnable populateCatalogue = () -> {
+            String q = b.etIconName.getText() != null ? b.etIconName.getText().toString().trim() : "";
+            b.catalogueContainer.removeAllViews();
+            List<String> matches = IconSearchProvider.search(context, q);
+            int limit = q.isEmpty() ? 10 : 15;
+            android.util.TypedValue selectableBg = new android.util.TypedValue();
+            context.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, selectableBg, true);
+            int hPad = dp(context, 12);
+            int vPad = dp(context, 8);
+            for (int i = 0; i < Math.min(matches.size(), limit); i++) {
+                final String iconBase = matches.get(i);
+                TextView tv = new TextView(context);
+                tv.setText(selectedLib[0].prefix + iconBase + selectedLib[0].suffix);
+                tv.setPadding(hPad, vPad, hPad, vPad);
+                tv.setTextSize(13f);
+                tv.setTextColor(MaterialColors.getColor(context, com.google.android.material.R.attr.colorOnSurface, Color.WHITE));
+                tv.setClickable(true);
+                tv.setFocusable(true);
+                if (selectableBg.resourceId != 0) {
+                    tv.setBackgroundResource(selectableBg.resourceId);
+                }
+                tv.setOnClickListener(v -> {
+                    b.etIconName.setText(iconBase);
+                    if (b.etIconName.getText() != null) {
+                        b.etIconName.setSelection(b.etIconName.getText().length());
+                    }
+                    updatePreview.run();
+                });
+                b.catalogueContainer.addView(tv);
+            }
+        };
+
+        for (IconLibraryManager.Library lib : libs) {
+            Chip chip = new Chip(context);
+            chip.setText(lib.shortName);
+            chip.setCheckable(true);
+            chip.setChecked(lib == selectedLib[0]);
+            chip.setOnClickListener(v -> {
+                lastSelectedIconLib = lib.shortName;
+                selectedLib[0] = lib;
+                updatePreview.run();
+                populateCatalogue.run();
+            });
+            b.chipGroupLibraries.addView(chip);
+        }
+
+        for (String qi : IconSearchProvider.getPopularIcons(context)) {
+            Chip qc = new Chip(context);
+            qc.setText(qi);
+            qc.setOnClickListener(v -> {
+                b.etIconName.setText(qi);
+                if (b.etIconName.getText() != null) {
+                    b.etIconName.setSelection(b.etIconName.getText().length());
+                }
+                updatePreview.run();
+            });
+            b.chipGroupPopular.addView(qc);
+        }
+
+        b.etIconName.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(Editable s) {
+                populateCatalogue.run();
+                updatePreview.run();
+            }
+        });
+
+        updatePreview.run();
+        populateCatalogue.run();
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(context)
+                .setTitle("PickIcon")
+                .setView(b.getRoot())
+                .setNeutralButton("No Icon", (d, w) -> {
+                    if (callback != null) callback.onText("");
+                })
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Select", (d, w) -> {
+                    String name = b.etIconName.getText() != null ? b.etIconName.getText().toString().trim() : "";
+                    if (callback != null) {
+                        callback.onText(name.isEmpty() ? "" : (selectedLib[0].prefix + name + selectedLib[0].suffix));
+                    }
+                })
+                .create();
+        dialog.show();
     }
 
     public static void showImageSelector(Context context, String projectId, String initialValue, OnText callback) {
@@ -544,18 +691,35 @@ public final class AppDialogs {
     }
 
     public static void showColorInput(Context context, String title, String initialValue, List<String> suggestions, OnText callback) {
-        if (context instanceof FragmentActivity) {
+        FragmentActivity host = unwrapFragmentActivity(context);
+        if (host != null) {
             ColorPickerDialogFragment frag = new ColorPickerDialogFragment();
+            if (initialValue != null && !initialValue.trim().isEmpty()) {
+                Bundle args = new Bundle();
+                args.putString("initialHex", initialValue.trim());
+                frag.setArguments(args);
+            }
             frag.setOnColorSelectedListener(color -> {
                 if (callback != null) callback.onText(color);
             });
-            frag.show(((FragmentActivity) context).getSupportFragmentManager(), "ColorPickerDialog");
+            frag.show(host.getSupportFragmentManager(), "ColorPickerDialog");
             return;
         }
         List<String> colors = (suggestions != null && !suggestions.isEmpty())
                 ? suggestions
                 : Arrays.asList("#000000", "#FFFFFF", "#F44336", "#2196F3", "#4CAF50", "#FF9800", "transparent");
         showTextInput(context, title != null ? title : "Select Color", "#RRGGBB", initialValue, false, false, colors, null, null, null, callback);
+    }
+
+    private static FragmentActivity unwrapFragmentActivity(Context context) {
+        Context cur = context;
+        while (cur instanceof ContextWrapper) {
+            if (cur instanceof FragmentActivity) {
+                return (FragmentActivity) cur;
+            }
+            cur = ((ContextWrapper) cur).getBaseContext();
+        }
+        return (cur instanceof FragmentActivity) ? (FragmentActivity) cur : null;
     }
 
     public static void showArrayListBuilder(Context context, String title, String initialJson, OnText callback) {
@@ -671,15 +835,23 @@ public final class AppDialogs {
                     row.addView(til, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
                     if (supportsIcons) {
-                        com.google.android.material.button.MaterialButton btnIcon = new com.google.android.material.button.MaterialButton(context);
+                        com.google.android.material.button.MaterialButton btnIcon = new com.google.android.material.button.MaterialButton(
+                                context, null, com.google.android.material.R.attr.materialButtonTonalStyle);
                         String ic = icons.get(idx);
                         btnIcon.setText(ic.isEmpty() ? "Icon" : ic);
+                        btnIcon.setSingleLine(true);
+                        btnIcon.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                        btnIcon.setMaxWidth(dp(context, 128));
+                        btnIcon.setCornerRadius(dp(context, 10));
+                        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                        btnLp.setMarginStart(dp(context, 6));
                         btnIcon.setOnClickListener(v -> showIconPicker(context, icons.get(idx), chosen -> {
                             icons.set(idx, chosen);
                             btnIcon.setText(chosen.isEmpty() ? "Icon" : chosen);
                             if (onLive != null) onLive.onItems(items, icons);
                         }));
-                        row.addView(btnIcon);
+                        row.addView(btnIcon, btnLp);
                     }
 
                     ImageButton del = new ImageButton(context);

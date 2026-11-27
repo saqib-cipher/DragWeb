@@ -47,6 +47,7 @@ public class BlockBean extends BaseBean implements Parcelable {
     public String blockType;
     public int stackIndex;
     public boolean isConnectedToRoot = false;
+    public boolean isPropertyStyle = false;
     public int x = 0;
     public int y = 0;
     public String headerText = "";
@@ -96,6 +97,7 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.blockType = parcel.readString();
         this.stackIndex = parcel.readInt();
         this.isConnectedToRoot = parcel.readByte() != 0;
+        this.isPropertyStyle = parcel.readByte() != 0;
         this.x = parcel.readInt();
         this.y = parcel.readInt();
     }
@@ -141,6 +143,7 @@ public class BlockBean extends BaseBean implements Parcelable {
         this.stackIndex = blockBean.stackIndex;
         this.spec2 = blockBean.spec2;
         this.isConnectedToRoot = blockBean.isConnectedToRoot;
+        this.isPropertyStyle = blockBean.isPropertyStyle;
         this.x = blockBean.x;
         this.y = blockBean.y;
     }
@@ -169,6 +172,7 @@ public class BlockBean extends BaseBean implements Parcelable {
         parcel.writeString(this.blockType);
         parcel.writeInt(this.stackIndex);
         parcel.writeByte((byte) (this.isConnectedToRoot ? 1 : 0));
+        parcel.writeByte((byte) (this.isPropertyStyle ? 1 : 0));
         parcel.writeInt(this.x);
         parcel.writeInt(this.y);
     }

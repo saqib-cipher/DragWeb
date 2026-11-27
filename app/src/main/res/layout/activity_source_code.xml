@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurfaceContainer"
+        app:navigationIcon="@drawable/arrow_back_24px"
+        app:navigationIconTint="?attr/colorOnSurface"
+        app:subtitleTextColor="?attr/colorOnSurfaceVariant"
+        app:titleTextColor="?attr/colorOnSurface" />
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurfaceContainer"
+        android:visibility="gone"
+        app:tabGravity="fill"
+        app:tabIndicatorColor="?attr/colorPrimary"
+        app:tabMode="fixed"
+        app:tabSelectedTextColor="?attr/colorPrimary"
+        app:tabTextColor="?attr/colorOnSurfaceVariant" />
+
+    <LinearLayout
+        android:id="@+id/searchPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurfaceContainerHigh"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:visibility="gone">
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilFindQuery"
+            style="@style/Widget.Dragweb.TextInputLayout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Find in code..."
+            app:endIconMode="clear_text">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etFindQuery"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:imeOptions="actionSearch"
+                android:singleLine="true"
+                android:textSize="13sp" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <ImageButton
+            android:id="@+id/btnFindPrev"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Previous match"
+            android:rotation="90"
+            android:src="@drawable/arrow_back_24px"
+            app:tint="?attr/colorOnSurface" />
+
+        <ImageButton
+            android:id="@+id/btnFindNext"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Next match"
+            android:rotation="-90"
+            android:src="@drawable/arrow_back_24px"
+            app:tint="?attr/colorOnSurface" />
+
+        <ImageButton
+            android:id="@+id/btnCloseFind"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close search"
+            android:src="@drawable/ic_mtrl_close"
+            app:tint="?attr/colorOnSurface" />
+    </LinearLayout>
+
+    <io.github.rosemoe.sora.widget.CodeEditor
+        android:id="@+id/editor"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

@@ -71,9 +71,6 @@ public class ProjectCodeGenerator {
         {
             String compiledJs = compileJsForFile(context, projectId, cleanPage);
             StringBuilder finalJs = new StringBuilder();
-            finalJs.append("/* ==========================================================\n");
-            finalJs.append(" * DragWeb generated runtime\n");
-            finalJs.append(" * ========================================================== */\n\n");
             if (compiledJs != null && !compiledJs.trim().isEmpty()) {
                 finalJs.append(compiledJs.trim()).append("\n\n");
             }
@@ -86,16 +83,25 @@ public class ProjectCodeGenerator {
             FileUtil.writeFile(jsTargetFile.getAbsolutePath(), finalJs.toString());
         }
 
-        // 3. Compile & save CSS (always to style.css — HTML always links css/style.css)
+        // 3. Compile & save CSS for global style.css + every page-linked stylesheet from PageManager
         {
-            String compiledCss = compileCssForFile(context, projectId, cleanPage);
-            StringBuilder finalCss = new StringBuilder();
-            finalCss.append("@import url(\"theme.css\");\n\n");
-            if (compiledCss != null && !compiledCss.trim().isEmpty()) {
-                finalCss.append(compiledCss).append("\n");
+            PageManager pm = new PageManager(context, projectId);
+            java.util.Set<String> cssTargets = new java.util.LinkedHashSet<>();
+            cssTargets.add("css/style.css");
+            for (String p : pm.getPages()) {
+                cssTargets.add(resolvePageCssFile(pm.getPageConfig(p)));
             }
-            File cssTargetFile = new File(cssDir, "style.css");
-            FileUtil.writeFile(cssTargetFile.getAbsolutePath(), finalCss.toString());
+            for (String relCss : cssTargets) {
+                String compiledCss = compileCssForFile(context, projectId, relCss);
+                String importPath = relCss.startsWith("css/") ? "theme.css" : "css/theme.css";
+                StringBuilder finalCss = new StringBuilder();
+                finalCss.append("@import url(\"").append(importPath).append("\");\n\n");
+                if (compiledCss != null && !compiledCss.trim().isEmpty()) {
+                    finalCss.append(compiledCss).append("\n");
+                }
+                File cssTargetFile = new File(assetsDir, relCss);
+                FileUtil.writeFile(cssTargetFile.getAbsolutePath(), finalCss.toString());
+            }
         }
     }
 
@@ -417,37 +423,105 @@ public class ProjectCodeGenerator {
         return sb.toString().trim();
     }
 
+    public static String normalizeAssetRelPath(String rawPath, String fallback) {
+        if (rawPath == null || rawPath.trim().isEmpty()) return fallback;
+        String clean = rawPath.trim().replace("\\", "/");
+        while (clean.startsWith("/")) clean = clean.substring(1);
+        return clean.isEmpty() ? fallback : clean;
+    }
+
+    /** Resolves which CSS asset file a page links via PageManager (global css/style.css vs custom cssFile). */
+    public static String resolvePageCssFile(PageManager.PageConfig cfg) {
+        if (cfg != null && !cfg.useGlobalCss && cfg.cssFile != null && !cfg.cssFile.trim().isEmpty()) {
+            return normalizeAssetRelPath(cfg.cssFile, "css/style.css");
+        }
+        return "css/style.css";
+    }
+
+    /** Resolves which normalized CSS file path corresponds to an asset path or clean logic key. */
+    public static String resolveTargetCssRelPath(String fileOrCleanKey) {
+        if (fileOrCleanKey == null || fileOrCleanKey.trim().isEmpty()) return "css/style.css";
+        String norm = fileOrCleanKey.trim().replace("\\", "/");
+        String lower = norm.toLowerCase(java.util.Locale.US);
+        if ("css_style".equals(lower) || "style".equals(lower) || "styles".equals(lower) || "styles.css".equals(lower)) {
+            return "css/style.css";
+        }
+        if (lower.endsWith(".css")) {
+            return normalizeAssetRelPath(norm, "css/style.css");
+        }
+        if (lower.startsWith("css_")) {
+            return "css/" + norm.substring(4) + ".css";
+        }
+        return "css/style.css";
+    }
+
+    /** Returns all page names in PageManager whose linked stylesheet matches targetCssRelPath. */
+    public static List<String> getPagesLinkedToCssFile(PageManager pm, String targetCssRelPath) {
+        List<String> linked = new ArrayList<>();
+        if (pm == null) return linked;
+        String normTarget = normalizeAssetRelPath(targetCssRelPath, "css/style.css");
+        List<String> pages = pm.getPages();
+        if (pages == null || pages.isEmpty()) {
+            pages = java.util.Collections.singletonList("index");
+        }
+        for (String p : pages) {
+            String cleanP = DesignDataManager.getCleanPageName(p);
+            String pageCss = resolvePageCssFile(pm.getPageConfig(cleanP));
+            if (normTarget.equalsIgnoreCase(pageCss)) {
+                linked.add(cleanP);
+            }
+        }
+        return linked;
+    }
+
+    private static boolean isCssTargetBlockEligible(BlockBean b, boolean isCssTargetKey) {
+        if (b == null || b.category == null) return false;
+        String cat = b.category.toLowerCase(java.util.Locale.US).trim();
+        if (cat.equals("css") || cat.startsWith("css") || cat.startsWith("css_")
+                || cat.equals("responsive") || cat.equals("comment") || cat.equals("animation")) {
+            return true;
+        }
+        return isCssTargetKey && cat.equals("asd");
+    }
+
     /**
-     * Compiles ONLY the CSS logic blocks (global stylesheet + the given page) into CSS text.
-     * Does not include layout/inline styles, so the result can be applied on top of the
-     * canvas widget tree without baking generated styles back into the layout.
+     * Compiles ONLY the user's own CSS logic blocks for the given target CSS file (and linked page CSS blocks).
      */
-    public static String compileCssLogicOnly(Context context, String projectId, String cleanPage) {
+    public static String compileCssLogicOnly(Context context, String projectId, String targetCssOrPage) {
         StringBuilder cssSb = new StringBuilder();
-        appendCssLogicBlocks(context, projectId, cleanPage, cssSb);
+        String relCss = resolveTargetCssRelPath(targetCssOrPage);
+        appendCssLogicBlocks(context, projectId, relCss, cssSb);
         return cssSb.toString().trim();
     }
 
-    private static void appendCssLogicBlocks(Context context, String projectId, String cleanPage, StringBuilder cssSb) {
-        // Collect blocks from the current page AND the global CSS stylesheet page
-        String cssPage = DesignDataManager.getCleanPageName("css/style.css");
-        String[] pagesToCompile = (cssPage.equals(cleanPage))
-            ? new String[]{cleanPage}
-            : new String[]{cssPage, cleanPage};
+    private static void appendCssLogicBlocks(Context context, String projectId, String targetCssRelPath, StringBuilder cssSb) {
+        ThemeManager tm = getProjectThemeManager(context, projectId);
+        boolean skipPropStyleBlocks = (tm == null || tm.isUseInlineStyles() || tm.isDisableAllStyling());
+        PageManager pm = new PageManager(context, projectId);
+        String cssKey = DesignDataManager.getCleanPageName(targetCssRelPath);
+        java.util.Set<String> compiledKeys = new java.util.LinkedHashSet<>();
+        compiledKeys.add(cssKey);
+        for (String linkedPage : getPagesLinkedToCssFile(pm, targetCssRelPath)) {
+            compiledKeys.add(linkedPage);
+        }
 
-        for (String pageKey : pagesToCompile) {
-            // Compile logic block styles using BlockCodeCompiler (blocks.json definitions)
-            // This uses the proper "code" templates (e.g. "width: %1$s;\n") from blocks.json
-            // Only include blocks with CSS categories to avoid JS event code in style.css
+        for (String key : compiledKeys) {
             try {
-                DesignDataManager.loadSavedLogic(context, projectId, pageKey);
-                Map<String, ArrayList<BlockBean>> blocksMap = DesignDataManager.getAllBlocks(pageKey);
+                DesignDataManager.loadSavedLogic(context, projectId, key);
+                Map<String, ArrayList<BlockBean>> blocksMap = DesignDataManager.getAllBlocks(key);
                 if (blocksMap != null) {
+                    boolean isCssTarget = key.equals(cssKey);
                     BlockCodeCompiler compiler = new BlockCodeCompiler(context, projectId);
+                    java.util.Set<String> seenEvents = new java.util.HashSet<>();
                     for (Map.Entry<String, ArrayList<BlockBean>> entry : blocksMap.entrySet()) {
+                        String evKey = entry.getKey();
+                        if (evKey == null) continue;
+                        String normEv = DesignDataManager.canonicalizeEventKey(key, evKey);
+                        if (!seenEvents.add(normEv)) continue;
                         ArrayList<BlockBean> cssBlocks = new ArrayList<>();
                         for (BlockBean b : entry.getValue()) {
-                            if (b != null && b.category != null && (b.category.equals("css") || b.category.startsWith("css_") || b.category.equals("responsive") || b.category.equals("comment") || b.category.equals("animation"))) {
+                            if (skipPropStyleBlocks && b != null && b.isPropertyStyle) continue;
+                            if (isCssTargetBlockEligible(b, isCssTarget)) {
                                 cssBlocks.add(b);
                             }
                         }
@@ -464,57 +538,149 @@ public class ProjectCodeGenerator {
         }
     }
 
-    public static String compileCssForFile(Context context, String projectId, String cleanPage) {
-        StringBuilder cssSb = new StringBuilder();
-        appendCssLogicBlocks(context, projectId, cleanPage, cssSb);
-
-        // 2. Compile visual layout and widget preset styles into external CSS ONLY when inline styles toggle is disabled
+    /**
+     * Collects ONLY widget/canvas property CSS rules for all pages linked to {@code targetCssRelPath}.
+     * Used both for external stylesheet output and for syncing property style blocks into the linked CSS Logic Editor.
+     */
+    public static String collectWidgetPropertyCssForCssFile(Context context, String projectId, String targetCssRelPath) {
         ThemeManager themeManager = getProjectThemeManager(context, projectId);
-        boolean noStyles = (themeManager != null && themeManager.isDisableAllStyling());
+        boolean noWidgetProps = (themeManager != null && themeManager.isDisableAllStyling());
         boolean useInline = (themeManager == null || themeManager.isUseInlineStyles());
-        if (!noStyles && !useInline) {
-            PageManager pm = new PageManager(context, projectId);
-            String cssPageKey = DesignDataManager.getCleanPageName("css/style.css");
-            List<String> targetPages = new ArrayList<>();
-            if (cssPageKey.equals(cleanPage)) {
-                List<String> pages = pm.getPages();
-                if (pages != null && !pages.isEmpty()) {
-                    for (String p : pages) {
-                        targetPages.add(DesignDataManager.getCleanPageName(p));
-                    }
-                } else {
-                    targetPages.add("index");
-                }
+        if (noWidgetProps || useInline) {
+            return "";
+        }
+        PageManager pm = new PageManager(context, projectId);
+        List<String> targetPages = getPagesLinkedToCssFile(pm, targetCssRelPath);
+        StringBuilder propsSb = new StringBuilder();
+        for (String pageToCollect : targetPages) {
+            String layoutJson = pm.loadPageLayout(pageToCollect);
+            List<Map<String, Object>> widgetTree = PageManager.parseLayoutTree(layoutJson);
+            if (widgetTree != null && !widgetTree.isEmpty()) {
+                collectStylesFromTree(widgetTree, propsSb);
             } else {
-                targetPages.add(cleanPage);
-            }
-
-            for (String pageToCollect : targetPages) {
-                String layoutJson = pm.loadPageLayout(pageToCollect);
-                List<Map<String, Object>> widgetTree = PageManager.parseLayoutTree(layoutJson);
-                if (widgetTree != null && !widgetTree.isEmpty()) {
-                    collectStylesFromTree(widgetTree, cssSb);
-                } else {
-                    File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages/" + pageToCollect + ".json");
-                    if (layoutFile.exists()) {
-                        try {
-                            String legacyJson = FileUtil.readFile(layoutFile.getAbsolutePath());
-                            if (legacyJson != null && !legacyJson.trim().isEmpty()) {
-                                java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
-                                ArrayList<Map<String, Object>> legacyTree = new com.google.gson.Gson().fromJson(legacyJson, listType);
-                                if (legacyTree != null) {
-                                    collectStylesFromTree(legacyTree, cssSb);
-                                }
+                File layoutFile = new File(FileUtil.getDragWebDir(context), "projects/" + projectId + "/pages/" + pageToCollect + ".json");
+                if (layoutFile.exists()) {
+                    try {
+                        String legacyJson = FileUtil.readFile(layoutFile.getAbsolutePath());
+                        if (legacyJson != null && !legacyJson.trim().isEmpty()) {
+                            java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
+                            ArrayList<Map<String, Object>> legacyTree = new com.google.gson.Gson().fromJson(legacyJson, listType);
+                            if (legacyTree != null) {
+                                collectStylesFromTree(legacyTree, propsSb);
                             }
-                        } catch (Exception e) {
-                            e.printStackTrace();
                         }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 }
             }
         }
+        return propsSb.toString().trim();
+    }
 
+    public static String compileCssForFile(Context context, String projectId, String targetCssOrPage) {
+        String relCss = resolveTargetCssRelPath(targetCssOrPage);
+        StringBuilder logicSb = new StringBuilder();
+        appendCssLogicBlocks(context, projectId, relCss, logicSb);
+        String logicCss = logicSb.toString().trim();
+
+        String widgetPropsCss = filterOutExistingCssSelectors(
+                collectWidgetPropertyCssForCssFile(context, projectId, relCss),
+                logicCss);
+
+        StringBuilder cssSb = new StringBuilder();
+        if (widgetPropsCss != null && !widgetPropsCss.isEmpty()) {
+            cssSb.append(widgetPropsCss).append("\n\n");
+        }
+        if (!logicCss.isEmpty()) {
+            cssSb.append(logicCss).append("\n\n");
+        }
         return cssSb.toString().trim();
+    }
+
+    /**
+     * Removes any top-level CSS rule from {@code elemCss} whose selector is already
+     * defined in {@code logicCss}, preventing duplicate widget-property vs logic-block rules.
+     */
+    public static String filterOutExistingCssSelectors(String elemCss, String logicCss) {
+        if (elemCss == null || elemCss.trim().isEmpty()) return "";
+        if (logicCss == null || logicCss.trim().isEmpty()) return elemCss.trim();
+
+        java.util.Set<String> existingSelectors = extractTopLevelCssSelectors(logicCss);
+        if (existingSelectors.isEmpty()) return elemCss.trim();
+
+        StringBuilder out = new StringBuilder();
+        int len = elemCss.length();
+        int i = 0;
+        while (i < len) {
+            while (i < len && Character.isWhitespace(elemCss.charAt(i))) i++;
+            if (i >= len) break;
+
+            int braceOpen = elemCss.indexOf('{', i);
+            if (braceOpen < 0) break;
+
+            String selector = elemCss.substring(i, braceOpen).trim();
+            int depth = 1;
+            int j = braceOpen + 1;
+            while (j < len && depth > 0) {
+                char c = elemCss.charAt(j);
+                if (c == '{') depth++;
+                else if (c == '}') depth--;
+                j++;
+            }
+            String fullRule = elemCss.substring(i, j).trim();
+            String normalized = normalizeCssSelector(selector);
+            if (!existingSelectors.contains(normalized)) {
+                out.append(fullRule).append("\n\n");
+            }
+            i = j;
+        }
+        return out.toString().trim();
+    }
+
+    private static java.util.Set<String> extractTopLevelCssSelectors(String css) {
+        java.util.Set<String> selectors = new java.util.HashSet<>();
+        int len = css.length();
+        int i = 0;
+        while (i < len) {
+            char c = css.charAt(i);
+            if (Character.isWhitespace(c)) {
+                i++;
+                continue;
+            }
+            if (c == '/' && i + 1 < len && css.charAt(i + 1) == '*') {
+                int end = css.indexOf("*/", i + 2);
+                i = (end >= 0) ? (end + 2) : len;
+                continue;
+            }
+            if (c == '@') {
+                int semi = css.indexOf(';', i);
+                int brace = css.indexOf('{', i);
+                if (semi >= 0 && (brace < 0 || semi < brace)) {
+                    i = semi + 1;
+                    continue;
+                }
+            }
+            int braceOpen = css.indexOf('{', i);
+            if (braceOpen < 0) break;
+            String sel = css.substring(i, braceOpen).trim();
+            selectors.add(normalizeCssSelector(sel));
+            int depth = 1;
+            int j = braceOpen + 1;
+            while (j < len && depth > 0) {
+                char ch = css.charAt(j);
+                if (ch == '{') depth++;
+                else if (ch == '}') depth--;
+                j++;
+            }
+            i = j;
+        }
+        return selectors;
+    }
+
+    private static String normalizeCssSelector(String selector) {
+        if (selector == null) return "";
+        return selector.replaceAll("/\\*.*?\\*/", "").replaceAll("\\s+", " ").trim();
     }
 
     public static void collectStylesFromTree(List<Map<String, Object>> tree, StringBuilder cssBuilder) {
@@ -563,6 +729,15 @@ public class ProjectCodeGenerator {
         for (Map<String, Object> node : list) {
             collectStylesFromNode(node, cssBuilder);
         }
+    }
+
+    public static String resolvePageJsFile(PageManager.PageConfig cfg) {
+        if (cfg == null || cfg.useGlobalJs || cfg.jsFile == null || cfg.jsFile.trim().isEmpty()) {
+            return "js/script.js";
+        }
+        String f = cfg.jsFile.trim();
+        if (f.startsWith("/")) f = f.substring(1);
+        return f;
     }
 
     private static String camelToKebab(String str) {
