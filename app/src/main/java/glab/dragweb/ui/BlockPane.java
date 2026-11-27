@@ -17,6 +17,7 @@ import android.content.Context;
 import android.graphics.Point;
 import android.util.AttributeSet;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 /*import com.besome.sketch.define.BlockBean;
 import com.besome.sketch.lib.utils.LayoutUtil;*/
@@ -285,12 +286,16 @@ public class BlockPane extends RelativeLayout {
         }
 
         // Horizontal width depends on block width, scroll exactly to the last tip of the widest block
-        int finalWidth = Math.max(parentWidth, maxX + 100);
-        // Vertical height allows a small extra scroll height (300px)
+        int finalWidth = Math.max(parentWidth, maxX + 120);
+        // Vertical height allows extra scroll height below bottom-most block
         int finalHeight = Math.max(parentHeight + 300, maxY + 300);
 
-        getLayoutParams().width = finalWidth;
-        getLayoutParams().height = finalHeight;
+        ViewGroup.LayoutParams lp = getLayoutParams();
+        if (lp != null && (lp.width != finalWidth || lp.height != finalHeight)) {
+            lp.width = finalWidth;
+            lp.height = finalHeight;
+            requestLayout();
+        }
     }
     
     

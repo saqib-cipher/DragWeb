@@ -3361,21 +3361,29 @@ startActivityForResult(intent, 209);
 				}
 				
 				final String finalResult = (result == null || result.trim().isEmpty()) ? "/* No code generated */" : result;
+				final int maxPreviewChars = 40000;
+				final String displayResult = finalResult.length() > maxPreviewChars
+						? finalResult.substring(0, maxPreviewChars) + "\n\n/* ... truncated for preview (" + finalResult.length() + " chars total; use Copy for full code) ... */"
+						: finalResult;
 
-				androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+				com.google.android.material.dialog.MaterialAlertDialogBuilder builder =
+						new com.google.android.material.dialog.MaterialAlertDialogBuilder(this);
 				builder.setTitle("Source Code Preview");
 
-				android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+				androidx.core.widget.NestedScrollView verticalScroll = new androidx.core.widget.NestedScrollView(this);
+				android.widget.HorizontalScrollView horizontalScroll = new android.widget.HorizontalScrollView(this);
 				TextView codeView = new TextView(this);
-				codeView.setText(finalResult);
-				codeView.setTextSize(14);
+				codeView.setText(displayResult);
+				codeView.setTextSize(13);
 				codeView.setTypeface(android.graphics.Typeface.MONOSPACE);
+				codeView.setHorizontallyScrolling(true);
 				int padding = (int) (16 * getResources().getDisplayMetrics().density);
 				codeView.setPadding(padding, padding, padding, padding);
 				codeView.setTextIsSelectable(true);
-				scrollView.addView(codeView);
+				horizontalScroll.addView(codeView);
+				verticalScroll.addView(horizontalScroll);
 
-				builder.setView(scrollView);
+				builder.setView(verticalScroll);
 				builder.setPositiveButton("Close", null);
 				builder.setNeutralButton("Copy", new DialogInterface.OnClickListener() {
 					@Override
@@ -3709,7 +3717,7 @@ startActivityForResult(intent, 209);
 				if (block == null) return;
 				final java.io.File collectionFile = new java.io.File(FileUtil.getDragWebDir(), "collection/blocks/list.json");
 
-				UniversalM3Dialog dialog = new UniversalM3Dialog(this);
+				AppDialogs.Builder dialog = AppDialogs.builder(this);
 				dialog.setTitle("Save to Collection")
 				      .setHint("Collection Name")
 				      .setInitialValue("My Collection")

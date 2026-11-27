@@ -494,7 +494,11 @@ public class PageCodeGenerator {
         if (view instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) view;
             for (int i = 0; i < vg.getChildCount(); i++) {
-                String ch = generateHtmlForView(vg.getChildAt(i), indentLevel + 1);
+                View childView = vg.getChildAt(i);
+                if (childView == null || Boolean.TRUE.equals(childView.getTag(glab.dragweb.R.id.tag_internal_preview))) {
+                    continue;
+                }
+                String ch = generateHtmlForView(childView, indentLevel + 1);
                 if (ch != null && !ch.trim().isEmpty()) {
                     childrenHtml.append(ch);
                 }

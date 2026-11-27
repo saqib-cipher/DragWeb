@@ -296,7 +296,7 @@ public class BlockArg extends BlockBase {
                     || "convert".equalsIgnoreCase(menuName) || "htmlTag".equalsIgnoreCase(menuName)
                     || "ConvertTag".equalsIgnoreCase(menuName) || "tag".equalsIgnoreCase(menuName)
                     || "html_convert".equalsIgnoreCase(menuName) || "html_convert_leaf".equalsIgnoreCase(menuName)) {
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Convert View");
 
                 BlockParamTypeManager pManager = new BlockParamTypeManager(this.getContext());
@@ -306,7 +306,7 @@ public class BlockArg extends BlockBase {
                 } else if (pManager.hasType("Convert")) {
                     options = pManager.getOptions("Convert");
                 }
-                dialog.showConvertViewDialog(options, this.argValue != null ? this.argValue.toString() : "", new UniversalM3Dialog.OnText() {
+                dialog.showConvertViewDialog(options, this.argValue != null ? this.argValue.toString() : "", new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
@@ -316,7 +316,7 @@ public class BlockArg extends BlockBase {
             }
 
             if ("id.selector".equalsIgnoreCase(menuName) || "id".equalsIgnoreCase(menuName) || "idSelector".equalsIgnoreCase(menuName)) {
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Pick ID")
                       .setInitialValue(this.argValue != null ? this.argValue.toString().replaceFirst("^#+", "") : "");
                 java.util.List<String> ids = ProjectAssetManager.getInstance().getIds();
@@ -324,7 +324,7 @@ public class BlockArg extends BlockBase {
                     DesignDataManager.WidgetSelectorData data = DesignDataManager.getWidgetSelectorData(this.getContext(), LogicBlockActivity.projectId, LogicBlockActivity.pageName);
                     ids = data.ids;
                 }
-                dialog.showIdSelectorInput(ids, new UniversalM3Dialog.OnText() {
+                dialog.showIdSelectorInput(ids, new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         String clean = value != null ? value.replaceFirst("^#+", "").trim() : "";
@@ -335,7 +335,7 @@ public class BlockArg extends BlockBase {
             }
 
             if ("c.selector".equalsIgnoreCase(menuName) || "class.selector".equalsIgnoreCase(menuName) || "c".equalsIgnoreCase(menuName) || "class".equalsIgnoreCase(menuName)) {
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Pick Class")
                       .setInitialValue(this.argValue != null ? this.argValue.toString().replaceFirst("^\\.+", "") : "");
                 java.util.List<String> classes = ProjectAssetManager.getInstance().getClasses();
@@ -343,7 +343,7 @@ public class BlockArg extends BlockBase {
                     DesignDataManager.WidgetSelectorData data = DesignDataManager.getWidgetSelectorData(this.getContext(), LogicBlockActivity.projectId, LogicBlockActivity.pageName);
                     classes = data.classes;
                 }
-                dialog.showClassSelectorInput(classes, new UniversalM3Dialog.OnText() {
+                dialog.showClassSelectorInput(classes, new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         String clean = value != null ? value.replaceFirst("^\\.+", "").trim() : "";
@@ -354,7 +354,7 @@ public class BlockArg extends BlockBase {
             }
 
             if ("selector".equalsIgnoreCase(menuName)) {
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Pick selector")
                       .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
                 java.util.List<String> ids = ProjectAssetManager.getInstance().getIds();
@@ -366,7 +366,7 @@ public class BlockArg extends BlockBase {
                     classes = data.classes;
                     tags = data.tags;
                 }
-                dialog.showSelectorInput(ids, classes, tags, new UniversalM3Dialog.OnText() {
+                dialog.showSelectorInput(ids, classes, tags, new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
@@ -376,15 +376,21 @@ public class BlockArg extends BlockBase {
             }
 
             if ("color".equalsIgnoreCase(menuName)) {
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Select Color")
                       .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
-                dialog.showColorInput(new UniversalM3Dialog.OnText() {
+                dialog.showColorInput(new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
                     }
                 });
+                return;
+            }
+
+            if ("image".equalsIgnoreCase(menuName) || "img".equalsIgnoreCase(menuName) || isImageArgBlock()) {
+                String currentImg = this.argValue != null ? this.argValue.toString() : "";
+                AppDialogs.showImageSelector(this.getContext(), LogicBlockActivity.projectId, currentImg, value -> applyArgValueChange(value));
                 return;
             }
 
@@ -405,10 +411,10 @@ public class BlockArg extends BlockBase {
             }
 
             if ("setupList".equalsIgnoreCase(menuName) || "array".equalsIgnoreCase(menuName) || "listData".equalsIgnoreCase(menuName) || "arrayData".equalsIgnoreCase(menuName)) {
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Setup List / Array")
                       .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
-                dialog.showArrayListBuilder(this.argValue != null ? this.argValue.toString() : "", new UniversalM3Dialog.OnText() {
+                dialog.showArrayListBuilder(this.argValue != null ? this.argValue.toString() : "", new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
@@ -428,7 +434,7 @@ public class BlockArg extends BlockBase {
                 }
                 
                 final String finalFilterKey = filterKey;
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Select Variable")
                       .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
 
@@ -460,7 +466,7 @@ public class BlockArg extends BlockBase {
                     }
                 }
 
-                dialog.showVariableSelector(LogicBlockActivity.filename, finalFilterKey, isSetter, usedConstVars, new UniversalM3Dialog.OnText() {
+                dialog.showVariableSelector(LogicBlockActivity.filename, finalFilterKey, isSetter, usedConstVars, new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
@@ -470,8 +476,8 @@ public class BlockArg extends BlockBase {
             }
 
             if (menuName.equals("list") || menuName.endsWith(".list") || "l".equalsIgnoreCase(this.mType)) {
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
-                dialog.showListSelector(LogicBlockActivity.filename, this.argValue != null ? this.argValue.toString() : "", new UniversalM3Dialog.OnText() {
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
+                dialog.showListSelector(LogicBlockActivity.filename, this.argValue != null ? this.argValue.toString() : "", new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
@@ -490,18 +496,18 @@ public class BlockArg extends BlockBase {
                     "iframe", "video", "audio", "canvas", "figure", "figcaption",
                     "blockquote", "hr", "br", "strong", "em", "code", "pre"
                 };
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Convert View")
                       .setOptions(htmlTags)
                       .setInitialValue(this.argValue != null ? this.argValue.toString() : "div")
-                      .setNeutralButton("Code Editor", new UniversalM3Dialog.OnNeutralAction() {
+                      .setNeutralButton("Code Editor", new AppDialogs.OnNeutralAction() {
                           @Override
                           public void onNeutral(String currentText) {
-                              UniversalM3Dialog customDialog = new UniversalM3Dialog(BlockArg.this.getContext());
+                              AppDialogs.Builder customDialog = AppDialogs.builder(BlockArg.this.getContext());
                               customDialog.setTitle("Custom HTML Tag")
                                           .setHint("Enter tag name (e.g. custom-element)")
                                           .setInitialValue(currentText != null ? currentText : "")
-                                          .showTextInput(new UniversalM3Dialog.OnText() {
+                                          .showTextInput(new AppDialogs.OnText() {
                                               @Override
                                               public void onText(String value) {
                                                   if (value != null && !value.trim().isEmpty()) {
@@ -511,7 +517,7 @@ public class BlockArg extends BlockBase {
                                           });
                           }
                       });
-                dialog.showChoiceInput(new UniversalM3Dialog.OnText() {
+                dialog.showChoiceInput(new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
@@ -541,11 +547,11 @@ public class BlockArg extends BlockBase {
             }
 
             if (!options.isEmpty() || this.mType.equals("m")) {
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Select " + (menuName.isEmpty() ? "Value" : menuName))
                       .setOptions(options.toArray(new String[0]))
                       .setInitialValue(this.argValue != null ? this.argValue.toString() : "");
-                dialog.showChoiceInput(new UniversalM3Dialog.OnText() {
+                dialog.showChoiceInput(new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
@@ -558,12 +564,12 @@ public class BlockArg extends BlockBase {
                 String currentVal = (this.argValue != null && !this.argValue.toString().isEmpty()) 
                         ? this.argValue.toString() 
                         : (this.mTextView != null ? this.mTextView.getText().toString() : "");
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Source Code")
                       .setMultiline(true)
                       .setHint("Enter source code...")
                       .setInitialValue(currentVal);
-                dialog.setNeutralButton("Open in Editor", new UniversalM3Dialog.OnNeutralAction() {
+                dialog.setNeutralButton("Open in Editor", new AppDialogs.OnNeutralAction() {
                     @Override
                     public void onNeutral(String currentText) {
                         if (getContext() instanceof LogicBlockActivity) {
@@ -571,7 +577,7 @@ public class BlockArg extends BlockBase {
                         }
                     }
                 });
-                dialog.showTextInput(new UniversalM3Dialog.OnText() {
+                dialog.showTextInput(new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
@@ -581,11 +587,11 @@ public class BlockArg extends BlockBase {
             }
 
             if (this.mType.equals("b")) {
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle("Select Boolean")
                       .setOptions(new String[]{"true", "false"})
                       .setInitialValue(this.mTextView != null ? this.mTextView.getText().toString() : "true");
-                dialog.showChoiceInput(new UniversalM3Dialog.OnText() {
+                dialog.showChoiceInput(new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
@@ -596,11 +602,11 @@ public class BlockArg extends BlockBase {
 
             if (this.mType.equals("d") || this.mType.equals("s")) {
                 boolean isNumber = this.mType.equals("d");
-                UniversalM3Dialog dialog = new UniversalM3Dialog(this.getContext());
+                AppDialogs.Builder dialog = AppDialogs.builder(this.getContext());
                 dialog.setTitle(isNumber ? "Input Number Value" : "Input String Value")
                       .setIsNumeric(isNumber)
                       .setInitialValue(this.mTextView != null ? this.mTextView.getText().toString() : "");
-                dialog.showTextInput(new UniversalM3Dialog.OnText() {
+                dialog.showTextInput(new AppDialogs.OnText() {
                     @Override
                     public void onText(String value) {
                         applyArgValueChange(value);
@@ -609,6 +615,15 @@ public class BlockArg extends BlockBase {
                 return;
             }
         }
+    }
+
+    private boolean isImageArgBlock() {
+        if (parentBlock == null || parentBlock.mOpCode == null) return false;
+        String op = parentBlock.mOpCode.trim();
+        return "setBackgroundImage".equals(op)
+                || "imageSetSource".equals(op)
+                || "imageHtmlSetSrc".equals(op)
+                || "htmlAttrSrc".equals(op);
     }
 
     public boolean isAsdBlock() {

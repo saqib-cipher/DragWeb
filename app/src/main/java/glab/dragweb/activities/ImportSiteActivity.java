@@ -7,6 +7,7 @@ import glab.dragweb.engine.*;
 import glab.dragweb.ui.*;
 import glab.dragweb.logic.*;
 import glab.dragweb.codegen.*;
+import glab.dragweb.core.BlocksLoader;
 import glab.dragweb.data.*;
 import glab.dragweb.adapters.*;
 import glab.dragweb.models.*;
@@ -84,6 +85,7 @@ public class ImportSiteActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
         androidx.activity.EdgeToEdge.enable(this);
         setContentView(R.layout.activity_import_site);
@@ -203,8 +205,13 @@ public class ImportSiteActivity extends AppCompatActivity {
         });
 
         btnImport.setOnClickListener(v -> {
+            if (htmlUris.isEmpty()) {
+                Toast.makeText(this, "Please select at least one HTML page to import", Toast.LENGTH_SHORT).show();
+                return;
+            }
             if (layoutLoading != null) layoutLoading.setVisibility(View.VISIBLE);
-            v.postDelayed(this::performSiteImport, 100);
+            btnImport.setEnabled(false);
+            performSiteImport();
         });
     }
 
@@ -218,237 +225,161 @@ public class ImportSiteActivity extends AppCompatActivity {
     }
 
     private void performSiteImport() {
-        if (htmlUris.isEmpty()) {
-            Toast.makeText(this, "Please select at least one HTML page to import", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String rawName = etProjectName.getText().toString().trim();
+        String rawName = etProjectName != null && etProjectName.getText() != null
+                ? etProjectName.getText().toString().trim()
+                : "";
         final String projectName = rawName.isEmpty() ? "Imported Website" : rawName;
-        final String projectId = ProjectDataManager.generateProjectId(this);
+        final boolean convertCss = switchConvertCss == null || switchConvertCss.isChecked();
+        final boolean convertJs = switchConvertJs == null || switchConvertJs.isChecked();
+        final List<Uri> htmlUrisCopy = new ArrayList<>(htmlUris);
+        final List<String> htmlNamesCopy = new ArrayList<>(htmlNames);
+        final Uri cssUriCopy = cssUri;
+        final Uri jsUriCopy = jsUri;
 
-        File dir = new File(FileUtil.getDragWebDir(this), "projects");
-        if (!dir.exists()) dir.mkdirs();
+        AppExecutors.io().execute(() -> {
+            final String projectId = ProjectDataManager.generateProjectId(this);
+            File dir = new File(FileUtil.getDragWebDir(this), "projects");
+            if (!dir.exists()) dir.mkdirs();
 
-        // Standard detected libraries mapping
-        List<String> combinedLibraries = new ArrayList<>();
+            String extPath = FileUtil.getDragWebDir(this).getAbsolutePath() + "/projects/" + projectId;
+            File extAssetsDir = new File(extPath, "assets");
+            extAssetsDir.mkdirs();
 
-        // Setup external structure paths
-        String extPath = FileUtil.getDragWebDir().getAbsolutePath() + "/projects/" + projectId;
-        File extAssetsDir = new File(extPath, "assets");
-        extAssetsDir.mkdirs();
+            List<String> combinedLibraries = new ArrayList<>();
+            List<String> pageNamesList = new ArrayList<>();
+            Map<String, List<Map<String, Object>>> pageWidgetTrees = new HashMap<>();
+            Map<String, ArrayList<BlockBean>> pageHtmlBlocks = new HashMap<>();
 
-        List<String> pageNamesList = new ArrayList<>();
-        Map<String, List<Map<String, Object>>> pageWidgetTrees = new HashMap<>();
-        Map<String, List<Map<String, Object>>> pageLogicBlocks = new HashMap<>();
-
-        // Find primary index page index or default to first
-        int indexIdx = -1;
-        for (int i = 0; i < htmlNames.size(); i++) {
-            String name = htmlNames.get(i).toLowerCase();
-            if (name.contains("index")) {
-                indexIdx = i;
-                break;
+            int indexIdx = -1;
+            for (int i = 0; i < htmlNamesCopy.size(); i++) {
+                if (htmlNamesCopy.get(i).toLowerCase(Locale.ROOT).contains("index")) {
+                    indexIdx = i;
+                    break;
+                }
             }
-        }
-        if (indexIdx == -1) indexIdx = 0;
+            if (indexIdx == -1) indexIdx = 0;
 
-        // Process all HTML pages
-        HtmlCssImporter importer = new HtmlCssImporter(this);
-        for (int i = 0; i < htmlUris.size(); i++) {
-            Uri uri = htmlUris.get(i);
-            String origName = htmlNames.get(i).toLowerCase();
-            String pageName = origName;
-            if (pageName.contains(".")) {
-                pageName = pageName.substring(0, pageName.lastIndexOf('.'));
-            }
-            
-            // Map the primary designated page to "index"
-            if (i == indexIdx || pageName.equals("index")) {
-                pageName = "index";
-            }
+            HtmlCssImporter treeExtractor = new HtmlCssImporter(this);
+            for (int i = 0; i < htmlUrisCopy.size(); i++) {
+                Uri uri = htmlUrisCopy.get(i);
+                String origName = htmlNamesCopy.get(i).toLowerCase(Locale.ROOT);
+                String pageName = origName.contains(".")
+                        ? origName.substring(0, origName.lastIndexOf('.'))
+                        : origName;
+                if (i == indexIdx || "index".equals(pageName)) {
+                    pageName = "index";
+                }
+                pageNamesList.add(pageName);
 
-            pageNamesList.add(pageName);
+                String htmlContent = readUriContent(uri);
+                if (htmlContent != null && !htmlContent.trim().isEmpty()) {
+                    // Convert HTML to DragWeb blocks via Rust engine
+                    ArrayList<BlockBean> rustHtmlBeans = BlocksLoader.generateHtmlBlocksFromCode(this, htmlContent);
+                    if (rustHtmlBeans != null && !rustHtmlBeans.isEmpty()) {
+                        pageHtmlBlocks.put(pageName, rustHtmlBeans);
+                    }
 
-            String htmlContent = readUriContent(uri);
-            if (htmlContent != null) {
-                HtmlCssImporter.ImportResult result = importer.importHtmlCss(htmlContent, null);
-                if (result.success) {
-                    pageWidgetTrees.put(pageName, result.widgetTree);
-                    pageLogicBlocks.put(pageName, result.logicBlocks);
-                    if (result.enabledLibraries != null) {
-                        for (String lib : result.enabledLibraries) {
-                            if (!combinedLibraries.contains(lib)) combinedLibraries.add(lib);
+                    // Extract widget tree & detected libraries for visual canvas
+                    HtmlCssImporter.ImportResult result = treeExtractor.importHtmlCss(htmlContent, null);
+                    if (result.success) {
+                        pageWidgetTrees.put(pageName, result.widgetTree);
+                        if (result.enabledLibraries != null) {
+                            for (String lib : result.enabledLibraries) {
+                                if (!combinedLibraries.contains(lib)) combinedLibraries.add(lib);
+                            }
                         }
                     }
-                } else {
-                    Toast.makeText(this, "Failed to parse " + origName + ": " + result.message, Toast.LENGTH_SHORT).show();
-                }
 
-                // Copy original HTML page to external assets under pageName.html (or index.html)
-                try {
-                    File targetHtmlFile = new File(extAssetsDir, pageName + ".html");
-                    FileUtil.writeFile(targetHtmlFile.getAbsolutePath(), htmlContent);
-                } catch (Exception e) {
-                    Log.e("ImportSiteActivity", "Failed to copy original html page: " + e.getMessage());
+                    try {
+                        File targetHtmlFile = new File(extAssetsDir, pageName + ".html");
+                        FileUtil.writeFile(targetHtmlFile.getAbsolutePath(), htmlContent);
+                    } catch (Exception e) {
+                        Log.e("ImportSiteActivity", "Failed to copy original html page: " + e.getMessage());
+                    }
                 }
             }
-        }
 
-        // Save layouts & logic using unified layout and logic
-        glab.dragweb.data.PageManager pm = new glab.dragweb.data.PageManager(this, projectId);
-        for (String pName : pageNamesList) {
-            List<Map<String, Object>> widgetTree = pageWidgetTrees.get(pName);
-            if (widgetTree == null) widgetTree = new ArrayList<>();
-            List<Map<String, Object>> htmlLogic = pageLogicBlocks.get(pName);
+            // Save page layouts and Rust-generated HTML blocks
+            DesignDataManager.initMaps();
+            PageManager pm = new PageManager(this, projectId);
+            for (String pName : pageNamesList) {
+                List<Map<String, Object>> widgetTree = pageWidgetTrees.get(pName);
+                if (widgetTree == null) widgetTree = new ArrayList<>();
+                pm.savePageLayout(pName, new Gson().toJson(widgetTree));
 
-            String treeJson = new Gson().toJson(widgetTree);
-            pm.savePageLayout(pName, treeJson);
-
-            if (htmlLogic != null && !htmlLogic.isEmpty()) {
-                String cleanPName = DesignDataManager.getCleanPageName(pName);
-                ArrayList<BlockBean> beans = importer.convertRawMapsToBeans(htmlLogic);
-                DesignDataManager.setBlocks(cleanPName, "onCreate_initializeLogic", beans);
-            }
-        }
-
-        // Process global CSS
-        List<Map<String, Object>> cssLogicBlocks = null;
-        String cssContent = cssUri != null ? readUriContent(cssUri) : null;
-        if (cssContent != null && !cssContent.trim().isEmpty()) {
-            cssLogicBlocks = importer.importCssOnly(cssContent);
-            if (cssLogicBlocks == null || cssLogicBlocks.isEmpty()) {
-                // Fallback: wrap raw code in asdCss block if parsing produced no rules
-                cssLogicBlocks = new ArrayList<>();
-                String blockId = "blk_asd_css_" + System.currentTimeMillis();
-                Map<String, Object> block = new HashMap<>();
-                block.put("id", blockId);
-                block.put("action", "asdCss");
-                block.put("category", "asd");
-                block.put("shape", "stack");
-                block.put("spec", "CSS source %s");
-                block.put("paramValues", java.util.Arrays.asList(cssContent));
-                block.put("params", cssContent);
-                block.put("event", "immediate");
-                block.put("parentBlockId", "");
-                cssLogicBlocks.add(block);
-            }
-        }
-
-        if (cssLogicBlocks != null && !cssLogicBlocks.isEmpty()) {
-            String cleanCssName = DesignDataManager.getCleanPageName("css/style.css");
-            ArrayList<BlockBean> cssBeans = importer.convertRawMapsToBeans(cssLogicBlocks);
-            DesignDataManager.setBlocks(cleanCssName, "onCreate_initializeLogic", cssBeans);
-
-            // Compile and write compiled css output to external assets/css/style.css
-            try {
-                LogicBlockManager cssLogic = new LogicBlockManager(this);
-                cssLogic.fromJson(new Gson().toJson(cssLogicBlocks));
-                String baseRules = cssLogic.generateBaseCssRules();
-                String pseudoRules = cssLogic.generateCssPseudoRules();
-                String asdCss = cssLogic.generateAsdSource("css");
-                StringBuilder compiledCss = new StringBuilder();
-                compiledCss.append("/* Compiled by DragWeb */\n\n");
-                if (baseRules != null && !baseRules.trim().isEmpty()) {
-                    compiledCss.append(baseRules).append("\n");
+                ArrayList<BlockBean> htmlBeans = pageHtmlBlocks.get(pName);
+                if (htmlBeans != null && !htmlBeans.isEmpty()) {
+                    String cleanPName = DesignDataManager.getCleanPageName(pName);
+                    DesignDataManager.setBlocks(cleanPName, "onCreate_initializeLogic", htmlBeans);
                 }
-                if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
-                    compiledCss.append(pseudoRules).append("\n");
-                }
-                if (asdCss != null && !asdCss.trim().isEmpty()) {
-                    compiledCss.append(asdCss).append("\n");
+            }
+
+            // Convert & save global CSS via Rust engine
+            String cssContent = cssUriCopy != null ? readUriContent(cssUriCopy) : null;
+            if (cssContent != null && !cssContent.trim().isEmpty()) {
+                if (convertCss) {
+                    ArrayList<BlockBean> cssBeans = BlocksLoader.generateCssBlocksFromCode(this, cssContent);
+                    if (cssBeans != null && !cssBeans.isEmpty()) {
+                        String cleanCssName = DesignDataManager.getCleanPageName("css/style.css");
+                        DesignDataManager.setBlocks(cleanCssName, "onCreate_initializeLogic", cssBeans);
+                    }
                 }
                 File targetStyleFile = new File(extAssetsDir, "css/style.css");
-                targetStyleFile.getParentFile().mkdirs();
-                FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCss.toString());
-            } catch (Exception e) {
-                Log.w("ImportSite", "Failed to compile style.css: " + e.getMessage());
-            }
-        }
-
-        // Process global JS
-        List<Map<String, Object>> jsLogicBlocks = null;
-        String jsContent = jsUri != null ? readUriContent(jsUri) : null;
-        if (jsContent != null && !jsContent.trim().isEmpty()) {
-            jsLogicBlocks = importer.importJsOnly(jsContent);
-            if (jsLogicBlocks == null || jsLogicBlocks.isEmpty()) {
-                // Fallback: wrap raw code in asdJs block if parsing produced no rules
-                jsLogicBlocks = new ArrayList<>();
-                String blockId = "blk_asd_js_" + System.currentTimeMillis();
-                Map<String, Object> block = new HashMap<>();
-                block.put("id", blockId);
-                block.put("action", "asdJs");
-                block.put("category", "asd");
-                block.put("shape", "stack");
-                block.put("spec", "JS source %s");
-                block.put("paramValues", java.util.Arrays.asList(jsContent));
-                block.put("params", jsContent);
-                block.put("event", "immediate");
-                block.put("parentBlockId", "");
-                jsLogicBlocks.add(block);
+                if (targetStyleFile.getParentFile() != null) targetStyleFile.getParentFile().mkdirs();
+                FileUtil.writeFile(targetStyleFile.getAbsolutePath(), cssContent);
             }
 
-            String cleanJsName = DesignDataManager.getCleanPageName("js/script.js");
-            ArrayList<BlockBean> jsBeans = importer.convertRawMapsToBeans(jsLogicBlocks);
-            DesignDataManager.setBlocks(cleanJsName, "onCreate_initializeLogic", jsBeans);
-
-            // Write script.js to external assets/js/script.js
-            try {
+            // Convert & save global JS via Rust engine
+            String jsContent = jsUriCopy != null ? readUriContent(jsUriCopy) : null;
+            if (jsContent != null && !jsContent.trim().isEmpty()) {
+                if (convertJs) {
+                    ArrayList<BlockBean> jsBeans = BlocksLoader.generateJsBlocksFromCode(this, jsContent);
+                    if (jsBeans != null && !jsBeans.isEmpty()) {
+                        String cleanJsName = DesignDataManager.getCleanPageName("js/script.js");
+                        DesignDataManager.setBlocks(cleanJsName, "onCreate_initializeLogic", jsBeans);
+                    }
+                }
                 File targetJsFile = new File(extAssetsDir, "js/script.js");
-                targetJsFile.getParentFile().mkdirs();
-                
-                // Compile compiled JS output or write original jsContent
-                LogicBlockManager jsLogic = new LogicBlockManager(this);
-                jsLogic.fromJson(new Gson().toJson(jsLogicBlocks));
-                String jsBlocks = jsLogic.generateJavaScript();
-                String asdJs = jsLogic.generateAsdSource("js");
-                StringBuilder compiledJs = new StringBuilder();
-                compiledJs.append("/* Compiled by DragWeb */\n\n");
-                if (asdJs != null && !asdJs.trim().isEmpty()) {
-                    compiledJs.append(asdJs).append("\n\n");
-                }
-                if (jsBlocks != null && !jsBlocks.trim().isEmpty()) {
-                    compiledJs.append(jsBlocks).append("\n");
-                }
-                FileUtil.writeFile(targetJsFile.getAbsolutePath(), compiledJs.toString());
-            } catch (Exception e) {
-                Log.w("ImportSite", "Failed to write script.js: " + e.getMessage());
+                if (targetJsFile.getParentFile() != null) targetJsFile.getParentFile().mkdirs();
+                FileUtil.writeFile(targetJsFile.getAbsolutePath(), jsContent);
             }
-        }
 
-        DesignDataManager.saveAllSavedLogic(this, projectId);
+            DesignDataManager.saveAllSavedLogic(this, projectId);
 
-        // Save metadata
-        File metaFile = new File(extPath, "project.meta");
-        Map<String, String> meta = new HashMap<>();
-        meta.put("id", projectId);
-        meta.put("name", projectName);
-        meta.put("description", "Imported website");
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-        meta.put("created", sdf.format(new Date()));
-        FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
+            // Save project metadata
+            File metaFile = new File(extPath, "project.meta");
+            Map<String, String> meta = new HashMap<>();
+            meta.put("id", projectId);
+            meta.put("name", projectName);
+            meta.put("description", "Imported website");
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+            meta.put("created", sdf.format(new Date()));
+            FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
 
-        // Save theme settings: disable default styles and inline styles since CSS is imported
-        ThemeManager tm = new ThemeManager();
-        tm.setUseInlineStyles(false);
-        tm.setDisableDefaultStyles(true);
-        File themeFile = new File(extPath, "theme.json");
-        FileUtil.writeFile(themeFile.getAbsolutePath(), tm.toJson());
+            // Disable inline styles & default theme CSS when importing external site
+            ThemeManager tm = new ThemeManager();
+            tm.setUseInlineStyles(false);
+            tm.setDisableDefaultStyles(true);
+            FileUtil.writeFile(new File(extPath, "theme.json").getAbsolutePath(), tm.toJson());
 
-        // Enable detected standard icon libraries
-        if (!combinedLibraries.isEmpty()) {
-            IconLibraryManager ilm = new IconLibraryManager(this, projectId);
-            for (String libId : combinedLibraries) {
-                ilm.enable(libId);
+            if (!combinedLibraries.isEmpty()) {
+                IconLibraryManager ilm = new IconLibraryManager(this, projectId);
+                for (String libId : combinedLibraries) {
+                    ilm.enable(libId);
+                }
             }
-        }
 
-        // Open the newly created project in MainActivity
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.putExtra("project_id", projectId);
-        intent.putExtra("project_name", projectName);
-        startActivity(intent);
-        finish();
+            AppExecutors.mainThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (layoutLoading != null) layoutLoading.setVisibility(View.GONE);
+                btnImport.setEnabled(true);
+                Intent intent = new Intent(this, MainActivity.class);
+                intent.putExtra("project_id", projectId);
+                intent.putExtra("project_name", projectName);
+                startActivity(intent);
+                finish();
+            });
+        });
     }
 
     private String resolveFileName(Uri uri) {

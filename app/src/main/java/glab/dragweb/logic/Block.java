@@ -408,12 +408,10 @@ public class Block extends BlockBase {
     }
 
     public void fixLayout() {
-        this.bringToFront();
         int var1 = this.indentLeft;
 
         for(int var2 = 0; var2 < this.labelsAndArgs.size(); ++var2) {
             View var8 = (View)this.labelsAndArgs.get(var2);
-            var8.bringToFront();
             if(var8 instanceof Block) {
                 var8.setX(this.getX() + (float)var1);
             } else {
@@ -462,26 +460,28 @@ public class Block extends BlockBase {
         this.setWidthAndTopHeight((float)(var1 + this.indentRight), (float)(this.indentTop + this.labelAndArgHeight + 2 * this.childDepth * this.childInset + this.indentBottom), true);
         if(this.canHaveSubstack1()) {
             int var4 = this.EmptySubstackH;
-            if(this.subStack1 > -1) {
+            if(this.subStack1 > -1 && this.pane != null) {
                 Block var7 = (Block)this.pane.findViewWithTag(Integer.valueOf(this.subStack1));
-                var7.setX(this.getX() + (float)this.SubstackInset);
-                var7.setY(this.getY() + (float)this.substack1y());
-                var7.bringToFront();
-                var7.fixLayout();
-                var4 = var7.getHeightSum();
+                if (var7 != null) {
+                    var7.setX(this.getX() + (float)this.SubstackInset);
+                    var7.setY(this.getY() + (float)this.substack1y());
+                    var7.fixLayout();
+                    var4 = var7.getHeightSum();
+                }
             }
 
             this.setSubstack1Height(var4);
             int var5 = this.EmptySubstackH;
-            if(this.subStack2 > -1) {
+            if(this.subStack2 > -1 && this.pane != null) {
                 Block var6 = (Block)this.pane.findViewWithTag(Integer.valueOf(this.subStack2));
-                var6.setX(this.getX() + (float)this.SubstackInset);
-                var6.setY(this.getY() + (float)this.substack2y());
-                var6.bringToFront();
-                var6.fixLayout();
-                var5 = var6.getHeightSum();
-                if(var6.bottomBlock().isTerminal) {
-                    var5 += this.NotchDepth;
+                if (var6 != null) {
+                    var6.setX(this.getX() + (float)this.SubstackInset);
+                    var6.setY(this.getY() + (float)this.substack2y());
+                    var6.fixLayout();
+                    var5 = var6.getHeightSum();
+                    if(var6.bottomBlock().isTerminal) {
+                        var5 += this.NotchDepth;
+                    }
                 }
             }
 
@@ -489,12 +489,13 @@ public class Block extends BlockBase {
             this.fixElseLabel();
         }
 
-        if(this.nextBlock > -1) {
+        if(this.nextBlock > -1 && this.pane != null) {
             Block var3 = (Block)this.pane.findViewWithTag(Integer.valueOf(this.nextBlock));
-            var3.setX(this.getX());
-            var3.setY(this.getY() + (float)this.nextBlockY());
-            var3.bringToFront();
-            var3.fixLayout();
+            if (var3 != null) {
+                var3.setX(this.getX());
+                var3.setY(this.getY() + (float)this.nextBlockY());
+                var3.fixLayout();
+            }
         }
 
     }

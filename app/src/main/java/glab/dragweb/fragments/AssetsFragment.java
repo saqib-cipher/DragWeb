@@ -114,7 +114,7 @@ public class AssetsFragment extends Fragment {
 
         btnNewFolder.setOnClickListener(v -> {
             if (getContext() != null) {
-                new UniversalM3Dialog(getContext())
+                AppDialogs.builder(getContext())
                     .setTitle("New Folder")
                     .setHint("Folder name")
                     .showTextInput(name -> {
@@ -368,7 +368,7 @@ public class AssetsFragment extends Fragment {
 
     private void showRenameFileDialog(File file) {
         if (getContext() == null) return;
-        UniversalDialog.textInput(getContext(), "Rename File", "New Name", file.getName(), newName -> {
+        AppDialogs.textInput(getContext(), "Rename File", "New Name", file.getName(), newName -> {
             if (newName == null || newName.trim().isEmpty()) {
                 Toast.makeText(getContext(), "Name cannot be empty", Toast.LENGTH_SHORT).show();
                 return;

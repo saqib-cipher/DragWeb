@@ -24,6 +24,65 @@
 				app:subtitle="@string/app_subtitle"
 				app:titleTextColor="?attr/colorOnSurface"
 				app:subtitleTextColor="?attr/colorOnSurfaceVariant" />
+
+			<HorizontalScrollView
+				android:id="@+id/project_sort_container"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:scrollbars="none"
+				android:overScrollMode="never"
+				android:clipToPadding="false"
+				android:paddingStart="16dp"
+				android:paddingEnd="16dp"
+				android:paddingTop="2dp"
+				android:paddingBottom="8dp">
+
+				<com.google.android.material.chip.ChipGroup
+					android:id="@+id/project_sort_chip_group"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					app:singleLine="true"
+					app:singleSelection="true"
+					app:selectionRequired="true">
+
+					<com.google.android.material.chip.Chip
+						android:id="@+id/chip_sort_newest"
+						style="@style/Widget.Material3.Chip.Filter"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						app:chipIconVisible="false"
+						app:checkedIconVisible="true"
+						android:text="Newest" />
+
+					<com.google.android.material.chip.Chip
+						android:id="@+id/chip_sort_oldest"
+						style="@style/Widget.Material3.Chip.Filter"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						app:chipIconVisible="false"
+						app:checkedIconVisible="true"
+						android:text="Oldest" />
+
+					<com.google.android.material.chip.Chip
+						android:id="@+id/chip_sort_name_asc"
+						style="@style/Widget.Material3.Chip.Filter"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						app:chipIconVisible="false"
+						app:checkedIconVisible="true"
+						android:text="Name (A-Z)" />
+
+					<com.google.android.material.chip.Chip
+						android:id="@+id/chip_sort_name_desc"
+						style="@style/Widget.Material3.Chip.Filter"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						app:chipIconVisible="false"
+						app:checkedIconVisible="true"
+						android:text="Name (Z-A)" />
+
+				</com.google.android.material.chip.ChipGroup>
+			</HorizontalScrollView>
 		</com.google.android.material.appbar.AppBarLayout>
 
 		<FrameLayout
@@ -98,19 +157,175 @@
 		</FrameLayout>
 
 
-		<!-- FAB for new project -->
-		<com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-			android:id="@+id/fabNewProject"
+		<!-- Scrim overlay for expandable FAB menu -->
+		<View
+			android:id="@+id/fab_overlay"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:background="#33000000"
+			android:clickable="true"
+			android:focusable="true"
+			android:visibility="gone" />
+
+		<!-- Expandable FAB Speed Dial -->
+		<LinearLayout
+			android:id="@+id/fab_menu_container"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
 			android:layout_gravity="bottom|end"
 			android:layout_marginEnd="16dp"
 			android:layout_marginBottom="16dp"
-			android:text="@string/new_project"
-			app:icon="@android:drawable/ic_input_add"
-			app:backgroundTint="?attr/colorPrimaryContainer"
-			app:iconTint="?attr/colorOnPrimaryContainer"
-			android:textColor="?attr/colorOnPrimaryContainer" />
+			android:clipChildren="false"
+			android:clipToPadding="false"
+			android:gravity="end"
+			android:orientation="vertical">
+
+			<LinearLayout
+				android:id="@+id/layout_fab_restore"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="12dp"
+				android:gravity="center_vertical"
+				android:orientation="horizontal"
+				android:visibility="gone">
+
+				<com.google.android.material.card.MaterialCardView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginEnd="12dp"
+					app:cardBackgroundColor="?attr/colorSurfaceContainer"
+					app:cardCornerRadius="14dp"
+					app:cardElevation="0dp"
+					app:strokeWidth="0dp">
+
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:paddingStart="14dp"
+						android:paddingTop="8dp"
+						android:paddingEnd="14dp"
+						android:paddingBottom="8dp"
+						android:text="Restore ZIP"
+						android:textColor="?attr/colorOnSurface"
+						android:textSize="15sp" />
+				</com.google.android.material.card.MaterialCardView>
+
+				<com.google.android.material.floatingactionbutton.FloatingActionButton
+					android:id="@+id/fab_restore"
+					android:layout_width="56dp"
+					android:layout_height="56dp"
+					android:elevation="0dp"
+					android:stateListAnimator="@null"
+					app:elevation="0dp"
+					app:hoveredFocusedTranslationZ="0dp"
+					app:pressedTranslationZ="0dp"
+					app:srcCompat="@drawable/ic_mtrl_history"
+					tools:ignore="ContentDescription" />
+			</LinearLayout>
+
+			<LinearLayout
+				android:id="@+id/layout_fab_import_site"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="12dp"
+				android:gravity="center_vertical"
+				android:orientation="horizontal"
+				android:visibility="gone">
+
+				<com.google.android.material.card.MaterialCardView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginEnd="12dp"
+					app:cardBackgroundColor="?attr/colorSurfaceContainer"
+					app:cardCornerRadius="14dp"
+					app:cardElevation="0dp"
+					app:strokeWidth="0dp">
+
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:paddingStart="14dp"
+						android:paddingTop="8dp"
+						android:paddingEnd="14dp"
+						android:paddingBottom="8dp"
+						android:text="Import Site"
+						android:textColor="?attr/colorOnSurface"
+						android:textSize="15sp" />
+				</com.google.android.material.card.MaterialCardView>
+
+				<com.google.android.material.floatingactionbutton.FloatingActionButton
+					android:id="@+id/fab_import_site"
+					android:layout_width="56dp"
+					android:layout_height="56dp"
+					android:elevation="0dp"
+					android:stateListAnimator="@null"
+					app:elevation="0dp"
+					app:hoveredFocusedTranslationZ="0dp"
+					app:pressedTranslationZ="0dp"
+					app:srcCompat="@drawable/file_import"
+					tools:ignore="ContentDescription" />
+			</LinearLayout>
+
+			<LinearLayout
+				android:id="@+id/layout_fab_create"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="12dp"
+				android:gravity="center_vertical"
+				android:orientation="horizontal"
+				android:visibility="gone">
+
+				<com.google.android.material.card.MaterialCardView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginEnd="12dp"
+					app:cardBackgroundColor="?attr/colorSurfaceContainer"
+					app:cardCornerRadius="14dp"
+					app:cardElevation="0dp"
+					app:strokeWidth="0dp">
+
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:paddingStart="14dp"
+						android:paddingTop="8dp"
+						android:paddingEnd="14dp"
+						android:paddingBottom="8dp"
+						android:text="Create"
+						android:textColor="?attr/colorOnSurface"
+						android:textSize="15sp" />
+				</com.google.android.material.card.MaterialCardView>
+
+				<com.google.android.material.floatingactionbutton.FloatingActionButton
+					android:id="@+id/fab_create"
+					android:layout_width="56dp"
+					android:layout_height="56dp"
+					android:elevation="0dp"
+					android:stateListAnimator="@null"
+					app:elevation="0dp"
+					app:hoveredFocusedTranslationZ="0dp"
+					app:pressedTranslationZ="0dp"
+					app:srcCompat="@drawable/ic_add"
+					tools:ignore="ContentDescription" />
+			</LinearLayout>
+
+			<com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+				android:id="@+id/fabNewProject"
+				style="@style/Widget.Material3Expressive.ExtendedFloatingActionButton.Small"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:elevation="0dp"
+				android:stateListAnimator="@null"
+				android:text="@string/new_project"
+				app:elevation="0dp"
+				app:hoveredFocusedTranslationZ="0dp"
+				app:pressedTranslationZ="0dp"
+				app:icon="@drawable/ic_add"
+				app:backgroundTint="?attr/colorPrimaryContainer"
+				app:iconTint="?attr/colorOnPrimaryContainer"
+				android:textColor="?attr/colorOnPrimaryContainer" />
+
+		</LinearLayout>
 
 	</androidx.coordinatorlayout.widget.CoordinatorLayout>
 

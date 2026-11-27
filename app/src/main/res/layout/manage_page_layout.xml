@@ -38,105 +38,396 @@
                 android:id="@+id/scroll_content"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:paddingBottom="16dp">
 
-                <LinearLayout
+                <!-- Page Name -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilPageName"
+                    style="@style/Widget.Dragweb.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:layout_marginTop="8dp"
+                    android:hint="Page name">
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilPageName"
-                        style="@style/Widget.Dragweb.TextInputLayout"
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/page_name"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp">
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/page_name"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:hint="Page name" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                <!-- Stylesheet Settings -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="6dp"
+                    android:text="Stylesheet (CSS)"
+                    android:textAppearance="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorPrimary" />
 
-                    <com.google.android.material.card.MaterialCardView
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.Material3.CardView.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        style="@style/Widget.Material3.CardView.Outlined">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="12dp">
 
                         <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
                             android:orientation="vertical">
 
                             <TextView
                                 android:id="@+id/switch_title"
-                                android:layout_width="match_parent"
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Default Global Css"
-                                android:textSize="16dp"
-                                android:textAppearance="?attr/textAppearanceBodyLarge"
-                                android:padding="8dp"/>
+                                android:text="Default Global CSS"
+                                android:textAppearance="?attr/textAppearanceBodyLarge" />
 
                             <TextView
                                 android:id="@+id/switch_description"
-                                android:layout_width="match_parent"
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:paddingHorizontal="8dp"
-                                android:paddingBottom="8dp"
-                                android:text="Apply the global stylesheet to this page by default."
-                                android:textAppearance="?attr/textAppearanceBodySmall" />
+                                android:text="Apply global css/style.css to this page."
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
                         </LinearLayout>
+
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switch1"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_gravity="end|center_vertical"
-                            android:layout_marginEnd="16dp"
-                            app:thumbIcon="@drawable/ic_thumb_selector"
-                            android:checked="true"/>
-                    </com.google.android.material.card.MaterialCardView>
+                            android:checked="true"
+                            app:thumbIcon="@drawable/ic_thumb_selector" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/css_selector_icon_til"
-                        style="@style/Widget.Dragweb.TextInputLayout"
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/css_selector_icon_til"
+                    style="@style/Widget.Dragweb.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:enabled="false"
+                    android:hint="Select CSS File"
+                    app:endIconContentDescription="Choose CSS File"
+                    app:endIconDrawable="@drawable/rounded_arrow_drop_down_24"
+                    app:endIconMode="custom">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/css_selector"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        app:endIconMode="custom"
-                        app:endIconDrawable="@drawable/rounded_arrow_drop_down_24"
-                        app:endIconContentDescription="Choose Category"
-                        android:enabled="false">
+                        android:clickable="true"
+                        android:cursorVisible="false"
+                        android:focusable="false" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Script Settings -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="6dp"
+                    android:text="Script (JavaScript)"
+                    android:textAppearance="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorPrimary" />
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.Material3.CardView.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="12dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Default Global JS"
+                                android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Include global js/script.js on this page."
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
+                        </LinearLayout>
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchGlobalJs"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            app:thumbIcon="@drawable/ic_thumb_selector" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilJsSelector"
+                    style="@style/Widget.Dragweb.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:enabled="false"
+                    android:hint="Select JS File"
+                    app:endIconContentDescription="Choose JS File"
+                    app:endIconDrawable="@drawable/rounded_arrow_drop_down_24"
+                    app:endIconMode="custom">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/js_selector"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clickable="true"
+                        android:cursorVisible="false"
+                        android:focusable="false" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Site & Meta Tags -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="6dp"
+                    android:text="Site &amp; Meta Tags"
+                    android:textAppearance="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorPrimary" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Dragweb.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Page Title (&lt;title&gt;)">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etPageTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilFavicon"
+                        style="@style/Widget.Dragweb.TextInputLayout"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Favicon (e.g. images/favicon.png)">
 
                         <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/css_selector"
+                            android:id="@+id/etFavicon"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="Select Css File"
-                            android:focusable="false"
-                            android:cursorVisible="false"
-                            android:clickable="true" />
+                            android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPickFavicon"
+                        style="@style/Widget.Material3Expressive.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="Pick" />
                 </LinearLayout>
 
-                <View
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Dragweb.TextInputLayout"
                     android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Meta Description">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etMetaDescription"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:maxLines="3" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Dragweb.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Meta Keywords (comma-separated)">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etMetaKeywords"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Dragweb.TextInputLayout"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:hint="Author">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etMetaAuthor"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Dragweb.TextInputLayout"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:hint="Theme Color (#HEX)">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etMetaThemeColor"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <!-- Open Graph -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="6dp"
+                    android:text="Open Graph / Social Preview"
+                    android:textAppearance="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorPrimary" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Dragweb.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="og:title">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etOgTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Dragweb.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="og:description">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etOgDescription"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:maxLines="2" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Dragweb.TextInputLayout"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="og:image (path or URL)">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etOgImage"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPickOgImage"
+                        style="@style/Widget.Material3Expressive.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="Pick" />
+                </LinearLayout>
+
+                <!-- Custom Head Code -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="6dp"
+                    android:text="Custom &lt;head&gt; Code"
+                    android:textAppearance="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorPrimary" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Dragweb.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Custom &lt;meta&gt;, &lt;link&gt;, or &lt;script&gt; tags">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etCustomHeadCode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:gravity="top|start"
+                        android:inputType="textMultiLine|textNoSuggestions"
+                        android:maxLines="8"
+                        android:minLines="3"
+                        android:textSize="13sp" />
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <Button
                     android:id="@+id/deletepage"
                     style="@style/Widget.Material3Expressive.Button.OutlinedButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="20dp"
                     android:layout_marginBottom="8dp"
-                    app:strokeColor="?attr/colorError"
+                    android:text="Delete this Page"
                     app:icon="@drawable/trash"
                     app:iconTint="?attr/colorError"
-                    android:text="Delete this Page" />
+                    app:strokeColor="?attr/colorError" />
 
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
@@ -158,19 +449,18 @@
                 style="@style/Widget.Material3Expressive.Button.TonalButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="6dp"
                 android:layout_weight="1"
-                android:text="@string/common_word_cancel" />
+                android:text="Cancel" />
 
             <Button
                 android:id="@+id/events_creator_save"
                 style="@style/Widget.Material3Expressive.Button"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
                 android:layout_weight="1"
-                android:text="@string/common_word_save" />
-
+                android:text="Save" />
         </LinearLayout>
     </LinearLayout>
 

@@ -617,7 +617,7 @@ public class EventsFragment extends Fragment {
             }
 
             if (holder.tvPreview != null) {
-                holder.tvPreview.setText(isLocked ? "LOCKED • CSS" : item.tag);
+                holder.tvPreview.setText(item.tag);
             }
 
             android.view.View.OnClickListener clickListener = v -> {
@@ -642,8 +642,29 @@ public class EventsFragment extends Fragment {
             }
 
             if (holder.btnDeleteItem != null) {
-                holder.btnDeleteItem.setVisibility(isLocked ? View.GONE : View.VISIBLE);
+                holder.btnDeleteItem.setVisibility(View.VISIBLE);
+                if (holder.btnDeleteItem instanceof com.google.android.material.button.MaterialButton) {
+                    com.google.android.material.button.MaterialButton mb =
+                            (com.google.android.material.button.MaterialButton) holder.btnDeleteItem;
+                    if (isLocked) {
+                        mb.setIconResource(R.drawable.lock);
+                        int bg = MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorSurfaceContainerHighest, Color.DKGRAY);
+                        int fg = MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorOnSurfaceVariant, Color.LTGRAY);
+                        mb.setBackgroundTintList(android.content.res.ColorStateList.valueOf(bg));
+                        mb.setIconTint(android.content.res.ColorStateList.valueOf(fg));
+                    } else {
+                        mb.setIconResource(R.drawable.trash);
+                        int bg = MaterialColors.getColor(holder.itemView, androidx.appcompat.R.attr.colorError, Color.RED);
+                        int fg = MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorOnError, Color.WHITE);
+                        mb.setBackgroundTintList(android.content.res.ColorStateList.valueOf(bg));
+                        mb.setIconTint(android.content.res.ColorStateList.valueOf(fg));
+                    }
+                }
                 holder.btnDeleteItem.setOnClickListener(v -> {
+                    if (isLocked) {
+                        showThemeCssLockedDialog();
+                        return;
+                    }
                     if (item.isFunction) {
                         String targetFunc = item.funcName != null ? item.funcName : item.title;
                         if (DesignDataManager.isMoreBlockUsedInProject(targetFunc, targetFunc)) {
@@ -742,39 +763,17 @@ public class EventsFragment extends Fragment {
 
         final String targetPath = preselectedFile != null ? preselectedFile : availableFiles.get(0);
 
-        LinearLayout dialogView = new LinearLayout(getContext());
-        dialogView.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(20);
-        dialogView.setPadding(pad, dp(12), pad, dp(8));
-
-        TextView lblFile = new TextView(getContext());
-        lblFile.setText("Target File: " + targetPath);
-        lblFile.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14);
-        lblFile.setTypeface(null, android.graphics.Typeface.BOLD);
-        lblFile.setPadding(0, 0, 0, dp(8));
-        dialogView.addView(lblFile);
-
-        com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(getContext());
-        til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        til.setHint("Paste source code here...");
-
-        com.google.android.material.textfield.TextInputEditText editCode = new com.google.android.material.textfield.TextInputEditText(getContext());
-        editCode.setMinLines(8);
-        editCode.setMaxLines(16);
-        editCode.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
-        editCode.setTypeface(android.graphics.Typeface.MONOSPACE);
-        editCode.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13);
-        til.addView(editCode);
-
-        dialogView.addView(til, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        glab.dragweb.databinding.DialogImportCodeBinding binding =
+                glab.dragweb.databinding.DialogImportCodeBinding.inflate(LayoutInflater.from(getContext()));
+        binding.tvTargetFile.setText("Target File: " + targetPath);
 
         String title = "Import Code (" + targetPath + ")";
 
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext())
             .setTitle(title)
-            .setView(dialogView)
+            .setView(binding.getRoot())
             .setPositiveButton("Import & Convert", (d, w) -> {
-                String inputCode = editCode.getText() != null ? editCode.getText().toString().trim() : "";
+                String inputCode = binding.etCode.getText() != null ? binding.etCode.getText().toString().trim() : "";
                 if (inputCode.isEmpty()) {
                     Toast.makeText(getContext(), "Code input was empty", Toast.LENGTH_SHORT).show();
                     return;

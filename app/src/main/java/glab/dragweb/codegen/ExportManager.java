@@ -761,18 +761,56 @@ public class ExportManager {
         }
     }
 
+    private PageManager.PageConfig getPageConfigSafe(String pageName) {
+        if (context == null || projectId == null || projectId.isEmpty()) return null;
+        return new PageManager(context, projectId).getPageConfig(pageName);
+    }
+
+    private void appendPageHeadMeta(StringBuilder html, PageManager.PageConfig pageCfg, String fallbackTitle) {
+        String resolvedTitle = (pageCfg != null && pageCfg.pageTitle != null && !pageCfg.pageTitle.trim().isEmpty())
+                ? pageCfg.pageTitle.trim()
+                : fallbackTitle;
+        String metaDesc = (pageCfg != null && pageCfg.metaDescription != null && !pageCfg.metaDescription.trim().isEmpty())
+                ? pageCfg.metaDescription.trim()
+                : fallbackTitle;
+        html.append("  <meta name=\"description\" content=\"").append(escapeHtml(metaDesc)).append("\">\n");
+        if (pageCfg != null) {
+            if (pageCfg.metaKeywords != null && !pageCfg.metaKeywords.trim().isEmpty()) {
+                html.append("  <meta name=\"keywords\" content=\"").append(escapeHtml(pageCfg.metaKeywords.trim())).append("\">\n");
+            }
+            if (pageCfg.metaAuthor != null && !pageCfg.metaAuthor.trim().isEmpty()) {
+                html.append("  <meta name=\"author\" content=\"").append(escapeHtml(pageCfg.metaAuthor.trim())).append("\">\n");
+            }
+            if (pageCfg.metaThemeColor != null && !pageCfg.metaThemeColor.trim().isEmpty()) {
+                html.append("  <meta name=\"theme-color\" content=\"").append(escapeHtml(pageCfg.metaThemeColor.trim())).append("\">\n");
+            }
+            if (pageCfg.ogTitle != null && !pageCfg.ogTitle.trim().isEmpty()) {
+                html.append("  <meta property=\"og:title\" content=\"").append(escapeHtml(pageCfg.ogTitle.trim())).append("\">\n");
+            }
+            if (pageCfg.ogDescription != null && !pageCfg.ogDescription.trim().isEmpty()) {
+                html.append("  <meta property=\"og:description\" content=\"").append(escapeHtml(pageCfg.ogDescription.trim())).append("\">\n");
+            }
+            if (pageCfg.ogImage != null && !pageCfg.ogImage.trim().isEmpty()) {
+                html.append("  <meta property=\"og:image\" content=\"").append(escapeHtml(pageCfg.ogImage.trim())).append("\">\n");
+            }
+            if (pageCfg.favicon != null && !pageCfg.favicon.trim().isEmpty()) {
+                html.append("  <link rel=\"icon\" href=\"").append(escapeHtml(pageCfg.favicon.trim())).append("\">\n");
+            }
+        }
+        html.append("  <meta name=\"generator\" content=\"DragWeb\">\n");
+        html.append("  <title>").append(escapeHtml(resolvedTitle)).append("</title>\n");
+    }
+
     private String generateHtmlFromTree(List<Map<String, Object>> widgetTree, String pageName, ManageBlocksWidgets customBlockManager,
                                         LogicBlockManager logicBlockManager) {
+        PageManager.PageConfig pageCfg = getPageConfigSafe(pageName);
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html>\n");
         html.append("<html lang=\"en\">\n");
         html.append("<head>\n");
         html.append("  <meta charset=\"UTF-8\">\n");
         html.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-        html.append("  <meta name=\"description\" content=\"")
-            .append(escapeHtml(pageName)).append("\">\n");
-        html.append("  <meta name=\"generator\" content=\"DragWeb\">\n");
-        html.append("  <title>").append(escapeHtml(pageName)).append("</title>\n");
+        appendPageHeadMeta(html, pageCfg, pageName);
 
         if (logicBlockManager != null) {
             String asdMeta = logicBlockManager.generateAsdSource("meta");
@@ -804,6 +842,10 @@ public class ExportManager {
             }
         }
 
+        if (pageCfg != null && pageCfg.customHeadCode != null && !pageCfg.customHeadCode.trim().isEmpty()) {
+            html.append("  ").append(pageCfg.customHeadCode.trim().replace("\n", "\n  ")).append("\n");
+        }
+
         html.append("</head>\n");
         html.append("<body>\n");
 
@@ -831,7 +873,10 @@ public class ExportManager {
             }
         }
 
-        html.append("\n  <script src=\"js/script.js\" defer></script>\n");
+        String scriptSrc = (pageCfg != null && !pageCfg.useGlobalJs && pageCfg.jsFile != null && !pageCfg.jsFile.trim().isEmpty())
+                ? pageCfg.jsFile.trim()
+                : "js/script.js";
+        html.append("\n  <script src=\"").append(escapeHtml(scriptSrc)).append("\" defer></script>\n");
         html.append("</body>\n");
         html.append("</html>\n");
         return html.toString();
@@ -1060,16 +1105,14 @@ public class ExportManager {
 
     private String generateHtml(View screen, String projectName, ManageBlocksWidgets customBlockManager,
                                 LogicBlockManager logicBlockManager, String pageName) {
+        PageManager.PageConfig pageCfg = getPageConfigSafe(pageName);
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html>\n");
         html.append("<html lang=\"en\">\n");
         html.append("<head>\n");
         html.append("  <meta charset=\"UTF-8\">\n");
         html.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-        html.append("  <meta name=\"description\" content=\"")
-            .append(escapeHtml(projectName)).append("\">\n");
-        html.append("  <meta name=\"generator\" content=\"DragWeb\">\n");
-        html.append("  <title>").append(escapeHtml(projectName)).append("</title>\n");
+        appendPageHeadMeta(html, pageCfg, projectName);
 
         // ASD <meta> additions go before icon CDN includes.
         if (logicBlockManager != null) {
@@ -1104,6 +1147,10 @@ public class ExportManager {
             }
         }
 
+        if (pageCfg != null && pageCfg.customHeadCode != null && !pageCfg.customHeadCode.trim().isEmpty()) {
+            html.append("  ").append(pageCfg.customHeadCode.trim().replace("\n", "\n  ")).append("\n");
+        }
+
         html.append("</head>\n");
         html.append("<body>\n");
 
@@ -1134,7 +1181,10 @@ public class ExportManager {
             }
         }
 
-        html.append("\n  <script src=\"js/script.js\" defer></script>\n");
+        String scriptSrc = (pageCfg != null && !pageCfg.useGlobalJs && pageCfg.jsFile != null && !pageCfg.jsFile.trim().isEmpty())
+                ? pageCfg.jsFile.trim()
+                : "js/script.js";
+        html.append("\n  <script src=\"").append(escapeHtml(scriptSrc)).append("\" defer></script>\n");
         html.append("</body>\n");
         html.append("</html>\n");
         return html.toString();

@@ -71,7 +71,7 @@ public class BlockParamManagerActivity extends AppCompatActivity {
     }
 
     private void showAddTypeDialog() {
-        new UniversalM3Dialog(this)
+        AppDialogs.builder(this)
             .setTitle("Add Parameter Type")
             .setHint("Type name (e.g. position)")
             .showTextInput(name -> {
@@ -102,7 +102,7 @@ public class BlockParamManagerActivity extends AppCompatActivity {
     }
 
     private void showAddOptionDialog(String typeName) {
-        new UniversalM3Dialog(this)
+        AppDialogs.builder(this)
             .setTitle("Add Option to " + typeName)
             .setHint("Option value (e.g. relative)")
             .showTextInput(val -> {
@@ -188,7 +188,7 @@ public class BlockParamManagerActivity extends AppCompatActivity {
             String opt = options.get(position);
             holder.text.setText(opt);
             holder.itemView.setOnClickListener(v -> {
-                new UniversalM3Dialog(BlockParamManagerActivity.this)
+                AppDialogs.builder(BlockParamManagerActivity.this)
                     .setTitle("Edit Option")
                     .setInitialValue(opt)
                     .showTextInput(newVal -> {

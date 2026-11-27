@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <TextView
+        android:id="@+id/sheet_project_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:text="Project"
+        android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+    <TextView
+        android:id="@+id/sheet_project_id"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="16dp"
+        android:text="ID"
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="20dp">
+
+        <LinearLayout
+            android:id="@+id/project_open"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/project_item_shape_top"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                app:srcCompat="@drawable/box"
+                app:tint="?attr/colorOnSurface" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:gravity="center_vertical"
+                android:text="Open Project"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                app:drawableEndCompat="@drawable/ic_mtrl_arrow_right" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/project_rename"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:background="@drawable/project_item_shape_middle"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                app:srcCompat="@drawable/pencil_code"
+                app:tint="?attr/colorOnSurface" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:gravity="center_vertical"
+                android:text="Rename"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                app:drawableEndCompat="@drawable/ic_mtrl_arrow_right" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/project_backup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:background="@drawable/project_item_shape_bottom"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                app:srcCompat="@drawable/package_export"
+                app:tint="?attr/colorOnSurface" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:gravity="center_vertical"
+                android:text="Backup ZIP"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                app:drawableEndCompat="@drawable/ic_mtrl_arrow_right" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/project_delete"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/project_item_shape_alone_error"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                app:srcCompat="@drawable/ic_mtrl_delete"
+                app:tint="?attr/colorError" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:gravity="center_vertical"
+                android:text="Delete"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                android:textColor="?attr/colorError"
+                app:drawableEndCompat="@drawable/ic_mtrl_arrow_right"
+                app:drawableTint="?attr/colorError" />
+        </LinearLayout>
+
+    </LinearLayout>
+</LinearLayout>

@@ -1244,15 +1244,23 @@ public class WidgetCanvasStyler {
             }
         }
 
-        // 8f. BoxShadow (approximated via elevation + outline)
+        // 8f. BoxShadow (approximated via elevation)
         if (style.containsKey("boxShadow")) {
             try {
-                String shadow = style.get("boxShadow").toString();
-                // Parse simple "2px 2px 4px #000000" or just extract a pixel offset for elevation
-                String num = shadow.replaceAll("[^0-9.]", "");
-                if (!num.isEmpty()) {
-                    float elev = Float.parseFloat(num);
-                    view.setElevation(Math.max(view.getElevation(), dpToPx(elev)));
+                String shadow = style.get("boxShadow").toString().trim();
+                if ("none".equalsIgnoreCase(shadow)) {
+                    view.setElevation(0f);
+                } else {
+                    Matcher m = Pattern.compile("([-+]?\\d*\\.?\\d+)px").matcher(shadow);
+                    float maxBlur = 0f;
+                    int count = 0;
+                    while (m.find() && count < 4) {
+                        maxBlur = Math.max(maxBlur, Math.abs(Float.parseFloat(m.group(1))));
+                        count++;
+                    }
+                    if (maxBlur > 0f) {
+                        view.setElevation(Math.max(view.getElevation(), dpToPx(Math.min(maxBlur, 16f))));
+                    }
                 }
             } catch (Exception ignored) {}
         }
@@ -1288,30 +1296,55 @@ public class WidgetCanvasStyler {
             borderColor = Color.parseColor("#B0BEC5");
             borderWidth = dpToPx(1);
             cornerRadius = dpToPx(4);
-        } else if (isContainer) {
-            // Subtle dashed guideline border for canvas containers when no border is set
+        } else if (isContainer && !style.containsKey("backgroundColor") && !style.containsKey("backgroundImage") && !style.containsKey("background")) {
+            // Subtle dashed guideline border for empty/unstyled canvas containers
             borderColor = Color.parseColor("#BDBDBD");
             borderWidth = dpToPx(1);
         }
 
-        // Custom Background Color
-        if (style.containsKey("backgroundColor")) {
-            bgColor = parseColor(style.get("backgroundColor").toString(), bgColor);
-        } else if (style.containsKey("background")) {
+        // Custom Background / Linear Gradient / Solid Color
+        String gradientStr = null;
+        if (style.containsKey("backgroundImage") && style.get("backgroundImage") != null) {
+            String bi = style.get("backgroundImage").toString().trim();
+            if (bi.contains("linear-gradient")) gradientStr = bi;
+        } else if (style.containsKey("background") && style.get("background") != null) {
             String bg = style.get("background").toString().trim();
-            if (!bg.contains("url(") && !bg.contains("linear-gradient")) {
-                bgColor = parseColor(bg, bgColor);
-            }
+            if (bg.contains("linear-gradient")) gradientStr = bg;
         }
-        shape.setColor(bgColor);
+
+        if (gradientStr != null && applyLinearGradient(shape, gradientStr)) {
+            // Gradient applied directly on shape
+        } else {
+            if (style.containsKey("backgroundColor")) {
+                bgColor = parseColor(style.get("backgroundColor").toString(), bgColor);
+            } else if (style.containsKey("background")) {
+                String bg = style.get("background").toString().trim();
+                if (!bg.contains("url(") && !bg.contains("linear-gradient")) {
+                    bgColor = parseColor(bg, bgColor);
+                }
+            }
+            shape.setColor(bgColor);
+        }
 
         // Border Width & Color
+        boolean hasExplicitBorder = style.containsKey("border") || style.containsKey("borderWidth");
         if (style.containsKey("border")) {
             String b = style.get("border").toString().trim();
-            // Parse e.g. "2px solid #ff0000"
-            String[] parts = b.split("\\s+");
-            if (parts.length >= 1) borderWidth = parseDimension(parts[0], 0, borderWidth);
-            if (parts.length >= 3) borderColor = parseColor(parts[2], borderColor);
+            if ("none".equalsIgnoreCase(b) || "0".equals(b) || "0px".equalsIgnoreCase(b)) {
+                borderWidth = 0;
+                borderColor = Color.TRANSPARENT;
+            } else {
+                String[] parts = b.split("\\s+");
+                if (parts.length >= 1) borderWidth = parseDimension(parts[0], 0, borderWidth);
+                if (parts.length >= 3) {
+                    StringBuilder cSb = new StringBuilder();
+                    for (int pi = 2; pi < parts.length; pi++) {
+                        if (pi > 2) cSb.append(' ');
+                        cSb.append(parts[pi]);
+                    }
+                    borderColor = parseColor(cSb.toString(), borderColor);
+                }
+            }
         } else {
             if (style.containsKey("borderWidth")) {
                 borderWidth = parseDimension(style.get("borderWidth").toString(), 0, borderWidth);
@@ -1321,14 +1354,18 @@ public class WidgetCanvasStyler {
             }
         }
 
-        // Stroke style (dashed/dotted for containers without custom border)
+        // Stroke style (dashed/dotted only for unstyled containers without explicit background/border)
         String borderStyle = style.containsKey("borderStyle") ? style.get("borderStyle").toString().toLowerCase(Locale.ROOT) : "";
-        if ("dashed".equals(borderStyle) || (isContainer && !style.containsKey("border") && !style.containsKey("borderWidth"))) {
+        boolean drawDashedContainerGuide = isContainer && !hasExplicitBorder
+                && !style.containsKey("backgroundColor") && !style.containsKey("backgroundImage") && !style.containsKey("background");
+        if ("dashed".equals(borderStyle) || drawDashedContainerGuide) {
             shape.setStroke(borderWidth, borderColor, dpToPx(6), dpToPx(4));
         } else if ("dotted".equals(borderStyle)) {
             shape.setStroke(borderWidth, borderColor, dpToPx(2), dpToPx(2));
-        } else {
+        } else if (borderWidth > 0) {
             shape.setStroke(borderWidth, borderColor);
+        } else {
+            shape.setStroke(0, Color.TRANSPARENT);
         }
 
         // Corner Radius
@@ -1365,6 +1402,37 @@ public class WidgetCanvasStyler {
         }
 
         view.setBackground(shape);
+    }
+
+    private boolean applyLinearGradient(GradientDrawable shape, String gradientCss) {
+        if (gradientCss == null) return false;
+        try {
+            List<Integer> colors = new ArrayList<>();
+            Matcher m = Pattern.compile("#[0-9a-fA-F]{3,8}|rgba?\\([^)]+\\)").matcher(gradientCss);
+            while (m.find()) {
+                colors.add(parseColor(m.group(), Color.TRANSPARENT));
+            }
+            if (colors.size() < 2) return false;
+            int[] arr = new int[colors.size()];
+            for (int i = 0; i < colors.size(); i++) arr[i] = colors.get(i);
+            shape.setColors(arr);
+
+            GradientDrawable.Orientation orient = GradientDrawable.Orientation.TOP_BOTTOM;
+            String lower = gradientCss.toLowerCase(Locale.ROOT);
+            if (lower.contains("to right") || lower.contains("90deg")) {
+                orient = GradientDrawable.Orientation.LEFT_RIGHT;
+            } else if (lower.contains("135deg") || lower.contains("bottom right")) {
+                orient = GradientDrawable.Orientation.TL_BR;
+            } else if (lower.contains("45deg") || lower.contains("top right")) {
+                orient = GradientDrawable.Orientation.BL_TR;
+            } else if (lower.contains("to left") || lower.contains("270deg")) {
+                orient = GradientDrawable.Orientation.RIGHT_LEFT;
+            }
+            shape.setOrientation(orient);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1578,6 +1646,9 @@ public class WidgetCanvasStyler {
         int childCount = container.getChildCount();
         for (int i = 0; i < childCount; i++) {
             View child = container.getChildAt(i);
+            if (child == null || Boolean.TRUE.equals(child.getTag(R.id.tag_internal_preview))) {
+                continue;
+            }
             ViewGroup.LayoutParams existing = child.getLayoutParams();
             LinearLayout.LayoutParams lp;
             if (existing instanceof LinearLayout.LayoutParams) {
@@ -1723,6 +1794,9 @@ public class WidgetCanvasStyler {
      * Recursively traverses and synchronizes the entire canvas hierarchy.
      */
     public void synchronizeCanvas(View root) {
+        if (root == null || Boolean.TRUE.equals(root.getTag(R.id.tag_internal_preview))) {
+            return;
+        }
         if (root != null && root.getId() == R.id.screen) {
             String bg = (themeManager != null) ? themeManager.getGlobalStyle("bodyBackground") : "#FFFFFF";
             if (bg == null || bg.isEmpty()) bg = "#FFFFFF";
@@ -1772,7 +1846,19 @@ public class WidgetCanvasStyler {
             }
         } else {
             try {
-                Bitmap bmp = decodeSampledBitmapFromFile(src, 1024, 1024);
+                String resolvedPath = src;
+                java.io.File direct = new java.io.File(src);
+                if (!direct.exists() && glab.dragweb.data.DesignDataManager.currentProjectId != null
+                        && !glab.dragweb.data.DesignDataManager.currentProjectId.isEmpty()) {
+                    String cleanRel = src.startsWith("assets/") ? src.substring(7) : src;
+                    java.io.File assetFile = new java.io.File(
+                            glab.dragweb.util.FileUtil.getDragWebDir(context),
+                            "projects/" + glab.dragweb.data.DesignDataManager.currentProjectId + "/assets/" + cleanRel);
+                    if (assetFile.exists()) {
+                        resolvedPath = assetFile.getAbsolutePath();
+                    }
+                }
+                Bitmap bmp = decodeSampledBitmapFromFile(resolvedPath, 1024, 1024);
                 if (bmp != null) {
                     iv.setImageBitmap(bmp);
                 } else {

@@ -212,6 +212,9 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     }
 
     private void addNode(View view, int depth, String forceName) {
+        if (view == null || Boolean.TRUE.equals(view.getTag(R.id.tag_internal_preview))) {
+            return;
+        }
         String tag = "unknown";
         String name = forceName;
         String id = "";
@@ -324,6 +327,7 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<HierarchyTreeAdap
     private void collectChildren(ViewGroup parent, int depth, List<TreeNode> out) {
         for (int i = 0; i < parent.getChildCount(); i++) {
             View child = parent.getChildAt(i);
+            if (child == null || Boolean.TRUE.equals(child.getTag(R.id.tag_internal_preview))) continue;
             int childIdx = out.size();
             TreeNode node = buildTreeNode(child, depth, null);
             out.add(node);

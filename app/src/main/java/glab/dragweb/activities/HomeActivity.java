@@ -40,9 +40,13 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.color.DynamicColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.loadingindicator.LoadingIndicator;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
@@ -75,6 +79,25 @@ public class HomeActivity extends AppCompatActivity {
 	private LinearLayout layoutEmptyState;
 	private TextView tvEmptyState;
 	private ExtendedFloatingActionButton fabNewProject;
+	private View fabOverlay;
+	private View fabMenuContainer;
+	private View layoutFabCreate;
+	private View layoutFabImportSite;
+	private View layoutFabRestore;
+	private FloatingActionButton fabCreate;
+	private FloatingActionButton fabImportSite;
+	private FloatingActionButton fabRestore;
+	private boolean isFabMenuOpen = false;
+
+	private ChipGroup projectSortChipGroup;
+	private static final String PREFS_PROJECT = "project_prefs";
+	private static final String KEY_SORT_BY = "sortBy";
+	private static final int SORT_NEWEST = 0;
+	private static final int SORT_OLDEST = 1;
+	private static final int SORT_NAME_ASC = 2;
+	private static final int SORT_NAME_DESC = 3;
+	private int currentSortMode = SORT_NEWEST;
+
 	private LoadingIndicator progressProjects;
 	private ArrayList<Map<String, String>> projectList = new ArrayList<>();
 	private ProjectListAdapter adapter;
@@ -82,24 +105,14 @@ public class HomeActivity extends AppCompatActivity {
 	private ActivityResultLauncher<String> backupLauncher;
 	private ActivityResultLauncher<String[]> importZipLauncher;
 	private ActivityResultLauncher<String> backupSingleLauncher;
-	private ActivityResultLauncher<String[]> htmlFileLauncher;
-	private ActivityResultLauncher<String[]> cssFileLauncher;
-	private ActivityResultLauncher<String[]> jsFileLauncher;
 	private ActivityResultLauncher<String[]> storagePermissionLauncher;
 	private boolean hasPromptedStoragePermission = false;
 	private String pendingBackupProject = null;
 
-	// HTML/CSS import state
-	private Uri pendingHtmlUri = null;
-	private Uri pendingCssUri = null;
-	private Uri pendingJsUri = null;
-	private TextView tvHtmlFileName = null;
-	private TextView tvCssFileName = null;
-	private TextView tvJsFileName = null;
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		androidx.core.splashscreen.SplashScreen.installSplashScreen(this);
+		DynamicColors.applyToActivityIfAvailable(this);
 		super.onCreate(savedInstanceState);
 		EdgeToEdge.enable(this);
 		setContentView(R.layout.home);
@@ -110,7 +123,8 @@ public class HomeActivity extends AppCompatActivity {
 
 		final View appBar = findViewById(R.id._app_bar);
 		final int appBarInitialTop = appBar != null ? appBar.getPaddingTop() : 0;
-		final int fabInitialBottomMargin = fabNewProject != null ? ((ViewGroup.MarginLayoutParams) fabNewProject.getLayoutParams()).bottomMargin : dpToPx(16);
+		final View fabAnchor = fabMenuContainer != null ? fabMenuContainer : fabNewProject;
+		final int fabInitialBottomMargin = fabAnchor != null ? ((ViewGroup.MarginLayoutParams) fabAnchor.getLayoutParams()).bottomMargin : dpToPx(16);
 
 		ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id._drawer), (v, insets) -> {
 			Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -120,11 +134,11 @@ public class HomeActivity extends AppCompatActivity {
 				appBar.setPadding(appBar.getPaddingLeft(), appBarInitialTop + systemBars.top, appBar.getPaddingRight(), appBar.getPaddingBottom());
 			}
 			
-			// Apply bottom margin to FAB to avoid overlap with navigation bar
-			if (fabNewProject != null) {
-				ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) fabNewProject.getLayoutParams();
+			// Apply bottom margin to FAB menu container to avoid overlap with navigation bar
+			if (fabAnchor != null) {
+				ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) fabAnchor.getLayoutParams();
 				lp.bottomMargin = fabInitialBottomMargin + systemBars.bottom;
-				fabNewProject.setLayoutParams(lp);
+				fabAnchor.setLayoutParams(lp);
 			}
 
 			// Apply side paddings to the drawer content if needed for landscape
@@ -201,18 +215,29 @@ public class HomeActivity extends AppCompatActivity {
 		layoutEmptyState = findViewById(R.id.layoutEmptyState);
 		tvEmptyState = findViewById(R.id.tvEmptyState);
 		fabNewProject = findViewById(R.id.fabNewProject);
+		fabOverlay = findViewById(R.id.fab_overlay);
+		fabMenuContainer = findViewById(R.id.fab_menu_container);
+		layoutFabCreate = findViewById(R.id.layout_fab_create);
+		layoutFabImportSite = findViewById(R.id.layout_fab_import_site);
+		layoutFabRestore = findViewById(R.id.layout_fab_restore);
+		fabCreate = findViewById(R.id.fab_create);
+		fabImportSite = findViewById(R.id.fab_import_site);
+		fabRestore = findViewById(R.id.fab_restore);
+		projectSortChipGroup = findViewById(R.id.project_sort_chip_group);
 		progressProjects = findViewById(R.id.progressProjects);
 
 		rvProjects.setLayoutManager(new LinearLayoutManager(this));
 		adapter = new ProjectListAdapter();
 		rvProjects.setAdapter(adapter);
 
-		fabNewProject.setOnClickListener(v -> showNewProjectDialog());
+		setupFabMenu();
+		setupProjectSortChips();
 
-		// Shrink/extend FAB on scroll
+		// Shrink/extend FAB on scroll when menu is closed
 		rvProjects.addOnScrollListener(new RecyclerView.OnScrollListener() {
 			@Override
 			public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+				if (isFabMenuOpen) return;
 				if (dy > 0 && fabNewProject.isExtended()) {
 					fabNewProject.shrink();
 				} else if (dy < 0 && !fabNewProject.isExtended()) {
@@ -220,8 +245,6 @@ public class HomeActivity extends AppCompatActivity {
 				}
 			}
 		});
-
-
 
 		// Register activity result launchers
 		backupLauncher = registerForActivityResult(
@@ -248,45 +271,6 @@ public class HomeActivity extends AppCompatActivity {
 			uri -> {
 				if (uri != null) {
 					performImport(uri);
-				}
-			}
-		);
-
-		htmlFileLauncher = registerForActivityResult(
-			new ActivityResultContracts.OpenDocument(),
-			uri -> {
-				if (uri != null) {
-					pendingHtmlUri = uri;
-					if (tvHtmlFileName != null) {
-						String name = resolveFileName(uri);
-						tvHtmlFileName.setText(name != null ? name : "HTML file selected");
-					}
-				}
-			}
-		);
-
-		cssFileLauncher = registerForActivityResult(
-			new ActivityResultContracts.OpenDocument(),
-			uri -> {
-				if (uri != null) {
-					pendingCssUri = uri;
-					if (tvCssFileName != null) {
-						String name = resolveFileName(uri);
-						tvCssFileName.setText(name != null ? name : "CSS file selected");
-					}
-				}
-			}
-		);
-
-		jsFileLauncher = registerForActivityResult(
-			new ActivityResultContracts.OpenDocument(),
-			uri -> {
-				if (uri != null) {
-					pendingJsUri = uri;
-					if (tvJsFileName != null) {
-						String name = resolveFileName(uri);
-						tvJsFileName.setText(name != null ? name : "JS file selected");
-					}
 				}
 			}
 		);
@@ -599,12 +583,8 @@ public class HomeActivity extends AppCompatActivity {
 				}
 			}
 
-			// Sort projects by ID descending (newest project at the top)
-			java.util.Collections.sort(loaded, (a, b) -> {
-				String idA = a.getOrDefault("id", "");
-				String idB = b.getOrDefault("id", "");
-				return idB.compareToIgnoreCase(idA);
-			});
+			// Sort projects using selected sort chip mode
+			sortProjectsList(loaded);
 
 			// Post results back to UI thread
 			AppExecutors.mainThread(() -> {
@@ -739,155 +719,6 @@ public class HomeActivity extends AppCompatActivity {
 				});
 			}
 		});
-	}
-
-	/**
-	 * Create a project from an imported HTML/CSS widget tree and logic blocks.
-	 */
-	private void createProjectFromImport(String name, List<Map<String, Object>> widgetTree, List<Map<String, Object>> logicBlocks, List<Map<String, Object>> cssLogicBlocks, String jsContent, List<String> enabledLibraries) {
-		String projectId = generateProjectId();
-		File dragWebDir = FileUtil.getDragWebDir(this);
-		File dir = new File(dragWebDir, "projects");
-		if (!dir.exists()) dir.mkdirs();
-
-		File extDir = new File(dir, projectId);
-		if (!extDir.exists()) extDir.mkdirs();
-
-		// Save widget tree in unified layout
-		String jsonStr = new Gson().toJson(widgetTree);
-		PageManager pm = new PageManager(this, projectId);
-		pm.savePageLayout("index", jsonStr);
-
-		HtmlCssImporter importer = new HtmlCssImporter(this);
-
-		// Save logic blocks if any
-		if (logicBlocks != null && !logicBlocks.isEmpty()) {
-			ArrayList<BlockBean> beans = importer.convertRawMapsToBeans(logicBlocks);
-			DesignDataManager.setBlocks("index", "onCreate_initializeLogic", beans);
-		}
-
-		// Save global CSS logic blocks if any
-		if (cssLogicBlocks != null && !cssLogicBlocks.isEmpty()) {
-			String cleanCssName = DesignDataManager.getCleanPageName("css/style.css");
-			ArrayList<BlockBean> cssBeans = importer.convertRawMapsToBeans(cssLogicBlocks);
-			DesignDataManager.setBlocks(cleanCssName, "onCreate_initializeLogic", cssBeans);
-		}
-		DesignDataManager.saveAllSavedLogic(this, projectId);
-
-		// Global JS content is saved directly to assets/js/script.js without creating redundant script_logic.json
-
-		// Save metadata
-		File metaFile = new File(extDir, "project.meta");
-		Map<String, String> meta = new HashMap<>();
-		meta.put("id", projectId);
-		meta.put("name", name.isEmpty() ? "Imported Website" : name);
-		meta.put("description", "Imported from HTML/CSS");
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-		meta.put("created", sdf.format(new Date()));
-		FileUtil.writeFile(metaFile.getAbsolutePath(), new Gson().toJson(meta));
-
-		// Save theme settings: disable default styles and inline styles since CSS is imported
-		ThemeManager tm = new ThemeManager();
-		tm.setUseInlineStyles(false);
-		tm.setDisableDefaultStyles(true);
-		File themeFile = new File(extDir, "theme.json");
-		FileUtil.writeFile(themeFile.getAbsolutePath(), tm.toJson());
-
-		// Enable detected standard icon libraries
-		if (enabledLibraries != null && !enabledLibraries.isEmpty()) {
-			IconLibraryManager ilm = new IconLibraryManager(this, projectId);
-			for (String libId : enabledLibraries) {
-				ilm.enable(libId);
-			}
-		}
-
-		// Create project assets directory
-		try {
-			new File(extDir, "assets").mkdirs();
-
-			// If global CSS blocks were imported, compile and write to assets/css/style.css
-			if (cssLogicBlocks != null && !cssLogicBlocks.isEmpty()) {
-				try {
-					LogicBlockManager cssLogic = new LogicBlockManager(this);
-					cssLogic.fromJson(new Gson().toJson(cssLogicBlocks));
-					String baseRules = cssLogic.generateBaseCssRules();
-					String pseudoRules = cssLogic.generateCssPseudoRules();
-					String asdCss = cssLogic.generateAsdSource("css");
-					StringBuilder compiledCss = new StringBuilder();
-					compiledCss.append("/* Generated by DragWeb */\n\n");
-					if (baseRules != null && !baseRules.trim().isEmpty()) {
-						compiledCss.append(baseRules).append("\n");
-					}
-					if (pseudoRules != null && !pseudoRules.trim().isEmpty()) {
-						compiledCss.append(pseudoRules).append("\n");
-					}
-					if (asdCss != null && !asdCss.trim().isEmpty()) {
-						compiledCss.append(asdCss).append("\n");
-					}
-
-					File targetStyleFile = new File(extDir, "assets/css/style.css");
-					targetStyleFile.getParentFile().mkdirs();
-					FileUtil.writeFile(targetStyleFile.getAbsolutePath(), compiledCss.toString());
-				} catch (Exception e) {
-					Log.w("HomeActivity", "Failed to compile/write style.css to assets: " + e.getMessage());
-				}
-			}
-
-			// If JS content was imported, write to assets/js/script.js
-			if (jsContent != null && !jsContent.trim().isEmpty()) {
-				try {
-					File targetJsFile = new File(extDir, "assets/js/script.js");
-					targetJsFile.getParentFile().mkdirs();
-					FileUtil.writeFile(targetJsFile.getAbsolutePath(), jsContent);
-				} catch (Exception e) {
-					Log.w("HomeActivity", "Failed to write script.js to assets: " + e.getMessage());
-				}
-			}
-		} catch (Exception e) {
-			Log.w("HomeActivity", "Could not create project dir for import");
-		}
-
-		loadProjects();
-		openProject(projectId, name.isEmpty() ? "Imported Website" : name);
-	}
-
-	private String resolveFileName(Uri uri) {
-		try {
-			android.database.Cursor c = getContentResolver().query(
-				uri,
-				new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
-				null, null, null
-			);
-			if (c != null) {
-				if (c.moveToFirst()) {
-					int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
-					if (idx >= 0) {
-						String name = c.getString(idx);
-						c.close();
-						return name;
-					}
-				}
-				c.close();
-			}
-		} catch (Exception e) {
-			// ignore
-		}
-		return null;
-	}
-
-	private String readUriContent(Uri uri) {
-		try (InputStream is = getContentResolver().openInputStream(uri);
-			 BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
-			StringBuilder sb = new StringBuilder();
-			String line;
-			while ((line = reader.readLine()) != null) {
-				sb.append(line).append("\n");
-			}
-			return sb.toString();
-		} catch (Exception e) {
-			Log.e("HomeActivity", "Failed to read URI: " + e.getMessage());
-			return null;
-		}
 	}
 
 	private void openProject(String projectId, String projectName) {
@@ -1041,27 +872,173 @@ public class HomeActivity extends AppCompatActivity {
 			.show();
 	}
 
-	private void showProjectOptions(String projectId, String projectName) {
-		String[] options = {"Open", "Rename", "Backup Project", "Delete"};
-		new MaterialAlertDialogBuilder(this)
-			.setTitle(projectName)
-			.setItems(options, (dialog, which) -> {
-				switch (which) {
-					case 0:
-						openProject(projectId, projectName);
-						break;
-					case 1:
-						renameProject(projectId, projectName);
-						break;
-					case 2:
-						backupSingleProject(projectId);
-						break;
-					case 3:
-						deleteProject(projectId);
-						break;
+	private void setupFabMenu() {
+		if (fabNewProject != null) {
+			fabNewProject.setOnClickListener(v -> {
+				if (isFabMenuOpen) {
+					closeFabMenu();
+				} else {
+					openFabMenu();
 				}
-			})
-			.show();
+			});
+		}
+		if (fabOverlay != null) {
+			fabOverlay.setOnClickListener(v -> closeFabMenu());
+		}
+		if (fabCreate != null) {
+			fabCreate.setOnClickListener(v -> {
+				closeFabMenu();
+				showNewProjectDialog();
+			});
+		}
+		if (fabImportSite != null) {
+			fabImportSite.setOnClickListener(v -> {
+				closeFabMenu();
+				startActivity(new Intent(HomeActivity.this, ImportSiteActivity.class));
+			});
+		}
+		if (fabRestore != null) {
+			fabRestore.setOnClickListener(v -> {
+				closeFabMenu();
+				importProject();
+			});
+		}
+	}
+
+	private void openFabMenu() {
+		isFabMenuOpen = true;
+		if (fabNewProject != null) {
+			fabNewProject.shrink();
+			fabNewProject.setIconResource(R.drawable.ic_mtrl_close);
+		}
+		animateFabItemIn(layoutFabCreate, 0);
+		animateFabItemIn(layoutFabImportSite, 30);
+		animateFabItemIn(layoutFabRestore, 60);
+		if (fabOverlay != null) {
+			fabOverlay.setVisibility(View.VISIBLE);
+		}
+	}
+
+	private void animateFabItemIn(View view, long delay) {
+		if (view == null) return;
+		view.setVisibility(View.VISIBLE);
+		view.setAlpha(0f);
+		view.setTranslationY(20f);
+		view.animate().alpha(1f).translationY(0f).setStartDelay(delay).setDuration(180).start();
+	}
+
+	private void closeFabMenu() {
+		isFabMenuOpen = false;
+		if (fabNewProject != null) {
+			fabNewProject.extend();
+			fabNewProject.setIconResource(R.drawable.ic_add);
+		}
+		if (layoutFabCreate != null) layoutFabCreate.setVisibility(View.GONE);
+		if (layoutFabImportSite != null) layoutFabImportSite.setVisibility(View.GONE);
+		if (layoutFabRestore != null) layoutFabRestore.setVisibility(View.GONE);
+		if (fabOverlay != null) fabOverlay.setVisibility(View.GONE);
+	}
+
+	private void setupProjectSortChips() {
+		if (projectSortChipGroup == null) return;
+		android.content.SharedPreferences prefs = getSharedPreferences(PREFS_PROJECT, MODE_PRIVATE);
+		currentSortMode = prefs.getInt(KEY_SORT_BY, SORT_NEWEST);
+
+		int targetChipId;
+		switch (currentSortMode) {
+			case SORT_OLDEST:
+				targetChipId = R.id.chip_sort_oldest;
+				break;
+			case SORT_NAME_ASC:
+				targetChipId = R.id.chip_sort_name_asc;
+				break;
+			case SORT_NAME_DESC:
+				targetChipId = R.id.chip_sort_name_desc;
+				break;
+			default:
+				targetChipId = R.id.chip_sort_newest;
+				break;
+		}
+		projectSortChipGroup.check(targetChipId);
+
+		projectSortChipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+			if (checkedIds.isEmpty()) return;
+			int checkedId = checkedIds.get(0);
+			if (checkedId == R.id.chip_sort_oldest) {
+				currentSortMode = SORT_OLDEST;
+			} else if (checkedId == R.id.chip_sort_name_asc) {
+				currentSortMode = SORT_NAME_ASC;
+			} else if (checkedId == R.id.chip_sort_name_desc) {
+				currentSortMode = SORT_NAME_DESC;
+			} else {
+				currentSortMode = SORT_NEWEST;
+			}
+			prefs.edit().putInt(KEY_SORT_BY, currentSortMode).apply();
+			sortProjectsList(projectList);
+			if (adapter != null) {
+				adapter.notifyDataSetChanged();
+			}
+		});
+	}
+
+	private void sortProjectsList(List<Map<String, String>> list) {
+		if (list == null || list.size() <= 1) return;
+		java.util.Collections.sort(list, (a, b) -> {
+			switch (currentSortMode) {
+				case SORT_OLDEST:
+					return a.getOrDefault("id", "").compareToIgnoreCase(b.getOrDefault("id", ""));
+				case SORT_NAME_ASC:
+					return a.getOrDefault("name", "").compareToIgnoreCase(b.getOrDefault("name", ""));
+				case SORT_NAME_DESC:
+					return b.getOrDefault("name", "").compareToIgnoreCase(a.getOrDefault("name", ""));
+				case SORT_NEWEST:
+				default:
+					return b.getOrDefault("id", "").compareToIgnoreCase(a.getOrDefault("id", ""));
+			}
+		});
+	}
+
+	private void showProjectOptions(String projectId, String projectName) {
+		BottomSheetDialog sheetDialog = new BottomSheetDialog(this, R.style.ThemeOverlay_Dragweb_BottomSheetDialog);
+		View sheetView = LayoutInflater.from(this).inflate(R.layout.bottom_sheet_project_options, null);
+		sheetDialog.setContentView(sheetView);
+
+		TextView tvTitle = sheetView.findViewById(R.id.sheet_project_title);
+		TextView tvId = sheetView.findViewById(R.id.sheet_project_id);
+		if (tvTitle != null) tvTitle.setText(projectName);
+		if (tvId != null) tvId.setText("ID: " + projectId);
+
+		View btnOpen = sheetView.findViewById(R.id.project_open);
+		View btnRename = sheetView.findViewById(R.id.project_rename);
+		View btnBackup = sheetView.findViewById(R.id.project_backup);
+		View btnDelete = sheetView.findViewById(R.id.project_delete);
+
+		if (btnOpen != null) {
+			btnOpen.setOnClickListener(v -> {
+				sheetDialog.dismiss();
+				openProject(projectId, projectName);
+			});
+		}
+		if (btnRename != null) {
+			btnRename.setOnClickListener(v -> {
+				sheetDialog.dismiss();
+				renameProject(projectId, projectName);
+			});
+		}
+		if (btnBackup != null) {
+			btnBackup.setOnClickListener(v -> {
+				sheetDialog.dismiss();
+				backupSingleProject(projectId);
+			});
+		}
+		if (btnDelete != null) {
+			btnDelete.setOnClickListener(v -> {
+				sheetDialog.dismiss();
+				deleteProject(projectId);
+			});
+		}
+
+		sheetDialog.show();
 	}
 
 	// ---- Import Website (HTML/CSS) ----
@@ -1085,7 +1062,9 @@ private void showAboutDialog() {
 
 	@Override
 	public void onBackPressed() {
-		if (drawer.isDrawerOpen(GravityCompat.START)) {
+		if (isFabMenuOpen) {
+			closeFabMenu();
+		} else if (drawer.isDrawerOpen(GravityCompat.START)) {
 			drawer.closeDrawer(GravityCompat.START);
 		} else {
 			super.onBackPressed();

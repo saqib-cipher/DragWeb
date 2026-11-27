@@ -40,7 +40,7 @@ public class DropZoneManager {
     }
 
     private static final Set<String> LAYOUT_TAGS = new HashSet<>(Arrays.asList(
-        "div", "section", "header", "footer", "nav", "main", "article", "aside", "form", "ul", "ol", "table",
+        "div", "section", "header", "footer", "main", "article", "aside", "form",
         "linear", "container"
     ));
 
@@ -79,7 +79,16 @@ public class DropZoneManager {
         if (tagObj instanceof Map) {
             Map<String, Object> widgetMap = (Map<String, Object>) tagObj;
             String tag = widgetMap.containsKey("tag") ? widgetMap.get("tag").toString() : "";
-            return LAYOUT_TAGS.contains(tag);
+            if (!LAYOUT_TAGS.contains(tag)) return false;
+            Object fnObj = widgetMap.get("function");
+            if (fnObj instanceof Map) {
+                Map<?, ?> fn = (Map<?, ?>) fnObj;
+                if (fn.containsKey("items") || fn.containsKey("headers") || fn.containsKey("headline")
+                        || fn.containsKey("rating") || fn.containsKey("number") || fn.containsKey("slides")) {
+                    return false;
+                }
+            }
+            return true;
         }
         return false;
     }
@@ -89,15 +98,12 @@ public class DropZoneManager {
             return;
         }
 
-        // Layout widgets get larger minimum size for easier dropping. The
-        // previous implementation passed raw integers to setMinimumHeight /
-        // setPadding which are interpreted as pixels, so on a hi-DPI device
-        // an "80" turned into roughly 25dp – too small to hit reliably.
-        // Convert to actual pixels using the display density.
         if (isLayoutWidget(view)) {
             float density = view.getResources().getDisplayMetrics().density;
-            int minHeightPx = (int) (80 * density + 0.5f);
-            view.setMinimumHeight(minHeightPx);
+            if (((ViewGroup) view).getChildCount() == 0) {
+                int minHeightPx = (int) (80 * density + 0.5f);
+                view.setMinimumHeight(minHeightPx);
+            }
             if (view instanceof LinearLayout) {
                 LinearLayout ll = (LinearLayout) view;
                 int padHPx = (int) (8 * density + 0.5f);

@@ -24,6 +24,16 @@ public class PageManager {
         public String cssFile = "css/style.css";
         public boolean useGlobalJs = true;
         public String jsFile = "js/script.js";
+        public String pageTitle = "";
+        public String favicon = "";
+        public String metaDescription = "";
+        public String metaKeywords = "";
+        public String metaAuthor = "";
+        public String metaThemeColor = "";
+        public String ogTitle = "";
+        public String ogDescription = "";
+        public String ogImage = "";
+        public String customHeadCode = "";
 
         public PageConfig() {
             this("index");

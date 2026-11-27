@@ -1,56 +1,42 @@
 package glab.dragweb.activities;
 
-import glab.dragweb.R;
-import glab.dragweb.data.PageManager;
-import glab.dragweb.util.FileUtil;
-
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.Button;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.color.DynamicColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.materialswitch.MaterialSwitch;
-import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
+
+import glab.dragweb.data.PageManager;
+import glab.dragweb.databinding.ManagePageLayoutBinding;
+import glab.dragweb.ui.AppDialogs;
+import glab.dragweb.util.FileUtil;
 
 public class ManagePageActivity extends AppCompatActivity {
 
     private String projectId = "";
     private String pageName = "";
-
-    private MaterialToolbar toolbar;
-    private TextInputEditText etPageName;
-    private MaterialSwitch switchGlobalCss;
-    private TextInputLayout tilCssSelector;
-    private TextInputEditText etCssSelector;
-    private Button btnDeletePage;
-    private Button btnCancel;
-    private Button btnSave;
+    private ManagePageLayoutBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        DynamicColors.applyToActivityIfAvailable(this);
         EdgeToEdge.enable(this);
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.manage_page_layout);
+        binding = ManagePageLayoutBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
-        // Get intents
         projectId = getIntent().getStringExtra("project_id");
         pageName = getIntent().getStringExtra("page_name");
 
@@ -60,139 +46,129 @@ public class ManagePageActivity extends AppCompatActivity {
             return;
         }
 
-        // Initialize views
-        toolbar = findViewById(R.id.toolbar);
-        etPageName = findViewById(R.id.page_name);
-        switchGlobalCss = findViewById(R.id.switch1);
-        tilCssSelector = findViewById(R.id.css_selector_icon_til);
-        etCssSelector = findViewById(R.id.css_selector);
-        btnDeletePage = findViewById(R.id.deletepage);
-        btnCancel = findViewById(R.id.events_creator_cancel);
-        btnSave = findViewById(R.id.events_creator_save);
-
-        // Edge to edge padding adjustment
-        View rootLayout = findViewById(R.id.root_layout);
-        View appBarLayout = findViewById(R.id.app_bar_layout);
-        if (rootLayout != null) {
-            final int appBarInitialTop = appBarLayout != null ? appBarLayout.getPaddingTop() : 0;
-            ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
-                Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-                Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
-                if (appBarLayout != null) {
-                    appBarLayout.setPadding(appBarLayout.getPaddingLeft(), appBarInitialTop + systemBars.top, appBarLayout.getPaddingRight(), appBarLayout.getPaddingBottom());
-                }
-                View buttonContainer = findViewById(R.id.button_container);
-                if (buttonContainer != null) {
-                    int bottomInset = Math.max(systemBars.bottom, ime.bottom);
-                    buttonContainer.setPadding(buttonContainer.getPaddingLeft(), buttonContainer.getPaddingTop(), buttonContainer.getPaddingRight(), bottomInset);
-                }
-                return insets;
-            });
-        }
-
-        // Toolbar setup
-        if (toolbar != null) {
-            toolbar.setTitle("Manage Page: " + pageName);
-            toolbar.setNavigationOnClickListener(v -> finish());
-        }
-
-        // Prefill values
-        etPageName.setText(pageName);
-        
-        // Disabled editing of name if it is index page
-        if ("index".equals(pageName)) {
-            etPageName.setEnabled(false);
-            btnDeletePage.setEnabled(false);
-            btnDeletePage.setAlpha(0.5f);
-        }
-
-        // Load current metadata configurations
-        loadPageMetadata();
-
-        // Switch change listener
-        switchGlobalCss.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            tilCssSelector.setEnabled(!isChecked);
+        final int appBarInitialTop = binding.appBarLayout.getPaddingTop();
+        ViewCompat.setOnApplyWindowInsetsListener(binding.rootLayout, (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+            binding.appBarLayout.setPadding(
+                    binding.appBarLayout.getPaddingLeft(),
+                    appBarInitialTop + systemBars.top,
+                    binding.appBarLayout.getPaddingRight(),
+                    binding.appBarLayout.getPaddingBottom()
+            );
+            int bottomInset = Math.max(systemBars.bottom, ime.bottom);
+            binding.buttonContainer.setPadding(
+                    binding.buttonContainer.getPaddingLeft(),
+                    binding.buttonContainer.getPaddingTop(),
+                    binding.buttonContainer.getPaddingRight(),
+                    bottomInset
+            );
+            return insets;
         });
 
-        // CSS picker dropdown selection
-        etCssSelector.setOnClickListener(v -> showCssDropdown());
+        binding.toolbar.setTitle("Manage Page: " + pageName);
+        binding.toolbar.setNavigationOnClickListener(v -> finish());
+        binding.pageName.setText(pageName);
 
-        // Cancel click
-        btnCancel.setOnClickListener(v -> finish());
+        if ("index".equals(pageName)) {
+            binding.pageName.setEnabled(false);
+            binding.deletepage.setEnabled(false);
+            binding.deletepage.setAlpha(0.5f);
+        }
 
-        // Save click
-        btnSave.setOnClickListener(v -> savePageConfig());
+        loadPageMetadata();
 
-        // Delete page click
-        btnDeletePage.setOnClickListener(v -> confirmDeletePage());
+        binding.switch1.setOnCheckedChangeListener((buttonView, isChecked) ->
+                binding.cssSelectorIconTil.setEnabled(!isChecked));
+
+        binding.switchGlobalJs.setOnCheckedChangeListener((buttonView, isChecked) ->
+                binding.tilJsSelector.setEnabled(!isChecked));
+
+        binding.cssSelector.setOnClickListener(v -> showAssetFilePicker("Select CSS File", ".css", "css/style.css", chosen ->
+                binding.cssSelector.setText(chosen)));
+
+        binding.jsSelector.setOnClickListener(v -> showAssetFilePicker("Select JS File", ".js", "js/script.js", chosen ->
+                binding.jsSelector.setText(chosen)));
+
+        binding.btnPickFavicon.setOnClickListener(v -> {
+            String current = textOf(binding.etFavicon);
+            AppDialogs.showImageSelector(this, projectId, current, chosen -> binding.etFavicon.setText(chosen));
+        });
+
+        binding.btnPickOgImage.setOnClickListener(v -> {
+            String current = textOf(binding.etOgImage);
+            AppDialogs.showImageSelector(this, projectId, current, chosen -> binding.etOgImage.setText(chosen));
+        });
+
+        binding.eventsCreatorCancel.setOnClickListener(v -> finish());
+        binding.eventsCreatorSave.setOnClickListener(v -> savePageConfig());
+        binding.deletepage.setOnClickListener(v -> confirmDeletePage());
     }
 
     private void loadPageMetadata() {
         PageManager pm = new PageManager(this, projectId);
         PageManager.PageConfig cfg = pm.getPageConfig(pageName);
 
-        switchGlobalCss.setChecked(cfg.useGlobalCss);
-        etCssSelector.setText(cfg.cssFile != null ? cfg.cssFile : "css/style.css");
-        tilCssSelector.setEnabled(!cfg.useGlobalCss);
+        binding.switch1.setChecked(cfg.useGlobalCss);
+        binding.cssSelector.setText(cfg.cssFile != null ? cfg.cssFile : "css/style.css");
+        binding.cssSelectorIconTil.setEnabled(!cfg.useGlobalCss);
+
+        binding.switchGlobalJs.setChecked(cfg.useGlobalJs);
+        binding.jsSelector.setText(cfg.jsFile != null ? cfg.jsFile : "js/script.js");
+        binding.tilJsSelector.setEnabled(!cfg.useGlobalJs);
+
+        binding.etPageTitle.setText(nonNull(cfg.pageTitle));
+        binding.etFavicon.setText(nonNull(cfg.favicon));
+        binding.etMetaDescription.setText(nonNull(cfg.metaDescription));
+        binding.etMetaKeywords.setText(nonNull(cfg.metaKeywords));
+        binding.etMetaAuthor.setText(nonNull(cfg.metaAuthor));
+        binding.etMetaThemeColor.setText(nonNull(cfg.metaThemeColor));
+        binding.etOgTitle.setText(nonNull(cfg.ogTitle));
+        binding.etOgDescription.setText(nonNull(cfg.ogDescription));
+        binding.etOgImage.setText(nonNull(cfg.ogImage));
+        binding.etCustomHeadCode.setText(nonNull(cfg.customHeadCode));
     }
 
-    private void showCssDropdown() {
-        List<String> cssFiles = getCssFiles();
-        if (cssFiles.isEmpty()) {
-            Toast.makeText(this, "No CSS files found in project assets", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String[] items = cssFiles.toArray(new String[0]);
-        new MaterialAlertDialogBuilder(this)
-            .setTitle("Select CSS File")
-            .setItems(items, (dialog, which) -> {
-                etCssSelector.setText(items[which]);
-            })
-            .show();
-    }
-
-    private List<String> getCssFiles() {
-        List<String> list = new ArrayList<>();
-        list.add("css/style.css");
-
-        // Scan assets folder
+    private void showAssetFilePicker(String title, String ext, String defaultFile, AppDialogs.OnText onPick) {
+        List<String> files = new ArrayList<>();
+        files.add(defaultFile);
         File assetsDir = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/assets");
         if (assetsDir.exists() && assetsDir.isDirectory()) {
-            scanForCss(assetsDir, "", list);
+            scanAssetsByExt(assetsDir, "", ext, files);
         }
-        return list;
+        String[] items = files.toArray(new String[0]);
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(title)
+                .setItems(items, (dialog, which) -> onPick.onText(items[which]))
+                .show();
     }
 
-    private void scanForCss(File dir, String relativePath, List<String> list) {
+    private void scanAssetsByExt(File dir, String relativePath, String ext, List<String> list) {
         File[] files = dir.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                String name = f.getName();
-                String rel = relativePath.isEmpty() ? name : relativePath + "/" + name;
-                if (f.isDirectory()) {
-                    scanForCss(f, rel, list);
-                } else if (f.isFile() && name.toLowerCase().endsWith(".css")) {
-                    if (!list.contains(rel)) {
-                        list.add(rel);
-                    }
+        if (files == null) return;
+        for (File f : files) {
+            String name = f.getName();
+            String rel = relativePath.isEmpty() ? name : relativePath + "/" + name;
+            if (f.isDirectory()) {
+                scanAssetsByExt(f, rel, ext, list);
+            } else if (f.isFile() && name.toLowerCase(Locale.ROOT).endsWith(ext)) {
+                if (!list.contains(rel)) {
+                    list.add(rel);
                 }
             }
         }
     }
 
     private void savePageConfig() {
-        String rawName = etPageName.getText().toString().trim();
+        String rawName = textOf(binding.pageName);
         String cleanName = rawName.replaceAll("[^a-zA-Z0-9_-]", "");
-        
+
         if (cleanName.isEmpty()) {
             Toast.makeText(this, "Invalid page name", Toast.LENGTH_SHORT).show();
             return;
         }
 
         PageManager pm = new PageManager(this, projectId);
-
-        // Rename logic
         if (!cleanName.equals(pageName)) {
             if (pm.getPages().contains(cleanName)) {
                 Toast.makeText(this, "Page name already exists", Toast.LENGTH_SHORT).show();
@@ -204,27 +180,35 @@ public class ManagePageActivity extends AppCompatActivity {
             }
         }
 
-        // Save page metadata into PageConfig in pages.json
         PageManager.PageConfig cfg = pm.getPageConfig(cleanName);
-        cfg.useGlobalCss = switchGlobalCss.isChecked();
-        cfg.cssFile = etCssSelector.getText().toString().trim();
+        cfg.useGlobalCss = binding.switch1.isChecked();
+        String cssPath = textOf(binding.cssSelector);
+        cfg.cssFile = cssPath.isEmpty() ? "css/style.css" : cssPath;
+        cfg.useGlobalJs = binding.switchGlobalJs.isChecked();
+        String jsPath = textOf(binding.jsSelector);
+        cfg.jsFile = jsPath.isEmpty() ? "js/script.js" : jsPath;
+        cfg.pageTitle = textOf(binding.etPageTitle);
+        cfg.favicon = textOf(binding.etFavicon);
+        cfg.metaDescription = textOf(binding.etMetaDescription);
+        cfg.metaKeywords = textOf(binding.etMetaKeywords);
+        cfg.metaAuthor = textOf(binding.etMetaAuthor);
+        cfg.metaThemeColor = textOf(binding.etMetaThemeColor);
+        cfg.ogTitle = textOf(binding.etOgTitle);
+        cfg.ogDescription = textOf(binding.etOgDescription);
+        cfg.ogImage = textOf(binding.etOgImage);
+        cfg.customHeadCode = binding.etCustomHeadCode.getText() != null
+                ? binding.etCustomHeadCode.getText().toString().trim()
+                : "";
         pm.savePageConfig(cfg);
 
-        // Clean up any legacy meta files
-        try {
-            File metaFile = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "/pages/" + cleanName + ".meta");
-            if (metaFile.exists()) metaFile.delete();
-            File legacyMeta = new File(FileUtil.getDragWebDir(this), "projects/" + projectId + "_" + cleanName + ".meta");
-            if (legacyMeta.exists()) legacyMeta.delete();
-        } catch (Exception ignored) {}
-
-        // Return intent details
         Intent resultIntent = new Intent();
         resultIntent.putExtra("action", "save");
         resultIntent.putExtra("old_page_name", pageName);
         resultIntent.putExtra("new_page_name", cleanName);
-        resultIntent.putExtra("use_global_css", switchGlobalCss.isChecked());
-        resultIntent.putExtra("custom_css_path", etCssSelector.getText().toString().trim());
+        resultIntent.putExtra("use_global_css", cfg.useGlobalCss);
+        resultIntent.putExtra("custom_css_path", cfg.cssFile);
+        resultIntent.putExtra("use_global_js", cfg.useGlobalJs);
+        resultIntent.putExtra("custom_js_path", cfg.jsFile);
         setResult(RESULT_OK, resultIntent);
 
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show();
@@ -238,27 +222,32 @@ public class ManagePageActivity extends AppCompatActivity {
         }
 
         new MaterialAlertDialogBuilder(this)
-            .setTitle("Delete Page")
-            .setMessage("Are you sure you want to delete '" + pageName + "'? This cannot be undone.")
-            .setPositiveButton("Delete", (dialog, which) -> {
-                PageManager pm = new PageManager(this, projectId);
-                pm.removePage(pageName);
+                .setTitle("Delete Page")
+                .setMessage("Are you sure you want to delete '" + pageName + "'? This cannot be undone.")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    PageManager pm = new PageManager(this, projectId);
+                    pm.removePage(pageName);
+                    if (pageName.equals(pm.getCurrentPage())) {
+                        pm.setCurrentPage("index");
+                    }
 
-                // Switch back active page index if we deleted current
-                if (pageName.equals(pm.getCurrentPage())) {
-                    pm.setCurrentPage("index");
-                }
+                    Intent resultIntent = new Intent();
+                    resultIntent.putExtra("action", "delete");
+                    resultIntent.putExtra("page_name", pageName);
+                    setResult(RESULT_OK, resultIntent);
 
-                // Return deleted action
-                Intent resultIntent = new Intent();
-                resultIntent.putExtra("action", "delete");
-                resultIntent.putExtra("page_name", pageName);
-                setResult(RESULT_OK, resultIntent);
+                    Toast.makeText(this, "Page deleted", Toast.LENGTH_SHORT).show();
+                    finish();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
 
-                Toast.makeText(this, "Page deleted", Toast.LENGTH_SHORT).show();
-                finish();
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
+    private static String textOf(com.google.android.material.textfield.TextInputEditText et) {
+        return et != null && et.getText() != null ? et.getText().toString().trim() : "";
+    }
+
+    private static String nonNull(String s) {
+        return s != null ? s : "";
     }
 }

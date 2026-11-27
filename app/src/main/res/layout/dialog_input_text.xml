@@ -32,4 +32,19 @@
             android:textColor="?attr/colorOnSurface" />
     </com.google.android.material.textfield.TextInputLayout>
 
+    <HorizontalScrollView
+        android:id="@+id/scrollSuggestions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupSuggestions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleLine="true" />
+    </HorizontalScrollView>
+
 </LinearLayout>
