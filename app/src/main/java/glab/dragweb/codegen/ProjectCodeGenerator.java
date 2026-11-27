@@ -72,12 +72,8 @@ public class ProjectCodeGenerator {
             String compiledJs = compileJsForFile(context, projectId, cleanPage);
             StringBuilder finalJs = new StringBuilder();
             if (compiledJs != null && !compiledJs.trim().isEmpty()) {
-                finalJs.append(compiledJs.trim()).append("\n\n");
+                finalJs.append(compiledJs.trim()).append("\n");
             }
-            finalJs.append("document.addEventListener('DOMContentLoaded', function() {\n");
-            finalJs.append("  if (window.feather) try { feather.replace(); } catch (e) {}\n");
-            finalJs.append("  if (window.lucide)  try { lucide.createIcons(); } catch (e) {}\n");
-            finalJs.append("});\n");
 
             File jsTargetFile = new File(jsDir, "script.js");
             FileUtil.writeFile(jsTargetFile.getAbsolutePath(), finalJs.toString());
@@ -372,9 +368,9 @@ public class ProjectCodeGenerator {
                 // Filter out non-JS blocks (exclude CSS blocks and HTML blocks)
                 ArrayList<BlockBean> jsBlocks = new ArrayList<>();
                 for (BlockBean b : entry.getValue()) {
-                    if (b != null && ExportManager.isJsCategory(b.category)) {
+                    if (ExportManager.isJsBlockEligible(b)) {
                         if (validIds != null && !validIds.isEmpty()) {
-                            if (("widgets".equalsIgnoreCase(b.category) || (b.spec != null && (b.spec.contains("%selector") || b.spec.contains("%m.selector")))) && b.parameters != null && !b.parameters.isEmpty()) {
+                            if ("widgets".equalsIgnoreCase(b.category) && b.parameters != null && !b.parameters.isEmpty()) {
                                 String sel = b.parameters.get(0) != null ? b.parameters.get(0).trim() : "";
                                 if (!sel.isEmpty()) {
                                     String target = sel.startsWith("#") ? sel.substring(1) : sel;
@@ -476,9 +472,10 @@ public class ProjectCodeGenerator {
 
     private static boolean isCssTargetBlockEligible(BlockBean b, boolean isCssTargetKey) {
         if (b == null || b.category == null) return false;
+        String op = b.opCode != null ? b.opCode.toLowerCase(java.util.Locale.US) : "";
+        if (op.startsWith("html") || op.startsWith("view_")) return false;
         String cat = b.category.toLowerCase(java.util.Locale.US).trim();
-        if (cat.equals("css") || cat.startsWith("css") || cat.startsWith("css_")
-                || cat.equals("responsive") || cat.equals("comment") || cat.equals("animation")) {
+        if (ExportManager.isCssCategory(cat)) {
             return true;
         }
         return isCssTargetKey && cat.equals("asd");

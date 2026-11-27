@@ -200,18 +200,47 @@ public class ExportManager {
         if (category == null) return false;
         String cat = category.toLowerCase().trim();
         return cat.equals("css") || cat.startsWith("css") || cat.startsWith("css_")
-            || cat.equals("responsive") || cat.equals("comment") || cat.equals("animation");
+            || cat.equals("responsive") || cat.equals("comment") || cat.equals("animation")
+            || cat.equals("layout & dimensions") || cat.equals("text & typography") || cat.equals("style & appearance");
     }
 
     public static boolean isHtmlCategory(String category) {
         if (category == null) return false;
         String cat = category.toLowerCase().trim();
-        return cat.equals("html") || cat.startsWith("html");
+        return cat.equals("html") || cat.startsWith("html")
+            || cat.equals("views") || cat.equals("structure") || cat.equals("document")
+            || cat.equals("attributes") || cat.equals("forms") || cat.equals("media");
     }
 
     public static boolean isJsCategory(String category) {
         if (category == null) return false;
-        return !isCssCategory(category) && !isHtmlCategory(category);
+        String cat = category.toLowerCase().trim();
+        if (isCssCategory(cat) || isHtmlCategory(cat)) return false;
+        return cat.startsWith("js")
+            || cat.equals("control")
+            || cat.equals("operator")
+            || cat.equals("variable")
+            || cat.equals("list")
+            || cat.equals("moreblock")
+            || cat.equals("more")
+            || cat.equals("logic")
+            || cat.equals("events")
+            || cat.equals("timing")
+            || cat.equals("window")
+            || cat.equals("network")
+            || cat.equals("asd")
+            || cat.equals("widgets");
+    }
+
+    public static boolean isJsBlockEligible(BlockBean b) {
+        if (b == null) return false;
+        if (!isJsCategory(b.category)) return false;
+        String op = b.opCode != null ? b.opCode.toLowerCase(java.util.Locale.US) : "";
+        if (op.startsWith("html") || op.startsWith("view_convert")) return false;
+        String code = b.code != null ? b.code.trim() : "";
+        if (code.startsWith("<")) return false;
+        if ("widgets".equalsIgnoreCase(b.category) && code.contains("{") && code.contains("!important")) return false;
+        return true;
     }
 
     public String compileBlocksForMode(String cleanPage, String mode) {
@@ -317,11 +346,12 @@ public class ExportManager {
                         }
                     }
                     if ("css".equalsIgnoreCase(mode)) {
-                        if (isCssCategory(cat) || (isCssTarget && "asd".equalsIgnoreCase(cat.trim()))) filtered.add(b);
+                        String op = b.opCode != null ? b.opCode.toLowerCase(java.util.Locale.US) : "";
+                        if (!op.startsWith("html") && !op.startsWith("view_") && (isCssCategory(cat) || (isCssTarget && "asd".equalsIgnoreCase(cat.trim())))) filtered.add(b);
                     } else if ("html".equalsIgnoreCase(mode)) {
                         if (isHtmlCategory(cat)) filtered.add(b);
                     } else if ("js".equalsIgnoreCase(mode)) {
-                        if (!isCssTarget && isJsCategory(cat)) filtered.add(b);
+                        if (!isCssTarget && isJsBlockEligible(b)) filtered.add(b);
                     } else {
                         filtered.add(b);
                     }
@@ -638,12 +668,6 @@ public class ExportManager {
                     jsSb.append("\n/* Widget Scripts */\n").append(wsSb);
                 }
             }
-
-            jsSb.append("/* ----- init ----- */\n");
-            jsSb.append("document.addEventListener('DOMContentLoaded', function() {\n");
-            jsSb.append("  if (window.feather) try { feather.replace(); } catch (e) {}\n");
-            jsSb.append("  if (window.lucide)  try { lucide.createIcons(); } catch (e) {}\n");
-            jsSb.append("});\n");
 
             exportedJsFiles.put(jsEntry.getKey(), jsSb.toString().replace("assets/", ""));
         }
@@ -1484,13 +1508,6 @@ public class ExportManager {
             js.append(asdJs).append("\n");
         }
 
-        // ----- init -----
-        js.append("/* ----- init ----- */\n");
-        js.append("document.addEventListener('DOMContentLoaded', function() {\n");
-        js.append("  // Re-initialise icon libraries (no-op if not loaded).\n");
-        js.append("  if (window.feather) try { feather.replace(); } catch (e) {}\n");
-        js.append("  if (window.lucide)  try { lucide.createIcons(); } catch (e) {}\n");
-        js.append("});\n");
         return js.toString();
     }
 

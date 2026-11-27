@@ -772,31 +772,40 @@ public class DesignDataManager {
         public ArrayList<String> events = new ArrayList<>();
     }
 
+    public static boolean isJsLogicTarget(String targetName) {
+        if (targetName == null) return false;
+        String lower = targetName.trim().toLowerCase(java.util.Locale.US);
+        return lower.endsWith(".js") || lower.startsWith("js_") || "js".equals(lower);
+    }
+
     public static String serializePageLogicData(PageLogicData data, String pageName) {
         StringBuilder sb = new StringBuilder();
-        
-        // _var
-        sb.append("@").append(pageName).append("_var\n");
-        if (data.lists != null) {
-            for (Pair<Integer, String> p : data.lists) {
-                sb.append(p.first).append(":").append(p.second).append("\n");
+        boolean includeJsMeta = isJsLogicTarget(pageName);
+
+        // _var (JS only)
+        if (includeJsMeta) {
+            sb.append("@").append(pageName).append("_var\n");
+            if (data.lists != null) {
+                for (Pair<Integer, String> p : data.lists) {
+                    sb.append(p.first).append(":").append(p.second).append("\n");
+                }
             }
-        }
-        if (data.variables != null) {
-            for (Pair<Integer, String> p : data.variables) {
-                sb.append(p.first).append(":").append(p.second).append("\n");
+            if (data.variables != null) {
+                for (Pair<Integer, String> p : data.variables) {
+                    sb.append(p.first).append(":").append(p.second).append("\n");
+                }
             }
-        }
-        sb.append("\n");
-        
-        // _func
-        sb.append("@").append(pageName).append("_func\n");
-        if (data.functions != null) {
-            for (Pair<String, String> p : data.functions) {
-                sb.append(p.first).append(":").append(p.second).append("\n");
+            sb.append("\n");
+
+            // _func (JS only)
+            sb.append("@").append(pageName).append("_func\n");
+            if (data.functions != null) {
+                for (Pair<String, String> p : data.functions) {
+                    sb.append(p.first).append(":").append(p.second).append("\n");
+                }
             }
+            sb.append("\n");
         }
-        sb.append("\n");
         
         // _components
         sb.append("@").append(pageName).append("_components\n");
@@ -1364,53 +1373,55 @@ public class DesignDataManager {
                 }
             }
 
-            // 2. Variables (_var)
-            ArrayList<Pair<Integer, String>> vars = null;
-            if (mapVariables != null) {
-                vars = mapVariables.get(cleanTarget);
-                if (vars == null) vars = mapVariables.get(target);
-            }
-
-            sb.append("@").append(target).append("_var\n");
-            if (vars != null) {
-                for (Pair<Integer, String> p : vars) {
-                    if (p != null && p.second != null) {
-                        int typeVal = p.first != null ? p.first : 2;
-                        int declType = (typeVal >= 4) ? 0 : 1; // 0=const, 1=let
-                        int varType = (typeVal >= 4) ? (typeVal - 4) : typeVal; // 0=bool, 1=num, 2=str
-                        sb.append(declType).append("-").append(varType).append(":").append(p.second).append("\n");
-                    }
+            if (isJsLogicTarget(target)) {
+                // 2. Variables (_var) — JS targets only
+                ArrayList<Pair<Integer, String>> vars = null;
+                if (mapVariables != null) {
+                    vars = mapVariables.get(cleanTarget);
+                    if (vars == null) vars = mapVariables.get(target);
                 }
-            }
-            sb.append("\n");
 
-            // 3. MoreBlocks (_moreblock)
-            ArrayList<Pair<String, String>> funcs = null;
-            if (mapFunctions != null) {
-                funcs = mapFunctions.get(cleanTarget);
-                if (funcs == null) funcs = mapFunctions.get(target);
-            }
-
-            sb.append("@").append(target).append("_moreblock\n");
-            if (funcs != null) {
-                for (Pair<String, String> f : funcs) {
-                    if (f != null && f.first != null) {
-                        sb.append(f.first).append(":").append(f.second != null ? f.second : "").append("\n");
-                    }
-                }
-            }
-            sb.append("\n");
-
-            // Function body blocks
-            if (blocksForTarget != null) {
-                for (Map.Entry<String, ArrayList<BlockBean>> entry : blocksForTarget.entrySet()) {
-                    String eventKey = entry.getKey();
-                    if (eventKey.startsWith("func_") && entry.getValue() != null && !entry.getValue().isEmpty()) {
-                        sb.append("@").append(target).append("_").append(eventKey).append("\n");
-                        for (BlockBean b : entry.getValue()) {
-                            sb.append(gson.toJson(b)).append("\n");
+                sb.append("@").append(target).append("_var\n");
+                if (vars != null) {
+                    for (Pair<Integer, String> p : vars) {
+                        if (p != null && p.second != null) {
+                            int typeVal = p.first != null ? p.first : 2;
+                            int declType = (typeVal >= 4) ? 0 : 1; // 0=const, 1=let
+                            int varType = (typeVal >= 4) ? (typeVal - 4) : typeVal; // 0=bool, 1=num, 2=str
+                            sb.append(declType).append("-").append(varType).append(":").append(p.second).append("\n");
                         }
-                        sb.append("\n");
+                    }
+                }
+                sb.append("\n");
+
+                // 3. MoreBlocks (_moreblock) — JS targets only
+                ArrayList<Pair<String, String>> funcs = null;
+                if (mapFunctions != null) {
+                    funcs = mapFunctions.get(cleanTarget);
+                    if (funcs == null) funcs = mapFunctions.get(target);
+                }
+
+                sb.append("@").append(target).append("_moreblock\n");
+                if (funcs != null) {
+                    for (Pair<String, String> f : funcs) {
+                        if (f != null && f.first != null) {
+                            sb.append(f.first).append(":").append(f.second != null ? f.second : "").append("\n");
+                        }
+                    }
+                }
+                sb.append("\n");
+
+                // Function body blocks
+                if (blocksForTarget != null) {
+                    for (Map.Entry<String, ArrayList<BlockBean>> entry : blocksForTarget.entrySet()) {
+                        String eventKey = entry.getKey();
+                        if (eventKey.startsWith("func_") && entry.getValue() != null && !entry.getValue().isEmpty()) {
+                            sb.append("@").append(target).append("_").append(eventKey).append("\n");
+                            for (BlockBean b : entry.getValue()) {
+                                sb.append(gson.toJson(b)).append("\n");
+                            }
+                            sb.append("\n");
+                        }
                     }
                 }
             }

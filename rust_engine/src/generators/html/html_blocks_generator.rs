@@ -227,11 +227,11 @@ pub fn load_definitions(
         css_prop_map.entry(k.to_string()).or_default().push(BlockDef {
             id: id.to_string(),
             category: if color == -1086464 {
-                "Layout & Dimensions".to_string()
+                "css_layout".to_string()
             } else if color == -13022805 {
-                "Text & Typography".to_string()
+                "css_text".to_string()
             } else {
-                "Style & Appearance".to_string()
+                "css_background".to_string()
             },
             block_type: " ".to_string(),
             color,

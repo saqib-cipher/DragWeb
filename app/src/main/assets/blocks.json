@@ -384,6 +384,70 @@
     "code": "padding: %1$s;\n"
   },
   {
+    "id": "setMarginTop",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "margin-top %d %m.unit",
+    "code": "margin-top: %1$s%2$s;\n"
+  },
+  {
+    "id": "setMarginBottom",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "margin-bottom %d %m.unit",
+    "code": "margin-bottom: %1$s%2$s;\n"
+  },
+  {
+    "id": "setMarginLeft",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "margin-left %d %m.unit",
+    "code": "margin-left: %1$s%2$s;\n"
+  },
+  {
+    "id": "setMarginRight",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "margin-right %d %m.unit",
+    "code": "margin-right: %1$s%2$s;\n"
+  },
+  {
+    "id": "setPaddingTop",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "padding-top %d %m.unit",
+    "code": "padding-top: %1$s%2$s;\n"
+  },
+  {
+    "id": "setPaddingBottom",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "padding-bottom %d %m.unit",
+    "code": "padding-bottom: %1$s%2$s;\n"
+  },
+  {
+    "id": "setPaddingLeft",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "padding-left %d %m.unit",
+    "code": "padding-left: %1$s%2$s;\n"
+  },
+  {
+    "id": "setPaddingRight",
+    "category": "css_layout",
+    "blockType": " ",
+    "color": "#0288D1",
+    "spec": "padding-right %d %m.unit",
+    "code": "padding-right: %1$s%2$s;\n"
+  },
+  {
     "id": "setOpacity",
     "category": "css_layout",
     "blockType": " ",
