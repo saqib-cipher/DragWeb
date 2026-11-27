@@ -380,15 +380,108 @@ public class ThemeAndResetLogicTest {
 
         BlockBean cssDecl = new BlockBean();
         cssDecl.id = "11";
-        cssDecl.opCode = "asdN";
-        cssDecl.category = "asd";
-        cssDecl.parameters = new ArrayList<>(Collections.singletonList("border: none;"));
+        cssDecl.opCode = "setMarginLeft";
+        cssDecl.category = "Layout & Dimensions";
+        cssDecl.code = "margin-left: %1$s%2$s;\n";
+        cssDecl.nextBlock = 12;
+        cssDecl.parameters = new ArrayList<>(Arrays.asList("5", "px"));
+
+        BlockBean cssDecl2 = new BlockBean();
+        cssDecl2.id = "12";
+        cssDecl2.opCode = "asdN";
+        cssDecl2.category = "asd";
+        cssDecl2.parameters = new ArrayList<>(Collections.singletonList("border: none;"));
 
         Map<String, ArrayList<BlockBean>> cssMap = new LinkedHashMap<>();
-        cssMap.put("onPageLoad_onPageLoad", new ArrayList<>(Arrays.asList(cssRule, cssDecl)));
+        cssMap.put("onPageLoad_onPageLoad", new ArrayList<>(Arrays.asList(cssRule, cssDecl, cssDecl2)));
         Set<String> validIds = new HashSet<>(Arrays.asList("taskInput", "addBtn"));
         String compiledCss = ExportManager.compileBlocksMapForMode(null, null, "css_style", cssMap, "css", validIds, false);
         assertTrue("Expected button selector preserved, got: " + compiledCss, compiledCss.contains("button {"));
-        assertTrue("Expected declaration nested inside button, got: " + compiledCss, compiledCss.contains("border: none;"));
+        assertTrue("Expected margin-left nested inside button, got: " + compiledCss, compiledCss.contains("margin-left: 5px;"));
+        assertTrue("Expected border: none inside button (not orphaned), got: " + compiledCss, compiledCss.indexOf("border: none;") < compiledCss.lastIndexOf("}"));
+
+        // Verify HTML blocks in page logic do not leak into JS output
+        BlockBean htmlTag = new BlockBean();
+        htmlTag.id = "20";
+        htmlTag.opCode = "html_tag_generic";
+        htmlTag.category = "Views";
+        htmlTag.code = "<%1$s %2$s>\n%3$s\n</%1$s>";
+        htmlTag.isConnectedToRoot = true;
+        assertFalse("HTML block must not be eligible for JS", ExportManager.isJsBlockEligible(htmlTag));
+
+        BlockBean htmlText = new BlockBean();
+        htmlText.id = "21";
+        htmlText.opCode = "html_text";
+        htmlText.category = "Text & Typography";
+        htmlText.code = "%1$s";
+        htmlText.parameters = new ArrayList<>(Collections.singletonList("My To-Do List"));
+        htmlText.isConnectedToRoot = true;
+        Map<String, ArrayList<BlockBean>> cssWithHtmlText = new LinkedHashMap<>();
+        cssWithHtmlText.put("onPageLoad_onPageLoad", new ArrayList<>(Arrays.asList(cssRule, cssDecl, cssDecl2, htmlText)));
+        String cssOut = ExportManager.compileBlocksMapForMode(null, null, "css_style", cssWithHtmlText, "css", validIds, false);
+        assertFalse("html_text must not leak into CSS output", cssOut.contains("My To-Do List"));
+
+        assertTrue(DesignDataManager.isJsLogicTarget("script.js"));
+        assertTrue(DesignDataManager.isJsLogicTarget("js_script"));
+        assertFalse(DesignDataManager.isJsLogicTarget("styles.css"));
+        assertFalse(DesignDataManager.isJsLogicTarget("index.html"));
+        DesignDataManager.PageLogicData emptyData = new DesignDataManager.PageLogicData();
+        String cssLogic = DesignDataManager.serializePageLogicData(emptyData, "styles.css");
+        assertFalse(cssLogic.contains("_var"));
+        assertFalse(cssLogic.contains("_func"));
+        String jsLogic = DesignDataManager.serializePageLogicData(emptyData, "script.js");
+        assertTrue(jsLogic.contains("@script.js_var"));
+
+        // Verify HTML linting: duplicate ID + missing alt/src on img
+        ArrayList<BlockBean> htmlLintBlocks = new ArrayList<>();
+        BlockBean img = new BlockBean();
+        img.id = "1";
+        img.opCode = "view_convert";
+        img.category = "Views";
+        img.parameters = new ArrayList<>(Collections.singletonList("img"));
+        img.subStack1 = -1;
+        BlockBean id1 = new BlockBean();
+        id1.id = "2";
+        id1.opCode = "htmlAttrId";
+        id1.category = "html_attr";
+        id1.parameters = new ArrayList<>(Collections.singletonList("hero"));
+        BlockBean id2 = new BlockBean();
+        id2.id = "3";
+        id2.opCode = "htmlAttrId";
+        id2.category = "html_attr";
+        id2.parameters = new ArrayList<>(Collections.singletonList("hero"));
+        htmlLintBlocks.add(img);
+        htmlLintBlocks.add(id1);
+        htmlLintBlocks.add(id2);
+        List<glab.dragweb.logic.LogicLinter.LintProblem> htmlProblems =
+                glab.dragweb.logic.LogicLinter.lint(null, "p1", "index.html", "onPageLoad", htmlLintBlocks);
+        assertTrue(htmlProblems.stream().anyMatch(p -> "html-duplicate-id".equals(p.ruleId)));
+        assertTrue(htmlProblems.stream().anyMatch(p -> "html-img-src".equals(p.ruleId)));
+        assertTrue(htmlProblems.stream().anyMatch(p -> "html-img-alt".equals(p.ruleId)));
+
+        // Verify JS linting: const reassignment + empty selector + Rhino syntax error
+        ArrayList<BlockBean> jsLintBlocks = new ArrayList<>();
+        BlockBean cDecl = new BlockBean();
+        cDecl.id = "10";
+        cDecl.opCode = "jsVarConst";
+        cDecl.category = "js_logic";
+        cDecl.parameters = new ArrayList<>(Arrays.asList("tax", "10"));
+        BlockBean cAssign = new BlockBean();
+        cAssign.id = "11";
+        cAssign.opCode = "jsVarAssign";
+        cAssign.category = "js_logic";
+        cAssign.parameters = new ArrayList<>(Arrays.asList("tax", "20"));
+        BlockBean badAsd = new BlockBean();
+        badAsd.id = "12";
+        badAsd.opCode = "asdN";
+        badAsd.category = "asd";
+        badAsd.parameters = new ArrayList<>(Collections.singletonList("const broken = (;"));
+        jsLintBlocks.add(cDecl);
+        jsLintBlocks.add(cAssign);
+        jsLintBlocks.add(badAsd);
+        List<glab.dragweb.logic.LogicLinter.LintProblem> jsProblems =
+                glab.dragweb.logic.LogicLinter.lint(null, "p1", "script.js", "onPageLoad", jsLintBlocks);
+        assertTrue(jsProblems.stream().anyMatch(p -> "js-const-assignment".equals(p.ruleId)));
+        assertTrue(jsProblems.stream().anyMatch(p -> "code-syntax-unbalanced".equals(p.ruleId) || "rhino-syntax-error".equals(p.ruleId)));
     }
 }

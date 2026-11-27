@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
@@ -87,73 +88,99 @@ public class LogicLinter {
             return problems;
         }
 
-        // Robust CSS detection: filename, eventName, or block signatures
-        boolean isCss = (filename != null && (filename.toLowerCase().endsWith(".css") || filename.toLowerCase().contains("css") || filename.toLowerCase().contains("style")))
-                     || (eventName != null && (eventName.toLowerCase().contains("css") || eventName.toLowerCase().contains("style")));
+        // Determine target language mode cleanly: HTML vs CSS vs JS
+        boolean isHtml = isHtmlContext(filename, eventName, blocks);
+        boolean isCss = !isHtml && isCssContext(filename, eventName, blocks);
+        boolean isJs = !isHtml && !isCss;
 
-        if (!isCss) {
+        String defaultDoc = isHtml
+                ? (filename != null && !filename.isEmpty() ? extractBaseName(filename) : "index.html")
+                : (isCss
+                    ? (filename != null && !filename.isEmpty() ? extractBaseName(filename) : "style.css")
+                    : (filename != null && !filename.isEmpty() ? extractBaseName(filename) : "script.js"));
+
+        // Fetch declared variables in project (JS only)
+        Set<String> declaredVars = new HashSet<>();
+        Set<String> constVars = new HashSet<>();
+        if (isJs) {
+            try {
+                ArrayList<Pair<Integer, String>> vars = DesignDataManager.getVariables(filename);
+                if (vars != null) {
+                    for (Pair<Integer, String> p : vars) {
+                        if (p.second != null && !p.second.trim().isEmpty()) {
+                            String name = p.second.trim();
+                            declaredVars.add(name);
+                            if (p.first >= 4) {
+                                constVars.add(name);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Gather all variables & functions assigned or defined in JS blocks
+        Set<String> assignedVars = new HashSet<>(declaredVars);
+        Set<String> usedVars = new HashSet<>();
+        Set<String> definedFunctions = new HashSet<>();
+        if (isJs) {
             for (BlockBean b : blocks) {
                 if (b == null) continue;
-                String op = b.opCode != null ? b.opCode.toLowerCase() : "";
-                String spec = b.spec != null ? b.spec.toLowerCase() : "";
-                if (op.startsWith("css") || op.contains("widget") || op.contains("margin") || op.contains("padding")
-                        || op.contains("hover") || op.contains("active") || op.contains("focus")
-                        || op.contains("display") || op.contains("color") || op.contains("font")
-                        || op.contains("flex") || op.contains("grid") || op.contains("gap")
-                        || op.contains("justify") || op.contains("align") || op.contains("opacity")
-                        || op.contains("clear") || op.contains("border") || op.contains("width") || op.contains("height")
-                        || spec.contains("widget") || spec.contains("hover") || spec.contains("margin")
-                        || spec.contains("padding") || spec.contains("display") || spec.contains("color")
-                        || spec.contains("gap") || spec.contains("opacity") || spec.contains("clear")) {
-                    isCss = true;
-                    break;
+                String op = b.opCode != null ? b.opCode : "";
+                if (op.equals("jsVarConst") || op.equals("jsConstGetById") || op.equals("jsConstQuerySelector")
+                        || op.equals("jsFunctionArrow") || op.equals("httpAwaitFetch") || op.equals("httpAwaitJson")) {
+                    if (b.parameters != null && !b.parameters.isEmpty() && b.parameters.get(0) != null) {
+                        String v = b.parameters.get(0).trim();
+                        if (!v.isEmpty()) {
+                            assignedVars.add(v);
+                            constVars.add(v);
+                        }
+                    }
+                } else if (op.equals("jsVarLet") || op.equals("jsLetGetById") || op.equals("jsSetupList")
+                        || op.startsWith("setVar") || op.startsWith("assignVar") || op.equals("jsVarAssign")
+                        || op.equals("jsAssignGetById") || op.equals("increaseInt") || op.equals("decreaseInt")
+                        || op.equals("jsVarInc") || op.equals("jsVarDec")) {
+                    if (b.parameters != null && !b.parameters.isEmpty() && b.parameters.get(0) != null) {
+                        String v = b.parameters.get(0).trim();
+                        if (!v.isEmpty()) {
+                            assignedVars.add(v);
+                        }
+                    }
+                } else if (op.equals("jsForOf") && b.parameters != null && !b.parameters.isEmpty()) {
+                    String v = b.parameters.get(0);
+                    if (v != null && !v.trim().isEmpty()) assignedVars.add(v.trim());
+                } else if (op.equals("jsForEach") && b.parameters != null && b.parameters.size() >= 2) {
+                    String v = b.parameters.get(1);
+                    if (v != null && !v.trim().isEmpty()) assignedVars.add(v.trim());
+                } else if (op.equals("jsTryCatch") && b.parameters != null && !b.parameters.isEmpty()) {
+                    String v = b.parameters.get(0);
+                    if (v != null && !v.trim().isEmpty()) assignedVars.add(v.trim());
+                } else if ((op.equals("jsFunctionDefine") || op.equals("jsAsyncFunction")) && b.parameters != null && b.parameters.size() >= 2) {
+                    String pStr = b.parameters.get(1);
+                    if (pStr != null) {
+                        for (String param : pStr.split(",")) {
+                            String pt = param.trim();
+                            if (!pt.isEmpty()) assignedVars.add(pt);
+                        }
+                    }
+                }
+                if (op.startsWith("getVar") || op.equals("jsVarRef")) {
+                    if (b.parameters != null && !b.parameters.isEmpty() && b.parameters.get(0) != null) {
+                        String v = b.parameters.get(0).trim();
+                        if (!v.isEmpty()) usedVars.add(v);
+                    }
                 }
             }
         }
 
-        String defaultDoc = isCss 
-                ? (filename != null && !filename.isEmpty() ? extractBaseName(filename) : "style.css") 
-                : (filename != null && !filename.isEmpty() ? extractBaseName(filename) : "script.js");
-
-        // Fetch declared variables in project
-        Set<String> declaredVars = new HashSet<>();
-        Set<String> constVars = new HashSet<>();
-        try {
-            ArrayList<Pair<Integer, String>> vars = DesignDataManager.getVariables(filename);
-            if (vars != null) {
-                for (Pair<Integer, String> p : vars) {
-                    if (p.second != null && !p.second.trim().isEmpty()) {
-                        String name = p.second.trim();
-                        declaredVars.add(name);
-                        if (p.first >= 4) {
-                            constVars.add(name);
-                        }
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-
-        // Gather all variables assigned or defined in blocks
-        Set<String> assignedVars = new HashSet<>(declaredVars);
-        Set<String> usedVars = new HashSet<>();
+        // Pre-index HTML blocks by id for container inspection & duplicate ID checks
+        Map<Integer, BlockBean> blockById = new HashMap<>();
+        Set<String> seenHtmlIds = new HashSet<>();
         for (BlockBean b : blocks) {
-            if (b == null) continue;
-            String op = b.opCode != null ? b.opCode : "";
-            if (op.startsWith("setVar") || op.startsWith("assignVar") || op.equals("jsVarAssign") || op.equals("increaseInt") || op.equals("decreaseInt")) {
-                if (b.parameters != null && !b.parameters.isEmpty()) {
-                    String v = b.parameters.get(0);
-                    if (v != null && !v.trim().isEmpty()) {
-                        assignedVars.add(v.trim());
-                    }
-                }
-            }
-            if (op.startsWith("getVar") || op.equals("getVar")) {
-                if (b.parameters != null && !b.parameters.isEmpty()) {
-                    String v = b.parameters.get(0);
-                    if (v != null && !v.trim().isEmpty()) {
-                        usedVars.add(v.trim());
-                    }
-                }
+            if (b != null && b.id != null) {
+                try {
+                    blockById.put(Integer.parseInt(b.id), b);
+                } catch (Exception ignored) {}
             }
         }
 
@@ -652,11 +679,19 @@ public class LogicLinter {
                 }
             }
 
+            // --- HTML SPECIFIC LINT RULES ---
+            if (isHtml) {
+                lintHtmlBlock(b, bId, op, params, location, blockById, seenHtmlIds, isAsd, problems);
+            }
+
             // --- JAVASCRIPT / LOGIC LINT RULES ---
-            if (!isCss) {
+            if (isJs) {
                 // Rule 11: Empty container / control block
-                boolean isControl = op.equals("if") || op.equals("ifElse") || op.equals("while") 
-                                 || op.equals("repeat") || op.equals("for") || op.equals("definedFunc");
+                boolean isControl = op.equals("if") || op.equals("ifElse") || op.equals("while")
+                                 || op.equals("repeat") || op.equals("for") || op.equals("definedFunc")
+                                 || op.equals("jsIf") || op.equals("jsIfElse") || op.equals("jsWhile")
+                                 || op.equals("jsForLoop") || op.equals("jsForOf") || op.equals("jsForEach")
+                                 || op.equals("jsTryCatch");
                 if (isControl && b.subStack1 == -1) {
                     problems.add(new LintProblem(
                             bId,
@@ -672,8 +707,149 @@ public class LogicLinter {
                     ));
                 }
 
+                // Rule 11b: Empty condition in if / while
+                if ((op.equals("jsIf") || op.equals("jsIfElse") || op.equals("jsWhile") || op.equals("if") || op.equals("while"))
+                        && (params.isEmpty() || params.get(0) == null || params.get(0).trim().isEmpty())) {
+                    problems.add(new LintProblem(
+                            bId,
+                            "Missing condition expression in '" + op + "' block",
+                            location,
+                            "js-empty-condition",
+                            SEVERITY_ERROR,
+                            "Provide a boolean condition expression"
+                    ));
+                }
+
+                // Rule 11c: Function definition name validation & duplicate check
+                if (op.equals("jsFunctionDefine") || op.equals("jsAsyncFunction") || op.equals("jsFunctionArrow")) {
+                    String fnName = !params.isEmpty() && params.get(0) != null ? params.get(0).trim() : "";
+                    if (fnName.isEmpty() || !isValidJsIdentifier(fnName)) {
+                        problems.add(new LintProblem(
+                                bId,
+                                "Invalid or empty function name '" + fnName + "'",
+                                location,
+                                "js-invalid-fn-name",
+                                SEVERITY_ERROR,
+                                "Use a valid JavaScript identifier (letters, digits, '_', '$')"
+                        ));
+                    } else if (!definedFunctions.add(fnName)) {
+                        problems.add(new LintProblem(
+                                bId,
+                                "Duplicate function declaration '" + fnName + "'",
+                                location,
+                                "js-duplicate-fn",
+                                SEVERITY_WARNING,
+                                "Rename one of the functions to avoid shadowing"
+                        ));
+                    }
+                }
+
+                // Rule 11d: Missing variable name / empty DOM selector / empty event / empty fetch URL
+                if ((op.equals("jsVarConst") || op.equals("jsVarLet"))
+                        && (params.size() < 2 || params.get(0) == null || params.get(0).trim().isEmpty()
+                            || params.get(1) == null || params.get(1).trim().isEmpty())) {
+                    problems.add(new LintProblem(
+                            bId,
+                            "Variable declaration is missing an identifier or initializer",
+                            location,
+                            "js-var-missing-value",
+                            SEVERITY_ERROR,
+                            "Specify both variable name and initial value"
+                    ));
+                }
+
+                if (op.equals("jsGetById") || op.equals("jsConstGetById") || op.equals("jsLetGetById")
+                        || op.equals("jsAssignGetById") || op.equals("jsQuerySelector")
+                        || op.equals("jsConstQuerySelector") || op.equals("jsQuerySelectorAll")) {
+                    int selIdx = (op.startsWith("jsConst") || op.startsWith("jsLet") || op.startsWith("jsAssign")) ? 1 : 0;
+                    String sel = params.size() > selIdx && params.get(selIdx) != null ? params.get(selIdx).trim() : "";
+                    if (sel.isEmpty()) {
+                        problems.add(new LintProblem(
+                                bId,
+                                "DOM query has an empty selector or element ID",
+                                location,
+                                "js-empty-selector",
+                                SEVERITY_ERROR,
+                                "Enter a valid element ID or CSS selector"
+                        ));
+                    }
+                }
+
+                if (op.equals("jsAddEventOnVar") || op.equals("jsAddEventAsyncOnVar")
+                        || op.equals("jsAddEventCallback") || op.equals("jsRemoveEventOnVar")) {
+                    String target = !params.isEmpty() && params.get(0) != null ? params.get(0).trim() : "";
+                    String ev = params.size() > 1 && params.get(1) != null ? params.get(1).trim() : "";
+                    if (target.isEmpty() || ev.isEmpty()) {
+                        problems.add(new LintProblem(
+                                bId,
+                                "Event listener is missing target element or event type",
+                                location,
+                                "js-invalid-listener",
+                                SEVERITY_ERROR,
+                                "Select both target element and event name (e.g. click)"
+                        ));
+                    }
+                }
+
+                if (op.equals("jsSetInnerHTML") || op.equals("jsQuerySetInnerHTML") || op.equals("jsInsertHTML")) {
+                    int valIdx = op.equals("jsInsertHTML") ? 2 : 1;
+                    String val = params.size() > valIdx && params.get(valIdx) != null ? params.get(valIdx).trim() : "";
+                    if (val.startsWith("@")) {
+                        problems.add(new LintProblem(
+                                bId,
+                                "Dynamic HTML injection via innerHTML/insertAdjacentHTML may expose XSS",
+                                location,
+                                "js-xss-innerhtml",
+                                SEVERITY_INFO,
+                                "Prefer .textContent when rendering untrusted text"
+                        ));
+                    }
+                }
+
+                if (op.equals("opLooseEq")) {
+                    problems.add(new LintProblem(
+                            bId,
+                            "Prefer strict equality ('===') over loose equality ('==')",
+                            location,
+                            "js-strict-equality",
+                            SEVERITY_INFO,
+                            "Use === to avoid unexpected JavaScript type coercion"
+                    ));
+                }
+
+                if (op.equals("httpFetchGet") || op.equals("httpFetchPost") || op.equals("httpFetchRequest")
+                        || op.equals("httpAsyncFetchGet") || op.equals("httpAsyncFetchPost")) {
+                    String url = !params.isEmpty() && params.get(0) != null ? params.get(0).trim() : "";
+                    if (url.isEmpty()) {
+                        problems.add(new LintProblem(
+                                bId,
+                                "Fetch request has an empty URL",
+                                location,
+                                "js-empty-fetch-url",
+                                SEVERITY_ERROR,
+                                "Provide a valid endpoint URL string"
+                        ));
+                    }
+                }
+
+                if (op.equals("jsSetTimeout") || op.equals("jsSetInterval") || op.equals("jsSetTimeoutCall") || op.equals("jsSetIntervalCall")) {
+                    String msStr = !params.isEmpty() && params.get(0) != null ? params.get(0).trim() : "";
+                    try {
+                        if (msStr.isEmpty() || Double.parseDouble(msStr) < 0) {
+                            problems.add(new LintProblem(
+                                    bId,
+                                    "Timer delay should be a non-negative number of milliseconds",
+                                    location,
+                                    "js-invalid-timer-delay",
+                                    SEVERITY_WARNING,
+                                    "Enter a delay >= 0 ms"
+                            ));
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+
                 // Rule 12: Uninitialized / undeclared variable
-                if (op.equals("getVar") || op.startsWith("getVar")) {
+                if (op.equals("getVar") || op.startsWith("getVar") || op.equals("jsVarRef")) {
                     if (!params.isEmpty()) {
                         String v = params.get(0);
                         if (v != null && !v.trim().isEmpty() && !assignedVars.contains(v.trim())) {
@@ -690,7 +866,9 @@ public class LogicLinter {
                 }
 
                 // Rule 13: Assignment to constant variable
-                if (op.startsWith("setVar") || op.startsWith("assignVar") || op.equals("jsVarAssign") || op.equals("increaseInt") || op.equals("decreaseInt")) {
+                if (op.startsWith("setVar") || op.startsWith("assignVar") || op.equals("jsVarAssign")
+                        || op.equals("jsAssignGetById") || op.equals("increaseInt") || op.equals("decreaseInt")
+                        || op.equals("jsVarInc") || op.equals("jsVarDec")) {
                     if (!params.isEmpty()) {
                         String v = params.get(0);
                         if (v != null && constVars.contains(v.trim())) {
@@ -707,7 +885,7 @@ public class LogicLinter {
                 }
 
                 // Rule 14: Potential infinite loop
-                if (op.equals("while") && !params.isEmpty()) {
+                if ((op.equals("while") || op.equals("jsWhile")) && !params.isEmpty()) {
                     String cond = params.get(0);
                     if (cond != null && (cond.trim().equals("true") || cond.trim().equals("1"))) {
                         problems.add(new LintProblem(
@@ -740,7 +918,7 @@ public class LogicLinter {
                     }
 
                     // Check loose equality in JS
-                    if (!isCss && (rawCode.contains(" == ") || rawCode.contains(" != "))) {
+                    if (isJs && (rawCode.contains(" == ") || rawCode.contains(" != "))) {
                         String fixedCode = rawCode.replace(" == ", " === ").replace(" != ", " !== ");
                         problems.add(new LintProblem(
                                 bId,
@@ -756,8 +934,20 @@ public class LogicLinter {
                         ));
                     }
 
+                    // Check unsafe eval / document.write in JS
+                    if (isJs && (rawCode.contains("eval(") || rawCode.contains("document.write("))) {
+                        problems.add(new LintProblem(
+                                bId,
+                                "Avoid 'eval()' and 'document.write()' for security and performance",
+                                location,
+                                "js-unsafe-eval",
+                                SEVERITY_WARNING,
+                                "Replace eval/document.write with safe DOM APIs or JSON.parse"
+                        ));
+                    }
+
                     // Check console.log
-                    if (!isCss && rawCode.contains("console.log")) {
+                    if (isJs && rawCode.contains("console.log")) {
                         String fixedCode = rawCode.replaceAll("console\\.log\\([^)]*\\);?", "// console.log(...);");
                         problems.add(new LintProblem(
                                 bId,
@@ -774,15 +964,15 @@ public class LogicLinter {
                     }
 
                     // Deep Rhino JavaScript Parser Check for accurate AST syntax validation
-                    if (!isCss) {
+                    if (isJs) {
                         lintWithRhinoParser(rawCode, defaultDoc, line, bId, problems);
                     }
                 }
             }
         }
 
-        // Rule 15: Check for declared variables never used
-        if (!isCss) {
+        // Rule 15: Check for declared variables never used (JS only)
+        if (isJs) {
             for (String dec : declaredVars) {
                 if (!usedVars.contains(dec) && !assignedVars.contains(dec)) {
                     problems.add(new LintProblem(
@@ -798,6 +988,223 @@ public class LogicLinter {
         }
 
         return problems;
+    }
+
+    private static boolean isHtmlContext(String filename, String eventName, ArrayList<BlockBean> blocks) {
+        if (filename != null) {
+            String fl = filename.toLowerCase(Locale.US);
+            if (fl.endsWith(".html") || fl.endsWith(".htm")) return true;
+        }
+        if (eventName != null && eventName.toLowerCase(Locale.US).contains("html")) return true;
+        int htmlScore = 0;
+        for (BlockBean b : blocks) {
+            if (b == null) continue;
+            String op = b.opCode != null ? b.opCode.toLowerCase(Locale.US) : "";
+            String cat = b.category != null ? b.category.toLowerCase(Locale.US) : "";
+            if (op.startsWith("html") || op.startsWith("view_convert") || cat.equals("html") || cat.equals("html_attr") || cat.equals("views")) {
+                htmlScore++;
+            }
+        }
+        return htmlScore > 0;
+    }
+
+    private static boolean isCssContext(String filename, String eventName, ArrayList<BlockBean> blocks) {
+        if (filename != null) {
+            String fl = filename.toLowerCase(Locale.US);
+            if (fl.endsWith(".css") || fl.contains("style")) return true;
+            if (fl.endsWith(".js")) return false;
+        }
+        if (eventName != null) {
+            String el = eventName.toLowerCase(Locale.US);
+            if (el.contains("css") || el.contains("style")) return true;
+        }
+        for (BlockBean b : blocks) {
+            if (b == null) continue;
+            String op = b.opCode != null ? b.opCode.toLowerCase(Locale.US) : "";
+            String cat = b.category != null ? b.category.toLowerCase(Locale.US) : "";
+            if (cat.equals("css") || cat.startsWith("css_") || cat.equals("responsive")
+                    || op.startsWith("css") || op.equals("setbackground") || op.equals("setbackgroundcolor")
+                    || op.equals("setpadding") || op.equals("setmargin") || op.equals("setborder")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isValidJsIdentifier(String name) {
+        if (name == null || name.isEmpty()) return false;
+        char first = name.charAt(0);
+        if (!Character.isLetter(first) && first != '_' && first != '$') return false;
+        for (int i = 1; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (!Character.isLetterOrDigit(c) && c != '_' && c != '$') return false;
+        }
+        return true;
+    }
+
+    private static void lintHtmlBlock(
+            BlockBean b,
+            int bId,
+            String op,
+            List<String> params,
+            String location,
+            Map<Integer, BlockBean> blockById,
+            Set<String> seenHtmlIds,
+            boolean isAsd,
+            List<LintProblem> problems) {
+        // 1. Tag blocks (view_convert, html_convert, html_tag_generic)
+        if (op.equals("view_convert") || op.equals("view_convert_leaf") || op.equals("html_convert") || op.equals("html_tag_generic")) {
+            String tag = !params.isEmpty() && params.get(0) != null ? params.get(0).trim().toLowerCase(Locale.US) : "";
+            if (tag.isEmpty()) {
+                problems.add(new LintProblem(
+                        bId,
+                        "HTML element block has an empty tag name",
+                        location,
+                        "html-empty-tag",
+                        SEVERITY_ERROR,
+                        "Select or enter a valid HTML tag (e.g. div, p, section)"
+                ));
+                return;
+            }
+            if (tag.equals("font") || tag.equals("center") || tag.equals("marquee") || tag.equals("blink") || tag.equals("strike")) {
+                problems.add(new LintProblem(
+                        bId,
+                        "Deprecated HTML tag '<" + tag + ">'",
+                        location,
+                        "html-deprecated-tag",
+                        SEVERITY_WARNING,
+                        "Use semantic HTML5 tags with CSS styling instead of <" + tag + ">"
+                ));
+            }
+            // Inspect subStack1 attributes on <img> and <a>
+            if (tag.equals("img") || tag.equals("a")) {
+                boolean hasSrc = false;
+                boolean hasAlt = false;
+                boolean hasHref = false;
+                int curId = b.subStack1;
+                Set<Integer> visited = new HashSet<>();
+                while (curId >= 0 && visited.add(curId)) {
+                    BlockBean child = blockById.get(curId);
+                    if (child == null) break;
+                    String cop = child.opCode != null ? child.opCode : "";
+                    String cp0 = (child.parameters != null && !child.parameters.isEmpty() && child.parameters.get(0) != null)
+                            ? child.parameters.get(0).trim() : "";
+                    if (cop.equals("htmlAttrSrc") && !cp0.isEmpty()) hasSrc = true;
+                    if (cop.equals("htmlAttrAlt") && !cp0.isEmpty()) hasAlt = true;
+                    if (cop.equals("htmlAttrHref")) {
+                        if (!cp0.isEmpty()) hasHref = true;
+                        if (cp0.toLowerCase(Locale.US).startsWith("javascript:")) {
+                            problems.add(new LintProblem(
+                                    bId,
+                                    "Avoid 'javascript:' URLs in <a href>",
+                                    location,
+                                    "html-unsafe-js-url",
+                                    SEVERITY_WARNING,
+                                    "Use a proper URL or attach an event listener in JS"
+                            ));
+                        }
+                    }
+                    curId = child.nextBlock;
+                }
+                if (tag.equals("img") && !hasSrc) {
+                    problems.add(new LintProblem(
+                            bId,
+                            "<img> element is missing a 'src' attribute",
+                            location,
+                            "html-img-src",
+                            SEVERITY_WARNING,
+                            "Add a valid image source URL or asset path"
+                    ));
+                }
+                if (tag.equals("img") && !hasAlt) {
+                    problems.add(new LintProblem(
+                            bId,
+                            "<img> element is missing an 'alt' attribute for accessibility",
+                            location,
+                            "html-img-alt",
+                            SEVERITY_INFO,
+                            "Add an alt description for screen readers and broken-image fallback"
+                    ));
+                }
+                if (tag.equals("a") && !hasHref) {
+                    problems.add(new LintProblem(
+                            bId,
+                            "<a> link element is missing an 'href' attribute",
+                            location,
+                            "html-a-href",
+                            SEVERITY_WARNING,
+                            "Add an href target URL (e.g. https://... or page.html)"
+                    ));
+                }
+            }
+        }
+
+        // 2. Duplicate ID check across page
+        if (op.equals("htmlAttrId")) {
+            String idVal = !params.isEmpty() && params.get(0) != null ? params.get(0).trim() : "";
+            if (idVal.isEmpty()) {
+                problems.add(new LintProblem(
+                        bId,
+                        "Empty HTML 'id' attribute",
+                        location,
+                        "html-empty-attr",
+                        SEVERITY_WARNING,
+                        "Provide a unique element ID or remove the empty attribute"
+                ));
+            } else if (!seenHtmlIds.add(idVal)) {
+                problems.add(new LintProblem(
+                        bId,
+                        "Duplicate HTML id '" + idVal + "' on the same page",
+                        location,
+                        "html-duplicate-id",
+                        SEVERITY_ERROR,
+                        "HTML element IDs must be unique; rename duplicate '" + idVal + "'"
+                ));
+            }
+        } else if (op.equals("htmlAttrClass") || op.equals("htmlAttrSrc") || op.equals("htmlAttrHref") || op.equals("htmlAttrName")) {
+            String val = !params.isEmpty() && params.get(0) != null ? params.get(0).trim() : "";
+            if (val.isEmpty()) {
+                problems.add(new LintProblem(
+                        bId,
+                        "HTML attribute block '" + op + "' has an empty value",
+                        location,
+                        "html-empty-attr",
+                        SEVERITY_WARNING,
+                        "Enter a non-empty attribute value or remove the block"
+                ));
+            }
+        }
+
+        // 3. Raw HTML in ASD blocks
+        if (isAsd && !params.isEmpty() && params.get(0) != null) {
+            String raw = params.get(0);
+            int lt = 0, gt = 0;
+            for (int i = 0; i < raw.length(); i++) {
+                char c = raw.charAt(i);
+                if (c == '<') lt++;
+                else if (c == '>') gt++;
+            }
+            if (lt != gt) {
+                problems.add(new LintProblem(
+                        bId,
+                        "Unbalanced HTML angle brackets ('<' vs '>')",
+                        location,
+                        "html-syntax-unbalanced",
+                        SEVERITY_ERROR,
+                        "Ensure every '<' tag has a matching '>'"
+                ));
+            }
+            if (raw.toLowerCase(Locale.US).contains("href=\"javascript:") || raw.toLowerCase(Locale.US).contains("href='javascript:")) {
+                problems.add(new LintProblem(
+                        bId,
+                        "Unsafe 'javascript:' href detected in raw HTML",
+                        location,
+                        "html-unsafe-js-url",
+                        SEVERITY_WARNING,
+                        "Move inline JavaScript handlers into script.js event listeners"
+                ));
+            }
+        }
     }
 
     /**
