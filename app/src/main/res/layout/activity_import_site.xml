@@ -32,7 +32,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Project Name"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+                style="@style/Widget.Dragweb.TextInputLayout">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etProjectName"
@@ -59,11 +59,12 @@
                 android:layout_marginTop="8dp"
                 app:singleSelection="true"
                 app:selectionRequired="true"
+                style="@style/Widget.Material3Expressive.MaterialButtonToggleGroup"
                 app:checkedButton="@id/btnModeFiles">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnModeFiles"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Material3Expressive.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -71,7 +72,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnModeZip"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Material3Expressive.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -79,7 +80,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnModeFolder"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Material3Expressive.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -486,13 +487,14 @@
                     android:id="@+id/toggleImportStylingMode"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    style="@style/Widget.Material3Expressive.MaterialButtonToggleGroup"
                     app:singleSelection="true"
                     app:selectionRequired="true"
                     app:checkedButton="@id/btnImportStyleUserOnly">
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnImportStyleInline"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.Material3Expressive.Button.OutlinedButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -500,7 +502,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnImportStyleConvert"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.Material3Expressive.Button.TonalButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -508,7 +510,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnImportStyleUserOnly"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.Material3Expressive.Button.OutlinedButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"

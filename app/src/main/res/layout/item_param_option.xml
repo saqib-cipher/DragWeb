@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+    app:strokeWidth="0dp"
+    style="?attr/materialCardViewFilledStyle">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="4dp"
+        android:paddingVertical="6dp">
+
+        <TextView
+            android:id="@+id/tvOptionText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="14sp"
+            android:textColor="?attr/colorOnSurface"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnEditOption"
+            style="@style/Widget.Material3Expressive.Button.IconButton"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="6dp"
+            android:contentDescription="Edit option"
+            app:icon="@drawable/pencil_code"
+            app:iconSize="16dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDeleteOption"
+            style="@style/Widget.Material3Expressive.Button.IconButton.Tonal"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="6dp"
+            android:contentDescription="Remove option"
+            app:icon="@drawable/x"
+            app:iconSize="16dp"
+            app:backgroundTint="?attr/colorError"
+            app:iconTint="?attr/colorOnError" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

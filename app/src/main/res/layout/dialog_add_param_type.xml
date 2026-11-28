@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="24dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="4dp">
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilParamTypeName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Parameter type name (e.g. position)"
+        app:helperText="Used in block spec as %m.&lt;name&gt;">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etParamTypeName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:singleLine="true" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilInitialOptions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="Initial options (optional, comma-separated)"
+        app:helperText="Example: static, relative, absolute, fixed">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etInitialOptions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textMultiLine"
+            android:maxLines="3" />
+    </com.google.android.material.textfield.TextInputLayout>
+</LinearLayout>

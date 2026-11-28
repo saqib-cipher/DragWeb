@@ -243,4 +243,55 @@ public class BlockParamTypeManager {
         customParamTypes.put(key, options != null ? new ArrayList<>(options) : new ArrayList<>());
         save();
     }
+
+    public boolean deleteCustomParamType(String typeName) {
+        if (typeName == null || typeName.trim().isEmpty()) return false;
+        String key = findMatchingKey(typeName);
+        boolean removed = (customParamTypes.remove(key) != null);
+        if (!removed) {
+            removed = (customParamTypes.remove(typeName) != null);
+        }
+        if (removed) {
+            save();
+        }
+        return removed;
+    }
+
+    public int importCustomParamTypes(Map<String, List<String>> imported, boolean replaceExisting) {
+        if (imported == null || imported.isEmpty()) return 0;
+        if (replaceExisting) {
+            customParamTypes.clear();
+        }
+        int count = 0;
+        for (Map.Entry<String, List<String>> entry : imported.entrySet()) {
+            String rawKey = entry.getKey();
+            if (rawKey == null || rawKey.trim().isEmpty()) continue;
+            String key = findMatchingKey(rawKey);
+            List<String> incoming = entry.getValue() != null ? entry.getValue() : new ArrayList<>();
+            List<String> cleaned = new ArrayList<>();
+            for (String item : incoming) {
+                if (item != null && !item.trim().isEmpty() && !cleaned.contains(item.trim())) {
+                    cleaned.add(item.trim());
+                }
+            }
+            if (!replaceExisting && customParamTypes.containsKey(key)) {
+                List<String> existing = customParamTypes.get(key);
+                if (existing != null) {
+                    for (String c : cleaned) {
+                        if (!existing.contains(c)) existing.add(c);
+                    }
+                    count++;
+                    continue;
+                }
+            }
+            customParamTypes.put(key, cleaned);
+            count++;
+        }
+        save();
+        return count;
+    }
+
+    public String exportCustomParamTypesJson() {
+        return new GsonBuilder().setPrettyPrinting().create().toJson(customParamTypes);
+    }
 }
