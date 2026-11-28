@@ -3376,8 +3376,8 @@ public class MainEditorFragment extends Fragment {
 		TextInputEditText etBorderColor = dialogView.findViewById(R.id.etBorderColor);
 		LinearLayout customVarsContainer = dialogView.findViewById(R.id.customVarsContainer);
 		Button btnAddCssVar = dialogView.findViewById(R.id.btnAddCssVar);
-		com.google.android.material.materialswitch.MaterialSwitch switchInlineStyles = dialogView.findViewById(R.id.switchInlineStyles);
-		com.google.android.material.materialswitch.MaterialSwitch switchDisableAll = dialogView.findViewById(R.id.switchDisableAllStyling);
+		com.google.android.material.button.MaterialButtonToggleGroup toggleStylingMode = dialogView.findViewById(R.id.toggleStylingMode);
+		TextView tvStylingModeDesc = dialogView.findViewById(R.id.tvStylingModeDesc);
 		Button btnResetTheme = dialogView.findViewById(R.id.btnResetTheme);
 
 		// Local custom variables buffer map: key -> {lightVal, darkVal}
@@ -3398,16 +3398,28 @@ public class MainEditorFragment extends Fragment {
 			dialogCustomVars.put(key, new String[]{lightVal, darkVal});
 		}
 
-		if (switchInlineStyles != null) {
-			switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
-			switchInlineStyles.setEnabled(!themeManager.isDisableAllStyling());
-		}
-		if (switchDisableAll != null) {
-			switchDisableAll.setChecked(themeManager.isDisableAllStyling());
-			switchDisableAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
-				if (switchInlineStyles != null) {
-					switchInlineStyles.setEnabled(!isChecked);
+		if (toggleStylingMode != null) {
+			Runnable updateStylingDesc = () -> {
+				if (tvStylingModeDesc == null) return;
+				int checked = toggleStylingMode.getCheckedButtonId();
+				if (checked == R.id.btnStyleUserOnly) {
+					tvStylingModeDesc.setText("Skip auto-generated widget styles; keep only theme.css and your custom CSS blocks.");
+				} else if (checked == R.id.btnStyleConvert) {
+					tvStylingModeDesc.setText("Widget styles are converted into CSS blocks in the Logic Editor.");
+				} else {
+					tvStylingModeDesc.setText("Export styling inside HTML tags instead of external CSS class definitions.");
 				}
+			};
+			if (themeManager.isDisableAllStyling()) {
+				toggleStylingMode.check(R.id.btnStyleUserOnly);
+			} else if (themeManager.isUseInlineStyles()) {
+				toggleStylingMode.check(R.id.btnStyleInline);
+			} else {
+				toggleStylingMode.check(R.id.btnStyleConvert);
+			}
+			updateStylingDesc.run();
+			toggleStylingMode.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+				if (isChecked) updateStylingDesc.run();
 			});
 		}
 
@@ -3542,12 +3554,14 @@ public class MainEditorFragment extends Fragment {
 						dialogCustomVars.put(key, new String[]{lightVal, darkVal});
 					}
 					populateFields.run();
-					if (switchInlineStyles != null) {
-						switchInlineStyles.setChecked(themeManager.isUseInlineStyles());
-						switchInlineStyles.setEnabled(!themeManager.isDisableAllStyling());
-					}
-					if (switchDisableAll != null) {
-						switchDisableAll.setChecked(themeManager.isDisableAllStyling());
+					if (toggleStylingMode != null) {
+						if (themeManager.isDisableAllStyling()) {
+							toggleStylingMode.check(R.id.btnStyleUserOnly);
+						} else if (themeManager.isUseInlineStyles()) {
+							toggleStylingMode.check(R.id.btnStyleInline);
+						} else {
+							toggleStylingMode.check(R.id.btnStyleConvert);
+						}
 					}
 					if (ThemeManager.THEME_DARK.equals(themeManager.getCurrentTheme())) {
 						btnDark.performClick();
@@ -3565,11 +3579,21 @@ public class MainEditorFragment extends Fragment {
 			.setPositiveButton("Apply", (dialog, which) -> {
 				saveFieldsToTheme.run();
 
-				if (switchInlineStyles != null) {
-					themeManager.setUseInlineStyles(switchInlineStyles.isChecked());
+				if (toggleStylingMode != null) {
+					int checkedId = toggleStylingMode.getCheckedButtonId();
+					if (checkedId == R.id.btnStyleUserOnly) {
+						themeManager.setDisableAllStyling(true);
+						themeManager.setUseInlineStyles(false);
+					} else if (checkedId == R.id.btnStyleConvert) {
+						themeManager.setDisableAllStyling(false);
+						themeManager.setUseInlineStyles(false);
+					} else {
+						themeManager.setDisableAllStyling(false);
+						themeManager.setUseInlineStyles(true);
+					}
 				}
-				if (switchDisableAll != null) {
-					themeManager.setDisableAllStyling(switchDisableAll.isChecked());
+				if (themeManager.isUseInlineStyles() || themeManager.isDisableAllStyling()) {
+					DesignDataManager.removePropertyStyleBlocks(requireContext().getApplicationContext(), projectId);
 				}
 
 				Map<String, String> newVars = new LinkedHashMap<>();

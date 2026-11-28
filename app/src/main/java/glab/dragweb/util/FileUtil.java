@@ -29,34 +29,46 @@ public class FileUtil {
         }
         if (context == null) return false;
 
-        if (SafStorageUtil.isStorageConfigured(context)) {
-            return true;
-        }
-        if (Build.VERSION.SDK_INT < 30) {
+        if (Build.VERSION.SDK_INT >= 30) {
+            return Environment.isExternalStorageManager();
+        } else {
             return ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
                 && ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
         }
-        return false;
     }
 
     public static boolean hasAnyStorageAccess(Context context) {
-        return hasStoragePermission(context);
+        return hasStoragePermission(context) || SafStorageUtil.isStorageConfigured(context);
     }
 
     public static boolean isAllFilesAccessGranted() {
-        return SafStorageUtil.isStorageConfigured(SketchApplication.getContext());
+        if (Build.VERSION.SDK_INT >= 30) {
+            return Environment.isExternalStorageManager();
+        }
+        return true;
     }
 
     public static void requestAllFilesAccessPermission(Context context) {
         if (context == null) return;
-        try {
-            Intent intent = SafStorageUtil.createFolderPickerIntent();
-            if (!(context instanceof Activity)) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        if (Build.VERSION.SDK_INT >= 30) {
+            try {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                intent.setData(Uri.parse("package:" + context.getPackageName()));
+                if (!(context instanceof Activity)) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                }
+                context.startActivity(intent);
+            } catch (Exception e) {
+                try {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                    if (!(context instanceof Activity)) {
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    }
+                    context.startActivity(intent);
+                } catch (Exception ex) {
+                    Log.e("FileUtil", "Cannot open all files access settings: " + ex.getMessage());
+                }
             }
-            context.startActivity(intent);
-        } catch (Exception ex) {
-            Log.e("FileUtil", "Cannot open SAF folder picker: " + ex.getMessage());
         }
     }
 

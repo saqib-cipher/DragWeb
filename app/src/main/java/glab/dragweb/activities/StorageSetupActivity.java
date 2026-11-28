@@ -124,10 +124,16 @@ public class StorageSetupActivity extends AppCompatActivity {
         }
 
         if (btnGrantAllFiles != null) {
-            btnGrantAllFiles.setText("Watch Tutorial");
-            btnGrantAllFiles.setOnClickListener(v ->
-                glab.dragweb.ui.WorkspaceFolderManager.showTutorialAndSelectDialog(this, this::launchFolderPicker)
-            );
+            btnGrantAllFiles.setOnClickListener(v -> {
+                if (Build.VERSION.SDK_INT >= 30) {
+                    FileUtil.requestAllFilesAccessPermission(this);
+                } else {
+                    androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    }, 1001);
+                }
+            });
         }
         btnSelectFolder.setOnClickListener(v -> launchFolderPicker());
 
@@ -137,8 +143,11 @@ public class StorageSetupActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (SafStorageUtil.isStorageConfigured(this)) {
-            Toast.makeText(this, "Workspace configured!", Toast.LENGTH_SHORT).show();
+        if (FileUtil.hasStoragePermission(this)) {
+            java.io.File dragWebDir = new java.io.File(Environment.getExternalStorageDirectory(), ".dragweb");
+            dragWebDir.mkdirs();
+            SafStorageUtil.initFolderStructure(dragWebDir);
+            Toast.makeText(this, "Storage access granted!", Toast.LENGTH_SHORT).show();
             finishSetup();
         } else {
             updateCurrentPath();

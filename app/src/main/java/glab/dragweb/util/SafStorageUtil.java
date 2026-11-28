@@ -70,20 +70,16 @@ public class SafStorageUtil {
             }
 
             boolean isDragWeb = false;
-            if (docId != null && docId.equalsIgnoreCase("primary:.dragweb")) {
+            if (name != null && name.equalsIgnoreCase(".dragweb")) {
                 isDragWeb = true;
-            } else {
-                String resolved = getPathFromTreeUri(context, treeUri);
-                String expected = new File(Environment.getExternalStorageDirectory(), ".dragweb").getAbsolutePath();
-                if (resolved != null && resolved.equalsIgnoreCase(expected)) {
-                    isDragWeb = true;
-                }
+            } else if (docId != null && (docId.endsWith("/.dragweb") || docId.equals("primary:.dragweb") || docId.endsWith(":.dragweb"))) {
+                isDragWeb = true;
             }
 
             if (isDragWeb) {
-                return new ValidationResult(true, ".dragweb", "Valid /storage/emulated/0/.dragweb folder");
+                return new ValidationResult(true, ".dragweb", "Valid .dragweb folder");
             } else {
-                return new ValidationResult(false, name != null ? name : "Unknown folder", "Selected folder must be /storage/emulated/0/.dragweb.");
+                return new ValidationResult(false, name != null ? name : "Unknown folder", "Selected folder does not match '.dragweb'.");
             }
         } catch (Exception e) {
             Log.e(TAG, "Error validating folder selection: " + e.getMessage(), e);
@@ -169,12 +165,6 @@ public class SafStorageUtil {
                 | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
                 | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            File defaultDir = new File(Environment.getExternalStorageDirectory(), ".dragweb");
-            String docId = defaultDir.exists() ? "primary%3A.dragweb" : "primary%3A";
-            Uri initialUri = Uri.parse("content://com.android.externalstorage.documents/document/" + docId);
-            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri);
-        }
         return intent;
     }
 

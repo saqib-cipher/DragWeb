@@ -483,5 +483,53 @@ public class ThemeAndResetLogicTest {
                 glab.dragweb.logic.LogicLinter.lint(null, "p1", "script.js", "onPageLoad", jsLintBlocks);
         assertTrue(jsProblems.stream().anyMatch(p -> "js-const-assignment".equals(p.ruleId)));
         assertTrue(jsProblems.stream().anyMatch(p -> "code-syntax-unbalanced".equals(p.ruleId) || "rhino-syntax-error".equals(p.ruleId)));
+
+        // Verify JsMoreBlockConverter extracts functions and rewrites calls with parameters
+        String jsSrc = "function greet(name, times) { console.log(name); }\ngreet(\"World\", 3);";
+        List<glab.dragweb.codegen.JsMoreBlockConverter.ExtractedFunction> fns =
+                glab.dragweb.codegen.JsMoreBlockConverter.extractTopLevelFunctions(jsSrc);
+        assertEquals(1, fns.size());
+        assertEquals("greet", fns.get(0).name);
+        assertEquals("greet %s.name %s.times", fns.get(0).spec);
+        assertEquals(2, fns.get(0).params.size());
+
+        java.util.Map<String, DesignDataManager.MoreBlockData> mbMap = new java.util.HashMap<>();
+        DesignDataManager.MoreBlockData mbData = new DesignDataManager.MoreBlockData();
+        mbData.name = fns.get(0).name;
+        mbData.spec = fns.get(0).spec;
+        mbMap.put("greet", mbData);
+
+        BlockBean callAsd = new BlockBean();
+        callAsd.id = "20";
+        callAsd.opCode = "asd";
+        callAsd.category = "asd";
+        callAsd.parameters = new ArrayList<>(Collections.singletonList("greet(\"World\", 3);"));
+        ArrayList<BlockBean> callList = new ArrayList<>(Collections.singletonList(callAsd));
+        glab.dragweb.codegen.JsMoreBlockConverter.rewriteMoreBlockCalls(callList, mbMap);
+        assertEquals("definedFunc", callAsd.opCode);
+        assertEquals("greet %s.name %s.times", callAsd.spec);
+        assertEquals(2, callAsd.parameters.size());
+        assertEquals("\"World\"", callAsd.parameters.get(0));
+        assertEquals("3", callAsd.parameters.get(1));
+
+        // Verify DesignDataManager.removePropertyStyleBlocks removes only isPropertyStyle blocks
+        DesignDataManager.initMaps();
+        ArrayList<BlockBean> cssBlocks = new ArrayList<>();
+        BlockBean propB = new BlockBean();
+        propB.id = "30";
+        propB.opCode = "css_rule";
+        propB.isPropertyStyle = true;
+        BlockBean userB = new BlockBean();
+        userB.id = "31";
+        userB.opCode = "css_rule";
+        userB.isPropertyStyle = false;
+        cssBlocks.add(propB);
+        cssBlocks.add(userB);
+        DesignDataManager.setBlocks("css_style", "onCreate_initializeLogic", cssBlocks);
+        boolean removed = DesignDataManager.removePropertyStyleBlocks(null, null);
+        assertTrue(removed);
+        ArrayList<BlockBean> remainingCss = DesignDataManager.getBlocks("css_style", "onCreate_initializeLogic");
+        assertEquals(1, remainingCss.size());
+        assertEquals("31", remainingCss.get(0).id);
     }
 }

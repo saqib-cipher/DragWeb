@@ -108,6 +108,44 @@ public class DesignDataManager {
         }
     }
 
+    /**
+     * Removes all auto-generated widget property style blocks ({@code isPropertyStyle == true})
+     * across all loaded targets in the project and persists the cleaned logic file.
+     * Call this when inline styling is re-enabled so CSS logic does not duplicate inline styles.
+     */
+    public static synchronized boolean removePropertyStyleBlocks(Context context, String projectId) {
+        if (context != null && projectId != null && !projectId.isEmpty()) {
+            File projDir = new File(FileUtil.getDragWebDir(context), "projects/" + projectId);
+            File unified = new File(projDir, "logic");
+            if (unified.exists()) {
+                loadSavedLogicFromUnifiedFile(context, projectId, unified);
+            } else {
+                loadSavedLogic(context, projectId, "css_style");
+            }
+        }
+        boolean modified = false;
+        if (mapBlocks != null) {
+            for (HashMap<String, ArrayList<BlockBean>> targetMap : mapBlocks.values()) {
+                if (targetMap == null) continue;
+                for (ArrayList<BlockBean> list : targetMap.values()) {
+                    if (list == null || list.isEmpty()) continue;
+                    java.util.Iterator<BlockBean> it = list.iterator();
+                    while (it.hasNext()) {
+                        BlockBean b = it.next();
+                        if (b != null && b.isPropertyStyle) {
+                            it.remove();
+                            modified = true;
+                        }
+                    }
+                }
+            }
+        }
+        if (modified && context != null && projectId != null && !projectId.isEmpty()) {
+            saveAllSavedLogic(context, projectId);
+        }
+        return modified;
+    }
+
     public static class MoreBlockData {
         public String name;
         public String type;

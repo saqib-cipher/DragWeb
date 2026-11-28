@@ -105,7 +105,7 @@ public class HomeActivity extends AppCompatActivity {
 	private ActivityResultLauncher<String> backupLauncher;
 	private ActivityResultLauncher<String[]> importZipLauncher;
 	private ActivityResultLauncher<String> backupSingleLauncher;
-	private ActivityResultLauncher<Intent> safWorkspaceLauncher;
+	private ActivityResultLauncher<String[]> storagePermissionLauncher;
 	private boolean hasPromptedStoragePermission = false;
 	private String pendingBackupProject = null;
 
@@ -162,25 +162,30 @@ public class HomeActivity extends AppCompatActivity {
 	}
 
 	private void checkStorageAccessOnResume() {
-		if (SafStorageUtil.isStorageConfigured(this)) {
-			hasPromptedStoragePermission = false;
+		if (FileUtil.hasStoragePermission(this)) {
 			return;
 		}
 		if (hasPromptedStoragePermission) return;
 		hasPromptedStoragePermission = true;
-		showWorkspaceTutorialPrompt();
+		showStoragePermissionPrompt();
 	}
 
-	private void showWorkspaceTutorialPrompt() {
-		WorkspaceFolderManager.showTutorialAndSelectDialog(this, this::launchSafWorkspacePicker);
-	}
-
-	private void launchSafWorkspacePicker() {
-		try {
-			safWorkspaceLauncher.launch(SafStorageUtil.createFolderPickerIntent());
-		} catch (Exception e) {
-			Toast.makeText(this, "Could not open folder picker: " + e.getMessage(), Toast.LENGTH_LONG).show();
-		}
+	private void showStoragePermissionPrompt() {
+		new MaterialAlertDialogBuilder(this)
+			.setTitle("Storage Access Required")
+			.setMessage("DragWeb saves and manages your website projects, HTML/CSS code, assets, and custom blocks in the '.dragweb' folder on your device storage.\n\nAll Files Access permission is required to create, load, and delete website projects.")
+			.setPositiveButton("Grant Access", (dialog, which) -> {
+				if (android.os.Build.VERSION.SDK_INT >= 30) {
+					FileUtil.requestAllFilesAccessPermission(this);
+				} else {
+					storagePermissionLauncher.launch(new String[]{
+						android.Manifest.permission.READ_EXTERNAL_STORAGE,
+						android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+					});
+				}
+			})
+			.setNegativeButton("Later", null)
+			.show();
 	}
 
 	private void ensureExternalDirectories() {
@@ -270,24 +275,21 @@ public class HomeActivity extends AppCompatActivity {
 			}
 		);
 
-		safWorkspaceLauncher = registerForActivityResult(
-			new ActivityResultContracts.StartActivityForResult(),
+		storagePermissionLauncher = registerForActivityResult(
+			new ActivityResultContracts.RequestMultiplePermissions(),
 			result -> {
-				Uri treeUri = (result.getResultCode() == RESULT_OK && result.getData() != null)
-					? result.getData().getData()
-					: null;
-				WorkspaceFolderManager.handlePickerResult(
-					this,
-					treeUri,
-					() -> {
-						hasPromptedStoragePermission = false;
-						ensureExternalDirectories();
-						loadProjects();
-						Toast.makeText(this, "Workspace .dragweb configured", Toast.LENGTH_SHORT).show();
-					},
-					this::launchSafWorkspacePicker,
-					this::showWorkspaceTutorialPrompt
-				);
+				boolean allGranted = true;
+				for (Boolean granted : result.values()) {
+					if (!Boolean.TRUE.equals(granted)) {
+						allGranted = false;
+						break;
+					}
+				}
+				if (allGranted) {
+					ensureExternalDirectories();
+					loadProjects();
+					Toast.makeText(this, "Storage permission granted", Toast.LENGTH_SHORT).show();
+				}
 			}
 		);
 
@@ -791,10 +793,17 @@ public class HomeActivity extends AppCompatActivity {
 					AppExecutors.mainThread(() -> {
 						try { progressDialog.dismiss(); } catch (Exception ignored) {}
 						if (stillExists) {
-							if (!SafStorageUtil.isStorageConfigured(this)) {
-								showWorkspaceTutorialPrompt();
+							if (android.os.Build.VERSION.SDK_INT >= 30 && !FileUtil.hasStoragePermission(this)) {
+								new MaterialAlertDialogBuilder(this)
+									.setTitle("Storage Permission Required")
+									.setMessage("Could not delete \"" + finalName + "\" because DragWeb needs All Files Access permission to delete files from older installations.\n\nPlease grant storage permission to delete this project.")
+									.setPositiveButton("Grant Access", (d, w) -> {
+										FileUtil.requestAllFilesAccessPermission(this);
+									})
+									.setNegativeButton("Cancel", null)
+									.show();
 							} else {
-								Toast.makeText(this, "Could not delete project folder. Please check workspace access.", Toast.LENGTH_LONG).show();
+								Toast.makeText(this, "Could not delete project folder. Please check storage permissions.", Toast.LENGTH_LONG).show();
 							}
 						} else {
 							Toast.makeText(this, "Project deleted", Toast.LENGTH_SHORT).show();
